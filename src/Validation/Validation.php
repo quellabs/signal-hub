@@ -10,7 +10,7 @@
 		 * @param array $variables
 		 * @return array|string|string[]|null
 		 */
-		protected function replaceVariablesInErrorString($string, array $variables) {
+		protected function replaceVariablesInErrorString($string, array $variables): array|string|null {
 			$pattern = '/{{\s{1}([a-zA-Z_][a-zA-Z0-9_]*)\s{1}}}/';
 			
 			return preg_replace_callback($pattern, function($matches) use ($variables) {

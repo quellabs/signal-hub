@@ -7,6 +7,7 @@
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\ParserException;
 	use Services\ObjectQuel\QuelException;
+	use Services\Validation\EntityToValidation;
 	
 	class OrmException extends \Exception { }
 	
@@ -257,9 +258,11 @@
 		
 		/**
 		 * Zoekt entiteiten op basis van het gegeven entiteitstype en de primaire sleutel.
-		 * @param string $entityType Het type van de entiteit die gezocht wordt.
-		 * @param mixed $primaryKey De primaire sleutel van de entiteit.
-		 * @return array De gevonden entiteiten
+		 * @template T
+		 * @param class-string<T> $entityType De fully qualified class name van de container
+		 * @param mixed $primaryKey De primaire sleutel van de entiteit
+		 * @return T[] De gevonden entiteiten
+		 * @throws \Exception
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
 			// Normaliseer de primaire sleutel.
@@ -280,9 +283,10 @@
 		
 		/**
 		 * Zoekt een entiteit op basis van het gegeven entiteitstype en primaire sleutel.
-		 * @param string $entityType Het type van de entiteit die gezocht wordt.
-		 * @param mixed $primaryKey De primaire sleutel van de entiteit.
-		 * @return ?object De gevonden entiteit of null als deze niet gevonden wordt.
+		 * @template T
+		 * @param class-string<T> $entityType De fully qualified class name van de container
+		 * @param mixed $primaryKey De primaire sleutel van de entiteit
+		 * @return T|null De gevonden entiteit of null als deze niet gevonden wordt
 		 */
 		public function find(string $entityType, $primaryKey): ?object {
 			// Normaliseer de primaire sleutel.
@@ -315,5 +319,15 @@
 		 */
 		public function remove(object $entity): void {
 			$this->unit_of_work->remove($entity);
+		}
+		
+		/**
+		 * Returns the valiation rules of a given entity
+		 * @param object $entity
+		 * @return array
+		 */
+		public function getValidationRules(object $entity): array {
+			$validate = new EntityToValidation($this->kernel);
+			return $validate->convert($entity);
 		}
 	}

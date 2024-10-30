@@ -6,8 +6,8 @@
     
     class Parser {
         
-        protected $lexer;
-        protected $ignore_annotations;
+        protected Lexer $lexer;
+        protected array $ignore_annotations;
     
         /**
          * Parser constructor.
@@ -187,13 +187,7 @@
                             continue;
                         }
                         
-                        if ((str_starts_with($value, "Orm\\")) !== false) {
-                            $tokenName = "\\Services\\AnnotationsReader\\Annotations\\{$value}";
-                        } elseif (!str_contains($value, "\\")) {
-							$tokenName = "\\Services\\AnnotationsReader\\Annotations\\{$value}";
-                        } else {
-							$tokenName = $value;
-                        }
+                        $tokenName = "\\Services\\AnnotationsReader\\Annotations\\{$value}";
     
                         if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
                             $parameters = $this->parseParameters();
