@@ -9,6 +9,7 @@
     use Services\AnnotationsReader\Annotations\BeforeFilter;
     use Services\AnnotationsReader\AnnotationsReader;
     use Services\Kernel\Resolvers\AnnotationResolver;
+    use Symfony\Component\Config\Definition\Exception\Exception;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     
@@ -23,6 +24,9 @@
 	     * Kernel constructor
 	     */
 		public function __construct() {
+			// Zet een custom exception handler voor wat mooiere exceptie meldingen
+			set_exception_handler([$this, 'customExceptionHandler']);
+			
 			// Lees de .env file in
 			$this->configuration = $this->readEnvironmentFile();
 			
@@ -49,6 +53,29 @@
 		}
 	    
 	    /**
+	     * Custom handler voor onafgehandelde excepties
+	     * @param \Throwable $exception
+	     * @return void
+	     */
+		public function customExceptionHandler(\Throwable $exception): void {
+		    $errorCode = $exception->getCode();
+		    $errorMessage = $exception->getMessage();
+		    $errorFile = $exception->getFile();
+		    $errorLine = $exception->getLine();
+		    $trace = $exception->getTraceAsString();
+		    
+		    // Extract variables to template
+		    extract(compact('errorCode', 'errorMessage', 'errorFile', 'errorLine', 'trace'));
+		    
+		    // Buffer de output
+		    ob_start();
+		    include __DIR__ . '/Templates/error.html.php';
+		    echo ob_get_clean();
+		    
+		    exit(1);
+	    }
+		
+		/**
 	     * Reads and parses the .env file into an array
 	     * Uses the vlucas/phpdotenv library to parse environment variables
 	     * Does not load variables into $_ENV or $_SERVER

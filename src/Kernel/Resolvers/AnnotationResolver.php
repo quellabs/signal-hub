@@ -104,17 +104,17 @@
 	     * @param Request $request The incoming HTTP request to resolve
 	     * @return array|null Returns matched route info or null if no match found
 	     *         array contains: controller class, method name and route variables
+	     * @throws \Exception
 	     */
 	    public function resolve(Request $request): ?array {
 		    // Get the absolute path to controllers directory
 		    $controllerDir = realpath(dirname(__FILE__) . DIRECTORY_SEPARATOR . ".." . DIRECTORY_SEPARATOR . ".." . DIRECTORY_SEPARATOR . "Controller");
-		    
+			
 		    // Get the list of controller files
 		    $fileList = $this->dirToArray($controllerDir);
 		    
 		    // Get and normalize request base URL
-		    //$url = explode("/", ltrim($request->getBaseUrl(), "/"));
-		    $url = explode("/", ltrim("hallo/Henk", "/"));
+		    $url = explode("/", ltrim($request->query->get('query'), "/"));
 		    
 		    // Loop through each controller file
 		    foreach($fileList as $fl) {
@@ -166,7 +166,6 @@
 			    }
 		    }
 		    
-		    // No matching route found
-		    return null;
+			throw new \Exception("No controller found for {$request->query->get('query')}");
 	    }
     }
