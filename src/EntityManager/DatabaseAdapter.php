@@ -8,7 +8,8 @@
 	 * Gemaakt door: Matthijs Bon
 	 * Datum: 10-12-2014
 	 */
-	class databaseAdapter {
+	class DatabaseAdapter {
+		
 		protected \ADOConnection|false $connection;
 		protected array $descriptions;
 		protected array $columns_ex_descriptions;
@@ -55,9 +56,15 @@
 			$this->last_error = 0;
 			$this->last_error_message = '';
 			$this->transaction_depth = 0;
+			
+			// Zet AdoDB opties
+			$ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
 
-			// setup adoDB
+			// Maak de database connectie
 			$this->connection = NewADOConnection($configuration['DB_DSN']);
+			
+			// Zet de max prepared statements count
+			$this->max_prepared_statement_count = $this->getMaxPreparedStatementCount();
 		}
 		
 		/**
@@ -67,7 +74,9 @@
 			if (isset($this->connection)) {
 				// close all named parameter handles
 				foreach ($this->prepared_statements_handles as $pth) {
-					$pth->close();
+					if (is_object($pth)) {
+						$pth->close();
+					}
 				}
 				
 				$this->connection->close();

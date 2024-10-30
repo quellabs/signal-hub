@@ -8,9 +8,10 @@
     use Services\EntityManager\Persister\DeletePersister;
     use Services\EntityManager\Persister\InsertPersister;
     use Services\EntityManager\Persister\UpdatePersister;
+    use Services\Kernel\BasicEnum;
     use Services\Kernel\Kernel;
     
-    class DirtyState extends \BasicEnum {
+    class DirtyState extends BasicEnum {
         const None = 0;
         const Dirty = 1;
         const New = 2;

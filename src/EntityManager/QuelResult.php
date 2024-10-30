@@ -18,9 +18,9 @@
 		private entityManager $entityManager;
 		private EntityStore $entityStore;
 		private PropertyHandler $propertyHandler;
-		private \Services\EntityManager\databaseAdapter $db;
+		private databaseAdapter $connection;
 		private AstRetrieve $retrieve;
-		private \mysqli_result $rs;
+		private \ADORecordSet_mysqli $rs;
 		private array $result;
 		private array $proxyEntityCache;
 		private int $index;
@@ -29,12 +29,12 @@
 		 * @param AstRetrieve $retrieve
 		 * @param \mysqli_result $rs
 		 */
-		public function __construct(UnitOfWork $unitOfWork, AstRetrieve $retrieve, \mysqli_result $rs) {
+		public function __construct(UnitOfWork $unitOfWork, AstRetrieve $retrieve, \ADORecordSet_mysqli $rs) {
 			$this->unitOfWork = $unitOfWork;
 			$this->entityManager = $unitOfWork->getEntityManager();
 			$this->entityStore = $unitOfWork->getEntityStore();
 			$this->propertyHandler = $unitOfWork->getPropertyHandler();
-			$this->db = $unitOfWork->getDB();
+			$this->connection = $unitOfWork->getConnection();
 			$this->retrieve = $retrieve;
 			$this->rs = $rs;
 			$this->result = [];
@@ -55,7 +55,7 @@
 		private function fetchResults(): void {
 			$ast = $this->retrieve->getValues();
 			
-			while ($row = $this->db->FetchRow($this->rs)) {
+			while ($row = $this->rs->fetchRow()) {
 				$updatedRow = [];
 				
 				// Converteer rijdata naar entiteiten of andere relevante data.

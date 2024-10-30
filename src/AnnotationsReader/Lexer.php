@@ -3,7 +3,6 @@
     namespace Services\AnnotationsReader;
 
     use Services\Kernel\BasicEnum;
-    use Throwable;
 
     /**
      * Class Token

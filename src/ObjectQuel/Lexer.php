@@ -2,13 +2,14 @@
     
     namespace Services\ObjectQuel;
 
+    use Services\Kernel\BasicEnum;
     use Throwable;
 
     /**
      * Class Token
      * @package Services\AnnotationsReader
      */
-    class Token extends \BasicEnum {
+    class Token extends BasicEnum {
         const None = 0;
         const Eof = 1;
         const Annotation = 2;

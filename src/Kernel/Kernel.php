@@ -3,6 +3,8 @@
     namespace Services\Kernel;
     
     use Dotenv\Dotenv;
+    use Dotenv\Exception\InvalidFileException;
+    use Dotenv\Exception\InvalidPathException;
     use Services\AnnotationsReader\Annotations\AfterFilter;
     use Services\AnnotationsReader\Annotations\BeforeFilter;
     use Services\AnnotationsReader\AnnotationsReader;
@@ -33,8 +35,11 @@
 					
 					if (file_exists($completePath)) {
 						include($completePath);
+						return true;
 					}
 				}
+				
+				return null;
 			});
 			
 			// Registreer alle services
@@ -48,15 +53,15 @@
 	     * Uses the vlucas/phpdotenv library to parse environment variables
 	     * Does not load variables into $_ENV or $_SERVER
 	     * @return array Array containing all environment variables as key-value pairs
-	     * @throws \Dotenv\Exception\InvalidFileException If the .env file format is invalid
-	     * @throws \Dotenv\Exception\InvalidPathException If the .env file cannot be found
+	     * @throws InvalidFileException If the .env file format is invalid
+	     * @throws InvalidPathException If the .env file cannot be found
 	     */
 	    private function readEnvironmentFile(): array {
 		    // Create a new Dotenv instance pointing to current directory
 		    $dotenv = Dotenv::createImmutable(__DIR__);
 		    
 		    // Read raw contents of the .env file from parent directory
-		    $content = file_get_contents(__DIR__ . '/../.env');
+		    $content = file_get_contents(__DIR__ . '/../../.env');
 		    
 		    // Parse the raw content into an associative array using Dotenv parser
 		    return $dotenv->parse($content);
