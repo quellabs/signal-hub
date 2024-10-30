@@ -26,11 +26,6 @@
 	use Services\ObjectQuel\Visitors\TransformRelationInViaToPropertyLookup;
 	use Services\ObjectQuel\Visitors\ValidateRelationInViaValid;
 	
-	/**
-	 * Thrown when an entity was not found
-	 */
-	class QuelException extends \Exception {}
-	
 	class ObjectQuel {
 		
 		/**
