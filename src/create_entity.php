@@ -1,6 +1,4 @@
 <?php
-require('Services/IpCheck.php');
-Services\IpCheck::isIpValidOrDie($_SERVER['REMOTE_ADDR']);
 
     error_reporting(0);
     ini_set('display_errors', 0);
@@ -8,11 +6,6 @@ Services\IpCheck::isIpValidOrDie($_SERVER['REMOTE_ADDR']);
 
     // ================================================
     
-    require('StApp.php');
-
-    // ================================================
-    
-    $stApp = stApp::instance();
     $table = $argv[1] ?? '';
 	
     if (!empty($table)) {
@@ -123,4 +116,3 @@ Services\IpCheck::isIpValidOrDie($_SERVER['REMOTE_ADDR']);
             file_put_contents("Services/Entity/{$tableCamelCase}Entity.php", $output);
         }
     }
-    
