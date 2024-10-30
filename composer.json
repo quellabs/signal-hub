@@ -1,0 +1,23 @@
+{
+  "config": {
+    "platform": {
+      "php": "8.2"
+    }
+  },
+  "require": {
+    "ext-json": "*",
+    "ext-mysqli": "*",
+    "ext-pdo": "*",
+    "ext-curl": "*",
+    "ext-gd": "*",
+    "ext-fileinfo": "*",
+    "adodb/adodb-php": "*",
+    "robmorgan/phinx": "^0.13.4",
+    "smarty/smarty": "^4.3",
+    "symfony/http-foundation": "*",
+    "symfony/finder": "*",
+    "symfony/http-client": "*",
+    "cakephp/database": "^4.4",
+    "vlucas/phpdotenv": "*"
+  }
+}
