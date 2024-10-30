@@ -18,7 +18,6 @@
 		private entityManager $entityManager;
 		private EntityStore $entityStore;
 		private PropertyHandler $propertyHandler;
-		private databaseAdapter $connection;
 		private AstRetrieve $retrieve;
 		private \ADORecordSet_mysqli $rs;
 		private array $result;
@@ -26,15 +25,16 @@
 		private int $index;
 		
 		/**
+		 * QuelResult constructor
+		 * @param UnitOfWork $unitOfWork
 		 * @param AstRetrieve $retrieve
-		 * @param \mysqli_result $rs
+		 * @param \ADORecordSet_mysqli $rs
 		 */
 		public function __construct(UnitOfWork $unitOfWork, AstRetrieve $retrieve, \ADORecordSet_mysqli $rs) {
 			$this->unitOfWork = $unitOfWork;
 			$this->entityManager = $unitOfWork->getEntityManager();
 			$this->entityStore = $unitOfWork->getEntityStore();
 			$this->propertyHandler = $unitOfWork->getPropertyHandler();
-			$this->connection = $unitOfWork->getConnection();
 			$this->retrieve = $retrieve;
 			$this->rs = $rs;
 			$this->result = [];
