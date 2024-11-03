@@ -2,22 +2,13 @@
 	
 	namespace Services\Validation;
 	
-	use Services\AnnotationsReader\AnnotationsReader;
-	use Services\AnnotationsReader\Annotations\Validation\Btw;
 	use Services\AnnotationsReader\Annotations\Validation\Date;
 	use Services\AnnotationsReader\Annotations\Validation\Email;
 	use Services\AnnotationsReader\Annotations\Validation\Length;
 	use Services\AnnotationsReader\Annotations\Validation\NotBlank;
-	use Services\AnnotationsReader\Annotations\Validation\NotHTML;
-	use Services\AnnotationsReader\Annotations\Validation\NotLongWord;
-	use Services\AnnotationsReader\Annotations\Validation\PhoneNumber;
 	use Services\AnnotationsReader\Annotations\Validation\RegExp;
 	use Services\AnnotationsReader\Annotations\Validation\Type;
-	use Services\AnnotationsReader\Annotations\Validation\ValidPassword;
 	use Services\AnnotationsReader\Annotations\Validation\ValueIn;
-	use Services\AnnotationsReader\Annotations\Validation\Zipcode;
-	use Services\EntityManager\ReflectionHandler;
-	use Services\Kernel\Kernel;
 	
 	class AnnotationsToValidation {
 		
