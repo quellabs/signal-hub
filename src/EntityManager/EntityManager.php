@@ -194,7 +194,7 @@
 				// Haal alle data op en stuur dit door naar QuelResult
 				$result = [];
 				while ($row = $rs->fetchRow()) {
-					$result = $row;
+					$result[] = $row;
 				}
 				
 				return new QuelResult($this, $e, $result);

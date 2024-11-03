@@ -58,11 +58,11 @@
 			$this->last_error_message = '';
 			$this->transaction_depth = 0;
 			
-			// Zet AdoDB opties
-			$ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;
-
 			// Maak de database connectie
 			$this->connection = NewADOConnection($configuration['DB_DSN']);
+			
+			// Zet AdoDB opties
+			$this->connection->setFetchMode(ADODB_FETCH_ASSOC);
 			
 			// Zet de max prepared statements count
 			$this->max_prepared_statement_count = $this->getMaxPreparedStatementCount();
