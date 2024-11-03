@@ -30,7 +30,7 @@
 		private PropertyHandler $propertyHandler;
 		private Serializer $serializer;
 		private AstRetrieve $retrieve;
-		private \ADORecordSet $rs;
+		private array $data;
 		private array $result;
 		private array $proxyEntityCache;
 		private int $index;
@@ -41,16 +41,16 @@
 		/**
 		 * @param entityManager $entityManager
 		 * @param AstRetrieve $retrieve
-		 * @param \ADORecordSet $rs
+		 * @param array $data
 		 */
-		public function __construct(EntityManager $entityManager, AstRetrieve $retrieve, \ADORecordSet $rs) {
+		public function __construct(EntityManager $entityManager, AstRetrieve $retrieve, array $data) {
 			$this->entityManager = $entityManager;
 			$this->unitOfWork = $entityManager->getUnitOfWork();
 			$this->entityStore = $entityManager->getEntityStore();
 			$this->propertyHandler = new PropertyHandler();
 			$this->serializer = new Serializer($entityManager->getEntityStore());
 			$this->retrieve = $retrieve;
-			$this->rs = $rs;
+			$this->data = $data;
 			$this->result = [];
 			$this->proxyEntityCache = [];
 			$this->index = 0;
@@ -113,7 +113,7 @@
 			$relationCache = [];
 			
 			// Loop door de rijen van het resultaatset.
-			while ($row = $this->rs->FetchRow()) {
+			foreach($this->data as $row) {
 				$updatedRow = [];
 				
 				// Indien dit de eerste rij is, sla dan de gefilterde kolommen op per entiteit.

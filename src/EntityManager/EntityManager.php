@@ -191,7 +191,13 @@
 					return null;
 				}
 				
-				return new QuelResult($this, $e, $rs);
+				// Haal alle data op en stuur dit door naar QuelResult
+				$result = [];
+				while ($row = $rs->fetchRow()) {
+					$result = $row;
+				}
+				
+				return new QuelResult($this, $e, $result);
 			} catch (ParserException|LexerException|QuelException $e) {
 				$this->error_message = $e->getMessage();
 				return null;
