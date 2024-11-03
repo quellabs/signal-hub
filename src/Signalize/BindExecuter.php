@@ -4,32 +4,32 @@
 	
 	class BindExecuter extends Executer {
 		
-		private $config_item;
-		private $map;
-		private $configData;
+		private array $map;
+		private array $configData;
+		private array $result;
+		private string $event;
 		
 		/**
 		 * BindExecuter constructor
-		 * @param array $configItem
+		 * @param string $bytecode
 		 * @param array $map
 		 * @param array $flattenedConfigData
-		 * @param array $globalVariables
-		 * @throws \Exception
 		 */
-		public function __construct(array $configItem=[], array $map=[], array $flattenedConfigData=[], array $globalVariables=[]) {
-			$this->config_item = $configItem;
+		public function __construct(string $event, string $bytecode, array $map=[], array $flattenedConfigData=[]) {
+			$this->event = $event;
 			$this->map = $map;
 			$this->configData = $flattenedConfigData;
-			parent::__construct($globalVariables);
+			$this->result = [];
+			parent::__construct($bytecode);
 		}
 		
 		/**
 		 * Array search but with a callback
 		 * @param array $arr
-		 * @param $func
-		 * @return false|int|string
+		 * @param callable $func
+		 * @return mixed
 		 */
-		protected function arraySearchFunc(array $arr, $func) {
+		protected function arraySearchFunc(array $arr, callable $func): mixed {
 			foreach ($arr as $key => $v) {
 				if ($func($v)) {
 					return $key;
@@ -46,15 +46,13 @@
 		 * @return array|null
 		 */
 		private function getConfigItem(string $container, string $key): ?array {
-			$filtered = array_filter($this->configData, function($item) use ($container, $key) {
-				return ($item["container"] === $container) && ($item["key"] === $key);
-			});
-			
-			if (empty($filtered)) {
-				return null;
+			foreach ($this->configData as $item) {
+				if (($item["container"] === $container) && ($item["key"] === $key)) {
+					return $item;
+				}
 			}
-			
-			return $filtered[array_key_first($filtered)];
+
+			return null;
 		}
 		
 		/**
@@ -69,96 +67,124 @@
 			if (!$firstItem || !isset($firstItem["value"])) {
 				return null;
 			}
+
+			if (is_array($firstItem["value"])) {
+				return $firstItem["value"][0]["translation"];
+			}
 			
 			return (string)$firstItem["value"];
 		}
 		
 		/**
-		 * Evaluates/executes an ast
-		 * @param array $ast
-		 * @return array
+		 * Execute function
+		 * @param string $functionName
+		 * @param array $parameters
+		 * @return mixed
+		 * @throws \Exception
 		 */
-		public function evaluateAst(array $ast, array $symbolTable=[]): array {
-			switch ($ast['type']) {
-				case "stVariableLookup" :
-					$splitIndex = $this->arraySearchFunc($this->map["st"], function($e) use ($ast) { return $e["key"] == $ast["key"]; });
-
-					return [
-						'type'    => 'value',
-						'subType' => 'string',
-						'value'   => $this->map["st"][$splitIndex]["value"] ?? ""
-					];
+		protected function handleFunctionCall(string $functionName, array $parameters): mixed {
+			switch ($functionName) {
+				case 'Write':
+					return null;
 				
-				case "bindVariableLookup" :
-					return [
-						'type'    => 'value',
-						'subType' => 'string',
-						'value'   => $this->getConfigValue($ast["container"], $ast["key"])
-					];
+				case 'WriteLn':
+					return null;
 				
-				case 'internalFunctionCall' :
-					switch ($ast['name']) {
-						case 'GetSelectedOptionId':
-							$container = $this->evaluateAst($ast["parameters"][0]);
-							$key = $this->evaluateAst($ast["parameters"][1]);
-							$element = $this->getConfigItem($container["value"], $key["value"]);
-							$selectedOption = $element["selectedOption"] ?? [];
-							
-							return [
-								'type'    => 'value',
-								'subType' => 'string',
-								'value'   => (string)$selectedOption["id"] ?? ""
-							];
+				case 'GetSelectedOptionId' :
+					$element = $this->getConfigItem($parameters[0], $parameters[1]);
+					$selectedOption = $element["selectedOption"] ?? [];
+					return (string)$selectedOption["id"] ?? "";
 
-						case 'GetSelectedOptionExtraValue':
-							$container = $this->evaluateAst($ast["parameters"][0]);
-							$key = $this->evaluateAst($ast["parameters"][1]);
-							$index = $this->evaluateAst($ast["parameters"][2]);
-							$element = $this->getConfigItem($container["value"], $key["value"]);
-							$selectedOption = $element["selectedOption"];
-							
-							return [
-								'type'    => 'value',
-								'subType' => 'string',
-								'value'   => (string)$selectedOption["options"][$index["value"]] ?? ""
-							];
-							
-						default :
-							return parent::evaluateAst($ast);
+				case 'GetSelectedOptionExtraValue' :
+					$element = $this->getConfigItem($parameters[0], $parameters[1]);
+					$selectedOption = $element["selectedOption"];
+					return (string)$selectedOption["options"][$parameters[2]["value"]] ?? "";
+					
+				case 'SetValue' :
+					$container = $parameters[0];
+					$key = $parameters[1];
+						
+					foreach ($this->configData as &$item) {
+						if (($item["container"] === $container) && ($item["key"] === $key)) {
+							$item["value"] = $parameters[2];
+							break;
+						}
 					}
-				
-				default :
-					return parent::evaluateAst($ast);
+					
+					return null;
+					
+				default:
+					return parent::handleFunctionCall($functionName, $parameters);
 			}
 		}
 		
 		/**
-		 * Evaluates all ast's in the array
-		 * @return void
-		 * @throws \Exception
+		 * Behandelt configuratie-opzoekingen in de bytecode.
+		 * @param string $bytecode De bytecode die een configuratie-opzoeking aangeeft.
+		 * @return mixed De opgezochte configuratiewaarde.
 		 */
-		public function execute(array &$items): void {
-			if (!empty($items)) {
-				for ($i = 0; $i < count($items); ++$i) {
-					switch ($items[$i]["type"]) {
-						case "enabled" :
-						case "visible" :
-							$items[$i]["result"] = $this->evaluateAst($items[$i]["ast"]);
-							
-							if ($items[$i]["result"]["subType"] != "bool") {
-								throw new \Exception("TypeError: {$items[$i]["type"]} bind expects condition to be boolean");
-							}
-							
-							break;
-							
-						case 'options' :
-							for ($j = 0; $j < count($items[$i]["items"]); ++$j) {
-								$items[$i]["items"][$j]["result"] = $this->evaluateAst($items[$i]["items"][$j]["ast"]);
-							}
-							
-							break;
-					}
-				}
+		protected function handleConfigLookup(string $bytecode): mixed {
+			// Controleer of de bytecode een punt (".") bevat, wat wijst op een genestelde configuratie.
+			if (str_contains($bytecode, ".")) {
+				$container = substr($bytecode, 1, strpos($bytecode, ".") - 1);
+				$key = substr($bytecode, strpos($bytecode, ".") + 1);
+				return $this->getConfigValue($container, $key);
 			}
+			
+			// Als er geen punt in de bytecode zit, behandel het als een enkele sleutel.
+			$key = substr($bytecode, 1);
+			$splitIndex = $this->arraySearchFunc($this->map["st"], fn($e) => $e["key"] == $key);
+			return $this->map["st"][$splitIndex]["value"] ?? "";
+		}
+
+		/**
+		 * Voert de huidige bytecode-instructie uit en retourneert het resultaat.
+		 * @return mixed Het resultaat van de uitgevoerde bytecode-instructie.
+		 */
+		public function executeByteCode(?string $event=null): mixed {
+			// Haal de huidige bytecode op basis van de huidige positie.
+			$currentBytecode = $this->bytecode[$this->pos];
+			
+			// Verwerk value bind
+			if ($event == "click") {
+				$this->executeByteCode();
+				return null;
+			}
+			
+			// Verwerk diverse binds
+			if (in_array($event, ["visible", "enable", "options", "value"])) {
+				return $this->executeByteCode();
+			}
+			
+			// Verwerk "css", en "style" binds
+			if (in_array($event, ["css", "style"])) {
+				// Verhoog de positie en splits de bytecode om de optie namen te verkrijgen.
+				$optionNames = json_decode($this->bytecode[$this->pos++], true);
+				
+				// Maak een array van resultaten door de bijbehorende bytecodes uit te voeren.
+				$items = [];
+				foreach($optionNames as $name) {
+					$items[$name] = $this->executeByteCode();
+				}
+				
+				return $items;
+			}
+			
+			// Verwerk configuratie-opzoekingen met "@"
+			if (str_starts_with($currentBytecode, "@")) {
+				$bytecode = $this->bytecode[$this->pos++];
+				return $this->handleConfigLookup($bytecode);
+			}
+			
+			// Roep de executeByteCode-methode van de ouderklasse aan als er geen specifieke bytecode wordt herkend.
+			return parent::executeByteCode();
+		}
+		
+		/**
+		 * Returns the parsed result
+		 * @return array
+		 */
+		public function getResult(): array {
+			return $this->result;
 		}
 	}

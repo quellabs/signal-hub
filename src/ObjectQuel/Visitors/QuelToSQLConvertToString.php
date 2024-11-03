@@ -4,6 +4,7 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	// Importeer de vereiste klassen en interfaces
+	use Services\AnnotationsReader\Annotations\Orm\Column;
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstAnd;
@@ -22,6 +23,7 @@
 	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRegExp;
+	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
 	use Services\ObjectQuel\Ast\AstTerm;
 	use Services\ObjectQuel\Ast\AstUCount;
@@ -30,7 +32,7 @@
     use Services\ObjectQuel\Ast\AstCheckNotNull;
     
     /**
-	 * Class RetrieveEntities
+	 * Class QuelToSQLConvertToString
 	 * Implementeert AstVisitor om entiteiten uit een AST te verzamelen.
 	 */
 	class QuelToSQLConvertToString implements AstVisitorInterface {
@@ -41,17 +43,20 @@
 		// Array om verzamelde entiteiten op te slaan
 		private array $result;
 		private array $visitedNodes;
+		private array $parameters;
 		private string $partOfQuery;
 		
 		/**
 		 * Constructor om de entities array te initialiseren.
 		 * @param EntityStore $store
+		 * @param array $parameters
 		 * @param string $partOfQuery
 		 */
-		public function __construct(EntityStore $store, string $partOfQuery="VALUES") {
+		public function __construct(EntityStore $store, array &$parameters, string $partOfQuery="VALUES") {
 			$this->result = [];
 			$this->visitedNodes = [];
 			$this->entityStore = $store;
+			$this->parameters = &$parameters;
 			$this->partOfQuery = $partOfQuery;
 		}
 		
@@ -61,14 +66,67 @@
 		 * @return void
 		 */
 		protected function addToVisitedNodes(AstInterface $ast): void {
-			$this->visitedNodes[spl_object_hash($ast)] = true;
+			$this->visitedNodes[spl_object_id($ast)] = true;
+		}
+		
+		/**
+		 * Converteer de zoekoperator naar SQL
+		 * @param AstSearch $search
+		 * @return void
+		 */
+		protected function handleSearch(AstSearch $search): void {
+			$searchKey = uniqid();
+			$parsed = $search->parseSearchData($this->parameters);
+			$conditions = [];
+			
+			foreach ($search->getIdentifiers() as $identifier) {
+				// Mark nodes as visited
+				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
+				$this->addToVisitedNodes($identifier);
+				
+				// Get column name
+				$entityName = $identifier->getEntityName();
+				$rangeName = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
+				$propertyName = $identifier->getName();
+				$columnMap = $this->entityStore->getColumnMap($entityName);
+				$columnName = "{$rangeName}.{$columnMap[$propertyName]}";
+				
+				// Build conditions for this identifier
+				$fieldConditions = [];
+				$termTypes = [
+					'or_terms'  => ['operator' => 'OR', 'comparison' => 'LIKE'],
+					'and_terms' => ['operator' => 'AND', 'comparison' => 'LIKE'],
+					'not_terms' => ['operator' => 'AND', 'comparison' => 'NOT LIKE']
+				];
+				
+				foreach ($termTypes as $termType => $config) {
+					$termConditions = [];
+					
+					foreach ($parsed[$termType] as $i => $term) {
+						$paramName = "{$termType}{$searchKey}{$i}";
+						$termConditions[] = "{$columnName} {$config['comparison']} :{$paramName}";
+						$this->parameters[$paramName] = "%{$term}%";
+					}
+					
+					if (!empty($termConditions)) {
+						$fieldConditions[] = '(' . implode(" {$config['operator']} ", $termConditions) . ')';
+					}
+				}
+				
+				if (!empty($fieldConditions)) {
+					$conditions[] = '(' . implode(' AND ', $fieldConditions) . ')';
+				}
+			}
+			
+			// Combine all field conditions with OR
+			$this->result[] = '(' . implode(" OR ", $conditions) . ')';
 		}
 		
 		/**
 		 * Verwerkt een AstConcat-object en converteert het naar de SQL CONCAT-functie.
 		 * @param AstConcat $concat Het AstConcat-object met de te verwerken parameters.
 		 */
-		protected function handleConcat(AstConcat $concat) {
+		protected function handleConcat(AstConcat $concat): void {
 			// Start de CONCAT-functie in SQL.
 			$this->result[] = "CONCAT(";
 			
@@ -82,7 +140,7 @@
 				}
 				
 				// Accepteer het huidige parameterobject en verwerk het.
-				$concat->accept($parameter);
+				$parameter->accept($this);
 				++$counter;
 			}
 			
@@ -111,6 +169,7 @@
 					if (str_contains($stringValue, "*") || str_contains($stringValue, "?")) {
 						// Voeg de string toe aan bezochte nodes voor mogelijke verdere verwerking.
 						$this->addToVisitedNodes($stringAst);
+						
 						// Verwerk de linkerzijde van de expressie.
 						$ast->getLeft()->accept($this);
 						
@@ -266,17 +325,40 @@
 		/**
 		 * Verwerkt een AstIdentifier-object
 		 * @param AstIdentifier $ast Het AstIdentifier-object
-		 * @param string $alias
 		 * @return void
 		 */
-		protected function handleIdentifier(AstIdentifier $ast, string $alias=""): void {
-			$this->addToVisitedNodes($ast->getEntity());
+		protected function handleIdentifier(AstIdentifier $ast): void {
+			// Ast or parent identifier
+			$entityOrParentIdentifier = $ast->getEntityOrParentIdentifier();
 			
-			$range = $ast->getEntity()->getRange();
+			// Visit the node
+			$this->addToVisitedNodes($entityOrParentIdentifier);
+			
+			// Haal informatie van de identifier op
+			$range = $entityOrParentIdentifier->getRange();
 			$rangeName = $range->getName();
-			$columnMap = $this->entityStore->getColumnMap($ast->getEntity()->getName());
+			$entityName = $entityOrParentIdentifier->getName();
+			$propertyName = $ast->getName();
+			$columnMap = $this->entityStore->getColumnMap($entityName);
 			
-			$this->result[] = $rangeName . "." . $columnMap[$ast->getPropertyName()];
+			// Als dit niet het onderdeel 'SORT BY' is, voeg dan de genormaliseerde property toe
+			if ($this->partOfQuery !== "SORT") {
+				$this->result[] = $rangeName . "." . $columnMap[$propertyName];
+				return;
+			}
+			
+			// Als dit wel een 'SORT BY' is, dan moeten we mogelijk een NULL waarde omzetten naar COALESCE.
+			// Zonder COALESCE wordt er niet correct gesorteerd.
+			$annotations = $this->entityStore->getAnnotations($entityName);
+			$annotationsOfProperty = array_values(array_filter($annotations[$propertyName], function($e) { return $e instanceof Column; }));
+			
+			if (!$annotationsOfProperty[0]->isNullable()) {
+				$this->result[] = $rangeName . "." . $columnMap[$propertyName];
+			} elseif ($annotationsOfProperty[0]->getType() === "int") {
+				$this->result[] = "COALESCE({$rangeName}.{$columnMap[$propertyName]}, 0)";
+			} else {
+				$this->result[] = "COALESCE({$rangeName}.{$columnMap[$propertyName]}, '')";
+			}
 		}
 		
 		/**
@@ -307,7 +389,7 @@
 		}
 		
 		/**
-		 * Verwerkt de 'IN' conditie van een SQL query.
+		 * Verwerkt de 'IN' conditie van een SQL-query.
 		 * De 'IN' conditie wordt gebruikt om te controleren of een waarde
 		 * overeenkomt met een waarde in een lijst van waarden.
 		 * @param AstIn $ast Een object dat de 'IN' clausule voorstelt.
@@ -341,6 +423,12 @@
 			$this->result[] = ")";
 		}
 		
+		/**
+		 * Parse count function
+		 * @param AstInterface $ast
+		 * @param bool $distinct
+		 * @return void
+		 */
 		protected function universalHandleCount(AstInterface $ast, bool $distinct): void {
 			// Verkrijg de identifier (entiteit of eigenschap) die geteld moet worden.
 			$identifier = $ast->getIdentifier();
@@ -369,14 +457,14 @@
 			if ($identifier instanceof AstIdentifier) {
 				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
 				$this->addToVisitedNodes($identifier);
-				$this->addToVisitedNodes($identifier->getEntity());
+				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
 				
 				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
-				$range = $identifier->getEntity()->getRange()->getName();
+				$range = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
 				
 				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
-				$property = $identifier->getPropertyName();
-				$columnMap = $this->entityStore->getColumnMap($identifier->getEntity()->getName());
+				$property = $identifier->getName();
+				$columnMap = $this->entityStore->getColumnMap($identifier->getEntityName());
 				
 				// Voeg de COUNT operatie toe aan het resultaat, om de frequentie van een specifieke eigenschap te tellen.
 				if ($distinct) {
@@ -404,19 +492,19 @@
 		protected function handleUCount(AstUCount $count): void {
 			$this->universalHandleCount($count, true);
 		}
-        
-        /**
-         * Handles 'IS NULL'. The SQL-equivalent is exactly the same.
-         * @param AstCheckNotNull $ast
-         * @return void
-         */
+		
+		/**
+		 * Handles 'IS NULL'. The SQL equivalent is exactly the same.
+		 * @param AstCheckNull $ast
+		 * @return void
+		 */
         protected function handleCheckNull(AstCheckNull $ast): void {
             $this->visitNode($ast->getExpression());
             $this->result[] = " IS NULL ";
         }
         
         /**
-         * Handles 'IS NOT NULL'. The SQL-equivalent is exactly the same.
+         * Handles 'IS NOT NULL'. The SQL equivalent is exactly the same.
          * @param AstCheckNotNull $ast
          * @return void
          */
@@ -432,7 +520,7 @@
 		 */
 		public function visitNode(AstInterface $node): void {
 			// Genereer een unieke hash voor het object om duplicaten te voorkomen.
-			$objectHash = spl_object_hash($node);
+			$objectHash = spl_object_id($node);
 			
 			// Als het object al is bezocht, sla het dan over om oneindige lussen te voorkomen.
 			if (isset($this->visitedNodes[$objectHash])) {

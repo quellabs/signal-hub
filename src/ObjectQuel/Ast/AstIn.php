@@ -41,12 +41,21 @@
 		public function getParameters(): array {
 			return $this->parameterList;
 		}
-
+		
+		/**
+		 * Replaces the parameters
+		 * @param array $parameters
+		 * @return void
+		 */
+		public function setParameters(array $parameters): void {
+			$this->parameterList = $parameters;
+		}
+		
 		/**
 		 * Returns all parameters used in the IN-statement
-		 * @return AstInterface
+		 * @return AstIdentifier
 		 */
-		public function getIdentifier(): AstInterface {
+		public function getIdentifier(): AstIdentifier {
 			return $this->identifier;
 		}
 	}

@@ -4,10 +4,10 @@
     
     class PostDelete {
         
-        protected $parameters;
+        protected array $parameters;
         
         /**
-         * OneToMany constructor.
+         * PostDelete constructor.
          * @param array $parameters
          */
         public function __construct(array $parameters) {

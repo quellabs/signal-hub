@@ -5,29 +5,31 @@
 	
 	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
+	use Services\EntityManager\PropertyHandler;
+	use Services\EntityManager\ReflectionHandler;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstMethodCall;
 	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	use Services\ObjectQuel\QuelException;
 	
 	/**
-	 * Class EntityExistenceValidator
-	 * Validates the existence of entities within an AST.
+	 * Class EntityPropertyValidator
+	 * Validates the existence of properties and methods within entities
 	 */
 	class EntityPropertyValidator implements AstVisitorInterface {
 		
-		/**
-		 * The EntityStore for storing and fetching entity metadata.
-		 */
 		private EntityStore $entityStore;
+		private ReflectionHandler $reflectionHandler;
 		
 		/**
 		 * EntityPropertyValidator constructor.
-		 * @param EntityManager $entityManager The EntityManager to use for entity validation.
+		 * @param EntityStore $entityStore
 		 */
-		public function __construct(EntityManager $entityManager) {
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
+		public function __construct(EntityStore $entityStore) {
+			$this->entityStore = $entityStore;
+			$this->reflectionHandler = $this->entityStore->getReflectionHandler();
 		}
 		
 		/**
@@ -43,7 +45,26 @@
 			
 			// Check if the property exists in the entity.
 			if (!isset($columnMap[$propertyName])) {
-				throw new QuelException("The property {$propertyName} does not exist in the entity '{$entityName}'. Please check for typos or verify that the correct entity is being referenced in the query.");
+				throw new QuelException("The property {$propertyName} does not exist in entity {$entityName}. Please check for typos or verify that the correct entity is being referenced in the query.");
+			}
+		}
+		
+		/**
+		 * Validate the method of a given entity.
+		 * This function checks if a given property name exists in the column map of a specified entity.
+		 * @param string $entityName The name of the entity.
+		 * @param string $methodName The name of the method
+		 * @throws QuelException Thrown when the property does not exist in the given entity.
+		 */
+		protected function validateMethod(string $entityName, string $methodName): void {
+			$methods = $this->reflectionHandler->getMethods($entityName);
+			
+			if (!in_array($methodName, $methods)) {
+				throw new QuelException("The method {$methodName} does not exist in entity {$entityName}. Please check for typos or verify that the correct entity is being referenced in the query.");
+			}
+
+			if (!empty($this->reflectionHandler->getMethodParameters($entityName, $methodName))) {
+				throw new QuelException("ObjectQuel can't automatically call method {$methodName} because it has parameters. Please check for typos or verify that the correct entity is being referenced in the query.");
 			}
 		}
 		
@@ -58,7 +79,12 @@
 		public function visitNode(AstInterface $node): void {
 			// Validate the property if the node is of type AstIdentifier.
 			if ($node instanceof AstIdentifier) {
-				$this->validateProperty($node->getEntityName(), $node->getPropertyName());
+				$this->validateProperty($node->getEntityName(), $node->getName());
+			}
+
+			// Validate the property if the node is of type AstIdentifier.
+			if ($node instanceof AstMethodCall) {
+				$this->validateMethod($node->getEntityName(), $node->getName());
 			}
 		}
 	}

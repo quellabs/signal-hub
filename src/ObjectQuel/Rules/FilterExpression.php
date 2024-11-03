@@ -2,10 +2,11 @@
 	
 	namespace Services\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstNull;
     use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNot;
+	use Services\ObjectQuel\Ast\AstNumber;
+	use Services\ObjectQuel\Ast\AstString;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\LexerException;
 	use Services\ObjectQuel\ParserException;
@@ -29,7 +30,13 @@
 			$parameterList = [];
 			
 			do {
-				$parameterList[] = parent::parse();
+				$parameter = parent::parse();
+				
+				if (!($parameter instanceof AstNumber) && !($parameter instanceof AstString)) {
+					throw new ParserException("Invalid datatype detected in IN() statement. Only numbers and strings are allowed.");
+				}
+				
+				$parameterList[] = $parameter;
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			$this->lexer->match(Token::ParenthesesClose);
@@ -62,12 +69,14 @@
             if ($this->lexer->optionalMatch(Token::Not)) {
                 // Match het volgende 'null' token dat nu vereist is na 'not'
                 $this->lexer->match(Token::Null);
+            
                 // Retourneert een AstNotNull object, geeft aan dat de expressie niet null is
                 return new AstCheckNotNull($expression);
             }
             
             // Match het 'null' token voor een normale 'null' expressie
             $this->lexer->match(Token::Null);
+			
             // Retourneert een AstNull object, geeft aan dat de expressie null is
             return new AstCheckNull($expression);
         }

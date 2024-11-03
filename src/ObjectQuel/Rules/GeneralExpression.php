@@ -7,11 +7,13 @@
 	use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstMethodCall;
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
 	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRegExp;
+	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
 	use Services\ObjectQuel\Ast\AstTerm;
 	use Services\ObjectQuel\AstInterface;
@@ -23,7 +25,6 @@
 	class GeneralExpression {
 		
 		protected Lexer $lexer;
-		protected QueryFunction $queryFunctionRule;
 		
 		/**
 		 * Expression constructor
@@ -31,7 +32,6 @@
 		 */
 		public function __construct(Lexer $lexer) {
 			$this->lexer = $lexer;
-			$this->queryFunctionRule = new QueryFunction($this);
 		}
 		
 		/**
@@ -180,7 +180,7 @@
 				case Token::Parameter :
 					$this->lexer->match($tokenType);
 					return new AstParameter($tokenValue);
-				
+					
 				case Token::Identifier :
 					$this->lexer->match($tokenType);
 					
@@ -190,37 +190,33 @@
 						$tokenValue .= "\\" . $identifierTokenAdd->getValue();
 					}
 					
-					// Kijk of het een commando is. Zoja, parse dan het commando.
+					// Kijk of het een commando is. Zo ja, parse dan het commando.
 					if ($this->lexer->lookahead() == Token::ParenthesesOpen) {
-						return $this->queryFunctionRule->parse($tokenValue);
+						$queryFunctionRule = new QueryFunction($this);
+						return $queryFunctionRule->parse($tokenValue);
+					}
+					
+					// Retourneer de identifier of entity
+					if (!$this->lexer->optionalMatch(Token::Dot)) {
+						if ($entity !== null) {
+							return new AstIdentifier(clone $entity, $tokenValue);
+						} else {
+							return new AstEntity($tokenValue);
+						}
 					}
 					
 					// Als de identifier één of meerdere punten bevat, dan is dit Entity.Property
 					// Dit kan dan een directe property zijn, of een relatie, of een property door een
 					// relatie heen. Met welke variant we hier te maken hebben, wordt nader bepaald in
 					// het validatie/visitor proces.
-					if ($this->lexer->optionalMatch(Token::Dot)) {
-						$valueIdentifier = '';
-						
-						do {
-							if ($valueIdentifier !== '') {
-								$valueIdentifier .= '.';
-							}
-							
-							$valueIdentifier .= $this->lexer->match(Token::Identifier)->getValue();
-						} while ($this->lexer->optionalMatch(Token::Dot));
-						
+					$valueIdentifier = $this->lexer->match(Token::Identifier)->getValue();
+					
+					if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
+						$this->lexer->match(Token::ParenthesesClose);
+						return new AstMethodCall(new AstEntity($tokenValue), $valueIdentifier);
+					} else {
 						return new AstIdentifier(new AstEntity($tokenValue), $valueIdentifier);
 					}
-					
-					// Anders is het een entity, behalve wanneer er een AstEntity is meegegeven als parameter.
-					// Dan is het een identifier. Dit is primair zo vanwege 'partials' (Quel in entity annotations).
-					if ($entity !== null) {
-						return new AstIdentifier(clone $entity, $tokenValue);
-					}
-					
-					// Retourneer de entity
-					return new AstEntity($tokenValue);
 				
 				case Token::RegExp :
 					$this->lexer->match($tokenType);

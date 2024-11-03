@@ -12,7 +12,7 @@
 		/**
 		 * @var array De parameters die zijn doorgegeven bij de annotatie.
 		 */
-		protected $parameters;
+		protected array $parameters;
 		
 		/**
 		 * OneToMany constructor.
@@ -48,20 +48,22 @@
 		 * @return string|null De naam van de join-kolom of null als deze niet is ingesteld.
 		 */
 		public function getRelationColumn(): ?string {
-			if (isset($this->parameters["relationColumn"])) {
-				return $this->parameters["relationColumn"];
-			} elseif (isset($this->parameters["mappedBy"])) {
-				return $this->parameters["mappedBy"];
-			} else {
-				return null;
-			}
+			return $this->parameters["relationColumn"] ?? null;
 		}
 		
 		/**
 		 * Returns fetch method (default LAZY)
-		 * @return mixed|string
+		 * @return string
 		 */
 		public function getFetch(): string {
 			return isset($this->parameters["fetch"]) ? strtoupper($this->parameters["fetch"]) : "LAZY";
+		}
+
+		/**
+		 * Returns the sort order
+		 * @return string
+		 */
+		public function getOrderBy(): string {
+			return $this->parameters["orderBy"] ?? '';
 		}
 	}

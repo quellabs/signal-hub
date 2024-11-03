@@ -2,87 +2,39 @@
     
     namespace Services\EntityManager;
 
-    use Services\AnnotationsReader\Annotations\Orm\Column;
     use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-    use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-    use Services\EntityManager\Persister\DeletePersister;
-    use Services\EntityManager\Persister\InsertPersister;
-    use Services\EntityManager\Persister\UpdatePersister;
-    use Services\Kernel\BasicEnum;
-    use Services\Kernel\Kernel;
+	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
+	use Services\EntityManager\Persister\DeletePersister;
+	use Services\EntityManager\Persister\InsertPersister;
+	use Services\EntityManager\Persister\UpdatePersister;
+	use Services\EntityManager\Serializers\SQLSerializer;
     
-    class DirtyState extends BasicEnum {
-        const None = 0;
-        const Dirty = 1;
-        const New = 2;
-        const Deleted = 3;
-        const NotManaged = 4;
-    }
-	
-	class UnitOfWork {
-		
-		protected array $original_entity_data;
-		protected array $identity_map;
-		protected array $int_types;
-		protected array $float_types;
-		protected array $char_types;
-		protected array $entity_removal_list;
-		protected array $normalizers;
-        protected PropertyHandler $property_handler;
-        protected EntityStore $entity_store;
-        protected ReflectionHandler $reflection_handler;
-		protected ProxyGenerator $proxy_handler;
-        protected EntityManager $entity_manager;
-        protected ?DatabaseAdapter $connection;
-        protected InsertPersister $insert_persister;
-		protected UpdatePersister $update_persister;
-		protected DeletePersister $delete_persister;
+    class UnitOfWork {
+	    
+	    protected array $original_entity_data;
+	    protected array $identity_map;
+	    protected array $entity_removal_list;
+	    protected array $normalizers;
+	    protected EntityManager $entity_manager;
+	    protected EntityStore $entity_store;
+	    protected PropertyHandler $property_handler;
+	    protected ?SQLSerializer $serializer;
+		protected ?DatabaseAdapter $connection;
 
 		/**
 		 * UnitOfWork constructor.
 		 * @param EntityManager $entityManager
-		 * @throws \Exception
 		 */
         public function __construct(EntityManager $entityManager) {
-            $this->entity_manager = $entityManager;
-            $this->property_handler = $entityManager->getKernel()->getService(PropertyHandler::class);
-            $this->entity_store = $entityManager->getKernel()->getService(EntityStore::class);
-            $this->reflection_handler = $entityManager->getKernel()->getService(ReflectionHandler::class);
-            $this->proxy_handler = $entityManager->getKernel()->getService(ProxyGenerator::class);
-            $this->connection = $entityManager->getConnection();
-            $this->insert_persister = new InsertPersister($this);
-            $this->update_persister = new UpdatePersister($this);
-            $this->delete_persister = new DeletePersister($this);
-            $this->original_entity_data = [];
-            $this->entity_removal_list = [];
-            $this->identity_map = [];
-			$this->int_types = ["int", "integer", "smallint", "tinyint", "mediumint", "bigint", "bit"];
-			$this->float_types = ["decimal", "numeric", "float", "double", "real"];
-			$this->char_types = ['text', 'varchar','char'];
-			$this->normalizers = [];
-			
-			$this->initializeNormalizers();
+	        $this->connection = $entityManager->getConnection();
+	        $this->entity_manager = $entityManager;
+	        $this->entity_store = $entityManager->getEntityStore();
+	        $this->property_handler = new PropertyHandler();
+	        $this->serializer = new SQLSerializer($entityManager->getEntityStore());
+	        $this->original_entity_data = [];
+	        $this->entity_removal_list = [];
+	        $this->identity_map = [];
         }
-		
-		/**
-		 * Deze functie initialiseert alle entiteiten in de "Entity"-directory.
-		 * @return void
-		 */
-		private function initializeNormalizers(): void {
-			// Ophalen van alle bestandsnamen in de "Entity"-directory.
-			$normalizerFiles = scandir(dirname(__FILE__) . DIRECTORY_SEPARATOR . "Normalizer");
-			
-			// Itereren over alle bestanden in de "Entity"-directory.
-			foreach ($normalizerFiles as $fileName) {
-				// Overslaan als het bestand geen PHP-bestand is.
-				if (($fileName == 'NormalizerInterface.php') || !$this->isPHPFile($fileName)) {
-					continue;
-				}
-				
-				// Construeren van de entiteitsnaam op basis van de bestandsnaam.
-				$this->normalizers[] = strtolower(substr($fileName, 0, strpos($fileName, "Normalizer")));
-			}
-		}
 		
 		/**
 		 * Controleert of het opgegeven bestand een PHP-bestand is.
@@ -101,9 +53,13 @@
 		 * @return bool
 		 */
 		private function hasNullPrimaryKeys(object $entity, array $primaryKeys): bool {
-			return array_reduce($primaryKeys, function ($carry, $primaryKey) use ($entity) {
-				return $carry || is_null($this->property_handler->get($entity, $primaryKey));
-			}, false);
+			foreach ($primaryKeys as $primaryKey) {
+				if ($this->property_handler->get($entity, $primaryKey) === null) {
+					return true;
+				}
+			}
+
+			return false;
 		}
 		
 		/**
@@ -113,36 +69,13 @@
 		 * @return bool
 		 */
 		private function isEntityDirty(array $extractedEntity, array $originalData): bool {
-			return !empty(array_filter($extractedEntity, function ($value, $key) use ($originalData) {
-				return ($value !== $originalData[$key]);
-			}, ARRAY_FILTER_USE_BOTH));
-		}
-		
-		/**
-		 * Check if an annotation is a valid Column annotation.
-		 * @param mixed $annotation The annotation to check.
-		 * @return bool True if valid, false otherwise.
-		 */
-		private function isValidColumnAnnotation(mixed $annotation): bool {
-			return $annotation instanceof Column;
-		}
-		
-		/**
-		 * Controleert of een entiteit overeenkomt met de gegeven primaire sleutels.
-		 * @param mixed $entity De te controleren entiteit.
-		 * @param array $primaryKeys De primaire sleutels waarmee vergeleken wordt.
-		 * @return bool Retourneert true als de entiteit overeenkomt, anders false.
-		 */
-		private function isMatchingEntity(mixed $entity, array $primaryKeys): bool {
-			// Itereren over de sleutels van de primaire sleutels.
-			foreach ($primaryKeys as $key => $value) {
-				// Vergelijken van de waarden en bijwerken van de $isMatching variabele.
-				if ($this->property_handler->get($entity, $key) !== $value) {
-					return false;
+			foreach ($extractedEntity as $key => $value) {
+				if ($value !== $originalData[$key]) {
+					return true;
 				}
 			}
-			
-			return true;
+
+			return false;
 		}
 		
 		/**
@@ -154,6 +87,17 @@
 			
 			foreach ($this->identity_map as $subArray) {
 				foreach ($subArray as $key => $value) {
+					// Gebruik de index niet
+					if ($key === 'index') {
+						continue;
+					}
+					
+					// Sla niet geïnitialiseerde proxies over
+					if (($value instanceof ProxyInterface) && !$value->isInitialized()) {
+						continue;
+					}
+					
+					// Gebruik deze entity
 					$result[$key] = $value;
 				}
 			}
@@ -184,8 +128,8 @@
 			
 			// Bepaal de relaties tussen entiteiten en vul de grafiek en inDegree gegevens.
 			foreach ($flattenedIdentityMap as $hash => $entity) {
-				$manyToOneParents = $this->entity_store->getManyToOneDependencies($entity);
-				$oneToOneParents = $this->entity_store->getOneToOneDependencies($entity);
+				$manyToOneParents = $this->getEntityStore()->getManyToOneDependencies($entity);
+				$oneToOneParents = $this->getEntityStore()->getOneToOneDependencies($entity);
 				$oneToOneParents = array_filter($oneToOneParents, function($e) { return !empty($e->getInversedBy()); });
 				
 				foreach (array_merge($manyToOneParents, $oneToOneParents) as $property => $annotation) {
@@ -196,7 +140,15 @@
 						continue;
 					}
 					
-					$parentId = spl_object_hash($parentEntity);
+					// Als de parent entiteit een ongeinitialiseerde proxy is, sla dan de iteratie over.
+					if (($parentEntity instanceof ProxyInterface) && !$parentEntity->isInitialized()) {
+						continue;
+					}
+					
+					// Haal de hash van de parent entiteit op
+					$parentId = spl_object_id($parentEntity);
+					
+					// Voeg de relatie toe aan de grafiek
 					$graph[$parentId][] = $hash; // Voeg de huidige entiteit toe als 'child' van de 'parent'.
 					$inDegree[$hash]++; // Verhoog de inDegree teller voor de 'child' entiteit.
 				}
@@ -238,29 +190,11 @@
 		}
 		
 		/**
-		 * Controleert of een gegeven kolomtype een integer-type is.
-		 * @param string $columnType Het kolomtype om te controleren.
-		 * @return bool True als het kolomtype een integer-type is, anders false.
-		 */
-		private function isIntColumnType(string $columnType): bool {
-			return in_array($columnType, $this->int_types);
-		}
-		
-		/**
-		 * Controleert of een gegeven kolomtype een float-type is.
-		 * @param string $columnType Het kolomtype om te controleren.
-		 * @return bool True als het kolomtype een float-type is, anders false.
-		 */
-		private function isFloatColumnType(string $columnType): bool {
-			return in_array($columnType, $this->float_types);
-		}
-		
-		/**
 		 * Controleert of een gegeven entiteit aanwezig is in de identity map.
 		 * @param mixed $entity De entiteit om te controleren.
 		 * @return bool Retourneert true als de entiteit in de identity map zit, anders false.
 		 */
-		private function isInIdentityMap($entity): bool {
+		private function isInIdentityMap(mixed $entity): bool {
 			// Ophalen van de klassennaam van de entiteit.
 			$normalizedEntityName = $this->getEntityStore()->normalizeEntityName(get_class($entity));
 			
@@ -270,40 +204,49 @@
 			}
 			
 			// Controleren of het object zelf aanwezig is in de identity map.
-			return array_key_exists(spl_object_hash($entity), $this->identity_map[$normalizedEntityName]);
+			return isset($this->identity_map[$normalizedEntityName][spl_object_id($entity)]);
 		}
         
         /**
-         * Haalt de kolom op waarop de relatie is gebaseerd.
-         * @param string $entityType Het type entiteit waarop de relatie betrekking heeft.
-         * @param object $relation Het relatie-object.
-         * @return string De naam van de relatiekolom.
+         * Update de tracking informatie
+         * @param array $changed List of changed entities
+         * @param array $deleted List of deleted entities
+         * @return void
          */
-        private function getRelationColumn(string $entityType, object $relation): string {
-            // Haal de standaard relatiekolom op uit het relatie-object
-            $relationColumn = $relation->getRelationColumn();
+		private function updateIdentityMapAndResetChangeTracking(array $changed, array $deleted): void {
+			foreach ($changed as $entity) {
+				// Grab object id
+				$hash = spl_object_id($entity);
+				
+				// Get the class name of the entity
+				$class = $this->getEntityStore()->normalizeEntityName(get_class($entity));
+				
+				// Add primary key to index cache for easy lookup
+				$primaryKeys = $this->getIdentifiers($entity);
+				$primaryKeysString = $this->convertPrimaryKeysToString($primaryKeys);
+				$this->identity_map[$class]['index'][$primaryKeysString] = $hash;
+				
+				// Store the original data of the entity for later comparison
+				$this->original_entity_data[$hash] = $this->getSerializer()->serialize($entity);
+			}
             
-            // Als er geen standaard relatiekolom is ingesteld, gebruik dan het eerste identificatiekenmerk van de entiteit
-            if ($relationColumn === null) {
-                $keys = $this->entity_store->getIdentifierKeys($entityType);
-                $relationColumn = $keys[0];
+            foreach($deleted as $entity) {
+                $this->detach($entity);
             }
-            
-            return $relationColumn;
         }
-
+		
 		/**
 		 * Deze functie haalt de ouderentiteit en de bijbehorende ManyToOne annotatie op
 		 * voor de meegegeven entiteit. Als de ouderentiteit niet bestaat, wordt null geretourneerd.
 		 * @param mixed $entity De entiteit waarvoor de ouderentiteit en annotatie worden opgevraagd.
 		 * @return array Een associatieve array met 'entity' en 'annotation' als sleutels, of null als niet gevonden.
 		 */
-		private function fetchParentEntitiesPrimaryKeyData($entity): array {
+		private function fetchParentEntitiesPrimaryKeyData(mixed $entity): array {
 			// Initialiseer een lege array om de resultaten op te slaan.
 			$result = [];
 			
 			// Haal alle annotaties op die bij de gegeven entiteit horen.
-			$annotationList = $this->entity_store->getAnnotations($entity);
+			$annotationList = $this->getEntityStore()->getAnnotations($entity);
 			
 			// Loop door elke set van annotaties voor elke eigenschap van de entiteit.
 			foreach ($annotationList as $property => $annotations) {
@@ -340,91 +283,51 @@
 		}
 		
 		/**
-		 * Normalizes a value based on its column type annotation.
-		 * The function first checks if the column type is in the exclusion list.
-		 * If it is not, the appropriate normalizer class is used to normalize the value.
-		 * Otherwise, basic type casting is applied based on the column type.
-		 * @param object $annotation The annotation object that contains the column type.
-		 * @param mixed $value The value to be normalized.
-		 * @return mixed The normalized value.
+		 * Retrieves the identifiers (primary keys) of the given entity.
+		 * @param mixed $entity The entity from which to retrieve the primary keys.
+		 * @return array An associative array where the keys are the primary key names and
+		 *               the values are their corresponding values from the entity.
 		 */
-		public function normalizeValue(object $annotation, $value): mixed {
-			// Retrieve the column type from the annotation
-			$columnType = $annotation->getType();
+		private function getIdentifiers(mixed $entity): array {
+			// Fetch the primary key names from the entity store
+			$primaryKeys = $this->getEntityStore()->getIdentifierKeys($entity);
 			
-			// Check if the column type is a type known to need normalization. If not, return the value as-is.
-			if (in_array(strtolower($columnType), $this->normalizers)) {
-				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
-				$normalizer = new $normalizerClass($value, $annotation);
-				return $normalizer->normalize();
+			// Initialize the result array to hold key-value pairs of primary keys
+			$result = [];
+			
+			// Loop through each primary key name
+			foreach ($primaryKeys as $key) {
+				// Fetch the corresponding value for each primary key from the entity using the property handler
+				$result[$key] = $this->property_handler->get($entity, $key);
 			}
 			
-			// Cast to int if the column type is an integer
-			if ($this->isIntColumnType($columnType)) {
-				return (int)$value;
-			}
-			
-			// Cast to float if the column type is a float
-			if ($this->isFloatColumnType($columnType)) {
-				return (float)$value;
-			}
-			
-			// Return the value as-is if no normalizer or type casting is applicable
-			return $value;
+			// Return the array of primary key names and their corresponding values
+			return $result;
 		}
 		
 		/**
-		 * Denormalize the given value based on its annotation and column type.
-		 * @param object $annotation The annotation object describing the column's metadata.
-		 * @param mixed $value The value to be denormalized.
-		 * @return mixed The denormalized value.
-		 */
-		public function denormalizeValue(object $annotation, mixed $value): mixed {
-			// Retrieve the column type from the annotation
-			$columnType = $annotation->getType();
-			
-			// If there's no value, but there's a default, grab the default
-			if (is_null($value) && $annotation->hasDefault()) {
-				return $annotation->getDefault();
-			}
-			
-			// Check if the column type is a type known to need denormalization. If not, return the value as-is.
-			if (in_array(strtolower($columnType), $this->normalizers)) {
-				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
-				$normalizer = new $normalizerClass($value, $annotation);
-				return $normalizer->denormalize();
-			}
-			
-			// If no specific denormalization logic applies, return the value as-is
-			return $value;
-		}
-
-		/**
 		 * Find an entity based on its class and primary keys.
-		 * @param string $class The fully qualified name of the class to find.
+		 * @template T of object
+		 * @param class-string<T> $entityType Het type van de entiteit die gezocht wordt.
 		 * @param array $primaryKeys The serialized primary key data of the entity
-		 * @return mixed|null The found entity or null if not found.
+		 * @return object|null De gevonden entiteit of null als deze niet gevonden wordt.
 		 */
-		public function findEntity(string $class, array $primaryKeys): mixed {
-			// Normalize the entity name for dealing with proxies
-			$normalizedEntityName = $this->getEntityStore()->normalizeEntityName($class);
+        public function findEntity(string $entityType, array $primaryKeys): ?object {
+            // Normalize the entity name for dealing with proxies
+            $normalizedEntityName = $this->getEntityStore()->normalizeEntityName($entityType);
+            
+            // Check if the class exists in the identity map and return null if it doesn't
+            if (empty($this->identity_map[$normalizedEntityName])) {
+                return null;
+            }
+            
+            // Converteer de primary keys naar een string
+			$primaryKeyString = $this->convertPrimaryKeysToString($primaryKeys);
 			
-			// Check if the class exists in the identity map
-			if (!array_key_exists($normalizedEntityName, $this->identity_map)) {
-				return null;
-			}
-			
-			// Loop through each entity of the given class in the identity map
-			foreach ($this->identity_map[$normalizedEntityName] as $entity) {
-				// Check if the entity matches the given primary keys
-				if ($this->isMatchingEntity($entity, $primaryKeys)) {
-					return $entity;
-				}
-			}
-			
-			// Return null if no matching entity is found
-			return null;
-		}
+			// Kijk of de entity voorkomt in de identity map
+			$hash = $this->identity_map[$normalizedEntityName]['index'][$primaryKeyString] ?? null;
+			return $hash !== null ? $this->identity_map[$normalizedEntityName][$hash] : null;
+        }
 		
 		/**
 		 * Bepaalt de staat van een entiteit (bijv. nieuw, gewijzigd, niet beheerd, etc.).
@@ -438,15 +341,7 @@
 			}
 			
 			// Class en hash van de entiteit object voor identificatie.
-			$entityHash = spl_object_hash($entity);
-			$entityClass = $this->getEntityStore()->normalizeEntityName(get_class($entity));
-			
-			// Controleert of dit een ongeladen proxy is. Zo ja, dan mag deze niet gepersisteerd worden.
-			if ($this->identity_map[$entityClass][$entityHash] instanceof ProxyInterface) {
-				if (!$this->identity_map[$entityClass][$entityHash]->isInitialized()) {
-					return DirtyState::None;
-				}
-			}
+			$entityHash = spl_object_id($entity);
 			
 			// Controleert of de entiteit voorkomt in de deleted list, zo ja, dan is de state Deleted
 			if (in_array($entityHash, $this->entity_removal_list)) {
@@ -466,8 +361,8 @@
 			}
 			
 			// Controleert of de entiteit gewijzigd is ten opzichte van de originele data.
-			$serializedEntity = $this->serializeEntity($entity);
 			$originalData = $this->getOriginalEntityData($entity);
+			$serializedEntity = $this->getSerializer()->serialize($entity);
 			
 			if ($this->isEntityDirty($serializedEntity, $originalData)) {
 				return DirtyState::Dirty;
@@ -479,10 +374,10 @@
 
         /**
          * Returns the database link
-         * @return DatabaseAdapter
+         * @return \clsDB
          */
-        public function getConnection(): DatabaseAdapter {
-            return $this->connection;
+        public function getDB(): \clsDB {
+            return $this->db;
         }
     
         /**
@@ -501,134 +396,79 @@
             return $this->entity_store;
         }
 
-        /**
-         * Returns the entity manager object
-         * @return EntityManager
-         */
-        public function getEntityManager(): EntityManager {
-            return $this->entity_manager;
-        }
-		
 		/**
-		 * Serializes an entity object into an associative array.
-		 * This function takes an entity object as input and converts it into an associative array.
-		 * Each property of the entity is dehydrated based on its annotations. The resulting array
-		 * is then returned, or null if the entity does not exist in the store.
-		 * @param object $entity The entity object to serialize.
-		 * @return array|null Returns the associative array representing the serialized entity.
+		 * Returns the serializer
+		 * @return SQLSerializer
 		 */
-		public function serializeEntity(object $entity): ?array {
-			// Early return if the entity does not exist in the entity store.
-			if (!$this->entity_store->exists($entity)) {
-				return null;
-			}
-			
-			// Retrieve annotations for the entity class.
-			$annotationList = $this->entity_store->getAnnotations($entity);
-			
-			// Iterate through each property's annotations.
-			$result = [];
-			
-			foreach ($annotationList as $property => $annotations) {
-				// Check each annotation for validity.
-				foreach ($annotations as $annotation) {
-					// Skip this iteration if the annotation is not a valid Column annotation.
-					if (!$this->isValidColumnAnnotation($annotation)) {
-						continue;
-					}
-					
-					// Get and store the property's current value.
-					$result[$property] = $this->property_handler->get($entity, $property);
-					
-					// Skip to the next property (this ends the inner foreach loop and moves to the next property).
-					continue 2;
-				}
-			}
-			
-			return $result;
+		public function getSerializer(): SQLSerializer {
+			return $this->serializer;
 		}
 		
 		/**
-		 * Maps SQL data to an entity-compatible array using annotations.
-		 * @param object $entity The entity to populate
-		 * @param array $data The raw SQL data to map.
-		 * @return void The mapped entity data.
+		 * Convert primary keys to a string
+		 * @param array $primaryKeys
+		 * @return string
 		 */
-		public function deserializeEntity(object $entity, array $data): void {
-			// Retrieve annotations for the entity class to understand how to map properties
-			$annotationList = $this->entity_store->getAnnotations($entity);
+		private function convertPrimaryKeysToString(array $primaryKeys): string {
+			// Ensure consistent order
+			ksort($primaryKeys);
 			
-			// Loop through each property's annotations to check how each should be handled
-			foreach ($annotationList as $property => $annotations) {
-				foreach ($annotations as $annotation) {
-					// Skip this property if its annotation doesn't qualify as a valid SQL Column
-					if (!$this->isValidColumnAnnotation($annotation)) {
-						continue;
-					}
-					
-					// Skip this property if the provided data array doesn't contain this column name
-					if (!array_key_exists($property, $data)) {
-						continue 2;
-					}
-					
-					// Normalize the value for this property based on its annotation and add it to the mapped data
-					$this->property_handler->set($entity, $property, $this->normalizeValue($annotation, $data[$property]));
-					
-					// Skip to the next property
-					continue 2;
-				}
-			}
+			// Use http_build_query for performance and simplicity
+			return str_replace(['&', '='], [';', ':'], http_build_query($primaryKeys));
 		}
-		
-		/**
-		 * Maps the given entity data to an SQL-compatible array using annotations.
-		 * @param mixed $class The fully qualified class name of the entity.
-		 * @param array $data The raw entity data to map.
-		 * @return array The mapped entity data suitable for SQL operations.
+	    
+	    /**
+	     * Returns the database adapter
+	     * @return DatabaseAdapter|null
+	     */
+	    public function getConnection(): ?DatabaseAdapter {
+		    return $this->connection;
+	    }
+	    
+	    /**
+	     * Gets the original data of an entity. The original data is the data that was
+	     * present at the time the entity was reconstituted from the database.
+	     * @param mixed $entity
+	     * @return array|null
+	     */
+	    public function getOriginalEntityData(mixed $entity): ?array {
+		    return $this->original_entity_data[spl_object_id($entity)] ?? null;
+	    }
+	    
+	    /**
+		 * Adds an existing entity to the entity manager's identity map.
+		 * @param mixed $entity The entity to persist.
+		 * @return void
 		 */
-		public function convertToSQL(mixed $class, array $data): array {
-			// Initialize an empty array to store the mapped data
-			$mappedData = [];
-			
-			// Retrieve annotations for the entity class to understand how to map properties
-			$annotationList = $this->entity_store->getAnnotations($class);
-			
-			// Loop through each property's annotations to check how each should be handled
-			foreach ($annotationList as $property => $annotations) {
-				foreach ($annotations as $annotation) {
-					// Skip this property if its annotation doesn't qualify as a valid SQL Column
-					if (!$this->isValidColumnAnnotation($annotation)) {
-						continue;
-					}
-					
-					// Obtain the SQL column name from the annotation
-					$columnName = $annotation->getName();
-					
-					// Skip this property if the provided data array doesn't contain this column name
-					if (!array_key_exists($property, $data)) {
-						continue 2;
-					}
-					
-					// Normalize the value for this property based on its annotation and add it to the mapped data
-					$mappedData[$columnName] = $this->denormalizeValue($annotation, $data[$property]);
-					
-					// Skip to the next property
-					continue 2;
-				}
+		public function persistExisting(mixed $entity): void {
+			// Check if the entity exists in the entity store
+			if (!$this->getEntityStore()->exists($entity)) {
+				return;
 			}
 			
-			// Return the final mapped data array suitable for SQL operations
-			return $mappedData;
-		}
-		
-		/**
-		 * Gets the original data of an entity. The original data is the data that was
-		 * present at the time the entity was reconstituted from the database.
-		 * @param mixed $entity
-		 * @return array|null
-		 */
-		public function getOriginalEntityData(mixed $entity): ?array {
-			return $this->original_entity_data[spl_object_hash($entity)] ?? null;
+			// Check if the entity is already in the identity map
+			if ($this->isInIdentityMap($entity)) {
+				return;
+			}
+			
+			// Get the class name of the entity
+			$class = $this->getEntityStore()->normalizeEntityName(get_class($entity));
+			
+			// Index entity by primary key string for quick lookup
+			if (!isset($this->identity_map[$class]['index'])) {
+				$this->identity_map[$class]['index'] = [];
+			}
+			
+			$hash = spl_object_id($entity);
+			$primaryKeys = $this->getIdentifiers($entity);
+			$primaryKeysString = $this->convertPrimaryKeysToString($primaryKeys);
+			$this->identity_map[$class]['index'][$primaryKeysString] = $hash;
+			
+			// Add the entity to the identity map
+			$this->identity_map[$class][$hash] = $entity;
+			
+			// Store the original data of the entity for later comparison
+			$this->original_entity_data[$hash] = $this->getSerializer()->serialize($entity);
 		}
 		
 		/**
@@ -637,55 +477,34 @@
 		 * @return bool True if the entity was successfully persisted, false otherwise.
 		 */
 		public function persistNew(mixed $entity): bool {
-			// Check if the entity exists in the entity store
-			if (!$this->entity_store->exists($entity)) {
+			// Check if the entity is already in the identity map
+			if ($this->isInIdentityMap($entity)) {
 				return false;
 			}
 			
-			// Check if the entity is already in the identity map
-			if ($this->isInIdentityMap($entity)) {
+			// Check if the entity exists in the entity store
+			if (!$this->getEntityStore()->exists($entity)) {
 				return false;
 			}
 			
 			// Get the class name of the entity
 			$class = $this->getEntityStore()->normalizeEntityName(get_class($entity));
 			
-			// Generate a unique hash for the entity
-			$hash = spl_object_hash($entity);
+			// Generate hash and primary keys
+			$hash = spl_object_id($entity);
+			$primaryKeys = $this->getIdentifiers($entity);
+			$primaryKeysString = $this->convertPrimaryKeysToString($primaryKeys);
 			
 			// Add the entity to the identity map
 			$this->identity_map[$class][$hash] = $entity;
+			
+			// Index entity by primary key string for quick lookup
+			if (!empty($primaryKeysString)) {
+				$this->identity_map[$class]['index'] ??= [];
+				$this->identity_map[$class]['index'][$primaryKeysString] = $hash;
+			}
 			
 			return true;
-		}
-		
-		/**
-		 * Adds an existing entity to the entity manager's identity map.
-		 * @param mixed $entity The entity to persist.
-		 * @return void
-		 */
-		public function persistExisting(mixed $entity): void {
-			// Check if the entity exists in the entity store
-			if (!$this->entity_store->exists($entity)) {
-				return;
-			}
-			
-			// Check if the entity is already in the identity map
-			if ($this->isInIdentityMap($entity)) {
-				return;
-			}
-			
-			// Generate a unique hash for the entity
-			$hash = spl_object_hash($entity);
-			
-			// Get the class name of the entity
-			$class = $this->getEntityStore()->normalizeEntityName(get_class($entity));
-			
-			// Add the entity to the identity map
-			$this->identity_map[$class][$hash] = $entity;
-			
-			// Store the original data of the entity for later comparison
-			$this->original_entity_data[$hash] = $this->serializeEntity($entity);
 		}
 		
 		/**
@@ -693,48 +512,66 @@
 		 * Dit omvat het starten van een transactie, het uitvoeren van de nodige operaties (invoegen, bijwerken, verwijderen)
 		 * op basis van de staat van elke entiteit, en het commiten van de transactie. In geval van een fout
 		 * wordt de transactie teruggedraaid en de fout doorgestuurd.
+		 * @param mixed|null $entity
+		 * @return void
 		 * @throws OrmException als er een fout optreedt tijdens het databaseproces.
 		 */
-		public function flush(): void {
-			// Plan de entiteiten op basis van hun relaties voor verwerking.
-			$sortedEntities = $this->scheduleEntities();
-			
-			// Als er geen entiteiten zijn om te verwerken, maak de identiteitskaart leeg en keer terug.
-			if (empty($sortedEntities)) {
-				$this->clear();
-				return;
-			}
-			
+		public function commit(mixed $entity = null): void {
 			try {
-				// Start een database transactie.
-				$this->connection->beginTrans();
-				
-				// Bepaal de staat van elke entiteit en voer de overeenkomstige actie uit.
-				foreach ($sortedEntities as $entity) {
-					// Kopieer de primaire sleutels van de bovenliggende entiteit naar deze entiteit, indien beschikbaar.
-					// Dit gebeurt alleen als de relatie niet zelf-referentieel is.
-					foreach($this->fetchParentEntitiesPrimaryKeyData($entity) as $parentEntity) {
-						$this->property_handler->set($entity, $parentEntity["property"], $parentEntity["value"]);
-					}
-					
-					// Haal de staat van de entiteit op.
-					$entityState = $this->getEntityState($entity);
-					
-					// Voer de overeenkomstige database-operatie uit op basis van de staat van de entiteit.
-					if ($entityState === DirtyState::New) {
-						$this->insert_persister->persist($entity); // Invoegen als de entiteit nieuw is.
-					} elseif ($entityState === DirtyState::Dirty) {
-						$this->update_persister->persist($entity); // Bijwerken als de entiteit gewijzigd is.
-					} elseif ($entityState === DirtyState::Deleted) {
-						$this->delete_persister->persist($entity); // Verwijderen als de entiteit gemarkeerd is voor verwijdering.
-					}
+				// Bepaal de lijst van entities om te verwerken
+				if ($entity === null) {
+					$sortedEntities = $this->scheduleEntities();
+				} elseif (is_array($entity)) {
+					$sortedEntities = $entity;
+				} else {
+					$sortedEntities = [$entity];
 				}
 				
-				// Commit de transactie na succesvolle verwerking.
-				$this->connection->commitTrans();
-				
-				// Maak de identiteitskaart leeg na het verwerken van de entiteiten.
-				$this->clear();
+				if (!empty($sortedEntities)) {
+					// Instantieer hulp classes
+					$serializer = $this->getSerializer();
+					$insertPersister = new InsertPersister($this);
+					$updatePersister = new UpdatePersister($this);
+					$deletePersister = new DeletePersister($this);
+					
+					// Start een database transactie.
+					$this->connection->beginTrans();
+					
+					// Bepaal de staat van elke entiteit en voer de overeenkomstige actie uit.
+                    $changed = [];
+                    $deleted = [];
+                    
+					foreach ($sortedEntities as $entity) {
+						// Kopieer de primaire sleutels van de bovenliggende entiteit naar deze entiteit, indien beschikbaar.
+						// Dit gebeurt alleen als de relatie niet zelf-referentieel is.
+						foreach($this->fetchParentEntitiesPrimaryKeyData($entity) as $parentEntity) {
+							$this->property_handler->set($entity, $parentEntity["property"], $parentEntity["value"]);
+						}
+						
+						// Haal de staat van de entiteit op.
+						$entityState = $this->getEntityState($entity);
+						
+						// Voer de overeenkomstige database-operatie uit op basis van de staat van de entiteit.
+                        if ($entityState === DirtyState::Deleted) {
+                            $deleted[] = $entity; // Voeg entity toe aan de deleted lijst
+                            $deletePersister->persist($serializer, $entity); // Verwijderen als de entiteit gemarkeerd is voor verwijdering.
+                        } elseif (($entityState === DirtyState::New) || ($entityState === DirtyState::Dirty)) {
+                            $changed[] = $entity; // Voeg entity toe aan de changed lijst
+                            
+                            if ($entityState === DirtyState::New) {
+                                $insertPersister->persist($serializer, $entity); // Invoegen als de entiteit nieuw is.
+                            } else {
+                                $updatePersister->persist($serializer, $entity); // Bijwerken als de entiteit gewijzigd is.
+                            }
+						}
+					}
+					
+					// Commit de transactie na succesvolle verwerking.
+					$this->connection->commitTrans();
+					
+					// Update de identity map en reset change tracking
+					$this->updateIdentityMapAndResetChangeTracking($changed, $deleted);
+				}
 			} catch (OrmException $e) {
 				// Draai de transactie terug als er een fout optreedt.
 				$this->connection->rollbackTrans();
@@ -762,13 +599,20 @@
 		 */
 		public function detach(object $entity): void {
 			// Generate a unique hash for the entity based on its object hash
-			$hash = spl_object_hash($entity);
+			$hash = spl_object_id($entity);
 			
 			// Get the class name of the entity for identity map look-up
 			$class = $this->getEntityStore()->normalizeEntityName(get_class($entity));
 			
 			// Remove the entity from the identity map, effectively detaching it
 			unset($this->identity_map[$class][$hash]);
+			
+			// Remove the entity from the identity map index
+			$index = array_search($hash, $this->identity_map[$class]['index']);
+			
+			if ($index !== false) {
+				unset($this->identity_map[$class]['index'][$index]);
+			}
 			
 			// Remove stored original data for the entity, stopping any tracking of changes
 			unset($this->original_entity_data[$hash]);
@@ -780,6 +624,7 @@
 		 * @return void
 		 */
 		public function remove(object $entity): void {
-			$this->entity_removal_list[] = spl_object_hash($entity);
+			$this->entity_removal_list[] = spl_object_id($entity);
 		}
+	 
 	}

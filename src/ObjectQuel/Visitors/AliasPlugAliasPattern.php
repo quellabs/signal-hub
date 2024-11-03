@@ -20,12 +20,12 @@
 				return;
 			}
 			
-			// Sla deze node over als deze entity is
+			// Sla deze node over als het niet om een entity gaat
 			if (!$node->getExpression() instanceof AstEntity) {
 				return;
 			}
 			
 			// Zet de alias pattern
-			$node->setAliasPattern($node->getExpression()->getRange()->getName() . ".*");
+			$node->setAliasPattern($node->getExpression()->getRange()->getName() . ".");
 		}
 	}

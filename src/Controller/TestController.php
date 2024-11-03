@@ -3,7 +3,7 @@
 	namespace Services\Controller;
 	
 	use Services\AnnotationsReader\Annotations\Route;
-	use Services\Entity\SeoUrlsEntity;
+	use Services\Entity\ProductsEntity;
 	use Services\EntityManager\EntityManager;
 	use Symfony\Component\HttpFoundation\Response;
 	
@@ -26,9 +26,11 @@
 		 * @return Response
 		 */
 		public function index(string $name): Response {
-			$entity = $this->entityManager->find(SeoUrlsEntity::class, 353);
+			$entity = $this->entityManager->executeQuery("
+				range of x is ProductsEntity;
+				retrieve (x) where x.productsId=1537
+			");
 			
-			print_r($entity->getLanguageId());
 			
 			return new Response('Hello ' . $name . '!');
 		}

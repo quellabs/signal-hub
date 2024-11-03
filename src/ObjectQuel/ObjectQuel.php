@@ -4,9 +4,15 @@
 	
 	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
 	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-    use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
-    use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
+	use Services\EntityManager\DatabaseAdapter;
 	use Services\EntityManager\EntityManager;
+	use Services\ObjectQuel\Ast\AstAlias;
+	use Services\ObjectQuel\Ast\AstAnd;
+	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIn;
+	use Services\ObjectQuel\Ast\AstNumber;
+	use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
+    use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstIdentifier;
@@ -14,6 +20,7 @@
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Visitors\AddNamespacesToEntities;
 	use Services\ObjectQuel\Visitors\AliasPlugAliasPattern;
+	use Services\ObjectQuel\Visitors\ContainsMethodCall;
 	use Services\ObjectQuel\Visitors\ContainsRange;
 	use Services\ObjectQuel\Visitors\EntityExistenceValidator;
 	use Services\ObjectQuel\Visitors\EntityPlugMacros;
@@ -21,30 +28,20 @@
 	use Services\ObjectQuel\Visitors\EntityProcessMacro;
 	use Services\ObjectQuel\Visitors\EntityProcessRange;
 	use Services\ObjectQuel\Visitors\EntityPropertyValidator;
+	use Services\ObjectQuel\Visitors\FetchMethodCalls;
+	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
+	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
 	use Services\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;
 	use Services\ObjectQuel\Visitors\RangeOnlyReferencesOtherRanges;
 	use Services\ObjectQuel\Visitors\TransformRelationInViaToPropertyLookup;
 	use Services\ObjectQuel\Visitors\ValidateRelationInViaValid;
-	
-	class ObjectQuel {
+    
+    class ObjectQuel {
 		
-		/**
-		 * De EntityManager instantie.
-		 * @var EntityManager
-		 */
-		private EntityManager $entityManager;
-		
-		/**
-		 * De EntityStore instantie.
-		 * @var EntityStore
-		 */
 		private EntityStore $entityStore;
-		
-		/**
-		 * De Quel to SQL instantie.
-		 * @var $quelToSQL QuelToSQL
-		 */
-		private QuelToSQL $quelToSQL;
+		private EntityManager $entityManager;
+		private DatabaseAdapter $connection;
+		private int $fullQueryResultCount;
 		
 		/**
 		 * Constructor om de EntityManager te injecteren.
@@ -52,8 +49,9 @@
 		 */
 		public function __construct(EntityManager $entityManager) {
 			$this->entityManager = $entityManager;
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
-			$this->quelToSQL = new QuelToSQL($entityManager);
+			$this->entityStore = $entityManager->getEntityStore();
+			$this->connection = $entityManager->getConnection();
+			$this->fullQueryResultCount = 0;
 		}
 		
 		/**
@@ -109,7 +107,7 @@
 					continue;
 				}
 				
-				$converter = new TransformRelationInViaToPropertyLookup($this->entityManager, $range);
+				$converter = new TransformRelationInViaToPropertyLookup($this->entityStore, $range);
 				$range->setJoinProperty($converter->processNodeSide($joinProperty));
 				$range->accept($converter);
 			}
@@ -135,7 +133,7 @@
 		 */
 		private function validateProperties(AstRetrieve $ast): void {
 			// Creëert een nieuwe instantie van 'EntityPropertyValidator' met de bereiken die uit het AST-object worden opgehaald.
-			$rangeProcessor = new EntityPropertyValidator($this->entityManager);
+			$rangeProcessor = new EntityPropertyValidator($this->entityStore);
 			
 			// Het AST-object accepteert de 'rangeProcessor' voor verdere verwerking.
 			$ast->accept($rangeProcessor);
@@ -183,7 +181,7 @@
 		 */
 		private function validateEntitiesExist(AstRetrieve $ast): void {
 			// Creëert een nieuwe instantie van 'EntityExistenceValidator' met de bereiken die uit het AST-object worden opgehaald.
-			$rangeProcessor = new EntityExistenceValidator($this->entityManager);
+			$rangeProcessor = new EntityExistenceValidator($this->entityStore);
 			
 			// Het AST-object accepteert de 'rangeProcessor' voor verdere verwerking.
 			$ast->accept($rangeProcessor);
@@ -196,7 +194,7 @@
 		 */
 		private function addNamespacesToEntities(AstRetrieve $ast): void {
 			// Creëert een nieuwe instantie van 'AddNamespacesToEntities' met de bereiken die uit het AST-object worden opgehaald.
-			$rangeProcessor = new AddNamespacesToEntities($this->entityManager, $ast->getRanges(), $ast->getMacros());
+			$rangeProcessor = new AddNamespacesToEntities($this->entityStore, $ast->getRanges(), $ast->getMacros());
 			
 			// Het AST-object accepteert de 'rangeProcessor' voor verdere verwerking.
 			$ast->accept($rangeProcessor);
@@ -207,7 +205,7 @@
 		 * @param AstRetrieve $ast
 		 * @return void
 		 */
-		private function plugMacros(AstRetrieve $ast) {
+		private function plugMacros(AstRetrieve $ast): void {
 			// Creëert een nieuwe instantie van 'EntityPropertyValidator' met de bereiken die uit het AST-object worden opgehaald.
 			$rangeProcessor = new EntityPlugMacros($ast->getMacros());
 			
@@ -253,9 +251,9 @@
 		 * @return void
 		 */
 		private function setRangeRequiredIfNeeded(AstRange $range, AstIdentifier $left, AstIdentifier $right): void {
-			$ownPropertyName = $right->getPropertyName();
-			$ownEntityName = $right->getEntity()->getName();
-			$relatedPropertyName = $left->getPropertyName();
+			$ownPropertyName = $right->getName();
+			$ownEntityName = $right->getEntityOrParentIdentifier()->getName();
+			$relatedPropertyName = $left->getName();
 			$relatedEntityName = $left->getEntityName();
 			
 			// Ophalen van de annotaties van de gerelateerde entiteit.
@@ -344,14 +342,14 @@
 				$right = $joinProperty->getRight();
 				
 				// Draai de twee om, als het rechterdeel de huidige range target
-				if ($right->getEntity()->getName() == $range->getEntity()->getName()) {
+				if ($right->getEntityOrParentIdentifier()->getName() == $range->getEntity()->getName()) {
 					$tmp = $left;
 					$left = $right;
 					$right = $tmp;
 				}
 				
 				// Als het linkerdeel niet de huidige range hit, dan kan hij zeker niet required worden
-				if ($left->getEntity()->getName() !== $range->getEntity()->getName()) {
+				if ($left->getEntityOrParentIdentifier()->getName() !== $range->getEntity()->getName()) {
 					continue;
 				}
 				
@@ -372,6 +370,94 @@
 			
 			// Het AST-object accepteert de 'rangeProcessor' voor verdere verwerking.
 			$ast->accept($rangeProcessor);
+		}
+		
+		/**
+		 * Controleer of de sort een method call bevat. Zoja, zet dan de sort_in_application_logic flag
+		 * zodat de sorteerlogica en paginering logica in de applicatie gebeurd in plaats van in de query.
+		 * @param AstRetrieve $ast
+		 * @return void
+		 */
+		private function setSortInApplicationFlag(AstRetrieve $ast): void {
+			try {
+				$containsMethodCallVisitor = new ContainsMethodCall();
+				
+				foreach ($ast->getSort() as $item) {
+					$item['ast']->accept($containsMethodCallVisitor);
+				}
+			} catch (\Exception $exception) {
+				$ast->setSortInApplicationLogic(true);
+			}
+		}
+		
+		/**
+		 * Verwerkt sorteerlogica door de benodigde entiteiten volledig in te lezen als de 'sort in application' vlag actief is.
+		 *
+		 * Deze functie controleert eerst of de sorteerlogica in de applicatie zelf moet worden uitgevoerd.
+		 * Als dit het geval is, controleert de functie vervolgens of de 'InValuesAreFinal' richtlijn aanwezig is.
+		 * Als 'InValuesAreFinal' aanwezig is, wordt de verdere verwerking overgeslagen.
+		 * Anders verzamelt de functie alle methodeaanroepen binnen de sorteeroperatie en controleert of
+		 * de complete entiteit van elke methodeaanroep al geladen is. Zo niet, dan wordt deze toegevoegd aan de AST.
+		 * @param AstRetrieve $ast De AST die mogelijk aangepast moet worden om alle benodigde data in te laden.
+		 */
+		private function plugCompleteEntityIfSortInApplicationFlagSet(AstRetrieve $ast): void {
+			// Controleer of sorteren in de applicatie logica nodig is.
+			if (!$ast->getSortInApplicationLogic()) {
+				return;
+			}
+			
+			// Controleer of de 'InValuesAreFinal' richtlijn ingesteld is, wat betekent dat geen verdere sorteerlogica nodig is.
+			if (!empty($ast->getDirective('InValuesAreFinal'))) {
+				return;
+			}
+			
+			// Verzamel alle methodeaanroepen die relevant zijn voor de sorteeroperatie.
+			$methodCallsVisitor = new FetchMethodCalls();
+			foreach ($ast->getSort() as $item) {
+				$item['ast']->accept($methodCallsVisitor);
+			}
+			
+			// Controleer elke methodeaanroep om te zien of de volledige entiteit al geladen is, en voeg deze toe indien nodig.
+			foreach ($methodCallsVisitor->getResult() as $method) {
+				// Controleer of de entiteit al onderdeel is van de waarden die ingelezen worden.
+				$entityName = $method->getEntityOrParentIdentifier()->getName();
+				$range = $method->getEntityOrParentIdentifier()->getRange();
+				
+				foreach ($ast->getValues() as $value) {
+					if ($value->getName() == $range->getName()) {
+						continue 2;
+					}
+				}
+				
+				// Voeg de complete entiteit toe aan de AST.
+				$astEntity = new AstEntity($entityName, clone $range);
+				$alias = new AstAlias($range->getName(), $astEntity, "{$range->getName()}.");
+				$ast->addValue($alias);
+			}
+		}
+		
+		/**
+		 * Valideert dat methodeaanroepen enkel worden gebruikt in SORT BY clausules binnen de AST.
+		 * Deze functie doorloopt de AST-componenten om te controleren of er ergens methodeaanroepen zijn gebruikt.
+		 * Het controleert specifiek de join properties van alle ranges en de condities van de AST.
+		 * Als er een methodeaanroep wordt gevonden buiten een SORT BY clausule, wordt een QuelException geworpen.
+		 * @param AstRetrieve $ast De AST (Abstract Syntax Tree) die gevalideerd moet worden.
+		 * @throws QuelException Als er methodeaanroepen worden gevonden buiten SORT BY clausules.
+		 */
+		private function validateMethodCallNotUsedInAnythingOtherThanSort(AstRetrieve $ast): void {
+			try {
+				$containsMethodCallVisitor = new ContainsMethodCall();
+				
+				// Doorloop elke range in de AST en controleer de join properties op methodeaanroepen.
+				foreach ($ast->getRanges() as $item) {
+					$item->getJoinProperty()?->accept($containsMethodCallVisitor);
+				}
+				
+				// Controleer ook de condities van de AST op methodeaanroepen.
+				$ast->getConditions()?->accept($containsMethodCallVisitor);
+			} catch (\Exception $exception) {
+				throw new QuelException("Method calls are only allowed in SORT BY.");
+			}
 		}
 		
 		/**
@@ -404,24 +490,27 @@
 			// Ranges mogen alleen andere ranges aanspreken. Dit wordt hier gevalideerd
 			$this->ensureRangesOnlyReferenceOtherRanges($ast);
 			
+			// Voeg namespaces toe aan entities
+			$this->addNamespacesToEntities($ast);
+			
+			// Valideer dat aangesproken entities bestaan
+			$this->validateEntitiesExist($ast);
+			
 			// Als er directe relaties worden gebruikt in de 'via' clausule, valideer deze dan op geldigheid
 			$this->validateRangeViaRelations($ast);
 			
 			// Zoekt aangesproken relaties op in de 'via' clausule, en zet ze om in property lookups
 			$this->transformViaRelationsIntoProperties($ast);
 			
-			// Voeg namespaces toe aan entities
-			$this->addNamespacesToEntities($ast);
-
-			// Valideer dat aangesproken entities bestaan
-			$this->validateEntitiesExist($ast);
-			
 			// Valideer dat properties binnen entities bestaan
 			$this->validateProperties($ast);
 			
 			// Valideer dat er geen hele entities worden gebruikt als condities.
 			$this->validateNoExpressionsAllowedOnEntitiesValidator($ast);
-
+			
+			// Throw error when method calls are used in anything but 'sort by'
+			$this->validateMethodCallNotUsedInAnythingOtherThanSort($ast);
+			
 			// Voeg 'alias patterns' toe indien nodig. Deze patterns maken het makkelijk
 			// om gegevens uit het SQL-resultaat te hydrateren.
 			$this->plugAliasPatterns($ast);
@@ -432,8 +521,14 @@
 			// Analyse query and set the required flag if a range is used in the where clause
 			$this->setRangesRequiredThroughWhere($ast);
 	
-			// Analyse where and clear the required flag if 'is null' used on the join colun
+			// Analyse where and clear the required flag if 'is null' used on the join column
 			$this->setRangesNotRequiredThroughWhere($ast);
+			
+			// Add a 'sort in application' flag when the sort conditions contain a method call
+			$this->setSortInApplicationFlag($ast);
+			
+			// Add complete entity to fetch list if 'sort in application' is set and it's not there
+			$this->plugCompleteEntityIfSortInApplicationFlagSet($ast);
 		}
 		
 		/**
@@ -485,7 +580,7 @@
 					$joinProperty = $range->getJoinProperty();
 					
 					if ($joinProperty !== null) {
-						$rangeOnlyOtherRanges = new ValidateRelationInViaValid($this->entityManager, $range->getEntity()->getName(), $range->getName());
+						$rangeOnlyOtherRanges = new ValidateRelationInViaValid($this->entityStore, $range->getEntity()->getName(), $range->getName());
 						$joinProperty->accept($rangeOnlyOtherRanges);
 					}
 				} catch (QuelException $e) {
@@ -493,36 +588,183 @@
 				}
 			}
 		}
-	
+		
+		
 		/**
-		 * Parses a Quel query and returns its AST representation.
-		 * @param string $query The Quel query string.
-		 * @return AstInterface|null The AST representation of the query or null if parsing fails.
-		 * @throws QuelException
+		 * Default way of adding pagination
+		 * @param AstRetrieve $e
+		 * @param array $parameters
+		 * @param array $primaryKeyInfo
+		 * @return void
 		 */
-		public function parse(string $query): ?AstInterface {
+		private function addPaginationDataToQueryDefault(AstRetrieve &$e, array $parameters, array $primaryKeyInfo): void {
+			// Bewaar de originele query waardes om later te herstellen.
+			$originalValues = $e->getValues();
+			$originalUnique = $e->getUnique();
+			
+			// Forceer de query om unieke resultaten te retourneren.
+			$e->setUnique(true);
+			
+			// Maak een nieuw AST-element voor de primaire sleutel.
+			$astEntity = new AstEntity($primaryKeyInfo['entityName'], clone $primaryKeyInfo['range']);
+			$astIdentifier = new AstIdentifier($astEntity, $primaryKeyInfo['primaryKey']);
+			$e->setValues([new AstAlias("primary", $astIdentifier)]);
+			
+			// Converteer de aangepaste AstRetrieve naar SQL en voer uit.
+			$sql = $this->convertToSQL($e);
+			$primaryKeys = $this->connection->GetCol($sql, $parameters);
+			$this->fullQueryResultCount = count($primaryKeys);
+			
+			// Filter de primaire sleutels voor de specifieke paginatie window.
+			$primaryKeysFiltered = array_slice($primaryKeys, $e->getWindow() * $e->getPageSize(), $e->getPageSize());
+			$newParameters = array_map(function($item) { return new AstNumber($item); }, $primaryKeysFiltered);
+			
+			// Herstel de originele query waarden.
+			$e->setValues($originalValues);
+			$e->setUnique($originalUnique);
+			
+			// Kijk of AstIn al in de query voorkomt. Zo ja, vervang dan de parameters
 			try {
-				$lexer = new Lexer($query);
-				$parser = new Parser($lexer);
-				$ast = $parser->parse();
-			} catch (LexerException | ParserException $e) {
-				throw new QuelException($e->getMessage());
+				$visitor = new GetMainEntityInAst($astIdentifier);
+				$e->getConditions()->accept($visitor);
+			} catch (GetMainEntityInAstException $exception) {
+				$exception->getAstObject()->setParameters($newParameters);
+				return;
 			}
 			
-			if (!$ast instanceof AstRetrieve) {
-				// Handle unexpected AST type, log error, or throw exception
-				return null;
-			}
+			// Creeër een AstIn-condition met de gefilterde primaire sleutels.
+			$astIn = new AstIn($astIdentifier, $newParameters);
 			
-			$this->validateAstRetrieve($ast);
-			return $ast;
+			// Voeg de nieuwe condition toe aan de bestaande conditions of vervang deze.
+			if ($e->getConditions() === null) {
+				$e->setConditions($astIn);
+			} else {
+				$e->setConditions(new AstAnd($e->getConditions(), $astIn));
+			}
 		}
 		
 		/**
+		 * Directly manipulate the values in 'IN()' without extra queries
+		 * @param AstRetrieve $e
+		 * @param array $parameters
+		 * @param array $primaryKeyInfo
+		 * @return void
+		 */
+		private function addPaginationDataToQuerySkipInValidation(AstRetrieve &$e, array $parameters, array $primaryKeyInfo): void {
+			try {
+				// Maak een AstIdentifier waarmee we kunnen zoeken naar een IN()
+				$astEntity = new AstEntity($primaryKeyInfo['entityName'], clone $primaryKeyInfo['range']);
+				$astIdentifier = new AstIdentifier($astEntity, $primaryKeyInfo['primaryKey']);
+				
+				// Zoek de IN() op in de query. An exception thrown here means it's found and is not an error
+				$visitor = new GetMainEntityInAst($astIdentifier);
+				$e->getConditions()->accept($visitor);
+				
+				// Als de IN() niet is gevonden, ga dan door met default logica
+				$this->addPaginationDataToQueryDefault($e, $parameters, $primaryKeyInfo);
+			} catch (GetMainEntityInAstException $exception) {
+				$astObject = $exception->getAstObject();
+				
+				// Sla de lengte van de parameters op
+				$this->fullQueryResultCount = count($astObject->getParameters());
+				
+				// Pas de IN() lijst aan
+				$primaryKeysFiltered = array_slice($astObject->getParameters(), $e->getWindow() * $e->getPageSize(), $e->getPageSize());
+				$astObject->setParameters($primaryKeysFiltered);
+			}
+		}
+		
+		/**
+		 * Voegt paginatiegegevens toe aan een AstRetrieve query door de query te manipuleren
+		 * om alleen de primaire sleutels van de gevraagde pagina op te halen.
+		 * Dit gebeurt door de query eerst te transformeren om alleen de primaire sleutels terug te geven,
+		 * vervolgens de relevante subset van primaire sleutels op te halen gebaseerd op de paginatie parameters,
+		 * en uiteindelijk de originele query te herstellen met een aangepaste voorwaarde die enkel de gefilterde sleutels bevat.
+		 * @param AstRetrieve $e
+		 * @param array $parameters
+		 * @return void
+		 */
+		private function addPaginationDataToQuery(AstRetrieve &$e, array $parameters): void {
+			// Controleer en haal de primaire sleutel informatie op.
+			$primaryKeyInfo = $this->entityStore->fetchPrimaryKeyOfMainRange($e);
+			
+			if ($primaryKeyInfo === null) {
+				return;
+			}
+			
+			// Als de compiler directive @SkipInValidation is meegegeven, skip dan de extra
+			// Queries en werkt direct met de IN waardes
+			$compilerDirectives = $e->getDirectives();
+			
+			if (isset($compilerDirectives['InValuesAreFinal']) && ($compilerDirectives['InValuesAreFinal'] === true)) {
+				$this->addPaginationDataToQuerySkipInValidation($e, $parameters, $primaryKeyInfo);
+			} else {
+				$this->addPaginationDataToQueryDefault($e, $parameters, $primaryKeyInfo);
+			}
+		}
+		
+		/**
+         * Parses a Quel query and returns its AST representation.
+         * This function takes a Quel query string and processes it through a lexer and parser
+         * to generate an Abstract Syntax Tree (AST) representation of the query. It returns
+         * the AST if the parsing is successful and the AST is of type `AstRetrieve`.
+         * Otherwise, it returns null.
+         * @param string $query The Quel query string.
+		 * @param array $parameters
+		 * @return AstInterface|null The AST representation of the query or null if parsing fails.
+         * @throws QuelException If there is a problem during lexing or parsing.
+         */
+        public function parse(string $query, array $parameters=[]): ?AstInterface {
+            try {
+                // Initialize the lexer with the query to tokenize the input.
+                $lexer = new Lexer($query);
+                
+                // Initialize the parser with the lexer to interpret the tokens and create the AST.
+                $parser = new Parser($lexer);
+                
+                // Parse the query to generate the AST.
+                $ast = $parser->parse();
+                
+                // Check if the generated AST is of type AstRetrieve.
+                // If it is not, handle the unexpected AST type by returning null.
+                if (!$ast instanceof AstRetrieve) {
+                    // Handle unexpected AST type, log error, or throw exception
+                    return null;
+                }
+                
+                // Validate the retrieved AST to ensure it meets the expected criteria.
+                $this->validateAstRetrieve($ast);
+				
+				// Als de query paginering gebruikt ('window x using page_size y'), dan moeten we
+				// de query aanpassen om te bepalen welke primary keys vallen binnen het window.
+				if (($ast->getWindow() !== null) && !$ast->getSortInApplicationLogic()) {
+					$this->addPaginationDataToQuery($ast, $parameters);
+				}
+				
+				// Return the valid AST.
+                return $ast;
+            } catch (LexerException | ParserException $e) {
+                // Catch lexer and parser exceptions, wrap them in a QuelException, and rethrow.
+                throw new QuelException($e->getMessage());
+            }
+        }
+
+		/**
+		 * Convert AstRetrieve node to SQL
 		 * @param AstRetrieve $retrieve
+		 * @param array $parameters
 		 * @return string
 		 */
-		public function convertToSQL(AstRetrieve $retrieve): string {
-			return $this->quelToSQL->convertToSQL($retrieve);
+		public function convertToSQL(AstRetrieve $retrieve, array &$parameters): string {
+			$quelToSQL = new QuelToSQL($this->entityStore, $parameters);
+			return $quelToSQL->convertToSQL($retrieve);
+		}
+		
+		/**
+		 * Returns the full query result count when paginating
+		 * @return int
+		 */
+		public function getFullQueryResultCount(): int {
+			return $this->fullQueryResultCount;
 		}
 	}

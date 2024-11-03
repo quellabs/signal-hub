@@ -27,6 +27,7 @@
 		 * Functie om een node in de AST (Abstract Syntax Tree) te bezoeken.
 		 * @param AstInterface $node
 		 * @return void
+		 * @throws \Exception
 		 */
 		public function visitNode(AstInterface $node): void {
 			if ($node instanceof AstEntity) {

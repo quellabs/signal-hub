@@ -25,10 +25,10 @@
 		
 		/**
 		 * EntityExistenceValidator constructor.
-		 * @param EntityManager $entityManager The EntityManager to use for entity validation.
+		 * @param EntityStore $entityStore
 		 */
-		public function __construct(EntityManager $entityManager) {
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
+		public function __construct(EntityStore $entityStore) {
+			$this->entityStore = $entityStore;
 		}
 		
 		/**

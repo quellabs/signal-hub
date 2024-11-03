@@ -14,7 +14,6 @@
 	class LogicalExpression	{
 		
 		private Lexer $lexer;
-		private FilterExpression $expressionRule;
 		
 		/**
 		 * LogicalExpression constructor
@@ -22,7 +21,6 @@
 		 */
 		public function __construct(Lexer $lexer) {
 			$this->lexer = $lexer;
-			$this->expressionRule = new FilterExpression($lexer);
 		}
 		
 		/**
@@ -49,7 +47,8 @@
 			}
 			
 			// Als er geen open haakje is, parse dan een eenvoudige expressie.
-			return $this->expressionRule->parse($entity);
+			$expressionRule = new FilterExpression($this->lexer);
+			return $expressionRule->parse($entity);
 		}
 		
 		/**

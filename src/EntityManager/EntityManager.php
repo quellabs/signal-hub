@@ -7,6 +7,7 @@
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\ParserException;
 	use Services\ObjectQuel\QuelException;
+	use Services\ObjectQuel\QuelResult;
 	use Services\Validation\EntityToValidation;
 	
 	class OrmException extends \Exception { }
@@ -30,9 +31,9 @@
         public function __construct(Kernel $kernel) {
             $this->kernel = $kernel;
             $this->connection = new DatabaseAdapter($kernel->getConfiguration());
+	        $this->entity_store = new EntityStore();
             $this->unit_of_work = new UnitOfWork($this);
 			$this->object_quel = new ObjectQuel($this);
-			$this->entity_store = $this->unit_of_work->getEntityStore();
 			$this->query_builder = new QueryBuilder($this->entity_store);
             $this->error_message = null;
         }
@@ -180,7 +181,7 @@
 			try {
 				// Parse de Quel query en converteer naar SQL
 				$e = $this->object_quel->parse($query);
-				$sql = $this->object_quel->convertToSQL($e);
+				$sql = $this->object_quel->convertToSQL($e, $parameters);
 				
 				// Voer de SQL query uit
 				$rs = $this->connection->execute($sql, $parameters);
@@ -190,7 +191,7 @@
 					return null;
 				}
 				
-				return new QuelResult($this->unit_of_work, $e, $rs);
+				return new QuelResult($this, $e, $rs);
 			} catch (ParserException|LexerException|QuelException $e) {
 				$this->error_message = $e->getMessage();
 				return null;

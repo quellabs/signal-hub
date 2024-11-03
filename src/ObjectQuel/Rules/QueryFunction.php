@@ -7,6 +7,9 @@
 	use Services\ObjectQuel\Ast\AstCount;
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstParameter;
+	use Services\ObjectQuel\Ast\AstSearch;
+	use Services\ObjectQuel\Ast\AstString;
 	use Services\ObjectQuel\Ast\AstUCount;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\Lexer;
@@ -20,8 +23,8 @@
 		private GeneralExpression $expressionRule;
 		
 		/**
-		 * Expression constructor
-		 * @param Lexer $lexer
+		 * QueryFunction constructor
+		 * @param GeneralExpression $expression
 		 */
 		public function __construct(GeneralExpression $expression) {
 			$this->expressionRule = $expression;
@@ -40,15 +43,14 @@
 			$this->lexer->match(Token::ParenthesesClose);
 			
 			if ((!$countIdentifier instanceof AstEntity) && (!$countIdentifier instanceof AstIdentifier)) {
-				throw new ParserException("Count operator takes an entity or entity property as parameter.");
+				throw new ParserException("COUNT operator takes an entity or entity property as parameter.");
 			}
 			
 			return new AstCount($countIdentifier);
 		}
-
+		
 		/**
 		 * Count operator
-		 * @param string $operator
 		 * @return AstUCount
 		 * @throws LexerException
 		 * @throws ParserException
@@ -59,7 +61,7 @@
 			$this->lexer->match(Token::ParenthesesClose);
 			
 			if ((!$countIdentifier instanceof AstEntity) && (!$countIdentifier instanceof AstIdentifier)) {
-				throw new ParserException("Count operator takes an entity or entity property as parameter.");
+				throw new ParserException("UCOUNT operator takes an entity or entity property as parameter.");
 			}
 			
 			return new AstUCount($countIdentifier);
@@ -79,7 +81,7 @@
 			$parameters = [];
 			
 			do {
-				$parameters[] = $this->parse($entity);
+				$parameters[] = $this->expressionRule->parse($entity);
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			// Match the closing parenthesis.
@@ -87,6 +89,53 @@
 			
 			// Create and return a new AstConcat object with the parsed parameters.
 			return new AstConcat($parameters);
+		}
+		
+		/**
+		 * Parse search operator
+		 * @throws LexerException|ParserException
+		 */
+		protected function parseSearch(): AstSearch {
+			// Match the opening parenthesis.
+			$this->lexer->match(Token::ParenthesesOpen);
+			
+			// Parse the identifier list.
+			$identifiers = $this->parseIdentifierList();
+			
+			if (empty($identifiers)) {
+				throw new ParserException("Missing identifier list for SEARCH operator.");
+			}
+			
+			// Parse the search string
+			$searchString = $this->expressionRule->parse();
+			
+			if ((!$searchString instanceof AstString) && (!$searchString instanceof AstParameter)) {
+				throw new ParserException("Missing search string for SEARCH operator.");
+			}
+			
+			// Match the closing parenthesis.
+			$this->lexer->match(Token::ParenthesesClose);
+			
+			// Return the AstSearch object
+			return new AstSearch($identifiers, $searchString);
+		}
+		
+		/**
+		 * Parse the identifier list
+		 * @return AstIdentifier[]
+		 */
+		private function parseIdentifierList(): array {
+			$identifiers = [];
+			
+			do {
+				if ($this->lexer->lookahead() !== Token::Identifier) {
+					break;
+				}
+				
+				$identifiers[] = $this->expressionRule->parse();
+			} while ($this->lexer->optionalMatch(Token::Comma));
+			
+			return $identifiers;
 		}
 		
 		/**
@@ -100,6 +149,7 @@
 				'count' => $this->parseCount(),
 				'ucount' => $this->parseUCount(),
 				'concat' => $this->parseConcat(),
+				'search' => $this->parseSearch(),
 				default => throw new ParserException("Command {$command} is not valid."),
 			};
 		}

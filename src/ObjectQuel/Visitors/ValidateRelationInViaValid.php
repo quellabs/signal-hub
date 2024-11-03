@@ -22,13 +22,13 @@
 		private string $rangeName;
 		
 		/**
-		 * EntityPropertyValidator constructor.
-		 * @param EntityManager $entityManager
+		 * ValidateRelationInViaValid constructor.
+		 * @param EntityStore $entityStore
 		 * @param string $entityName
 		 * @param string $rangeName
 		 */
-		public function __construct(EntityManager $entityManager, string $entityName, string $rangeName) {
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
+		public function __construct(EntityStore $entityStore, string $entityName, string $rangeName) {
+			$this->entityStore = $entityStore;
 			$this->entityName = $entityName;
 			$this->rangeName = $rangeName;
 		}
@@ -49,8 +49,8 @@
 			
 			// Haal alle afhankelijkheden op.
 			$entityName = $node->getEntityName();
-			$rangeName = $node->getEntity()->getRange()->getName();
-			$propertyName = $node->getPropertyName();
+			$rangeName = $node->getEntityOrParentIdentifier()->getRange()->getName();
+			$propertyName = $node->getName();
 			
 			$dependencies = [
 				'oneToOne'  => $this->entityStore->getOneToOneDependencies($entityName),
@@ -65,7 +65,7 @@
 					$targetEntity = $relation->getTargetEntity();
 					
 					if ($targetEntity !== $this->entityName) {
-						throw new QuelException("Failed to join '{$targetEntity}' via '{$rangeName}.{$propertyName}' from '{$this->entityName}'. This is not a valid relationship path.");
+						throw new QuelException("Failed to join {$targetEntity} via {$rangeName}.{$propertyName} from {$this->entityName}. This is not a valid relationship path.");
 					}
 				}
 			}

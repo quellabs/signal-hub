@@ -35,7 +35,7 @@
 			
 			// Loop through each parameter and apply the visitor to it.
 			foreach($this->parameterList as $item) {
-				$this->accept($item);
+				$item->accept($visitor);
 			}
 		}
 		

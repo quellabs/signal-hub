@@ -4,14 +4,14 @@
 	
 	class FunctionSignatures {
 		
-		private $buildInFunctions;
-		private $lookupTable;
+		private array $buildInFunctions;
+		private array $lookupTable;
 		
 		/**
 		 * FunctionSignatures constructor.
 		 * The first character is return type, other characters are parameter types.
 		 */
-        public function __construct() {
+		public function __construct() {
 			$this->buildInFunctions = [
 				'FloatToInt'                  => 'if',
 				'IntToFloat'                  => 'fi',
@@ -19,7 +19,10 @@
 				'StrToFloat'                  => 'fs',
 				'IntToStr'                    => 'si',
 				'FloatToStr'                  => 'sf',
-				'Round'                       => 'if',
+				'Round'                       => 'ff',
+				'Floor'                       => 'ff',
+				'Ceil'                        => 'ff',
+				'Frac'                        => 'ff',
 				'BoolToStr'                   => 'sb',
 				'StrToBool'                   => 'bs',
 				'Lowercase'                   => 'ss',
@@ -34,8 +37,15 @@
 				'IsInteger'                   => 'bs',
 				'Concat'                      => 'ssss:""s:""s:""s:""s:""s:""s:""s:""s:""',
 				'Write'                       => 'vs',
+				'WriteLn'                     => 'vs',
+				'Chr'                         => 'si',
+				'Ord'                         => 'is',
+				'Odd'                         => 'bi',
+				'Inc'                         => 'vri',
+				'Dec'                         => 'vri',
 				'GetSelectedOptionId'         => 'sss',
 				'GetSelectedOptionExtraValue' => 'ssss',
+				'SetValue'                    => 'vsss',
 			];
 			
 			$this->lookupTable = [
@@ -53,57 +63,93 @@
 		 * @return array
 		 */
 		protected function parseSignature(string $configuration): array {
-			$i = 0;
 			$result = [];
 			$len = strlen($configuration);
 			
-			while ($i < $len) {
-				// store identifier
+			for ($i = 0; $i < $len; $i++) {
+				$currentChar = $configuration[$i];
+				
+				// Reference
+				if ($currentChar == "r") {
+					$nextChar = $configuration[$i + 1];
+					
+					$result[] = [
+						'type'          => 'reference',
+						'target_type'   => $this->lookupTable[$nextChar] ?? null,
+						'default_value' => false,
+						'value'         => null
+					];
+					
+					++$i;
+					continue;
+				}
+				
+				// Normal type
 				$identifier = [
-					'type'  => $this->lookupTable[$configuration[$i]],
-					'value' => null
+					'type'          => $this->lookupTable[$currentChar] ?? null,
+					'target_type'   => null,
+					'default_value' => false,
+					'value'         => null
 				];
 				
-				// go to next character
-				++$i;
-				
-				// find out if there's a default value
-				if (($i < $len) && ($configuration[$i] == ':')) {
-					++$i;
-					$default = '';
+				if (($i + 1 < $len) && ($configuration[$i + 1] == ':')) {
+					// Skip type and ':' character
+					$i = $i + 2;
 					
-					// quote encapsulated
-					if ($configuration[$i] == '"') {
-						++$i;
-						
-						while ($i < $len) {
-							if ($configuration[$i] == '"') {
-								++$i;
-								break;
-							}
-							
-							$default .= $configuration[$i++];
+					// Store that there's a default value
+					$identifier['default_value'] = true;
+					
+					if ($i < $len) {
+						if ($configuration[$i] == '"') {
+							$identifier['value'] = $this->parseQuotedValue($configuration, $i);
+						} else {
+							$identifier['value'] = $this->parseNumericValue($configuration, $i);
 						}
-						
-						$identifier['value'] = $default;
-						$result[] = $identifier;
-						continue;
 					}
-					
-					// find numbers and dots
-					while ($i < $len && (ctype_digit($configuration[$i]) || $configuration[$i] == ".")) {
-						$default .= $configuration[$i++];
-					}
-					
-					$identifier['value'] = $default;
-					$result[] = $identifier;
-					continue;
 				}
 				
 				$result[] = $identifier;
 			}
 			
 			return $result;
+		}
+		
+		/**
+		 * Parse a quoted string value
+		 * @param string $configuration
+		 * @param int &$i
+		 * @return string
+		 */
+		private function parseQuotedValue(string $configuration, int &$i): string {
+			$value = '';
+			$len = strlen($configuration);
+			
+			for (++$i; $i < $len; ++$i) {
+				if ($configuration[$i] == '"') {
+					break;
+				}
+				
+				$value .= $configuration[$i];
+			}
+			
+			return $value;
+		}
+		
+		/**
+		 * Parse a numeric value
+		 * @param string $configuration
+		 * @param int &$i
+		 * @return string
+		 */
+		private function parseNumericValue(string $configuration, int &$i): string {
+			$value = '';
+			$len = strlen($configuration);
+			
+			while ($i < $len && (ctype_digit($configuration[$i]) || $configuration[$i] == '.')) {
+				$value .= $configuration[$i++];
+			}
+			
+			return $value;
 		}
 		
 		/**
@@ -139,7 +185,7 @@
 		/**
 		 * Returns the return type of the built-in function
 		 * @param string $keyword
-		 * @return string
+		 * @return string|null
 		 */
 		public function getBuiltInFunctionReturnType(string $keyword): ?string {
 			if (!$this->buildInFunctionExists($keyword)) {

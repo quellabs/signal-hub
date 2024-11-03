@@ -7,11 +7,12 @@
 	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
 	use Services\AnnotationsReader\Annotations\Orm\OneToMany;
 	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-	
-	class EntityStore {
+    use Services\ObjectQuel\Ast\AstRetrieve;
+    
+    class EntityStore {
         protected AnnotationsReader $annotation_reader;
         protected ReflectionHandler $reflection_handler;
-        protected PropertyHandler $property_handler;
+		protected ProxyGenerator $proxy_generator;
         protected array $entity_properties;
         protected array $entity_table_name;
         protected array $entity_annotations;
@@ -20,18 +21,15 @@
         protected array $identifier_columns_cache;
         protected string|bool $services_path;
         protected array|null $dependencies;
-        protected array|null $topologically_sorted_entities;
-		
-		/**
-		 * EntityStore constructor.
-		 * @param AnnotationsReader $annotationReader
-		 * @param ReflectionHandler $reflectionHandler
-		 * @param PropertyHandler $propertyHandler
-		 */
-		public function __construct(AnnotationsReader $annotationReader, ReflectionHandler $reflectionHandler, PropertyHandler $propertyHandler) {
-			$this->annotation_reader = $annotationReader;
-			$this->reflection_handler = $reflectionHandler;
-			$this->property_handler = $propertyHandler;
+        protected array $dependencies_cache;
+        protected array $completed_entity_name_cache;
+	    
+	    /**
+	     * EntityStore constructor.
+	     */
+		public function __construct() {
+			$this->annotation_reader = new AnnotationsReader();
+			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 			$this->entity_properties = [];
 			$this->entity_table_name = [];
@@ -40,10 +38,14 @@
 			$this->identifier_keys_cache = [];
 			$this->identifier_columns_cache = [];
 			$this->dependencies = null;
-			$this->topologically_sorted_entities =  null;
+			$this->dependencies_cache = [];
+			$this->completed_entity_name_cache = [];
 			
 			// Deze functie initialiseert alle entiteiten in de "Entity"-directory.
 			$this->initializeEntities();
+			
+			// Deze functie initialiseert de proxies
+			$this->proxy_generator = new ProxyGenerator($this);
 		}
 		
 		/**
@@ -100,50 +102,6 @@
 		}
 		
 		/**
-		 * Hulpmethode voor het uitvoeren van topologische sortering op een reeks van afhankelijkheden.
-		 * Gebruikt een diepte-eerste zoekmethode om entiteiten te sorteren in een lineaire volgorde.
-		 * @param string $entity De huidige entiteit om te verwerken.
-		 * @param array &$visited Een referentie naar een array die bijhoudt welke entiteiten zijn bezocht.
-		 * @param array &$path Een referentie naar een array die het huidige pad in de diepte-eerste zoektocht bijhoudt.
-		 * @param array &$sorted Een referentie naar een array waarin de gesorteerde entiteiten worden opgeslagen.
-		 * @param array $dependencies Een array van entiteiten en hun afhankelijkheden.
-		 * @return bool Geeft terug of de sortering succesvol is, of false als er een cyclische afhankelijkheid wordt gevonden.
-		 */
-		private function topologicalSortUtil(string $entity, array &$visited, array &$path, array &$sorted, array $dependencies): bool {
-			// Cyclische afhankelijkheden negeren
-			if (isset($path[$entity])) {
-				return true;
-			}
-			
-			// Als de entiteit al is bezocht, doe dan niets
-			if (isset($visited[$entity])) {
-				return true;
-			}
-			
-			// Markeer de entiteit als bezocht in het huidige pad en algemeen bezocht
-			$path[$entity] = true;
-			$visited[$entity] = true;
-			
-			// Verwerk eerst alle afhankelijke entiteiten
-			if (isset($dependencies[$entity])) {
-				foreach ($dependencies[$entity] as $depEntity) {
-					if (!$this->topologicalSortUtil($depEntity, $visited, $path, $sorted, $dependencies)) {
-						// Als er een probleem is met een afhankelijkheid, retourneer false
-						return false;
-					}
-				}
-			}
-			
-			// Na het verwerken van alle afhankelijkheden, voeg de huidige entiteit toe
-			$sorted[] = $entity;
-			
-			// Verwijder de entiteit uit het huidige pad
-			unset($path[$entity]);
-			
-			return true;
-		}
-		
-		/**
 		 * Controleert of het opgegeven bestand een PHP-bestand is.
 		 * @param string $fileName Naam van het bestand.
 		 * @return bool True als het een PHP-bestand is, anders false.
@@ -171,26 +129,6 @@
 			$annotations = $this->annotation_reader->getClassAnnotations($entityName);
 			return array_key_exists("Orm\\Table", $annotations);
 		}
-		
-		/**
-		 * Haalt de kolomnaam uit een lijst van annotaties.
-		 * Deze functie loopt door elke annotatie in de meegeleverde lijst. Als een Column-annotatie
-		 * wordt gevonden, wordt de naam ervan geretourneerd.
-		 * @param array $annotations De lijst met annotaties gekoppeld aan een eigenschap.
-		 * @return string|null De naam van de kolom als een Column-annotatie wordt gevonden, anders null.
-		 */
-		private function getColumnNameFromAnnotations(array $annotations): ?string {
-			// Loop door elke annotatie
-			foreach ($annotations as $annotation) {
-				// Als de annotatie een instance van Column is, retourneer dan de naam van de kolom
-				if ($annotation instanceof Column) {
-					return $annotation->getName();
-				}
-			}
-			
-			// Als er geen Column-annotatie is gevonden, retourneer dan null
-			return null;
-		}
 
 		/**
 		 * Deze functie vult de details van een gegeven entiteit.
@@ -213,9 +151,7 @@
 				$annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
 				
 				// Opslaan van de annotaties per eigenschap.
-				foreach ($annotations as $annotation) {
-					$this->entity_annotations[$entityName][$property][] = $annotation;
-				}
+				$this->entity_annotations[$entityName][$property] = $annotations;
 			}
 		}
 		
@@ -227,35 +163,41 @@
 		 */
 		private function internalGetDependencies(mixed $entity, string $desiredAnnotationType): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
 			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
+			// Cache hash
+			$md5OfQuery = hash("sha256", $normalizedClass . "##" . $desiredAnnotationType);
+			
+			// Haal dependencies uit cache indien mogelijk
+			if (isset($this->dependencies_cache[$md5OfQuery])) {
+				return $this->dependencies_cache[$md5OfQuery];
+			}
 			
 			// Haal de annotaties op voor de opgegeven klasse.
 			$annotationList = $this->getAnnotations($normalizedClass);
 			
-			// Initialiseer een array om de resultaten in op te slaan.
+			// Loop door elke annotatie om te controleren op een relatie.
 			$result = [];
 			
-			// Loop door elke annotatie om te controleren op een ManyToOne-relatie.
 			foreach ($annotationList as $property => $annotations) {
 				foreach ($annotations as $annotation) {
-					// Als de annotatie een OneToMany-relatie aangeeft,
-					// voeg deze dan toe aan de resultaat-array.
 					if ($annotation instanceof $desiredAnnotationType) {
 						$result[$property] = $annotation;
-						
-						// Ga naar de volgende iteratie van de buitenste lus.
-						continue 2;
+						break; // Stop met zoeken als de gewenste annotatie is gevonden
 					}
 				}
 			}
 			
-			// Retourneer de resultaat-array.
+			$this->dependencies_cache[$md5OfQuery] = $result;
 			return $result;
 		}
 		
@@ -276,43 +218,33 @@
         }
     
         /**
-         * Returns the PropertyHandler object
-         * @return PropertyHandler
+         * Returns the ProxyGenerator object
+         * @return ProxyGenerator
          */
-        public function getPropertyHandler(): PropertyHandler {
-            return $this->property_handler;
+        public function getProxyGenerator(): ProxyGenerator {
+            return $this->proxy_generator;
         }
-		
-		/**
-		 * Voegt een namespace toe aan een entity-klasse indien deze nog niet aanwezig is.
-		 * @param string $entityClass Naam van de entity-klasse.
-		 * @return string Volledige naam van de entity-klasse, inclusief namespace.
-		 */
-		public function addNamespaceToEntityName(string $entityClass): string {
-			// Controleer of de gegeven klasse al een namespace bevat
-			if (!str_contains($entityClass, "\\")) {
-				// Voeg de standaard namespace toe als deze nog niet aanwezig is
-				return "Services\\Entity\\{$entityClass}";
-			}
-			
-			// Retourneer de originele klassenaam als deze al een namespace bevat
-			return $entityClass;
-		}
-		
+    
 		/**
 		 * Normaliseert de entiteitsnaam om de basisentiteitsklasse terug te geven als de input een proxy-klasse is.
 		 * @param string $class De volledige naam van de klasse die genormaliseerd moet worden.
 		 * @return string De genormaliseerde naam van de klasse.
 		 */
 		public function normalizeEntityName(string $class): string {
-			// Controleer of de klassenaam het "\\Proxies\\" subpad bevat, wat duidt op een proxy-klasse
-			// Als het een proxy-klasse is, haal dan de naam van de ouderklasse (de echte entiteitsklasse) op
-			if (str_contains($class, "\\Proxies\\")) {
-				return $this->reflection_handler->getParent($class);
+			if (!isset($this->completed_entity_name_cache[$class])) {
+				// Controleer of de klassenaam het "\\Proxies\\" subpad bevat, wat duidt op een proxy-klasse
+				// Als het een proxy-klasse is, haal dan de naam van de ouderklasse (de echte entiteitsklasse) op
+				if (str_contains($class, "\\Proxies\\")) {
+					$this->completed_entity_name_cache[$class] = $this->reflection_handler->getParent($class);
+				} elseif (str_contains($class, "\\")) {
+					$this->completed_entity_name_cache[$class] = $class;
+				} else {
+					$this->completed_entity_name_cache[$class] = "Services\\Entity\\{$class}";
+				}
 			}
 			
 			// Als het geen proxy-klasse is, retourneer dan gewoon de gegeven klassenaam
-			return $class;
+			return $this->completed_entity_name_cache[$class];
 		}
 		
 		/**
@@ -321,17 +253,20 @@
 		 * @return bool True if the entity or its parent class exists in the entity_table_name array, false otherwise.
 		 */
 		public function exists(mixed $entity): bool {
-			// Get the class name of the entity, regardless of whether it's an object or a class name string.
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			// Bepaal de klassenaam van de entiteit
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
 			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
-			
 			// Check if the entity class exists in the entity_table_name array.
-			if (array_key_exists($normalizedClass, $this->entity_table_name)) {
+			if (isset($this->entity_table_name[$normalizedClass])) {
 				return true;
 			}
 			
@@ -339,7 +274,7 @@
 			$parentClass = $this->getReflectionHandler()->getParent($normalizedClass);
 			
 			// Check if the parent class exists in the entity_table_name array.
-			if ($parentClass !== null && array_key_exists($parentClass, $this->entity_table_name)) {
+			if ($parentClass !== null && isset($this->entity_table_name[$parentClass])) {
 				return true;
 			}
 			
@@ -354,13 +289,16 @@
          */
         public function getOwningTable(mixed $entity): ?string {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
 			
 			// Haal de table naam op
 			return $this->entity_table_name[$normalizedClass] ?? null;
@@ -373,35 +311,34 @@
 		 */
 		public function getIdentifierKeys(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
 			
 			// Gebruik de gecachte waarde als deze bestaat
 			if (isset($this->identifier_keys_cache[$normalizedClass])) {
 				return $this->identifier_keys_cache[$normalizedClass];
 			}
 			
-			// Initialiseren van het resultaat array.
-			$result = [];
-			
 			// Ophalen van alle annotaties voor de gegeven entiteit.
 			$entityAnnotations = $this->getAnnotations($entity);
 			
-			// Itereren over alle annotaties gekoppeld aan eigenschappen van de entiteit.
-			foreach($entityAnnotations as $property => $annotations) {
-				foreach($annotations as $annotation) {
-					// Ga door als de annotatie geen kolom is of geen primaire sleutel is
-					if (!$annotation instanceof Column || !$annotation->isPrimaryKey()) {
-						continue;
+			// Zoek de primaire sleutels en cache het resultaat
+			$result = [];
+			
+			foreach ($entityAnnotations as $property => $annotations) {
+				foreach ($annotations as $annotation) {
+					if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
+						$result[] = $property;
+						break;
 					}
-					
-					// Toevoegen van de eigenschap aan het resultaat array.
-					$result[] = $property;
 				}
 			}
 			
@@ -419,13 +356,16 @@
 		 */
 		public function getIdentifierColumnNames(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
 			
 			// Gebruik de gecachte waarde als deze bestaat
 			if (isset($this->identifier_columns_cache[$normalizedClass])) {
@@ -441,12 +381,9 @@
 			// Loop door alle annotaties van de entiteit
 			foreach ($annotationList as $annotations) {
 				foreach ($annotations as $annotation) {
-					// Ga door als de annotatie geen kolom is of geen primaire sleutel is
-					if (!$annotation instanceof Column || !$annotation->isPrimaryKey()) {
-						continue;
+					if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
+						$result[] = $annotation->getName();
 					}
-					
-					$result[] = $annotation->getName();
 				}
 			}
 			
@@ -467,13 +404,16 @@
 		 */
 		public function getColumnMap(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			if (!is_object($entity)) {
+				$entityClass = ltrim($entity, "\\");
+			} elseif ($entity instanceof \ReflectionClass) {
+				$entityClass = $entity->getName();
+			} else {
+				$entityClass = get_class($entity);
+			}
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
 			
 			// Gebruik de gecachte waarde als deze bestaat
 			if (isset($this->column_map_cache[$normalizedClass])) {
@@ -483,17 +423,16 @@
 			// Haal alle annotaties voor de entiteit op
 			$annotationList = $this->getAnnotations($normalizedClass);
 			
-			// Initialiseer een lege array om het resultaat op te slaan
-			$result = [];
-			
 			// Loop door alle annotaties, gekoppeld aan hun respectievelijke eigenschappen
+			$result = [];
+
 			foreach ($annotationList as $property => $annotations) {
 				// Verkrijg de kolomnaam van de annotaties
-				$columnName = $this->getColumnNameFromAnnotations($annotations);
-				
-				// Als er een kolomnaam is, voeg deze dan toe aan het resultaat
-				if ($columnName !== null) {
-					$result[$property] = $columnName;
+				foreach ($annotations as $annotation) {
+					if ($annotation instanceof Column) {
+						$result[$property] = $annotation->getName();
+						break;
+					}
 				}
 			}
 			
@@ -511,7 +450,7 @@
          */
         public function getAnnotations(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
@@ -521,13 +460,13 @@
         }
 
         /**
-         * Returns the entity's annotations
+         * Returns the entity's properties
          * @param mixed $entity
          * @return array
          */
         public function getProperties(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
@@ -565,33 +504,71 @@
 		public function getOneToManyDependencies(mixed $entity): array {
 			return $this->internalGetDependencies($entity, OneToMany::class);
 		}
-		
-		/**
+        
+        /**
+         * Interner helper functies voor het ophalen van properties met een bepaalde annotatie
+         * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
+         * @return array
+         */
+        public function getAllDependencies(mixed $entity): array {
+			// Bepaal de klassenaam van de entiteit
+			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
+            
+            // Als de klassenaam een proxy is, haal dan de class op van de parent
+            $normalizedClass = $this->normalizeEntityName($entityClass);
+            
+            // Cache hash
+            $md5OfQuery = hash("sha256", $normalizedClass);
+            
+            // Haal dependencies uit cache indien mogelijk
+            if (isset($this->dependencies_cache[$md5OfQuery])) {
+                return $this->dependencies_cache[$md5OfQuery];
+            }
+            
+            // Haal de annotaties op voor de opgegeven klasse.
+            $annotationList = $this->getAnnotations($normalizedClass);
+            
+            // Loop door elke annotatie om te controleren op een relatie.
+			$result = [];
+			
+			foreach (array_keys($annotationList) as $property) {
+				foreach ($annotationList[$property] as $annotation) {
+					if ($annotation instanceof OneToMany || $annotation instanceof OneToOne || $annotation instanceof ManyToOne) {
+						$result[$property][] = $annotation;
+						continue 2;
+					}
+				}
+			}
+            
+            $this->dependencies_cache[$md5OfQuery] = $result;
+            return $result;
+        }
+        
+        /**
 		 * Retourneert alle entiteiten die afhankelijk zijn van de opgegeven entiteit.
 		 * @param mixed $entity De naam van de entiteit waarvan je de afhankelijke entiteiten wilt vinden.
 		 * @return array Een lijst van afhankelijke entiteiten.
 		 */
 		public function getDependentEntities(mixed $entity): array {
 			// Bepaal de klassenaam van de entiteit
-			$entityClass = is_object($entity) ? get_class($entity) : ltrim($entity, "\\");
+			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
 			
 			// Als de klassenaam een proxy is, haal dan de class op van de parent
 			$normalizedClass = $this->normalizeEntityName($entityClass);
 			
-			// If the class lacks a namespace, add it
-			$normalizedClass = $this->addNamespaceToEntityName($normalizedClass);
-			
-			// Initialiseer een lege array om de resultaten in op te slaan.
-			$result = [];
-			
 			// Haal alle bekende entiteitsafhankelijkheden op.
 			$dependencies = $this->getAllEntityDependencies();
 			
-			// Loop door alle entiteiten en hun afhankelijkheden.
-			foreach($dependencies as $entity => $entityDependencies) {
-				// Als de opgegeven klasse in de lijst met afhankelijkheden staat,
+			// Loop door elke entiteit en diens afhankelijkheden om te controleren op de opgegeven klasse.
+			$result = [];
+			
+			foreach ($dependencies as $entity => $entityDependencies) {
+				// Gebruik array_flip voor snellere zoekopdrachten.
+				$flippedDependencies = array_flip($entityDependencies);
+				
+				// Als de opgegeven klasse in de omgekeerde lijst met afhankelijkheden staat,
 				// voeg deze dan toe aan het resultaat.
-				if (in_array($normalizedClass, $entityDependencies)) {
+				if (isset($flippedDependencies[$normalizedClass])) {
 					$result[] = $entity;
 				}
 			}
@@ -601,34 +578,33 @@
 		}
 		
 		/**
-		 * Verkrijgt een topologisch gesorteerde lijst van entiteiten op basis van hun afhankelijkheden.
-		 * Deze methode zorgt voor de sortering van entiteiten zodanig dat elke entiteit volgt na alle entiteiten waarvan het afhankelijk is.
-		 * Maakt gebruik van de 'topologicalSortUtil' methode voor het daadwerkelijke sorteerproces.
-		 * @return array Een array van topologisch gesorteerde entiteiten.
-		 * @throws \Exception Als er een cyclische afhankelijkheid wordt gedetecteerd in de entiteiten.
+		 * Haalt de primaire sleutel van de hoofdbereik (range) van een AstRetrieve object.
+		 * Deze functie doorzoekt de ranges binnen het AstRetrieve object en retourneert de primaire sleutel
+		 * van de eerste range die geen join eigenschap heeft. Dit is de hoofdentity waarop de query betrekking heeft.
+		 * @param AstRetrieve $e Een verwijzing naar het AstRetrieve object dat de query representeert.
+		 * @return ?array Een array met informatie over de range en de primaire sleutel, of null als er geen geschikte range gevonden is.
 		 */
-		public function getTopologicallySortedEntities() : array {
-			// Controleer of de gesorteerde entiteiten al zijn bepaald.
-			if ($this->topologically_sorted_entities === null) {
-				$path = []; // Houdt het huidige pad van de diepte-eerste zoektocht bij.
-				$visited = []; // Houdt bij welke entiteiten zijn bezocht.
-				$sorted = []; // De uiteindelijke gesorteerde lijst van entiteiten.
-				$dependencies = $this->getAllEntityDependencies(); // Verkrijg alle afhankelijkheden.
-				
-				// Doorloop alle entiteiten en voer topologische sortering uit.
-				foreach (array_keys($dependencies) as $entity) {
-					// Maak gebruik van 'topologicalSortUtil' voor het sorteren.
-					// Als er een cyclische afhankelijkheid wordt gedetecteerd, gooi een uitzondering.
-					if (!$this->topologicalSortUtil($entity, $visited, $path, $sorted, $dependencies)) {
-						throw new \Exception("Cyclische afhankelijkheid gedetecteerd");
-					}
+		public function fetchPrimaryKeyOfMainRange(AstRetrieve $e): ?array {
+			foreach ($e->getRanges() as $range) {
+				// Continueert of de range een join eigenschap bevat
+				if ($range->getJoinProperty() !== null) {
+					continue;
 				}
 				
-				// Sla het resultaat op voor latere oproepen.
-				$this->topologically_sorted_entities = $sorted;
+				// Haalt de naam van de entiteit en de bijbehorende primaire sleutel op als de range geen join eigenschap heeft.
+				$entityName = $range->getEntity()->getName();
+				$entityNameIdentifierKeys = $this->getIdentifierKeys($entityName);
+				
+				// Retourneert de naam van de range, de entiteitnaam en de primaire sleutel van de entiteit.
+				return [
+					'range'      => $range,
+					'entityName' => $entityName,
+					'primaryKey' => $entityNameIdentifierKeys[0]
+				];
 			}
 			
-			// Retourneer de gesorteerde lijst van entiteiten.
-			return $this->topologically_sorted_entities;
+			// Retourneert null als er geen range zonder join eigenschap gevonden is.
+			// Dit komt in de praktijk nooit voor, omdat een dergelijke query niet gemaakt kan worden.
+			return null;
 		}
     }

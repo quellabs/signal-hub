@@ -9,10 +9,7 @@
 	 */
 	class AstIdentifier extends Ast {
 		
-		/**
-		 * @var $entity AstEntity
-		 */
-		protected $entity;
+		protected AstEntity|AstIdentifier $entityOrParentIdentifier;
 		
 		/**
 		 * @var string The actual identifier value.
@@ -21,11 +18,11 @@
 		
 		/**
 		 * Constructor.
-		 * @param AstEntity $entity The entity the identifier value can be found in
+		 * @param AstEntity|AstIdentifier $entityOrParentIdentifier
 		 * @param string $identifier The identifier value
 		 */
-		public function __construct(AstEntity $entity, string $identifier) {
-			$this->entity = $entity;
+		public function __construct(AstEntity|AstIdentifier $entityOrParentIdentifier, string $identifier) {
+			$this->entityOrParentIdentifier = $entityOrParentIdentifier;
 			$this->identifier = $identifier;
 		}
 		
@@ -33,17 +30,17 @@
 		 * Accepteer een bezoeker om de AST te verwerken.
 		 * @param AstVisitorInterface $visitor Bezoeker object voor AST-manipulatie.
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor); // Accepteer eerst de bezoeker op ouderklasse
-			$this->entity->accept($visitor); // Accepteer hem daarna op de entity AST
+			$this->entityOrParentIdentifier->accept($visitor); // Accepteer hem daarna op de entity AST
 		}
 		
 		/**
 		 * Returns the entity
-		 * @return AstEntity The entity node
+		 * @return AstEntity|AstIdentifier The entity node
 		 */
-		public function getEntity(): AstEntity {
-			return $this->entity;
+		public function getEntityOrParentIdentifier(): AstEntity|AstIdentifier {
+			return $this->entityOrParentIdentifier;
 		}
 		
 		/**
@@ -51,22 +48,30 @@
 		 * @return string The entity name or the full identifier if no property specified.
 		 */
 		public function getEntityName(): string {
-			return $this->entity->getName();
+			if (!$this->entityOrParentIdentifier instanceof AstEntity) {
+				return "";
+			}
+			
+			return $this->entityOrParentIdentifier->getName();
 		}
 		
 		/**
-		 * Updates the entity name
-		 * @return void
+		 * Extracts and returns the entity name from the identifier.
+		 * @return string The entity name or the full identifier if no property specified.
 		 */
-		public function setEntityName(string $entityName): void {
-			$this->entity->setName($entityName);
+		public function getParentIdentifierName(): string {
+			if (!$this->entityOrParentIdentifier instanceof AstIdentifier) {
+				return "";
+			}
+			
+			return $this->entityOrParentIdentifier->getName();
 		}
 		
 		/**
 		 * Extracts and returns the property name from the identifier.
 		 * @return string The property name or an empty string if not specified.
 		 */
-		public function getPropertyName(): string {
+		public function getName(): string {
 			return $this->identifier;
 		}
 	}

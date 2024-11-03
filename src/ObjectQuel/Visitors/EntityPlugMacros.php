@@ -16,10 +16,11 @@
 	 */
 	class EntityPlugMacros implements AstVisitorInterface {
 		
-		private $macros;
+		private array $macros;
 		
 		/**
 		 * EntityPlugMacros constructor
+		 * @param array $macros
 		 */
 		public function __construct(array $macros) {
 			$this->macros = $macros;

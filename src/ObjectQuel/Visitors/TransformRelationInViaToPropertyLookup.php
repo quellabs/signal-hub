@@ -28,12 +28,12 @@
 		private AstRange $range;
 		
 		/**
-		 * EntityPropertyValidator constructor.
-		 * @param EntityManager $entityManager
+		 * TransformRelationInViaToPropertyLookup constructor.
+		 * @param EntityStore $entityStore
 		 * @param AstRange $range
 		 */
-		public function __construct(EntityManager $entityManager, AstRange $range) {
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
+		public function __construct(EntityStore $entityStore, AstRange $range) {
+			$this->entityStore = $entityStore;
 			$this->range = $range;
 		}
 		
@@ -44,7 +44,7 @@
 		 */
 		public function isRelationProperty(AstIdentifier $node): bool {
 			$entityName = $node->getEntityName();
-			$propertyName = $node->getPropertyName();
+			$propertyName = $node->getName();
 			
 			return array_key_exists($propertyName, array_merge(
 				$this->entityStore->getOneToOneDependencies($entityName),
@@ -67,24 +67,40 @@
 		}
 		
 		/**
-		 * Create a property lookup using the given relation
-		 * @param AstIdentifier $joinProperty
-		 * @param mixed $relation
-		 * @return AstExpression
+		 * Creëert een Property Lookup AST (Abstract Syntax Tree) gebruikmakend van een relatie.
+		 * @param AstIdentifier $joinProperty Het join property waarmee de relatie wordt gemaakt.
+		 * @param mixed $relation De relatie die gebruikt wordt om de property lookup te creëren.
+		 * @return AstInterface Het gegenereerde AST-object.
 		 */
 		public function createPropertyLookupAstUsingRelation(AstIdentifier $joinProperty, mixed $relation): AstInterface {
-			$range = $joinProperty->getEntity()->getRange();
+			// Haal de entiteit en range op van de join property
+			$entity = $joinProperty->getEntityOrParentIdentifier();
+			$range = $entity->getRange();
 			$relationColumn = $relation->getRelationColumn();
 			
+			// Als de relatiekolom null is, gebruik de eerste identifier key van de entiteit
+			if ($relationColumn === null) {
+				$identifierKeys = $this->entityStore->getIdentifierKeys($entity->getName());
+				$relationColumn = $identifierKeys[0];
+			}
+			
+			// Voor ManyToOne relaties, gebruik de 'inversedBy' waarde
 			if ($relation instanceof ManyToOne) {
 				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getInversedBy());
-			} elseif ($relation instanceof OneToMany) {
-				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getMappedBy());
-			} elseif (!empty($relation->getInversedBy())) {
-				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getInversedBy());
-			} else {
+			}
+			
+			// Voor OneToMany relaties, gebruik de 'mappedBy' waarde
+			if ($relation instanceof OneToMany) {
 				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getMappedBy());
 			}
+			
+			// Voor relaties met een 'inversedBy' waarde, gebruik deze
+			if (!empty($relation->getInversedBy())) {
+				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getInversedBy());
+			}
+			
+			// Voor alle andere gevallen, gebruik de 'mappedBy' waarde
+			return $this->createPropertyLookupAst($relationColumn, $range, $relation->getMappedBy());
 		}
 		
 		/**
@@ -103,7 +119,7 @@
 			
 			// Haal de entiteitsnaam en eigenschapsnaam op van de zijde.
 			$entityName = $side->getEntityName();
-			$propertyName = $side->getPropertyName();
+			$propertyName = $side->getName();
 			
 			// Combineer alle relatie-afhankelijkheden voor de gegeven entiteitsnaam.
 			$relations = array_merge(

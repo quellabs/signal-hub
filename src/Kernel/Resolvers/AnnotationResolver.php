@@ -136,7 +136,8 @@
 			$controllers = $this->dirToArray($controllerDir);
 			
 			// Parse request path
-			$requestPath = explode('/', ltrim($request->query->get('query'), '/'));
+			//$requestPath = explode('/', ltrim($request->query->get('query'), '/'));
+			$requestPath = explode("/", "hallo/10");
 			$requestMethod = $request->getMethod();
 			
 			// Search through controllers for matching route

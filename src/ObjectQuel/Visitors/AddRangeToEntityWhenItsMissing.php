@@ -9,14 +9,13 @@
 	
 	class AddRangeToEntityWhenItsMissing implements AstVisitorInterface {
 		
-		private $ranges;
-		private $range_names;
-		private $created_ranges;
-		private $counters;
+		private array $ranges;
+		private array $range_names;
+		private array $created_ranges;
+		private array $counters;
 		
 		/**
-		 * EntityPlugRange constructor
-		 * @param array $ranges
+		 * AddRangeToEntityWhenItsMissing constructor
 		 */
 		public function __construct() {
 			$this->ranges = [];
@@ -30,7 +29,7 @@
 		 * @param AstInterface $node
 		 * @return void
 		 */
-		public function visitNode(AstInterface $node) {
+		public function visitNode(AstInterface $node): void {
 			// Deze visitor behandeld alleen AstEntity
 			if (!$node instanceof AstEntity) {
 				return;

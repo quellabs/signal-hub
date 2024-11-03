@@ -26,10 +26,10 @@
 		 * @var array $ranges
 		 */
 		private array $macros;
-
+		
 		/**
-		 * EntityProcessRange constructor.
-		 * @param array $ranges Table of ranges
+		 * EntityProcessMacro constructor.
+		 * @param array $macros
 		 */
 		public function __construct(array $macros) {
 			$this->macros = $macros;
@@ -38,8 +38,9 @@
 		/**
 		 * Visit a node in the AST.
 		 * @param AstInterface $node The node to visit.
+		 * @eeturn void
 		 */
-		public function visitNode(AstInterface $node) {
+		public function visitNode(AstInterface $node): void {
 			if ($node instanceof AstEntity) {
 				$entityName = $node->getName();
 				

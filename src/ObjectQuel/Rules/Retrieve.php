@@ -10,6 +10,7 @@
 	use Services\ObjectQuel\LexerException;
 	use Services\ObjectQuel\ParserException;
 	use Services\ObjectQuel\Token;
+	use Services\ObjectQuel\Visitors\ContainsMethodCall;
 	
 	class Retrieve {
 
@@ -77,16 +78,18 @@
 		
 		/**
 		 * Parse the 'retrieve' statement of the ObjectQuel language.
+		 * @param array $directives
 		 * @param AstRange[] $ranges
 		 * @return AstRetrieve
-		 * @throws LexerException|ParserException
+		 * @throws LexerException
+		 * @throws ParserException
 		 */
-		public function parse(array $ranges): AstRetrieve {
+		public function parse(array $directives, array $ranges): AstRetrieve {
 			// Match and consume the 'retrieve' token
 			$this->lexer->match(Token::Retrieve);
 			
 			// Create a new AST node for the 'retrieve' operation
-			$retrieve = new AstRetrieve($ranges, $this->lexer->optionalMatch(Token::Unique));
+			$retrieve = new AstRetrieve($directives, $ranges, $this->lexer->optionalMatch(Token::Unique));
 			
 			// Match and consume the opening parenthesis
 			$this->lexer->match(Token::ParenthesesOpen);
@@ -112,20 +115,32 @@
                 
                 do {
                     $sortResult = $this->expressionRule->parse();
-                    $order = ''; // Standaard order is leeg.
                     
                     if ($this->lexer->optionalMatch(Token::Asc)) {
                         $order = 'asc';
                     } elseif ($this->lexer->optionalMatch(Token::Desc)) {
                         $order = 'desc';
-                    }
-                    
+                    } else {
+						$order = '';
+					}
+					
                     $sortArray[] = ['ast' => $sortResult, 'order' => $order];
                 } while ($this->lexer->optionalMatch(Token::Comma));
                 
                 $retrieve->setSort($sortArray);
-            }
+			}
 			
+			// Window (pagination)
+			if ($this->lexer->optionalMatch(Token::Window)) {
+				$window = $this->lexer->match(Token::Number);
+				$this->lexer->match(Token::Using);
+				$this->lexer->match(Token::Pagesize);
+				$pageSize = $this->lexer->match(Token::Number);
+				
+				$retrieve->setWindow($window->getValue());
+				$retrieve->setPageSize($pageSize->getValue());
+			}
+
 			// Optionele puntkomma
 			if ($this->lexer->lookahead() == Token::Semicolon) {
 				$this->lexer->match(Token::Semicolon);

@@ -31,8 +31,9 @@
 		/**
 		 * Accepts a visitor to traverse the AST.
 		 * @param AstVisitorInterface $visitor The visitor object.
+		 * @return void
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);
 			$this->expression->accept($visitor);
 		}

@@ -44,7 +44,8 @@
 		];
 		
 		/**
-		 * clsDB constructor.
+		 * Database Adapter constructor.
+		 * This file wraps the functions of AdoDB
 		 * @param array $configuration
 		 */
 		public function __construct(array $configuration) {

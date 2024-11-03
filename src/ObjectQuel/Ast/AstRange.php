@@ -4,6 +4,7 @@
 	
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
+	use Services\ObjectQuel\Visitors\FindIdentifier;
 	
 	/**
 	 * Class AstRange
@@ -83,6 +84,27 @@
 		 */
 		public function setJoinProperty(?AstInterface $joinExpression): void {
 			$this->joinProperty = $joinExpression;
+		}
+		
+		/**
+		 * Returns true if the range expression contains the given property
+		 * @param string $entityName
+		 * @param string $property
+		 * @return bool
+		 */
+		public function hasJoinProperty(string $entityName, string $property): bool {
+			// False als de property niet bestaan
+			if (is_null($this->joinProperty)) {
+				return false;
+			}
+			
+			try {
+				$findVisitor = new FindIdentifier($entityName, $property);
+				$this->joinProperty->accept($findVisitor);
+				return false;
+			} catch (\Exception $exception) {
+				return true;
+			}
 		}
 
 		/**

@@ -2,6 +2,17 @@
 	
 	namespace Services\Signalize;
 	
+	use Services\Signalize\Ast\AstBindContainer;
+	use Services\Signalize\Ast\AstTokenStream;
+	use Services\Signalize\Rules\BindClick;
+	use Services\Signalize\Rules\BindCss;
+	use Services\Signalize\Rules\BindEnabled;
+	use Services\Signalize\Rules\BindOptions;
+	use Services\Signalize\Rules\BindStyle;
+	use Services\Signalize\Rules\BindValue;
+	use Services\Signalize\Rules\BindVisible;
+	use Services\Signalize\Visitors\VisitorConvertToByteCode;
+	
 	class BindParser extends Parser {
 		
 		/**
@@ -13,236 +24,59 @@
 		}
 		
 		/**
-		 * Infer the type from the AST
-		 * @param array $ast
-		 * @return mixed|string
-		 */
-		protected function inferType(array $ast) {
-			if ($ast["type"] == "bindVariableLookup") {
-				return "string";
-			} elseif ($ast["type"] == "stVariableLookup") {
-				return "string";
-			} else {
-				return parent::inferType($ast);
-			}
-		}
-		
-		/**
-		 * Parses a constant or variable and returns the value info
-		 * @return array
-		 * @throws \Exception
-		 */
-		protected function parseConstantOrVariable(): array {
-			$token = $this->lexer->peek();
-			
-			switch ($token['type']) {
-				case 'at' :
-					$this->lexer->match('at');
-					$key = $this->lexer->match('identifier');
-					
-					// a dot means we want to read a dynamic value on the configbuilder page
-					// the part before the dot is the container, and after the dot the key
-					if ($this->lexer->optionalMatch('dot')) {
-						$container = $key;
-						$key = $this->lexer->match('identifier');
-						
-						while ($this->lexer->optionalMatch('dot')) {
-							$subKey = $this->lexer->match('identifier');
-							$key["value"] = $key["value"] . "." . $subKey["value"];
-						}
-						
-						return [
-							'type'      => 'bindVariableLookup',
-							'subType'   => "string",
-							'container' => $container["value"],
-							'key'       => $key["value"],
-						];
-					} else {
-						return [
-							'type'    => 'stVariableLookup',
-							'subType' => "string",
-							'key'     => $key["value"],
-						];
-					}
-				
-				default :
-					return parent::parseConstantOrVariable();
-			}
-		}
-		
-		/**
-		 * Parse the visible binding
-         * 'bind' => 'enable: { @ADDON_DIFFUSE != "false" }',
-		 * @return void
-		 * @throws \Exception
-		 */
-		private function parseVisible(array &$items): void {
-			$this->lexer->match('identifier');
-			$this->lexer->match('colon');
-			$this->lexer->match('curly_brace_open');
-			$ast = $this->parseLogicalExpression();
-			$this->lexer->match('curly_brace_close');
-			
-			// perform typechecking
-			$this->typeChecker($ast);
-			
-			// if all well, return the item
-            $items[] = [
-				'type'   => 'visible',
-				'ast'    => $ast,
-			];
-		}
-		
-		/**
-		 * Parse the visible binding
-         * 'bind' => 'visible: { @ADDON_DIFFUSE != "false" }',
-         * @return void
-		 * @throws \Exception
-		 */
-		private function parseEnabled(array &$items): void {
-			$this->lexer->match('identifier');
-			$this->lexer->match('colon');
-			$this->lexer->match('curly_brace_open');
-			$ast = $this->parseLogicalExpression();
-			$this->lexer->match('curly_brace_close');
-			
-			// perform typechecking
-			$this->typeChecker($ast);
-			
-			// if all well, return the item
-			$items[] = [
-				'type'   => 'enabled',
-				'ast'    => $ast,
-			];
-		}
-        
-        /**
-         * Css bind
-         * 'bind' => 'css: { "text-uppercase": @configuration.LEFT_COLUMN_TITLES_CAPITALLETTERS == "true" }',
-         * @return void
-         * @throws \Exception
-         */
-        private function parseCss(array &$items): void {
-            $this->lexer->match('identifier');
-            $this->lexer->match('colon');
-            $this->lexer->match('curly_brace_open');
-            
-            do {
-                if (!($classNameToken = $this->lexer->optionalMatch("string"))) {
-                    $classNameToken = $this->lexer->match("identifier");
-                }
-                
-                $this->lexer->match('colon');
-                
-                $items[] = [
-                    'type'  => 'css',
-                    'class' => $classNameToken["value"],
-                    'ast'   => $this->parseLogicalExpression(),
-                ];
-            } while ($this->lexer->optionalMatch('comma'));
-            
-            $this->lexer->match('curly_brace_close');
-        }
-		
-        /**
-         * Css bind
-         * 'bind' => 'style: { "--btn-primary-bg-color": @configuration.THEME_BTN_COLOR_PRIMARY, "--btn-primary-text-color": @configuration.THEME_BTN_TEXT_COLOR_PRIMARY, "--btn-primary-border-color": @configuration.THEME_BTN_BORDER_COLOR_PRIMARY, "--btn-primary-bg-color-hover": @configuration.THEME_BTN_HOVER_COLOR_PRIMARY, "--btn-primary-text-color-hover": @configuration.THEME_BTN_TEXT_HOVER_COLOR_PRIMARY, "--btn-primary-border-color-hover": @configuration.THEME_BTN_BORDER_HOVER_COLOR_PRIMARY }',
-		 * @return void
-         * @throws \Exception
-         */
-        private function parseStyle(array &$items): void {
-            $this->lexer->match('identifier');
-            $this->lexer->match('colon');
-            $this->lexer->match('curly_brace_open');
-            
-            do {
-                if (!($classNameToken = $this->lexer->optionalMatch("string"))) {
-                    $classNameToken = $this->lexer->match("identifier");
-                }
-                
-                $this->lexer->match('colon');
-                
-                $items[] = [
-                    'type'  => 'style',
-                    'class' => $classNameToken["value"],
-                    'ast'   => $this->parseExpression(),
-                ];
-            } while ($this->lexer->optionalMatch('comma'));
-            
-            $this->lexer->match('curly_brace_close');
-        }
-		
-		/**
-		 * Parse the visible binding
-		 * 'bind' => 'options: { "abc": <expression> }',
-		 * @return void
-		 * @throws \Exception
-		 */
-		private function parseOptions(array &$items): void {
-			$subItems = [];
-			
-			$this->lexer->match('identifier');
-			$this->lexer->match('colon');
-			$this->lexer->match('curly_brace_open');
-			
-			do {
-				if (!($name = $this->lexer->optionalMatch("string"))) {
-					$name = $this->lexer->match("identifier");
-				}
-				
-				$this->lexer->match('colon');
-				
-				$subItems[] = [
-                    'name' => $name["value"],
-                    'ast'  => $this->parseLogicalExpression()
-                ];
-			} while ($this->lexer->optionalMatch('comma'));
-			
-			$this->lexer->match('curly_brace_close');
-			
-			$items[] = [
-				'type'  => 'options',
-				'items' => $subItems
-			];
-		}
-		
-		/**
 		 * Parsers the input string
 		 * @param array $globalVariables
-		 * @return array
+		 * @return Ast\AstTokenStream
 		 * @throws \Exception
 		 */
-		public function parse(array $globalVariables=[]): array {
+		public function parse(array $globalVariables = []): AstInterface {
+			$bindCss = new BindCss($this->lexer);
+			$bindStyle = new BindStyle($this->lexer);
+			$bindVisible = new BindVisible($this->lexer);
+			$bindEnabled = new BindEnabled($this->lexer);
+			$bindOptions = new BindOptions($this->lexer);
+			$bindValue = new BindValue($this->lexer);
+			$bindClick = new BindClick($this->lexer);
+			
 			$result = [];
-			$token = $this->lexer->peek();
 			
 			do {
-				switch ($token['value']) {
-					case 'visible' :
-						$this->parseVisible($result);
-						break;
-					
-					case 'enabled' :
-						$this->parseEnabled($result);
-						break;
-					
-					case 'css' :
-						$this->parseCss($result);
-						break;
-					
-					case 'style' :
-						$this->parseStyle($result);
-						break;
-					
-					case 'options' :
-						$this->parseOptions($result);
-						break;
-					
-					default :
-						throw new \Exception("SyntaxError: Illegal binding {$token['value']}");
-				}
-			} while ($this->lexer->optionalMatch('comma'));
+				$token = $this->lexer->peek();
+				$key = $token->getValue();
+				
+				$result[$key] = match ($key) {
+					'visible' => $bindVisible->parse(),
+					'enabled' => $bindEnabled->parse(),
+					'css' => $bindCss->parse(),
+					'style' => $bindStyle->parse(),
+					'options' => $bindOptions->parse(),
+					'value' => $bindValue->parse(),
+					'click' => $bindClick->parse(),
+					default => throw new \Exception("SyntaxError: Illegal binding {$key}"),
+				};
+			} while ($this->lexer->optionalMatch(Token::Comma));
 			
-			return $result;
+			return new AstBindContainer($result);
 		}
+		
+		/**
+		 * Convert AST top bytecode
+		 * @param AstInterface $ast
+		 * @param string $separator The boundary string.
+		 * @return string
+		 */
+		public function convertToBytecode(AstInterface $ast, string $separator="||"): string {
+			$result = [];
+			
+			foreach($ast->getBinds() as $key => $value) {
+				$byteCodeConverter = new VisitorConvertToByteCode();
+				
+				$value->accept($byteCodeConverter);
+				
+				$result[$key] = $byteCodeConverter->getBytecodes($separator);
+			}
+			
+			return json_encode($result);
+		}
+		
 	}

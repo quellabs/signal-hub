@@ -8,7 +8,7 @@
 	class OneToOne {
 		
 		// Bevat parameters die extra informatie over de relatie geven
-		protected $parameters;
+		protected array $parameters;
 		
 		/**
 		 * Constructor om de parameters te initialiseren.
@@ -52,22 +52,22 @@
 		 * @return string|null De naam van de join-kolom of null als deze niet is ingesteld.
 		 */
 		public function getRelationColumn(): ?string {
-			if (isset($this->parameters["relationColumn"])) {
-				return $this->parameters["relationColumn"];
-			} elseif (isset($this->parameters["inversedBy"])) {
-				return $this->parameters["inversedBy"];
-			} elseif (isset($this->parameters["mappedBy"])) {
-				return $this->parameters["mappedBy"];
-			} else {
+			if (!isset($this->parameters["relationColumn"])) {
 				return null;
 			}
+			
+			return $this->parameters["relationColumn"];
 		}
 		
 		/**
 		 * Returns fetch method (default LAZY)
-		 * @return mixed|string
+		 * @return string
 		 */
 		public function getFetch(): string {
-			return isset($this->parameters["fetch"]) ? strtoupper($this->parameters["fetch"]) : "LAZY";
+			if (empty($this->parameters["fetch"])) {
+				return "LAZY";
+			}
+			
+			return strtoupper($this->parameters["fetch"]);
 		}
 	}

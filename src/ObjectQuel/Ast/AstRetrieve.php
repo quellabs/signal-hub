@@ -12,35 +12,16 @@
 	 */
 	class AstRetrieve extends Ast {
 		
-		/**
-		 * @var array The values to be retrieved.
-		 */
+		protected array $directives;
 		protected array $values;
-		
-		/**
-		 * @var array Macros
-		 */
 		protected array $macros;
-		
-		/**
-		 * @var AstRange[] The ranges used in the retrieve statement
-		 */
 		protected array $ranges;
-		
-		/**
-		 * @var AstInterface|null The conditions for the retrieve operation, if any.
-		 */
 		protected ?AstInterface $conditions;
-		
-		/**
-		 * @var AstInterface[] $sort;
-		 */
 		protected array $sort;
-		
-		/**
-		 * @var bool True if the query is unique (e.g. DISTINCT in MySQL)
-		 */
+		protected bool $sort_in_application_logic;
 		protected bool $unique;
+		protected ?int $window;
+		protected ?int $page_size;
 		
 		/**
 		 * AstRetrieve constructor.
@@ -48,13 +29,17 @@
 		 * @param AstRange[] $ranges
 		 * @param bool $unique True if the results are unique (DISTINCT), false if not
 		 */
-		public function __construct(array $ranges, bool $unique) {
+		public function __construct(array $directives, array $ranges, bool $unique) {
+			$this->directives = $directives;
 			$this->values = [];
 			$this->macros = [];
 			$this->conditions = null;
 			$this->ranges = $ranges;
 			$this->unique = $unique;
 			$this->sort = [];
+			$this->sort_in_application_logic = false;
+			$this->window = null;
+			$this->page_size = null;
 		}
 		
 		/**
@@ -116,10 +101,19 @@
 		
 		/**
 		 * Get the values to be retrieved.
-		 * @return AstInterface[] The array of values.
+		 * @return AstAlias[] The array of values.
 		 */
 		public function getValues(): array {
 			return $this->values;
+		}
+		
+		/**
+		 * Replaces the values with something else
+		 * @param array $values
+		 * @return void
+		 */
+		public function setValues(array $values): void {
+			$this->values = $values;
 		}
 		
 		/**
@@ -205,5 +199,90 @@
          */
 		public function getSort(): array {
 			return $this->sort;
+		}
+		
+		/**
+		 * Sets limit clause
+		 * @param int $window
+		 * @return void
+		 */
+		public function setWindow(int $window): void {
+			$this->window = $window;
+		}
+		
+		/**
+		 * Returns the limit clause
+		 * @return int|null
+		 */
+		public function getWindow(): ?int {
+			return $this->window;
+		}
+		
+		/**
+		 * Sets limit clause
+		 * @param int $pageSize
+		 * @return void
+		 */
+		public function setPageSize(int $pageSize): void {
+			$this->page_size = $pageSize;
+		}
+		
+		/**
+		 * Returns the limit clause
+		 * @return int|null
+		 */
+		public function getPageSize(): ?int {
+			return $this->page_size;
+		}
+		
+		/**
+		 * Sets unique flag
+		 * @param bool $unique
+		 * @return void
+		 */
+		public function setUnique(bool $unique): void {
+			$this->unique = $unique;
+		}
+		
+		/**
+		 * Returns unique flag
+		 * @return bool
+		 */
+		public function getUnique(): bool {
+			return $this->unique;
+		}
+		
+		/**
+		 * Retourneert compiler directives voor deze query
+		 * @return array
+		 */
+		public function getDirectives(): array {
+			return $this->directives;
+		}
+		
+		/**
+		 * Returns a certain directive
+		 * @param string $name
+		 * @return mixed
+		 */
+		public function getDirective(string $name): mixed {
+			return $this->directives[$name] ?? null;
+		}
+		
+		/**
+		 * Returns true if sorting (and pagination) should be done in the application logic
+		 * Instead of in MYSQL. This will be the case if 'sort by' contains a method call.
+		 * @return bool
+		 */
+		public function getSortInApplicationLogic(): bool {
+			return $this->sort_in_application_logic;
+		}
+
+		/**
+		 * Sets the sort_in_application_logic flag
+		 * @return void
+		 */
+		public function setSortInApplicationLogic(bool $setSort): void {
+			$this->sort_in_application_logic = $setSort;
 		}
 	}

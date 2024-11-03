@@ -17,8 +17,9 @@
 		 * The method delegates the call to the visitor, allowing it to
 		 * perform some action on the node.
 		 * @param AstVisitorInterface $visitor The visitor performing operations on the AST.
+		 * @return void
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			$visitor->visitNode($this);
 		}
 	}

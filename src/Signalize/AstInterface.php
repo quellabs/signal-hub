@@ -7,7 +7,7 @@
 		/**
 		 * Valideer de AST
 		 * @param AstVisitorInterface $visitor
-		 * @return mixed
+		 * @return void
 		 */
-		public function accept(AstVisitorInterface $visitor);
+		public function accept(AstVisitorInterface $visitor): void;
 	}

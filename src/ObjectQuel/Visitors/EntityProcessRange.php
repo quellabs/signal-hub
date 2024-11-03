@@ -3,16 +3,10 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\Ast;
 	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\EntityNotFoundException;
-	use Services\ObjectQuel\QuelException;
 	
 	/**
 	 * Class EntityProcessRange
@@ -23,7 +17,6 @@
 		
 		/**
 		 * Array of ranges (aliases)
-		 * @var array $ranges
 		 */
 		private array $ranges;
 
@@ -68,8 +61,9 @@
 		/**
 		 * Visit a node in the AST.
 		 * @param AstInterface $node The node to visit.
+		 * @return void
 		 */
-		public function visitNode(AstInterface $node) {
+		public function visitNode(AstInterface $node): void {
 			if ($node instanceof AstEntity) {
 				$entityName = $node->getName();
 				$range = $this->getRange($entityName);

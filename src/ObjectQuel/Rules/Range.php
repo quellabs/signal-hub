@@ -12,7 +12,6 @@
 	class Range {
 		
 		private Lexer $lexer;
-		private LogicalExpression $logicalExpressionRule;
 		
 		/**
 		 * Range parser
@@ -20,7 +19,6 @@
 		 */
 		public function __construct(Lexer $lexer) {
 			$this->lexer = $lexer;
-			$this->logicalExpressionRule = new LogicalExpression($this->lexer);
 		}
 		
 		/**
@@ -56,7 +54,9 @@
 
 			if ($this->lexer->lookahead() == Token::Via) {
 				$this->lexer->match(Token::Via);
-				$viaIdentifier = $this->logicalExpressionRule->parse();
+				
+				$logicalExpressionRule = new LogicalExpression($this->lexer);
+				$viaIdentifier = $logicalExpressionRule->parse();
 			}
 			
 			// Optionele puntkomma

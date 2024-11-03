@@ -29,7 +29,7 @@
 		 * The macros used
 		 */
 		private array $macros;
-
+		
 		/**
 		 * The ranges used
 		 */
@@ -37,17 +37,18 @@
 		
 		/**
 		 * EntityExistenceValidator constructor.
-		 * @param EntityManager $entityManager The EntityManager to use for entity validation.
+		 * @param EntityStore $entityStore
 		 * @param array $ranges
 		 * @param array $macros
 		 */
-		public function __construct(EntityManager $entityManager, array $ranges, array $macros) {
-			$this->entityStore = $entityManager->getUnitOfWork()->getEntityStore();
+		public function __construct(EntityStore $entityStore, array $ranges, array $macros) {
+			$this->entityStore = $entityStore;
 			$this->ranges = $ranges;
 			$this->macros = $macros;
 		}
 		
 		/**
+		 * Returns true if the given range exists, false if not
 		 * @param string $name
 		 * @return bool
 		 */
@@ -62,7 +63,7 @@
 		}
 		
 		/**
-		 * Returns true if the macro exists, false if not
+		 * Returns true if the given macro exists, false if not
 		 * @param string $name
 		 * @return bool
 		 */
@@ -75,7 +76,7 @@
 		 * @param AstInterface $node
 		 * @return void
 		 */
-		public function visitNode(AstInterface $node) {
+		public function visitNode(AstInterface $node): void {
 			// Controleert of de node een instantie van AstEntity is. Zo niet, dan stopt de functie.
 			if (!$node instanceof AstEntity) {
 				return;
@@ -95,6 +96,6 @@
 			
 			// Als geen van de bovenstaande controles waar is, voegt de functie een namespace toe
 			// aan de naam van de node. Dit wordt gedaan door een methode van het entityStore-object.
-			$node->setName($this->entityStore->addNamespaceToEntityName($node->getName()));
+			$node->setName($this->entityStore->normalizeEntityName($node->getName()));
 		}
 	}
