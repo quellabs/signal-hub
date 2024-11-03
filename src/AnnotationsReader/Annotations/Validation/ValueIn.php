@@ -21,7 +21,23 @@
 		public function getParameters(): array {
 			return $this->parameters;
 		}
-
+		
+		/**
+		 * Returns true if the 'property' field is populated, false if not
+		 * @return bool
+		 */
+		public function hasProperty(): bool {
+			return !empty($this->parameters['property']);
+		}
+		
+		/**
+		 * Returns the value of 'column'
+		 * @return string
+		 */
+		public function getProperty(): string {
+			return $this->parameters['property'] ?? '';
+		}
+		
 		/**
 		 * Returns the values to check
 		 * @return array|null
