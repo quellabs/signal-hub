@@ -78,8 +78,7 @@
 			}
 			
 			// Render the template
-			$content = $this->smarty->fetch($this->template);
-			$this->setContent($content);
+			$this->setContent($this->smarty->fetch($this->template));
 			
 			// Set content type if not already set
 			if (!$this->headers->has('Content-Type')) {
