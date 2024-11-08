@@ -462,10 +462,10 @@
 		private function setRelations(array $filteredEntities): void {
 			foreach ($filteredEntities as $entity) {
 				// Normaliseer de naam van de entiteitsklasse
-				$entityClass = $this->getEntityStore()->normalizeEntityName(get_class($entity));
+				$entityClass = $this->entityStore->normalizeEntityName(get_class($entity));
 				
 				// Dependencies
-				$entityDependencies = $this->getEntityStore()->getAllDependencies($entityClass);
+				$entityDependencies = $this->entityStore->getAllDependencies($entityClass);
 				
 				// Controleer of er relaties zijn voor de entiteitsklasse
 				if (empty($entityDependencies)) {
@@ -601,7 +601,7 @@
 			$relationColumn = $dependency->getRelationColumn();
 
 			if (empty($relationColumn)) {
-				$primaryKeys = $this->getEntityStore()->getIdentifierKeys($entity);
+				$primaryKeys = $this->entityStore->getIdentifierKeys($entity);
 				$relationColumn = $primaryKeys[0];
 			}
 
@@ -617,10 +617,10 @@
 			// Loop door alle gefilterde rijen
 			foreach ($filteredRows as $value) {
 				// Haal de genormaliseerde naam van de entity klasse
-				$objectClass = $this->getEntityStore()->normalizeEntityName(get_class($value));
+				$objectClass = $this->entityStore->normalizeEntityName(get_class($value));
 				
 				// Verkrijg alle afhankelijkheden van de entity klasse
-				$entityDependencies = $this->getEntityStore()->getAllDependencies($objectClass);
+				$entityDependencies = $this->entityStore->getAllDependencies($objectClass);
 				
 				// Loop door alle eigenschappen en hun afhankelijkheden
 				foreach ($entityDependencies as $property => $dependencies) {
@@ -644,10 +644,10 @@
 			// Loop door alle gefilterde rijen
 			foreach ($filteredRows as $value) {
 				// Haal de genormaliseerde naam van de entity klasse
-				$objectClass = $this->getEntityStore()->normalizeEntityName(get_class($value));
+				$objectClass = $this->entityStore->normalizeEntityName(get_class($value));
 				
 				// Verkrijg alle afhankelijkheden van de entity klasse
-				$entityDependencies = $this->getEntityStore()->getAllDependencies($objectClass);
+				$entityDependencies = $this->entityStore->getAllDependencies($objectClass);
 				
 				// Loop door alle eigenschappen en hun afhankelijkheden
 				foreach ($entityDependencies as $property => $dependencies) {
@@ -656,7 +656,7 @@
 					
 					// Maak en stel een collectie van entities in voor elke geldige afhankelijkheid
 					foreach ($validDependencies as $dependency) {
-						$targetEntity = $this->getEntityStore()->normalizeEntityName($dependency->getTargetEntity());
+						$targetEntity = $this->entityStore->normalizeEntityName($dependency->getTargetEntity());
 						$relationColumn = $this->getRelationColumn($value, $dependency);
 						$mappedBy = $dependency->getMappedBy();
 
@@ -678,22 +678,6 @@
 					}
 				}
 			}
-		}
-		
-		/**
-		 * Retourneert het EntityStore object
-		 * @return EntityStore
-		 */
-		public function getEntityStore(): EntityStore {
-			return $this->entityStore;
-		}
-		
-		/**
-		 * Retourneert het UnitOfWork object
-		 * @return UnitOfWork
-		 */
-		public function getUnitOfWork(): UnitOfWork {
-			return $this->unitOfWork;
 		}
 		
 		/**
