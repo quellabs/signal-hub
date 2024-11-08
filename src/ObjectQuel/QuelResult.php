@@ -75,8 +75,15 @@
 		 * @param string $joinProperty De specifieke join property waar we naar zoeken
 		 * @return bool
 		 */
-		private function wasEntityRequested(string $targetEntity, string $joinProperty): bool {
+		private function wasEntityRequested(string $currentEntity, string $targetEntity, string $joinProperty): bool {
+			// Always return false when this is a self-referencing entity
+			if ($currentEntity === $targetEntity) {
+				return false;
+			}
+			
+			// Find a range that matches the relation criteria. If one is found, return true.
 			foreach ($this->retrieve->getValues() as $value) {
+				// Omit non entity values
 				if (!$value->getExpression() instanceof AstEntity) {
 					continue;
 				}
@@ -655,7 +662,7 @@
 
 						// Doe niets als de data voor deze query wel opgevraagd is. Er is dan simpelweg geen data,
 						// dus het heeft geen zin om deze data alsnog te laxy loaden. We houden dan de lege collectie.
-						if ($this->wasEntityRequested($targetEntity, $mappedBy)) {
+						if ($this->wasEntityRequested($objectClass, $targetEntity, $mappedBy)) {
 							continue;
 						}
 						
