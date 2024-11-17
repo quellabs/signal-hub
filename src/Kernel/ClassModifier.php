@@ -193,6 +193,99 @@
 		}
 		
 		/**
+		 * Adds a line of code to the class constructor
+		 * @param string $codeLine The line of code to add (without trailing semicolon)
+		 * @param bool $beginning Whether to add the line at the beginning or end of the constructor
+		 * @throws \Exception If constructor is not found or the code is invalid
+		 */
+		public function addConstructorLine(string $codeLine, bool $beginning = false): void {
+			// Get the current state of the code - either modified or original
+			$currentCode = $this->modifiedClass ?? $this->originalCode;
+			
+			// Convert the code into tokens for parsing
+			$tokens = token_get_all($currentCode);
+			
+			// Initialize tracking variables
+			$inConstructor = false;
+			$constructorStart = null;
+			$constructorEnd = null;
+			$braceLevel = 0;
+			
+			// Search through tokens to locate the constructor
+			for ($i = 0; $i < count($tokens); $i++) {
+				$token = $tokens[$i];
+				
+				// Process array tokens (keywords, strings, etc.)
+				if (is_array($token)) {
+					// Check if we've found a function declaration
+					if ($token[0] === T_FUNCTION) {
+						// Look ahead to check if it's the constructor
+						for ($j = $i + 1; $j < count($tokens); $j++) {
+							$nextToken = $tokens[$j];
+							
+							// Found constructor method name
+							if (is_array($nextToken) &&
+								$nextToken[0] === T_STRING &&
+								$nextToken[1] === '__construct') {
+								$inConstructor = true;
+								break;
+							}
+							
+							// Skip non-code tokens (whitespace, comments)
+							$skipTokens = [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT];
+							if (!is_array($nextToken) || !in_array($nextToken[0], $skipTokens)) {
+								break;
+							}
+						}
+					}
+				}
+				
+				// Track opening and closing braces within constructor
+				if ($inConstructor) {
+					if ($token === '{') {
+						$braceLevel++;
+						
+						// Mark the start of constructor body
+						if ($braceLevel === 1) {
+							$constructorStart = $i;
+						}
+					} elseif ($token === '}') {
+						$braceLevel--;
+						
+						// Mark the end of constructor body
+						if ($braceLevel === 0) {
+							$constructorEnd = $i;
+							break;
+						}
+					}
+				}
+			}
+			
+			// Validate that constructor was found
+			if ($constructorStart === null || $constructorEnd === null) {
+				throw new \Exception("Constructor not found in class {$this->className}");
+			}
+			
+			// Ensure code line has proper semicolon termination
+			$codeLine = rtrim($codeLine, ';') . ';';
+			
+			// Determine insertion position based on preference
+			$insertPosition = $beginning ? $constructorStart + 1 : $constructorEnd;
+			
+			// Format new code line with proper indentation
+			$newCode = "\n        " . $codeLine;
+			
+			// Split and reassemble the code with the new line
+			$beforeConstructor = array_slice($tokens, 0, $insertPosition);
+			$afterConstructor = array_slice($tokens, $insertPosition);
+			
+			// Update the modified class property with the new code
+			$this->modifiedClass = $this->tokensToString($beforeConstructor) .
+				$newCode .
+				$this->tokensToString($afterConstructor);
+		}
+		
+		/**
 		 * Add a new property to the class with specified visibility, type, and default value
 		 * @param string $propertyName The name of the property to add
 		 * @param string $visibility Visibility modifier of the property (private, protected, public)

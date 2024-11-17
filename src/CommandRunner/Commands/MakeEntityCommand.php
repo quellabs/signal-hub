@@ -18,8 +18,8 @@
 				}
 				
 				$propertyName = $this->input->ask("\nField type", "string");
-				$propertyLength = $this->input->ask("\nField length", "100");
-				$propertyNullable = $this->input->confirm("\nCan this field be null in the database (nullable)", false);
+				$propertyLength = $this->input->ask("\nField length", "255");
+				$propertyNullable = $this->input->confirm("\nCan this field be null in the database (nullable)?", false);
 			}
 			
 			return 0;
