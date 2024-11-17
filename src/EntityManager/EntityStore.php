@@ -2,11 +2,12 @@
     
     namespace Services\EntityManager;
     
+    use Services\AnnotationsReader\Annotations\Orm\Column;
+    use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
+    use Services\AnnotationsReader\Annotations\Orm\OneToMany;
+    use Services\AnnotationsReader\Annotations\Orm\OneToOne;
     use Services\AnnotationsReader\AnnotationsReader;
-	use Services\AnnotationsReader\Annotations\Orm\Column;
-	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Services\AnnotationsReader\Annotations\Orm\OneToMany;
-	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
+    use Services\Kernel\ReflectionHandler;
     use Services\ObjectQuel\Ast\AstRetrieve;
     
     class EntityStore {

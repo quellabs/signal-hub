@@ -3,11 +3,12 @@
     namespace Services\EntityManager;
 
     use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-	use Services\EntityManager\Persister\DeletePersister;
-	use Services\EntityManager\Persister\InsertPersister;
-	use Services\EntityManager\Persister\UpdatePersister;
-	use Services\EntityManager\Serializers\SQLSerializer;
+    use Services\AnnotationsReader\Annotations\Orm\OneToOne;
+    use Services\EntityManager\Persister\DeletePersister;
+    use Services\EntityManager\Persister\InsertPersister;
+    use Services\EntityManager\Persister\UpdatePersister;
+    use Services\EntityManager\Serializers\SQLSerializer;
+    use Services\Kernel\PropertyHandler;
     
     class UnitOfWork {
 	    

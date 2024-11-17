@@ -10,10 +10,10 @@
 	use Services\EntityManager\EntityCollection;
 	use Services\EntityManager\entityManager;
 	use Services\EntityManager\EntityStore;
-	use Services\EntityManager\PropertyHandler;
 	use Services\EntityManager\ProxyInterface;
 	use Services\EntityManager\Serializers\Serializer;
 	use Services\EntityManager\UnitOfWork;
+	use Services\Kernel\PropertyHandler;
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;

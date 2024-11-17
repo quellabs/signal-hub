@@ -2,6 +2,8 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\Kernel\ReflectionHandler;
+	
 	class ProxyGenerator {
 		
 		protected EntityStore $entityStore;

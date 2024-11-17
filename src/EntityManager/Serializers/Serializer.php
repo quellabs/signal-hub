@@ -7,8 +7,8 @@
 	use Services\AnnotationsReader\Annotations\SerializationGroups;
 	use Services\AnnotationsReader\AnnotationsReader;
 	use Services\EntityManager\EntityStore;
-	use Services\EntityManager\PropertyHandler;
-	use Services\EntityManager\ReflectionHandler;
+	use Services\Kernel\PropertyHandler;
+	use Services\Kernel\ReflectionHandler;
 	
 	class Serializer {
 		

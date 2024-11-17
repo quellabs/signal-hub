@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Services\Kernel;
 	
 	/**
 	 * Lists, gets and sets object properties through reflection

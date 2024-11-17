@@ -2,7 +2,6 @@
 	
 	namespace Services\Validation;
 	
-	use Services\AnnotationsReader\AnnotationsReader;
 	use Services\AnnotationsReader\Annotations\Validation\Date;
 	use Services\AnnotationsReader\Annotations\Validation\Email;
 	use Services\AnnotationsReader\Annotations\Validation\Length;
@@ -10,8 +9,9 @@
 	use Services\AnnotationsReader\Annotations\Validation\RegExp;
 	use Services\AnnotationsReader\Annotations\Validation\Type;
 	use Services\AnnotationsReader\Annotations\Validation\ValueIn;
-	use Services\EntityManager\ReflectionHandler;
+	use Services\AnnotationsReader\AnnotationsReader;
 	use Services\Kernel\Kernel;
+	use Services\Kernel\ReflectionHandler;
 	
 	class EntityToValidation {
 		

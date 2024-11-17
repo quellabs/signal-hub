@@ -7,8 +7,8 @@
 	use Services\EntityManager\DatabaseAdapter;
 	use Services\EntityManager\EntityStore;
 	use Services\EntityManager\OrmException;
-	use Services\EntityManager\PropertyHandler;
 	use Services\EntityManager\UnitOfWork;
+	use Services\Kernel\PropertyHandler;
 	
 	class InsertPersister extends PersisterBase {
 		

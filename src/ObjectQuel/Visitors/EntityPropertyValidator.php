@@ -3,13 +3,10 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
-	use Services\EntityManager\PropertyHandler;
-	use Services\EntityManager\ReflectionHandler;
+	use Services\Kernel\ReflectionHandler;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstMethodCall;
-	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	use Services\ObjectQuel\QuelException;

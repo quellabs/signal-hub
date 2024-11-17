@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Services\Kernel;
 	
 	use ReflectionClass;
 	

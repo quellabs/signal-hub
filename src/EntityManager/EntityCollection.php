@@ -2,6 +2,8 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\Kernel\PropertyHandler;
+	
 	/**
 	 * @template T
 	 * @implements CollectionInterface<T>
