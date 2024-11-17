@@ -26,9 +26,9 @@
 			$this->output->write($question);
 
 			if ($default) {
-				$this->output->write(" (default: $default): ");
+				$this->output->write(" (default: $default):\n> ");
 			} else {
-				$this->output->write(": ");
+				$this->output->write(":\n> ");
 			}
 			
 			$answer = trim(fgets($this->input));
