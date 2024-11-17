@@ -28,7 +28,7 @@
 		 */
 		private function registerServices(): void {
 			foreach($this->scanForServiceClasses(__DIR__ . DIRECTORY_SEPARATOR . "..") as $service) {
-				$this->services[$service["class"]] = new $service["class"];
+				$this->services[$service["class"]] = new $service["class"]($this->kernel);
 			}
 		}
 		

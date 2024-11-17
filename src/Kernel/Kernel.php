@@ -9,10 +9,11 @@
     use Services\AnnotationsReader\Annotations\BeforeFilter;
     use Services\AnnotationsReader\AnnotationsReader;
     use Services\Kernel\Resolvers\AnnotationResolver;
-    use Symfony\Component\Config\Definition\Exception\Exception;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     
+    include_once("../vendor/autoload.php");
+	
     class Kernel {
 	   
 		private array $configuration;

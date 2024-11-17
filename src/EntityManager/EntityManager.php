@@ -3,6 +3,7 @@
     namespace Services\EntityManager;
 	
 	use Services\Kernel\Kernel;
+	use Services\Kernel\ServiceInterface;
 	use Services\ObjectQuel\LexerException;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\ParserException;
@@ -10,12 +11,10 @@
 	use Services\ObjectQuel\QuelResult;
 	use Services\Validation\EntityToValidation;
 	
-	class OrmException extends \Exception { }
-	
 	/**
 	 * Represents an Entity Manager.
 	 */
-	class EntityManager {
+	class EntityManager implements ServiceInterface {
 		protected Kernel $kernel;
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
@@ -146,12 +145,13 @@
     
 		/**
 		 * Flush all changed entities to the database
-		 * If an error occurs, an exception is thrown.
+		 * If an error occurs, an OrmException is thrown.
+		 * @param mixed|null $entity
 		 * @return void
-		 * @throws \Exception
+		 * @throws OrmException
 		 */
-        public function flush(): void {
-            $this->unit_of_work->flush();
+        public function flush(mixed $entity = null): void {
+            $this->unit_of_work->commit($entity);
         }
 		
 		/**
@@ -336,5 +336,24 @@
 		public function getValidationRules(object $entity): array {
 			$validate = new EntityToValidation($this->kernel);
 			return $validate->convert($entity);
+		}
+		
+		/**
+		 * Checks if the Service supports the given class
+		 * @param class-string $class
+		 * @return bool
+		 */
+		public function supports(string $class): bool {
+			return false;
+		}
+		
+		/**
+		 * Returns an instance of the requested class
+		 * @param class-string $class
+		 * @param array<string, mixed> $parameters Currently unused, but kept for interface compatibility
+		 * @return object|null The requested instance or null if class is not supported
+		 */
+		public function getInstance(string $class, array $parameters = []): ?object {
+			return null;
 		}
 	}
