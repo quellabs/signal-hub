@@ -5,6 +5,7 @@
 	class TestCommand extends \Services\CommandRunner\Command {
 		
 		public function execute(array $parameters = []): int {
+			echo "run";
 			return 0;
 		}
 		

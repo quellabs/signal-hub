@@ -58,20 +58,9 @@
 					$itemFixedSlashes = str_replace("/", "\\", $itemWithoutPhp);
 					$itemAddedNamespace = "Services\\CommandRunner\\{$itemFixedSlashes}";
 					
-					$this->registerCommand($itemAddedNamespace);
+					$this->commands[$itemAddedNamespace::getSignature()] = $itemAddedNamespace;
 				}
 			}
-		}
-		
-		/**
-		 * Register the command in a list
-		 * @param string $file
-		 * @return void
-		 */
-		private function registerCommand(string $file): void {
-			// Van bestandspad naar command name
-			// bijv: commands/Entity/CreateCommand.php -> entity:create
-			$this->commands[$file::getSignature()] = $file;
 		}
 		
 		/**
@@ -85,7 +74,9 @@
 			
 			// Check if the command exists. If so, execute it.
 			if (isset($this->commands[$commandName])) {
-				$this->commands[$commandName]->execute($args);
+				$className = $this->commands[$commandName];
+				$object = new $className(... $this->kernel->autowireClass($className));
+				$object->execute($args);
 				return;
 			}
 

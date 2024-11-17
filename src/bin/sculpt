@@ -7,6 +7,6 @@
 
 	$kernel = new Kernel();
 	$sculpter = new \Services\CommandRunner\CommandRunner($kernel);
-	$sculpter->run();
+	$sculpter->run($argv);
 	
 	
