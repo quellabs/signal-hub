@@ -5,6 +5,7 @@
 	use Services\AnnotationsReader\Annotations\Route;
 	use Services\Entity\ProductsEntity;
 	use Services\EntityManager\EntityManager;
+	use Services\Kernel\ClassModifier;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	class TestController {
@@ -26,13 +27,16 @@
 		 * @return Response
 		 */
 		public function index(string $name): Response {
-			$entity = $this->entityManager->executeQuery("
-				range of x is ProductsEntity;
-				range of y is ProductsDescriptionEntity via y.productsId=x.productsId;
-				retrieve (x,y) where x.productsId=1537
+			$this->entityManager->executeQuery("
+				range of x is ProductsEntity
+				retrieve (x) where is_numeric(x.productsId)
 			");
 			
-			
+			/*
+			$classModifier = new ClassModifier(ProductsEntity::class);
+			$classModifier->addConstructorLine("echo 'test';");
+			$classModifier->save("ProductsEntityModified.php");
+			*/
 			return new Response('Hello ' . $name . '!');
 		}
 	}

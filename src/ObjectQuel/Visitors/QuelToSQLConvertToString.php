@@ -17,6 +17,7 @@
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
+	use Services\ObjectQuel\Ast\AstIsNumeric;
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
 	use Services\ObjectQuel\Ast\AstNumber;
@@ -512,6 +513,38 @@
             $this->visitNode($ast->getExpression());
             $this->result[] = " IS NOT NULL ";
         }
+		
+		/**
+		 * Handle is_numeric function
+		 * @param AstIsNumeric $ast
+		 * @return void
+		 */
+		protected function handleIsNumeric(AstIsNumeric $ast): void {
+			$this->visitNode($ast);
+			
+			if ($ast->getValue() instanceof AstIdentifier) {
+				// For easy access
+				$identifier = $ast->getValue();
+				
+				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
+				$this->addToVisitedNodes($identifier);
+				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
+				
+				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
+				$range = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
+				
+				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
+				$property = $identifier->getName();
+				$columnMap = $this->entityStore->getColumnMap($identifier->getEntityName());
+				
+				// Bewaar de range + property
+				$string = "{$range}.{$columnMap[$property]}";
+			} else {
+				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			}
+			
+			$this->result[] = "{$string} REGEXP '^-?[0-9]*\\.?[0-9]+$'";
+		}
         
 		/**
 		 * Bezoek een knooppunt in de AST.
