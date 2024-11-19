@@ -543,15 +543,32 @@
 		 */
 		protected function handleIsEmpty(AstIsEmpty $ast): void {
 			$this->visitNode($ast);
+			$this->addToVisitedNodes($ast->getValue());
 			
-			if ($ast->getValue() instanceof AstIdentifier) {
-				$string = $this->astIdentifierToString($ast->getValue());
-			} elseif ($ast->getValue() instanceof AstNumber) {
-				$string = $ast->getValue()->getValue();
-			} else {
-				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			// Special case for numbers
+			if ($ast->getValue() instanceof AstNumber) {
+				if ((int)$ast->getValue()->getValue() === 0) {
+					$this->result[] = "1";
+				} else {
+					$this->result[] = "0";
+				}
+				
+				return;
 			}
 			
+			// Special case for strings
+			if ($ast->getValue() instanceof AstString) {
+				if ($ast->getValue()->getValue() === "") {
+					$this->result[] = "1";
+				} else {
+					$this->result[] = "0";
+				}
+				
+				return;
+			}
+			
+			// Identifiers
+			$string = $this->astIdentifierToString($ast->getValue());
 			$this->result[] = "({$string} IS NULL OR {$string} = '' OR {$string} = 0)";
 		}
 		
@@ -562,6 +579,7 @@
 		 */
 		protected function handleIsNumeric(AstIsNumeric $ast): void {
 			$this->visitNode($ast);
+			$this->addToVisitedNodes($ast->getValue());
 
 			// Special case for number. This will always be true
 			if ($ast->getValue() instanceof AstNumber) {

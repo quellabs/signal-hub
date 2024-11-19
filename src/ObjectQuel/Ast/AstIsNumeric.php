@@ -11,7 +11,7 @@
 		
 		/**
 		 * The value or string to check
-		 * @var AstIdentifier|AstString
+		 * @var AstIdentifier|AstString|AstNumber
 		 */
 		protected AstIdentifier|AstString|AstNumber $identifierOrString;
 		

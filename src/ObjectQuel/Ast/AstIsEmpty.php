@@ -35,7 +35,7 @@
 		
 		/**
 		 * Retrieves the numerical value stored in this AST node.
-		 * @return AstIdentifier|AstString The stored numerical value.
+		 * @return AstIdentifier|AstString|AstNumber The stored numerical value.
 		 */
 		public function getValue(): AstIdentifier|AstString|AstNumber {
 			return $this->identifierOrString;
