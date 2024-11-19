@@ -7,7 +7,9 @@
 	use Services\ObjectQuel\Ast\AstCount;
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstIsEmpty;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
+	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
@@ -122,6 +124,30 @@
 		}
 		
 		/**
+		 * Parse 'is_empty'. This returns true if the value is falsey: null, empty string or 0
+		 * @return AstIsEmpty
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
+		protected function parseIsEmpty(): AstIsEmpty {
+			// Match the opening parenthesis.
+			$this->lexer->match(Token::ParenthesesOpen);
+			
+			// Fetch identifier or string to check
+			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			
+			// Closing parenthesis
+			$this->lexer->match(Token::ParenthesesClose);
+			
+			if ((!$countIdentifier instanceof AstIdentifier) && (!$countIdentifier instanceof AstString) && (!$countIdentifier instanceof AstNumber)) {
+				throw new ParserException("is_empty operator takes an identifier, string or number as parameter.");
+			}
+			
+			// Return the AST
+			return new AstIsEmpty($countIdentifier);
+		}
+		
+		/**
 		 * is_numeric function. Usage: where is_numeric(x.productsId)
 		 * @return AstIsNumeric
 		 * @throws LexerException
@@ -137,8 +163,12 @@
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
 			
-			if ((!$countIdentifier instanceof AstIdentifier) && (!$countIdentifier instanceof AstString)) {
-				throw new ParserException("is_numeric operator takes an identifier or string property as parameter.");
+			if (
+				(!$countIdentifier instanceof AstIdentifier) &&
+				(!$countIdentifier instanceof AstString) &&
+				(!$countIdentifier instanceof AstNumber)
+			) {
+				throw new ParserException("is_numeric operator takes an identifier, string or number as parameter.");
 			}
 			
 			// Return the AST
@@ -175,6 +205,7 @@
 				'ucount' => $this->parseUCount(),
 				'concat' => $this->parseConcat(),
 				'search' => $this->parseSearch(),
+				'is_empty' => $this->parseIsEmpty(),
 				'is_numeric' => $this->parseIsNumeric(),
 				default => throw new ParserException("Command {$command} is not valid."),
 			};

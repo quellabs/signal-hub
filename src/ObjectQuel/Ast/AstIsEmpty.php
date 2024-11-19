@@ -5,13 +5,13 @@
 	use Services\ObjectQuel\AstVisitorInterface;
 	
 	/**
-	 * Class AstIsNumeric
+	 * Class AstIsEmpty
 	 */
-	class AstIsNumeric extends Ast {
+	class AstIsEmpty extends Ast {
 		
 		/**
 		 * The value or string to check
-		 * @var AstIdentifier|AstString
+		 * @var AstIdentifier|AstString|AstNumber
 		 */
 		protected AstIdentifier|AstString|AstNumber $identifierOrString;
 		
@@ -35,7 +35,7 @@
 		
 		/**
 		 * Retrieves the numerical value stored in this AST node.
-		 * @return AstIdentifier|AstString|AstNumber The stored numerical value.
+		 * @return AstIdentifier|AstString The stored numerical value.
 		 */
 		public function getValue(): AstIdentifier|AstString|AstNumber {
 			return $this->identifierOrString;

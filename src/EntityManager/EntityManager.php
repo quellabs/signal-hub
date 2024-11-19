@@ -186,6 +186,7 @@
 				// Voer de SQL query uit
 				$rs = $this->connection->execute($sql, $parameters);
 				
+				// Indien de query incorrect is, sla de foutmelding op
 				if (!$rs) {
 					$this->error_message = $this->connection->getLastErrorMessage();
 					return null;

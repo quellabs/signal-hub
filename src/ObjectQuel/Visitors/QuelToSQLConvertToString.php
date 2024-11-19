@@ -17,6 +17,7 @@
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
+	use Services\ObjectQuel\Ast\AstIsEmpty;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
@@ -68,6 +69,27 @@
 		 */
 		protected function addToVisitedNodes(AstInterface $ast): void {
 			$this->visitedNodes[spl_object_id($ast)] = true;
+		}
+		
+		/**
+		 * Convert an AstIdentifier to a string
+		 * @param AstIdentifier $ast
+		 * @return string
+		 */
+		protected function astIdentifierToString(AstIdentifier $ast): string {
+			// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
+			$this->addToVisitedNodes($ast);
+			$this->addToVisitedNodes($ast->getEntityOrParentIdentifier());
+			
+			// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
+			$range = $ast->getEntityOrParentIdentifier()->getRange()->getName();
+			
+			// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
+			$property = $ast->getName();
+			$columnMap = $this->entityStore->getColumnMap($ast->getEntityName());
+			
+			// Bewaar de range + property
+			return "{$range}.{$columnMap[$property]}";
 		}
 		
 		/**
@@ -515,30 +537,41 @@
         }
 		
 		/**
+		 * Handle is_empty function
+		 * @param AstIsEmpty $ast
+		 * @return void
+		 */
+		protected function handleIsEmpty(AstIsEmpty $ast): void {
+			$this->visitNode($ast);
+			
+			if ($ast->getValue() instanceof AstIdentifier) {
+				$string = $this->astIdentifierToString($ast->getValue());
+			} elseif ($ast->getValue() instanceof AstNumber) {
+				$string = $ast->getValue()->getValue();
+			} else {
+				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			}
+			
+			$this->result[] = "({$string} IS NULL OR {$string} = '' OR {$string} = 0)";
+		}
+		
+		/**
 		 * Handle is_numeric function
 		 * @param AstIsNumeric $ast
 		 * @return void
 		 */
 		protected function handleIsNumeric(AstIsNumeric $ast): void {
 			$this->visitNode($ast);
-			
+
+			// Special case for number. This will always be true
+			if ($ast->getValue() instanceof AstNumber) {
+				$this->result[] = "1";
+				return;
+			}
+
+			// Check identifier or string
 			if ($ast->getValue() instanceof AstIdentifier) {
-				// For easy access
-				$identifier = $ast->getValue();
-				
-				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
-				$this->addToVisitedNodes($identifier);
-				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
-				
-				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
-				$range = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
-				
-				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
-				$property = $identifier->getName();
-				$columnMap = $this->entityStore->getColumnMap($identifier->getEntityName());
-				
-				// Bewaar de range + property
-				$string = "{$range}.{$columnMap[$property]}";
+				$string = $this->astIdentifierToString($ast->getValue());
 			} else {
 				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
 			}

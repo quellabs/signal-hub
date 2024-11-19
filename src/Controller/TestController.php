@@ -29,7 +29,7 @@
 		public function index(string $name): Response {
 			$this->entityManager->executeQuery("
 				range of x is ProductsEntity
-				retrieve (x) where is_numeric(x.productsId)
+				retrieve (empty = is_empty(x.productsId)) where is_empty(x.productsId)
 			");
 			
 			/*
