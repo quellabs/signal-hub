@@ -511,6 +511,11 @@
 				    $parent->setRight($left);
 			    }
 		    }
+			
+			// Clear condition if the only leftover condition is AstExists
+		    if ($parent instanceof AstRetrieve && $parent->getConditions() instanceof AstExists) {
+				$parent->setConditions(null);
+		    }
 	    }
 		
 	    /**
