@@ -251,10 +251,12 @@
 		 * @return void
 		 */
 		private function setRangeRequiredIfNeeded(AstRange $range, AstIdentifier $left, AstIdentifier $right): void {
-			$ownPropertyName = $right->getName();
-			$ownEntityName = $right->getEntityOrParentIdentifier()->getName();
-			$relatedPropertyName = $left->getName();
-			$relatedEntityName = $left->getEntityName();
+			// Properties
+			$isMainRange = $right->getEntityOrParentIdentifier()->getRange() === $mainRange;
+			$ownPropertyName = $isMainRange ? $right->getName() : $left->getName();
+			$ownEntityName = $isMainRange ? $right->getEntityOrParentIdentifier()->getName() : $left->getEntityName();
+			$relatedPropertyName = $isMainRange ? $left->getName() : $right->getName();
+			$relatedEntityName = $isMainRange ? $left->getEntityName() : $right->getEntityOrParentIdentifier()->getName();
 			
 			// Ophalen van de annotaties van de gerelateerde entiteit.
 			$entityAnnotations = $this->entityStore->getAnnotations($ownEntityName);
@@ -322,6 +324,21 @@
                 }
             }
 		}
+	 
+		/**
+	     * Returns the main range of the range list. E.g. the first one without a join property
+	     * @param AstRetrieve $ast
+	     * @return AstRange|null
+	     */
+	    private function getMainRange(AstRetrieve $ast): ?AstRange {
+		    foreach($ast->getRanges() as $range) {
+			    if ($range->getJoinProperty() == null) {
+				    return $range;
+			    }
+		    }
+		    
+		    return null;
+	    }
 		
 		/**
 		 * Deze functie stelt 'range'-objecten in als verplicht, gebaseerd op bepaalde voorwaarden.
@@ -330,6 +347,8 @@
 		 * @return void
 		 */
 		private function setRangesRequiredThroughRequiredRelationAnnotation(AstRetrieve $ast): void {
+			$mainRange = $this->getMainRange($ast);
+			
 			foreach ($ast->getRanges() as $range) {
 				// Verifieer of 'joinProperty' een valide 'AstExpression' is met 'AstIdentifier' aan beide zijden.
 				if (!$this->isExpressionWithTwoIdentifiers($range->getJoinProperty())) {
