@@ -240,17 +240,18 @@
 				$joinProperty->getLeft() instanceof AstIdentifier &&
 				$joinProperty->getRight() instanceof AstIdentifier;
 		}
-		
-		/**
-		 * Verwerkt de annotaties van de gerelateerde entiteit voor een specifieke 'range'.
-		 * De functie controleert of de 'range' als verplicht moet worden ingesteld op basis van
-		 * de 'ManyToOne' annotaties van de gerelateerde entiteit.
-		 * @param AstRange $range Het 'range' object dat mogelijk als verplicht wordt gemarkeerd.
-		 * @param AstIdentifier $left De linker identifier in de joinProperty van de 'range'.
-		 * @param AstIdentifier $right De rechter identifier in de joinProperty van de 'range'.
-		 * @return void
-		 */
-		private function setRangeRequiredIfNeeded(AstRange $range, AstIdentifier $left, AstIdentifier $right): void {
+	    
+	    /**
+	     * Verwerkt de annotaties van de gerelateerde entiteit voor een specifieke 'range'.
+	     * De functie controleert of de 'range' als verplicht moet worden ingesteld op basis van
+	     * de 'ManyToOne' annotaties van de gerelateerde entiteit.
+	     * @param AstRange $mainRange De hoofdrange voor deze query
+	     * @param AstRange $range Het 'range' object dat mogelijk als verplicht wordt gemarkeerd.
+	     * @param AstIdentifier $left De linker identifier in de joinProperty van de 'range'.
+	     * @param AstIdentifier $right De rechter identifier in de joinProperty van de 'range'.
+	     * @return void
+	     */
+		private function setRangeRequiredIfNeeded(AstRange $mainRange, AstRange $range, AstIdentifier $left, AstIdentifier $right): void {
 			// Properties
 			$isMainRange = $right->getEntityOrParentIdentifier()->getRange() === $mainRange;
 			$ownPropertyName = $isMainRange ? $right->getName() : $left->getName();
