@@ -530,11 +530,18 @@
 			}
 			
 			// If the only condition is AstExists. Clear the conditions.
+			// If the condition is 'exists AND exists' or 'exists OR exists' clear the condition.
 			// Otherwise use recursion to fetch and remove all exists operators.
 			$astExistsList = [];
-			
+
 			if ($conditions instanceof AstExists) {
 				$astExistsList = [$conditions];
+				$ast->setConditions(null);
+			} elseif (
+				($conditions instanceof AstAnd || $conditions instanceof AstOr) &&
+				$conditions->getLeft() instanceof AstExists &&
+				$conditions->getRight() instanceof AstExists) {
+				$astExistsList = [$conditions->getLeft(), $conditions->getRight()];
 				$ast->setConditions(null);
 			} else {
 				$this->handleExistsOperatorHelper($ast, $conditions, $astExistsList);
