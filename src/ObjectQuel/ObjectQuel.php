@@ -9,8 +9,10 @@
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstAnd;
 	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNumber;
+	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
     use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
 	use Services\EntityManager\EntityStore;
@@ -29,6 +31,7 @@
 	use Services\ObjectQuel\Visitors\EntityProcessRange;
 	use Services\ObjectQuel\Visitors\EntityPropertyValidator;
 	use Services\ObjectQuel\Visitors\FetchMethodCalls;
+	use Services\ObjectQuel\Visitors\GatherAndRemoveExistsClauses;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
 	use Services\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;
@@ -374,7 +377,7 @@
 				}
 				
 				// Zoek een RequiredRelation annotatie op
-				$this->setRangeRequiredIfNeeded($range, $left, $right);
+				$this->setRangeRequiredIfNeeded($mainRange, $range, $left, $right);
 			}
 		}
 		
@@ -453,6 +456,100 @@
 				$astEntity = new AstEntity($entityName, clone $range);
 				$alias = new AstAlias($range->getName(), $astEntity, "{$range->getName()}.");
 				$ast->addValue($alias);
+			}
+		}
+	    
+	    /**
+	     * Handles the EXISTS operator in Abstract Syntax Tree (AST) transformations
+	     *
+	     * Recursively processes EXISTS operators by:
+	     * 1. Handling nested AND/OR operations
+	     * 2. Replacing EXISTS nodes with their conditions
+	     * 3. Updating parent node connections
+	     * @param AstInterface|null $parent Parent node in AST
+	     * @param AstInterface $item Current node being processed
+	     * @param array &$list Reference to list being populated
+	     * @param bool $parentLeft Whether current item is left child of parent
+	     */
+	    private function handleExistsOperatorHelper(?AstInterface $parent, AstInterface $item, array &$list, bool $parentLeft = false): void {
+		    // Process left branch for AND/OR operations
+		    if ($item->getLeft() instanceof AstOr || $item->getLeft() instanceof AstAnd) {
+			    $this->handleExistsOperatorHelper($item, $item->getLeft(), $list, true);
+		    }
+		    
+		    // Process right branch for AND/OR operations
+		    if ($item->getRight() instanceof AstOr || $item->getRight() instanceof AstAnd) {
+			    $this->handleExistsOperatorHelper($item, $item->getRight(), $list, false);
+		    }
+		    
+		    // Get left and right nodes
+		    $left = $item->getLeft();
+		    $right = $item->getRight();
+		    
+		    // Handle EXISTS operator in left branch
+		    if ($left instanceof AstExists) {
+			    $list[] = $left;
+				
+			    if ($parent instanceof AstRetrieve) {
+				    $parent->setConditions($right);
+			    } elseif ($parentLeft) {
+				    $parent->setLeft($right);
+			    } else {
+				    $parent->setRight($right);
+			    }
+		    }
+		    
+		    // Handle EXISTS operator in right branch
+		    if ($right instanceof AstExists) {
+			    $list[] = $right;
+				
+			    if ($parent instanceof AstRetrieve) {
+				    $parent->setConditions($left);
+			    } elseif ($parentLeft) {
+				    $parent->setLeft($left);
+			    } else {
+				    $parent->setRight($left);
+			    }
+		    }
+	    }
+		
+	    /**
+	     * This function locates all uses of EXISTS(<entity>) in the WHERE sections.
+	     * It then removes the keyword from the query (because it can't be translated to SQL).
+	     * For every EXISTS it sets the accompanied range to mandatory. This forces an INNER JOIN.
+	     * @param AstRetrieve $ast
+	     * @return void
+	     */
+		private function handleExistsOperator(AstRetrieve $ast): void {
+			// Fetch the conditions from the AST
+			$conditions = $ast->getConditions();
+			
+			// No conditions. Do nothing
+			if ($conditions === null) {
+				return;
+			}
+			
+			// If the only condition is AstExists. Clear the conditions.
+			// Otherwise use recursion to fetch and remove all exists operators.
+			$astExistsList = [];
+			
+			if ($conditions instanceof AstExists) {
+				$astExistsList = [$conditions];
+				$ast->setConditions(null);
+			} else {
+				$this->handleExistsOperatorHelper($ast, $conditions, $astExistsList);
+			}
+
+			// Set all targeted ranges to mandatory
+			foreach ($astExistsList as $exists) {
+				$existsRange = $exists->getEntity()->getRange();
+				
+				foreach($ast->getRanges() as $range) {
+					if ($range->getName() == $existsRange->getName()) {
+						$range->setRequired();
+						continue 2;
+					}
+				}
 			}
 		}
 		
@@ -549,6 +646,9 @@
 			
 			// Add complete entity to fetch list if 'sort in application' is set and it's not there
 			$this->plugCompleteEntityIfSortInApplicationFlagSet($ast);
+			
+			// Handle exists() operator
+			$this->handleExistsOperator($ast);
 		}
 		
 		/**

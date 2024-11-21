@@ -127,9 +127,9 @@
 		/**
 		 * Set the conditions for this retrieve operation.
 		 *
-		 * @param AstInterface $ast The conditions.
+		 * @param AstInterface|null $ast The conditions.
 		 */
-		public function setConditions(AstInterface $ast): void {
+		public function setConditions(?AstInterface $ast): void {
 			$this->conditions = $ast;
 		}
 		

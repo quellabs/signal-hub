@@ -6,6 +6,7 @@
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;
 	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIsEmpty;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
@@ -176,6 +177,30 @@
 		}
 		
 		/**
+		 * Parse 'exists'. This will change a relation to INNER when present.
+		 * @return AstExists
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
+		protected function parseExists(): AstExists {
+			// Match the opening parenthesis.
+			$this->lexer->match(Token::ParenthesesOpen);
+			
+			// Fetch identifier or string to check
+			$entity = $this->expressionRule->parseConstantOrIdentifier();
+			
+			// Closing parenthesis
+			$this->lexer->match(Token::ParenthesesClose);
+			
+			if (!$entity instanceof AstEntity) {
+				throw new ParserException("exists operator takes an entity as parameter.");
+			}
+			
+			// Return the AST
+			return new AstExists($entity);
+		}
+		
+		/**
 		 * Parse the identifier list
 		 * @return AstIdentifier[]
 		 */
@@ -207,6 +232,7 @@
 				'search' => $this->parseSearch(),
 				'is_empty' => $this->parseIsEmpty(),
 				'is_numeric' => $this->parseIsNumeric(),
+				'exists' => $this->parseExists(),
 				default => throw new ParserException("Command {$command} is not valid."),
 			};
 		}
