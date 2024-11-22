@@ -18,6 +18,8 @@
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstIsEmpty;
+	use Services\ObjectQuel\Ast\AstIsFloat;
+	use Services\ObjectQuel\Ast\AstIsInteger;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
@@ -597,19 +599,19 @@
 			// In SQL, we do this using REGEXP
 			$this->result[] = "{$string} REGEXP '^-?[0-9]+(\\.[0-9]+)?$'";
 		}
-        
+		
 		/**
 		 * Handle is_integer function
-		 * @param AstIsNumeric $ast
+		 * @param AstIsInteger $ast
 		 * @return void
 		 */
-		protected function handleIsInteger(AstIsNumeric $ast): void {
+		protected function handleIsInteger(AstIsInteger $ast): void {
 			$this->visitNode($ast);
 			$this->addToVisitedNodes($ast->getValue());
-
-			// Special case for number. This will always be true
+			
+			// Special case for number. This will always be true if it's an integer
 			if ($ast->getValue() instanceof AstNumber) {
-				$this->result[] = is_integer($ast->getValue()) ? "1" : "0";
+				$this->result[] = is_integer($ast->getValue()->getValue()) ? "1" : "0";
 				return;
 			}
 
@@ -622,6 +624,32 @@
 			
 			// In SQL, we do this using REGEXP
 			$this->result[] = "{$string} REGEXP '^-?[0-9]+$'";
+		}
+		
+		/**
+		 * Handle is_float function
+		 * @param AstIsFloat $ast
+		 * @return void
+		 */
+		protected function handleIsFloat(AstIsFloat $ast): void {
+			$this->visitNode($ast);
+			$this->addToVisitedNodes($ast->getValue());
+			
+			// Special case for number. This will always be true if it's a float
+			if ($ast->getValue() instanceof AstNumber) {
+				$this->result[] = is_float($ast->getValue()->getValue()) ? "1" : "0";
+				return;
+			}
+			
+			// Check identifier or string
+			if ($ast->getValue() instanceof AstIdentifier) {
+				$string = $this->astIdentifierToString($ast->getValue());
+			} else {
+				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			}
+			
+			// In SQL, we check for decimal point followed by digits
+			$this->result[] = "{$string} REGEXP '^-?[0-9]+\\.[0-9]+$'";
 		}
   
 		/**

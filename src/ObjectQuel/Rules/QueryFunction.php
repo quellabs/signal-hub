@@ -9,6 +9,7 @@
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIsEmpty;
+	use Services\ObjectQuel\Ast\AstIsFloat;
 	use Services\ObjectQuel\Ast\AstIsInteger;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
 	use Services\ObjectQuel\Ast\AstNumber;
@@ -206,6 +207,34 @@
 		}
 		
 		/**
+		 * is_float function. Usage: where is_float(x.productsId)
+		 * @return AstIsFloat
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
+		protected function parseIsFloat(): AstIsFloat {
+			// Match the opening parenthesis.
+			$this->lexer->match(Token::ParenthesesOpen);
+
+			// Fetch identifier or string to check
+			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+
+			// Closing parenthesis
+			$this->lexer->match(Token::ParenthesesClose);
+			
+			if (
+				(!$countIdentifier instanceof AstIdentifier) &&
+				(!$countIdentifier instanceof AstString) &&
+				(!$countIdentifier instanceof AstNumber)
+			) {
+				throw new ParserException("is_float operator takes an identifier, string or number as parameter.");
+			}
+			
+			// Return the AST
+			return new AstIsFloat($countIdentifier);
+		}
+		
+		/**
 		 * Parse 'exists'. This will change a relation to INNER when present.
 		 * @return AstExists
 		 * @throws LexerException
@@ -262,6 +291,7 @@
 				'is_empty' => $this->parseIsEmpty(),
 				'is_numeric' => $this->parseIsNumeric(),
 				'is_integer' => $this->parseIsInteger(),
+				'is_float' => $this->parseIsFloat(),
 				'exists' => $this->parseExists(),
 				default => throw new ParserException("Command {$command} is not valid."),
 			};
