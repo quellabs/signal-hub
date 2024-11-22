@@ -458,7 +458,17 @@
 				$ast->addValue($alias);
 			}
 		}
-	    
+	 
+		private function handleExistsOperatorHelperSetParent(AstInterface $parent, AstInterface $item, bool $parentLeft): void {
+			if ($parent instanceof AstRetrieve) {
+				$parent->setConditions($item);
+			} elseif ($parentLeft) {
+				$parent->setLeft($item);
+			} else {
+				$parent->setRight($item);
+			}
+		}
+		
 	    /**
 	     * Handles the EXISTS operator in Abstract Syntax Tree (AST) transformations
 	     *
@@ -485,36 +495,25 @@
 		    // Get left and right nodes
 		    $left = $item->getLeft();
 		    $right = $item->getRight();
+
+			// Special case for 'exist AND/OR exists' as only condition
+		    if ($parent instanceof AstRetrieve && $left instanceof AstExists && $right instanceof AstExists) {
+			    $list[] = $left;
+			    $list[] = $right;
+				$parent->setConditions(null);
+				return;
+		    }
 		    
 		    // Handle EXISTS operator in left branch
 		    if ($left instanceof AstExists) {
 			    $list[] = $left;
-				
-			    if ($parent instanceof AstRetrieve) {
-				    $parent->setConditions($right);
-			    } elseif ($parentLeft) {
-				    $parent->setLeft($right);
-			    } else {
-				    $parent->setRight($right);
-			    }
+				$this->handleExistsOperatorHelperSetParent($parent, $right, $parentLeft);
 		    }
 		    
 		    // Handle EXISTS operator in right branch
 		    if ($right instanceof AstExists) {
 			    $list[] = $right;
-				
-			    if ($parent instanceof AstRetrieve) {
-				    $parent->setConditions($left);
-			    } elseif ($parentLeft) {
-				    $parent->setLeft($left);
-			    } else {
-				    $parent->setRight($left);
-			    }
-		    }
-			
-			// Clear condition if the only leftover condition is AstExists
-		    if ($parent instanceof AstRetrieve && $parent->getConditions() instanceof AstExists) {
-				$parent->setConditions(null);
+			    $this->handleExistsOperatorHelperSetParent($parent, $left, $parentLeft);
 		    }
 	    }
 		
@@ -541,12 +540,6 @@
 
 			if ($conditions instanceof AstExists) {
 				$astExistsList = [$conditions];
-				$ast->setConditions(null);
-			} elseif (
-				($conditions instanceof AstAnd || $conditions instanceof AstOr) &&
-				$conditions->getLeft() instanceof AstExists &&
-				$conditions->getRight() instanceof AstExists) {
-				$astExistsList = [$conditions->getLeft(), $conditions->getRight()];
 				$ast->setConditions(null);
 			} else {
 				$this->handleExistsOperatorHelper($ast, $conditions, $astExistsList);
