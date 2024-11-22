@@ -541,7 +541,7 @@
 			if ($conditions instanceof AstExists) {
 				$astExistsList = [$conditions];
 				$ast->setConditions(null);
-			} else {
+			} elseif ($conditions instanceof AstOr || $conditions instanceof AstAnd) {
 				$this->handleExistsOperatorHelper($ast, $conditions, $astExistsList);
 			}
 
