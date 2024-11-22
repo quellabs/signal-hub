@@ -9,6 +9,7 @@
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIsEmpty;
+	use Services\ObjectQuel\Ast\AstIsInteger;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
 	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
@@ -177,6 +178,34 @@
 		}
 		
 		/**
+		 * is_integer function. Usage: where is_integer(x.productsId)
+		 * @return AstIsInteger
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
+		protected function parseIsInteger(): AstIsInteger {
+			// Match the opening parenthesis.
+			$this->lexer->match(Token::ParenthesesOpen);
+
+			// Fetch identifier or string to check
+			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+
+			// Closing parenthesis
+			$this->lexer->match(Token::ParenthesesClose);
+			
+			if (
+				(!$countIdentifier instanceof AstIdentifier) &&
+				(!$countIdentifier instanceof AstString) &&
+				(!$countIdentifier instanceof AstNumber)
+			) {
+				throw new ParserException("is_integer operator takes an identifier, string or number as parameter.");
+			}
+			
+			// Return the AST
+			return new AstIsInteger($countIdentifier);
+		}
+		
+		/**
 		 * Parse 'exists'. This will change a relation to INNER when present.
 		 * @return AstExists
 		 * @throws LexerException
@@ -232,6 +261,7 @@
 				'search' => $this->parseSearch(),
 				'is_empty' => $this->parseIsEmpty(),
 				'is_numeric' => $this->parseIsNumeric(),
+				'is_integer' => $this->parseIsInteger(),
 				'exists' => $this->parseExists(),
 				default => throw new ParserException("Command {$command} is not valid."),
 			};

@@ -594,9 +594,36 @@
 				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
 			}
 			
-			$this->result[] = "{$string} REGEXP '^-?[0-9]*\\.?[0-9]+$'";
+			// In SQL, we do this using REGEXP
+			$this->result[] = "{$string} REGEXP '^-?[0-9]+(\\.[0-9]+)?$'";
 		}
         
+		/**
+		 * Handle is_integer function
+		 * @param AstIsNumeric $ast
+		 * @return void
+		 */
+		protected function handleIsInteger(AstIsNumeric $ast): void {
+			$this->visitNode($ast);
+			$this->addToVisitedNodes($ast->getValue());
+
+			// Special case for number. This will always be true
+			if ($ast->getValue() instanceof AstNumber) {
+				$this->result[] = is_integer($ast->getValue()) ? "1" : "0";
+				return;
+			}
+
+			// Check identifier or string
+			if ($ast->getValue() instanceof AstIdentifier) {
+				$string = $this->astIdentifierToString($ast->getValue());
+			} else {
+				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			}
+			
+			// In SQL, we do this using REGEXP
+			$this->result[] = "{$string} REGEXP '^-?[0-9]+$'";
+		}
+  
 		/**
 		 * Bezoek een knooppunt in de AST.
 		 * @param AstInterface $node Het te bezoeken knooppunt.

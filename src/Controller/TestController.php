@@ -30,7 +30,7 @@
 			$this->entityManager->executeQuery("
 				range of x is ProductsEntity
 				range of y is ProductsDescriptionEntity via y.productsId=x.productsId
-				retrieve (x, y) where exists(x)
+				retrieve (x, y) where exists(y)
 			");
 			
 			/*
