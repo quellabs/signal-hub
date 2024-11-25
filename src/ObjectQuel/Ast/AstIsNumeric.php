@@ -2,6 +2,7 @@
 	
 	namespace Services\ObjectQuel\Ast;
 	
+	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
 	/**
@@ -11,15 +12,15 @@
 		
 		/**
 		 * The value or string to check
-		 * @var AstIdentifier|AstString|AstNumber
+		 * @var AstInterface $identifierOrString
 		 */
-		protected AstIdentifier|AstString|AstNumber $identifierOrString;
+		protected AstInterface $identifierOrString;
 		
 		/**
 		 * AstIsNumeric constructor.
-		 * @param AstIdentifier|AstString|AstNumber $identifierOrString
+		 * @param AstInterface $identifierOrString
 		 */
-		public function __construct(AstIdentifier|AstString|AstNumber $identifierOrString) {
+		public function __construct(AstInterface $identifierOrString) {
 			$this->identifierOrString = $identifierOrString;
 		}
 		
@@ -35,9 +36,17 @@
 		
 		/**
 		 * Retrieves the numerical value stored in this AST node.
-		 * @return AstIdentifier|AstString|AstNumber The stored numerical value.
+		 * @return AstInterface The stored numerical value.
 		 */
-		public function getValue(): AstIdentifier|AstString|AstNumber {
+		public function getValue(): AstInterface {
 			return $this->identifierOrString;
+		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
 		}
 	}

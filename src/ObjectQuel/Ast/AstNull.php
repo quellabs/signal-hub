@@ -4,10 +4,7 @@
 	
 	class AstNull extends Ast {
 		
-		public function __construct() {
-		}
-		
-		public function getValue() {
+		public function getValue(): null {
 			return null;
 		}
 	}

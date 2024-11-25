@@ -41,4 +41,12 @@
 		public function getEnclosingChar(): string {
 			return $this->enclosingChar;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "string";
+		}
 	}

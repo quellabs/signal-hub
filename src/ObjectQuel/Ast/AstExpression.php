@@ -43,7 +43,7 @@
 		 * Accept a visitor to perform operations on this node.
 		 * @param AstVisitorInterface $visitor The visitor to accept.
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);
 			$this->left->accept($visitor);
 			$this->right->accept($visitor);

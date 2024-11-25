@@ -30,4 +30,12 @@
 		public function getValue(): bool {
 			return $this->bool;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
+		}
 	}

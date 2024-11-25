@@ -53,9 +53,17 @@
 		
 		/**
 		 * Returns all parameters used in the IN-statement
-		 * @return AstIdentifier
+		 * @return AstInterface
 		 */
-		public function getIdentifier(): AstIdentifier {
+		public function getIdentifier(): AstInterface {
 			return $this->identifier;
+		}
+
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
 		}
 	}

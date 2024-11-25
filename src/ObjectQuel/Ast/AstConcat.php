@@ -30,7 +30,7 @@
 		 * Method to accept an AstVisitor, part of the Visitor Pattern.
 		 * @param AstVisitorInterface $visitor The visitor object.
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);
 			
 			// Loop through each parameter and apply the visitor to it.
@@ -45,5 +45,13 @@
 		 */
 		public function getParameters(): array {
 			return $this->parameterList;
+		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "string";
 		}
 	}

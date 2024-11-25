@@ -30,4 +30,12 @@
 		public function getValue(): string {
 			return $this->number;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return str_contains($this->number, ".") ? "float" : "integer";
+		}
 	}

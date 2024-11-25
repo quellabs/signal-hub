@@ -40,4 +40,12 @@
 		public function getEntity(): AstEntity {
 			return $this->entity;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
+		}
 	}

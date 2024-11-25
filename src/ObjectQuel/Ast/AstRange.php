@@ -44,7 +44,7 @@
 		 * Accepteer een bezoeker om de AST te verwerken.
 		 * @param AstVisitorInterface $visitor Bezoeker object voor AST-manipulatie.
 		 */
-		public function accept(AstVisitorInterface $visitor) {
+		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);  // Accepteer eerst de bezoeker op ouderklasse
 			$this->entity->accept($visitor);  // Accepteer vervolgens de bezoeker op de entiteit
 			

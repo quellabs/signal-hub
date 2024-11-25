@@ -40,4 +40,12 @@
 		public function getValue(): AstIdentifier|AstString|AstNumber {
 			return $this->identifierOrString;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
+		}
 	}

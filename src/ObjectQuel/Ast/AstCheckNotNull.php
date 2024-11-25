@@ -42,4 +42,12 @@
 		public function setExpression(AstInterface $ast): void {
 			$this->expression = $ast;
 		}
+		
+		/**
+		 * Returns the return type of this node
+		 * @return string|null
+		 */
+		public function getReturnType(): ?string {
+			return "boolean";
+		}
 	}
