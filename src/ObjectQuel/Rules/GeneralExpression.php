@@ -267,13 +267,12 @@
 		 * @return string
 		 */
 		public function inferReturnType(AstInterface $ast): string {
-			if (
-				$ast instanceof AstAnd || $ast instanceof AstOr ||
-				$ast instanceof AstTerm || $ast instanceof AstFactor
-			) {
+			if ($ast instanceof AstAnd || $ast instanceof AstOr) {
+				return "boolean";
+			} elseif ($ast instanceof AstTerm || $ast instanceof AstFactor) {
 				return $this->inferReturnType($ast->getLeft());
+			} else {
+				return $ast->getReturnType();
 			}
-			
-			return $ast->getReturnType();
 		}
 	}
