@@ -258,14 +258,14 @@
 				++$this->pos;
 			}
 		}
-		
-		/**
-		 * Fetches a numeric value (integer or float) from a string starting at the current position.
-		 * If the number is malformed (e.g., contains multiple decimal points), an exception is thrown.
-		 * @return float|int The numeric value extracted from the string.
-		 * @throws LexerException If the number is malformed or if no number is found.
-		 */
-		protected function fetchNumber(): float|int {
+	    
+	    /**
+	     * Fetches a numeric value (integer or float) from a string starting at the current position.
+	     * If the number is malformed (e.g., contains multiple decimal points), an exception is thrown.
+	     * @return string The numeric value extracted from the string.
+	     * @throws LexerException If the number is malformed or if no number is found.
+	     */
+		protected function fetchNumber(): string {
 			$string = "";
 			$decimalFound = false;
 			
@@ -290,7 +290,7 @@
 			}
 			
 			// Gebruik een early return om direct het type getal te retourneren.
-			return $decimalFound ? floatval($string) : intval($string);
+			return $string;
 		}
         
         /**

@@ -31,7 +31,6 @@
 	use Services\ObjectQuel\Visitors\EntityProcessRange;
 	use Services\ObjectQuel\Visitors\EntityPropertyValidator;
 	use Services\ObjectQuel\Visitors\FetchMethodCalls;
-	use Services\ObjectQuel\Visitors\GatherAndRemoveExistsClauses;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
 	use Services\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;

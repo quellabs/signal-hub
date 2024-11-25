@@ -137,14 +137,10 @@
 			$this->lexer->match(Token::ParenthesesOpen);
 			
 			// Fetch identifier or string to check
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parse();
 			
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
-			
-			if ((!$countIdentifier instanceof AstIdentifier) && (!$countIdentifier instanceof AstString) && (!$countIdentifier instanceof AstNumber)) {
-				throw new ParserException("is_empty operator takes an identifier, string or number as parameter.");
-			}
 			
 			// Return the AST
 			return new AstIsEmpty($countIdentifier);
@@ -161,18 +157,10 @@
 			$this->lexer->match(Token::ParenthesesOpen);
 
 			// Fetch identifier or string to check
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parse();
 
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
-			
-			if (
-				(!$countIdentifier instanceof AstIdentifier) &&
-				(!$countIdentifier instanceof AstString) &&
-				(!$countIdentifier instanceof AstNumber)
-			) {
-				throw new ParserException("is_numeric operator takes an identifier, string or number as parameter.");
-			}
 			
 			// Return the AST
 			return new AstIsNumeric($countIdentifier);
@@ -194,14 +182,6 @@
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
 			
-			if (
-				(!$countIdentifier instanceof AstIdentifier) &&
-				(!$countIdentifier instanceof AstString) &&
-				(!$countIdentifier instanceof AstNumber)
-			) {
-				throw new ParserException("is_integer operator takes an identifier, string or number as parameter.");
-			}
-			
 			// Return the AST
 			return new AstIsInteger($countIdentifier);
 		}
@@ -217,18 +197,10 @@
 			$this->lexer->match(Token::ParenthesesOpen);
 
 			// Fetch identifier or string to check
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parse();
 
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
-			
-			if (
-				(!$countIdentifier instanceof AstIdentifier) &&
-				(!$countIdentifier instanceof AstString) &&
-				(!$countIdentifier instanceof AstNumber)
-			) {
-				throw new ParserException("is_float operator takes an identifier, string or number as parameter.");
-			}
 			
 			// Return the AST
 			return new AstIsFloat($countIdentifier);

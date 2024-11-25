@@ -183,6 +183,9 @@
 				$e = $this->object_quel->parse($query);
 				$sql = $this->object_quel->convertToSQL($e, $parameters);
 				
+				echo $sql;
+				
+				
 				// Voer de SQL query uit
 				$rs = $this->connection->execute($sql, $parameters);
 				

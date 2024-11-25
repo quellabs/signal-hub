@@ -446,8 +446,8 @@
 			$rs = $this->Execute("SHOW VARIABLES LIKE 'max_allowed_packet'");
 			
 			// Als de query succesvol is en er is ten minste één record
-			if ($rs && $this->RecordCount($rs) > 0) {
-				$row = $this->FetchRow($rs);
+			if ($rs && $rs->recordCount($rs) > 0) {
+				$row = $rs->FetchRow($rs);
 				
 				// Als de "Value" kolom bestaat, retourneer de waarde
 				if (isset($row["Value"])) {
@@ -607,6 +607,36 @@
 			
 			// Return first row from recordset as an array
 			return $rs->fetchRow();
+		}
+		
+		/**
+		 * Fetches a column from the database using the provided query and parameters
+		 * @param string $query      The SQL query to execute. Can contain named parameters (:param)
+		 * @param array $parameters  Optional array of parameters to bind to the query
+		 * @return array             Returns the first row as an associative array if found, empty array if no results
+		 */
+		public function getCol(string $query, array $parameters=[]): array {
+			// Execute the query with provided parameters
+			$rs = $this->execute($query, $parameters);
+			
+			// Return an empty array if no recordset returned or no rows found
+			if (!$rs || $rs->recordCount() == 0) {
+				return [];
+			}
+			
+			// Return first row from recordset as an array
+			$result = [];
+			$keys = null;
+			
+			while ($row = $rs->fetchRow()) {
+				if ($keys === null) {
+					$keys = array_keys($row);
+				}
+				
+				$result[] = $row[$keys[0]];
+			}
+			
+			return $result;
 		}
 		
 		/**

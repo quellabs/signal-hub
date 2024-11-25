@@ -15,7 +15,6 @@
 	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRegExp;
-	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
 	use Services\ObjectQuel\Ast\AstTerm;
 	use Services\ObjectQuel\AstInterface;
@@ -261,18 +260,4 @@
 			}
 		}
 		
-		/**
-		 * Infers the return type of AST node and its children
-		 * @param AstInterface $ast
-		 * @return string
-		 */
-		public function inferReturnType(AstInterface $ast): string {
-			if ($ast instanceof AstAnd || $ast instanceof AstOr) {
-				return "boolean";
-			} elseif ($ast instanceof AstTerm || $ast instanceof AstFactor) {
-				return $this->inferReturnType($ast->getLeft());
-			} else {
-				return $ast->getReturnType();
-			}
-		}
 	}

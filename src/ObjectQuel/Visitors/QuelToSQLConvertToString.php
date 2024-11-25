@@ -63,6 +63,69 @@
 			$this->parameters = &$parameters;
 			$this->partOfQuery = $partOfQuery;
 		}
+
+		/**
+		 * Determines the return type of the identifier by checking its annotations
+		 * @param AstIdentifier $identifier Entity identifier to analyze
+		 * @return string|null Column type if found in annotations, null otherwise
+		 */
+		private function inferReturnTypeOfIdentifier(AstIdentifier $identifier): ?string {
+			// Get all annotations for the entity
+			$annotationList = $this->entityStore->getAnnotations($identifier->getEntityName());
+			
+			// Check if identifier has annotations
+			if (!isset($annotationList[$identifier->getName()])) {
+				return null;
+			}
+			
+			// Search for Column annotation to get type
+			foreach ($annotationList[$identifier->getName()] as $annotation) {
+				if ($annotation instanceof Column) {
+					$type = $annotation->getType();
+					
+					return match ($type) {
+						'varchar' => 'string',
+						'int' => 'integer',
+						'decimal' => 'float',
+						default => $type
+					};
+				}
+			}
+			
+			return null;
+		}
+		
+		/**
+		 * Recursively infers the return type of an AST node and its children
+		 * @param AstInterface $ast Abstract syntax tree node
+		 * @return string|null Inferred return type or null if none found
+		 */
+		public function inferReturnType(AstInterface $ast): ?string {
+			// Boolean operations
+			if ($ast instanceof AstAnd || $ast instanceof AstOr || $ast instanceof AstExpression) {
+				return 'boolean';
+			}
+			
+			// Process identifiers
+			if ($ast instanceof AstIdentifier) {
+				return $this->inferReturnTypeOfIdentifier($ast);
+			}
+			
+			// Traverse down the parse tree
+			if ($ast instanceof AstTerm || $ast instanceof AstFactor) {
+				$left = $this->inferReturnType($ast->getLeft());
+				$right = $this->inferReturnType($ast->getRight());
+				
+				if (($left === "float") || ($right === "float")) {
+					return 'float';
+				} else {
+					return $left;
+				}
+			}
+			
+			// Default to node's declared return type
+			return $ast->getReturnType();
+		}
 		
 		/**
 		 * Markeer het object als bezocht.
@@ -75,10 +138,10 @@
 		
 		/**
 		 * Convert an AstIdentifier to a string
-		 * @param AstIdentifier $ast
+		 * @param AstInterface $ast
 		 * @return string
 		 */
-		protected function astIdentifierToString(AstIdentifier $ast): string {
+		protected function astIdentifierToString(AstInterface $ast): string {
 			// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
 			$this->addToVisitedNodes($ast);
 			$this->addToVisitedNodes($ast->getEntityOrParentIdentifier());
@@ -379,7 +442,7 @@
 			
 			if (!$annotationsOfProperty[0]->isNullable()) {
 				$this->result[] = $rangeName . "." . $columnMap[$propertyName];
-			} elseif ($annotationsOfProperty[0]->getType() === "int") {
+			} elseif ($annotationsOfProperty[0]->getType() === "integer") {
 				$this->result[] = "COALESCE({$rangeName}.{$columnMap[$propertyName]}, 0)";
 			} else {
 				$this->result[] = "COALESCE({$rangeName}.{$columnMap[$propertyName]}, '')";
@@ -581,77 +644,155 @@
 		 */
 		protected function handleIsNumeric(AstIsNumeric $ast): void {
 			$this->visitNode($ast);
-			$this->addToVisitedNodes($ast->getValue());
-
+			
+			// Fetch the node value
+			$valueNode = $ast->getValue();
+			
 			// Special case for number. This will always be true
-			if ($ast->getValue() instanceof AstNumber) {
+			if ($valueNode instanceof AstNumber) {
+				$this->addToVisitedNodes($ast->getValue());
 				$this->result[] = "1";
 				return;
 			}
-
-			// Check identifier or string
-			if ($ast->getValue() instanceof AstIdentifier) {
-				$string = $this->astIdentifierToString($ast->getValue());
-			} else {
-				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			
+			// Handle boolean and null values - they are never numeric
+			if ($valueNode instanceof AstBool || $valueNode instanceof AstNull) {
+				$this->addToVisitedNodes($ast->getValue());
+				$this->result[] = "0";
+				return;
 			}
 			
-			// In SQL, we do this using REGEXP
-			$this->result[] = "{$string} REGEXP '^-?[0-9]+(\\.[0-9]+)?$'";
-		}
-		
-		/**
-		 * Handle is_integer function
-		 * @param AstIsInteger $ast
-		 * @return void
-		 */
-		protected function handleIsInteger(AstIsInteger $ast): void {
-			$this->visitNode($ast);
-			$this->addToVisitedNodes($ast->getValue());
-			
-			// Special case for number. This will always be true if it's an integer
-			if ($ast->getValue() instanceof AstNumber) {
-				$this->result[] = is_integer($ast->getValue()->getValue()) ? "1" : "0";
+			// Handle string literals - check if the string matches a valid numeric pattern
+			if ($valueNode instanceof AstString) {
+				$this->addToVisitedNodes($ast->getValue());
+				$string = "'" . addslashes($valueNode->getValue()) . "'";
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+(\\.[0-9]+)?$'";
 				return;
 			}
 
-			// Check identifier or string
-			if ($ast->getValue() instanceof AstIdentifier) {
-				$string = $this->astIdentifierToString($ast->getValue());
-			} else {
-				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
-			}
+			// Handle identifiers (variables, function calls, etc.)
+			$inferredType = $this->inferReturnType($valueNode);
+			$string = $this->visitNodeAndReturnSQL($ast->getValue());
 			
-			// In SQL, we do this using REGEXP
-			$this->result[] = "{$string} REGEXP '^-?[0-9]+$'";
+			// Return the appropriate result based on the inferred type
+			if (($inferredType === 'float') || ($inferredType == "integer")) {
+				$this->result[] = "1";
+			} else {
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+(\\.[0-9]+)?$'"; // For unknown types, check if the value matches the float pattern
+			}
 		}
 		
 		/**
-		 * Handle is_float function
-		 * @param AstIsFloat $ast
+		 * Handles the is_integer type checking operation for different AST node types.
+		 * Determines whether a given AST node represents an integer value.
+		 *
+		 * The function handles these cases:
+		 * - String literals: checks if the string matches an integer pattern
+		 * - Numbers: checks if the number contains no decimal point
+		 * - Booleans: always returns false (0) as booleans are never integers
+		 * - Identifiers: checks based on inferred type or pattern matching
+		 *
+		 * @param AstIsInteger $ast The AST node representing the is_integer check
+		 * @return void
+		 */
+		protected function handleIsInteger(AstIsInteger $ast): void {
+			// Add AstIsInteger handles nodes list
+			$this->visitNode($ast);
+			
+			// Fetch the node value
+			$valueNode = $ast->getValue();
+			
+			// Handle string literals - check if the string matches a valid integer pattern
+			if ($valueNode instanceof AstString) {
+				$this->addToVisitedNodes($ast->getValue());
+				$string = "'" . addslashes($valueNode->getValue()) . "'";
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+$'";
+				return;
+			}
+			
+			// Handle numeric values - check if the number has no decimal point
+			if ($valueNode instanceof AstNumber) {
+				$this->addToVisitedNodes($ast->getValue());
+				$this->result[] = !str_contains($valueNode->getValue(), ".") ? "1" : "0";
+				return;
+			}
+			
+			// Handle boolean and null values - they are never integers
+			if ($valueNode instanceof AstBool || $valueNode instanceof AstNull) {
+				$this->addToVisitedNodes($ast->getValue());
+				$this->result[] = "0";
+				return;
+			}
+			
+			// Handle identifiers (variables, function calls, etc.)
+			$inferredType = $this->inferReturnType($valueNode);
+			$string = $this->visitNodeAndReturnSQL($valueNode);
+			
+			// Return appropriate result based on the inferred type
+			if ($inferredType == "integer") {
+				$this->result[] = "1";    // Known integer types are always integers
+			} elseif ($inferredType == "float") {
+				$this->result[] = "0";    // Float types are never integers
+			} else {
+				// For unknown types, check if the value matches integer pattern
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+$'";
+			}
+		}
+		
+		/**
+		 * Handles the is_float type checking operation for different AST node types.
+		 * Determines whether a given AST node represents a floating point value.
+		 *
+		 * The function handles these cases:
+		 * - String literals: checks if the string matches a float pattern
+		 * - Numbers: checks if the number is not equal to its floor value
+		 * - Booleans: always returns false (0) as booleans are never floats
+		 * - Identifiers: checks based on inferred type or pattern matching
+		 * @param AstIsFloat $ast The AST node representing the is_float check
 		 * @return void
 		 */
 		protected function handleIsFloat(AstIsFloat $ast): void {
 			$this->visitNode($ast);
-			$this->addToVisitedNodes($ast->getValue());
 			
-			// Special case for number. This will always be true if it's a float
-			if ($ast->getValue() instanceof AstNumber) {
-				$this->result[] = is_float($ast->getValue()->getValue()) ? "1" : "0";
+			// Fetch the node value
+			$valueNode = $ast->getValue();
+			
+			// Handle string literals - check if the string matches a valid float pattern
+			if ($valueNode instanceof AstString) {
+				$this->addToVisitedNodes($ast->getValue());
+				$string = "'" . addslashes($valueNode->getValue()) . "'";
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+\\.[0-9]+$'";
 				return;
 			}
 			
-			// Check identifier or string
-			if ($ast->getValue() instanceof AstIdentifier) {
-				$string = $this->astIdentifierToString($ast->getValue());
-			} else {
-				$string = "'" . addslashes($ast->getValue()->getValue()) . "'";
+			// Handle numeric values - a number is a float if it's not equal to its floor value
+			if ($valueNode instanceof AstNumber) {
+				$this->addToVisitedNodes($ast->getValue());
+				$this->result[] = str_contains($valueNode->getValue(), ".") ? "1" : "0";
+				return;
 			}
 			
-			// In SQL, we check for decimal point followed by digits
-			$this->result[] = "{$string} REGEXP '^-?[0-9]+\\.[0-9]+$'";
+			// Handle boolean and null values - they are never floats
+			if ($valueNode instanceof AstBool || $valueNode instanceof AstNull) {
+				$this->addToVisitedNodes($ast->getValue());
+				$this->result[] = "0";
+				return;
+			}
+			
+			// Handle identifiers (variables, function calls, etc.)
+			$inferredType = $this->inferReturnType($valueNode);
+			$string = $this->visitNodeAndReturnSQL($ast->getValue());
+			
+			// Return the appropriate result based on the inferred type
+			if ($inferredType == "integer") {
+				$this->result[] = "0"; // Known integer types are never floats
+			} elseif ($inferredType == "float") {
+				$this->result[] = "1"; // Known float types are always floats
+			} else {
+				$this->result[] = "{$string} REGEXP '^-?[0-9]+\\.[0-9]+$'"; // For unknown types, check if the value matches the float pattern
+			}
 		}
-  
+		
 		/**
 		 * Bezoek een knooppunt in de AST.
 		 * @param AstInterface $node Het te bezoeken knooppunt.
@@ -678,6 +819,23 @@
 			if (method_exists($this, $handleMethod)) {
 				$this->{$handleMethod}($node);
 			}
+		}
+		
+		/**
+		 * Bezoek een knooppunt in de AST en retourneer de SQL
+		 * @param AstInterface $node Het te bezoeken knooppunt.
+		 * @return string
+		 */
+		public function visitNodeAndReturnSQL(AstInterface $node): string {
+			$pos = count($this->result);
+			
+			$this->visitNode($node);
+			
+			$slice = implode("", array_slice($this->result, $pos, 1));
+			
+			$this->result = array_slice($this->result, 0, $pos);
+			
+			return $slice;
 		}
 		
 		/**
