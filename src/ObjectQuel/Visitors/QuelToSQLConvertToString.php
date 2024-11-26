@@ -102,7 +102,7 @@
 		 */
 		public function inferReturnType(AstInterface $ast): ?string {
 			// Boolean operations
-			if ($ast instanceof AstAnd || $ast instanceof AstOr || $ast instanceof AstExpression) {
+			if ($ast instanceof AstAnd || $ast instanceof AstOr) {
 				return 'boolean';
 			}
 			
@@ -112,12 +112,14 @@
 			}
 			
 			// Traverse down the parse tree
-			if ($ast instanceof AstTerm || $ast instanceof AstFactor) {
+			if ($ast instanceof AstTerm || $ast instanceof AstFactor || $ast instanceof AstExpression) {
 				$left = $this->inferReturnType($ast->getLeft());
 				$right = $this->inferReturnType($ast->getRight());
 				
 				if (($left === "float") || ($right === "float")) {
 					return 'float';
+				} elseif (($left === "string") || ($right === "string")) {
+					return 'string';
 				} else {
 					return $left;
 				}
