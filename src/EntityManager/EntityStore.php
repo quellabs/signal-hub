@@ -304,6 +304,31 @@
 			// Haal de table naam op
 			return $this->entity_table_name[$normalizedClass] ?? null;
         }
+	    
+	    /**
+	     * Returns true if the identifier is nullable, false if not
+	     * @param mixed $entity
+	     * @param string $identifierName
+	     * @return bool
+	     */
+		public function isNullable(mixed $entity, string $identifierName): bool {
+			// Get all annotations for the entity
+			$annotationList = $this->getAnnotations($entity);
+			
+			// Check if identifier has annotations
+			if (!isset($annotationList[$identifierName])) {
+				return false;
+			}
+			
+			// Search for Column annotation to get type
+			foreach ($annotationList[$identifierName] as $annotation) {
+				if ($annotation instanceof Column) {
+					return $annotation->isNullable();
+				}
+			}
+			
+			return false;
+		}
     
 		/**
 		 * Deze functie haalt de primaire sleutels van een gegeven entiteit op.
