@@ -76,7 +76,23 @@
 				}
 				
 				// Invullen van de details van de erkende entiteit.
-				$this->populateEntityDetails($entityName);
+				// Initialiseren van de annotaties array voor de entiteit.
+				$this->entity_annotations[$entityName] = [];
+				
+				// Ophalen en opslaan van de eigenschappen van de entiteit.
+				$this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
+				
+				// Ophalen en opslaan van de tabelnaam gekoppeld aan de entiteit.
+				$this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
+				
+				// Itereren over de eigenschappen van de entiteit.
+				foreach ($this->entity_properties[$entityName] as $property) {
+					// Ophalen van de annotaties voor de gegeven eigenschap.
+					$annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
+					
+					// Opslaan van de annotaties per eigenschap.
+					$this->entity_annotations[$entityName][$property] = $annotations;
+				}
 			}
 		}
 		
@@ -131,31 +147,6 @@
 			return array_key_exists("Orm\\Table", $annotations);
 		}
 
-		/**
-		 * Deze functie vult de details van een gegeven entiteit.
-		 * @param string $entityName De naam van de entiteit.
-		 * @return void
-		 */
-		private function populateEntityDetails(string $entityName): void {
-			// Initialiseren van de annotaties array voor de entiteit.
-			$this->entity_annotations[$entityName] = [];
-			
-			// Ophalen en opslaan van de eigenschappen van de entiteit.
-			$this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
-			
-			// Ophalen en opslaan van de tabelnaam gekoppeld aan de entiteit.
-			$this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
-			
-			// Itereren over de eigenschappen van de entiteit.
-			foreach ($this->entity_properties[$entityName] as $property) {
-				// Ophalen van de annotaties voor de gegeven eigenschap.
-				$annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
-				
-				// Opslaan van de annotaties per eigenschap.
-				$this->entity_annotations[$entityName][$property] = $annotations;
-			}
-		}
-		
 		/**
 		 * Interner helper functies voor het ophalen van properties met een bepaalde annotatie
 		 * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
@@ -483,22 +474,6 @@
 			
 			// Retourneer de annotation informatie
 			return $this->entity_annotations[$normalizedClass] ?? [];
-        }
-
-        /**
-         * Returns the entity's properties
-         * @param mixed $entity
-         * @return array
-         */
-        public function getProperties(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Retourneer de annotation informatie
-			return $this->entity_properties[$normalizedClass] ?? [];
         }
 		
 		/**
