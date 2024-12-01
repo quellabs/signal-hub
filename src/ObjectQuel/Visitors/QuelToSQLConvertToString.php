@@ -81,13 +81,11 @@
 			// Search for Column annotation to get type
 			foreach ($annotationList[$identifier->getName()] as $annotation) {
 				if ($annotation instanceof Column) {
-					$type = $annotation->getType();
-					
-					return match ($type) {
+					return match ($annotation->getType()) {
 						'varchar' => 'string',
 						'int' => 'integer',
 						'decimal' => 'float',
-						default => $type
+						default => $annotation->getType()
 					};
 				}
 			}
