@@ -2,16 +2,16 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\AnnotationsReader\AnnotationsReader;
 	use Services\Kernel\ReflectionHandler;
 	
 	class ProxyGenerator {
 		
 		protected EntityStore $entityStore;
 		protected ReflectionHandler $reflectionHandler;
-		protected \Services\AnnotationsReader\AnnotationsReader $annotationReader;
+		protected AnnotationsReader $annotationReader;
 		protected string|bool $servicesPath;
 		protected array $types;
-		protected array $proxyList;
 		
 		/**
 		 * ProxyHandler constructor
@@ -23,7 +23,6 @@
 			$this->annotationReader = $entityStore->getAnnotationReader();
 			$this->servicesPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 			$this->types = ["int", "float", "bool", "string", "array", "object", "resource", "null", "callable", "iterable", "mixed", "false", "void", "static"];
-			$this->proxyList = [];
 			
 			$this->initializeProxies();
 		}
@@ -33,42 +32,51 @@
 		 * @return void
 		 */
 		private function initializeProxies(): void {
-			// Het pad naar de "Entity"-directory.
 			$proxyDirectory = __DIR__ . DIRECTORY_SEPARATOR . "Proxies";
 			$entityDirectory = $this->servicesPath . DIRECTORY_SEPARATOR . "Entity";
-			
-			// Ophalen van alle bestandsnamen in de "Entity"-directory.
 			$entityFiles = scandir($entityDirectory);
 			
-			// Itereren over alle bestanden in de "Entity"-directory.
 			foreach ($entityFiles as $fileName) {
-				// Overslaan als het bestand geen PHP-bestand is.
+				// Controleer of het bestand een php bestand is. Zoniet, ga naar volgende bestand
 				if (!$this->isPHPFile($fileName)) {
 					continue;
 				}
 				
-				// Construeren van de entiteitsnaam op basis van de bestandsnaam.
+				// Controleer of het bestand een entity is. Zoniet, ga naar volgende bestand
 				$entityName = $this->constructEntityName($fileName);
 				
-				// Overslaan als het niet als een entiteit wordt herkend.
 				if (!$this->isEntity($entityName)) {
 					continue;
 				}
 				
-				// Controleer of de Proxy bestaat in de proxies folder
+				// Check of we moeten updaten
 				$entityFilePath = $entityDirectory . DIRECTORY_SEPARATOR . $fileName;
 				$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
 				
-				if (
-					!file_exists($proxyFilePath) ||
-					filemtime($entityFilePath) > filemtime($proxyFilePath)
-				) {
-					$proxyContents = $this->makeProxy($entityName);
-					file_put_contents($proxyFilePath, $proxyContents);
+				if (!file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath)) {
+					// Maak een lock file aan om race conditions te voorkomen
+					$lockFile = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName . '.lock';
+					$lockHandle = fopen($lockFile, 'c+');
+					
+					if ($lockHandle === false) {
+						continue;
+					}
+					
+					try {
+						if (flock($lockHandle, LOCK_EX)) {
+							// Double-check of een ander proces het inmiddels niet al heeft gedaan
+							if (!file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath)) {
+								$proxyContents = $this->makeProxy($entityName);
+								file_put_contents($proxyFilePath, $proxyContents);
+							}
+							
+							flock($lockHandle, LOCK_UN);
+						}
+					} finally {
+						fclose($lockHandle);
+						@unlink($lockFile);
+					}
 				}
-				
-				// Keep the proxy in the list
-				$this->proxyList[$entityName] = $this->constructProxyName($fileName);
 			}
 		}
 		
@@ -318,15 +326,5 @@
 				$class,
 				$this->makeProxyMethods($class),
 			));
-		}
-		
-		/**
-		 * Fetches the proxy for the given entity
-		 * @param $entity
-		 * @return mixed|null
-		 */
-		public function getProxyClass($entity): mixed {
-			$class = is_object($entity) ? get_class($entity) : $entity;
-			return $this->proxyList[$class] ?? null;
 		}
 	}
