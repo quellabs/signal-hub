@@ -50,22 +50,21 @@
 				}
 				
 				// Check of we moeten updaten
-				$entityFilePath = $entityDirectory . DIRECTORY_SEPARATOR . $fileName;
-				$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
-				
-				if (!file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath)) {
+				if ($this->isOutdated($fileName)) {
 					// Maak een lock file aan om race conditions te voorkomen
 					$lockFile = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName . '.lock';
 					$lockHandle = fopen($lockFile, 'c+');
 					
 					if ($lockHandle === false) {
+						error_log("Kon geen lock file aanmaken voor entity: {$fileName}");
 						continue;
 					}
 					
 					try {
 						if (flock($lockHandle, LOCK_EX)) {
 							// Double-check of een ander proces het inmiddels niet al heeft gedaan
-							if (!file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath)) {
+							if ($this->isOutdated($fileName)) {
+								$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
 								$proxyContents = $this->makeProxy($entityName);
 								file_put_contents($proxyFilePath, $proxyContents);
 							}
@@ -98,6 +97,19 @@
 		private function isEntity(string $entityName): bool {
 			$annotations = $this->annotationReader->getClassAnnotations($entityName);
 			return array_key_exists("Orm\\Table", $annotations);
+		}
+		
+		/**
+		 * Returns true if the file is outdated, false if not
+		 * @param string $fileName
+		 * @return bool
+		 */
+		private function isOutdated(string $fileName): bool {
+			$proxyDirectory = __DIR__ . DIRECTORY_SEPARATOR . "Proxies";
+			$entityDirectory = $this->servicesPath . DIRECTORY_SEPARATOR . "Entity";
+			$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
+			$entityFilePath = $entityDirectory . DIRECTORY_SEPARATOR . $fileName;
+			return !file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath);
 		}
 		
 		/**
