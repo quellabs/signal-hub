@@ -61,7 +61,7 @@
 				
 				if (
 					!file_exists($proxyFilePath) ||
-					filemtime($entityFilePath) > $proxyFilePath
+					filemtime($entityFilePath) > filemtime($proxyFilePath)
 				) {
 					$proxyContents = $this->makeProxy($entityName);
 					file_put_contents($proxyFilePath, $proxyContents);
