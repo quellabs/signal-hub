@@ -3,6 +3,7 @@
     namespace Services\EntityManager;
 	
 	use Services\Kernel\Kernel;
+	use Services\Kernel\PropertyHandler;
 	use Services\Kernel\ServiceInterface;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\LexerException;
@@ -12,6 +13,7 @@
 	use Services\ObjectQuel\QuelResult;
 	use Services\Signalize\AstInterface;
 	use Services\Validation\EntityToValidation;
+	use Symfony\Component\Config\Builder\Property;
 	
 	/**
 	 * Represents an Entity Manager.
@@ -23,7 +25,8 @@
         protected ObjectQuel $object_quel;
 		protected EntityStore $entity_store;
 		protected QueryBuilder $query_builder;
-		private PlanExecutor $plan_executor;
+		protected PropertyHandler $property_handler;
+		protected PlanExecutor $plan_executor;
 		protected ?string $error_message;
 		
 		/**
@@ -38,6 +41,7 @@
 			$this->object_quel = new ObjectQuel($this);
 			$this->query_builder = new QueryBuilder($this->entity_store);
 			$this->plan_executor = new PlanExecutor($this);
+			$this->property_handler = new PropertyHandler();
             $this->error_message = null;
         }
 		
@@ -123,6 +127,14 @@
 		 */
 		public function getEntityStore(): EntityStore {
 			return $this->entity_store;
+		}
+		
+		/**
+		 * Returns the property handler
+		 * @return PropertyHandler
+		 */
+		public function getPropertyHandler(): PropertyHandler {
+			return $this->property_handler;
 		}
 		
 		/**

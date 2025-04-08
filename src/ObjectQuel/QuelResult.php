@@ -47,7 +47,7 @@
 			$this->entityManager = $entityManager;
 			$this->unitOfWork = $entityManager->getUnitOfWork();
 			$this->entityStore = $entityManager->getEntityStore();
-			$this->propertyHandler = new PropertyHandler();
+			$this->propertyHandler = $entityManager->getPropertyHandler();
 			$this->serializer = new Serializer($entityManager->getEntityStore());
 			$this->retrieve = $retrieve;
 			$this->data = $data;
