@@ -33,11 +33,6 @@
 				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
 			");
 			
-			/*
-			$classModifier = new ClassModifier(ProductsEntity::class);
-			$classModifier->addConstructorLine("echo 'test';");
-			$classModifier->save("ProductsEntityModified.php");
-			*/
 			return new Response('Hello ' . $result[0]['y']->getProductsName() . '!');
 		}
 	}

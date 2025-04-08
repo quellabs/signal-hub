@@ -9,6 +9,7 @@
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
+	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
@@ -366,6 +367,11 @@
 			
 			// Doorloop alle entiteiten (ranges) en verwerk degenen met join-eigenschappen.
 			foreach($ranges as $range) {
+				// Sla de range over als deze een json data-source is
+				if ($range instanceof AstRangeJsonSource) {
+					continue;
+				}
+				
 				// Als de entiteit geen join-eigenschap heeft, sla deze dan over.
 				if ($range->getJoinProperty() === null) {
 					continue;
