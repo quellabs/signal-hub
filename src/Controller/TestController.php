@@ -27,10 +27,10 @@
 		 * @return Response
 		 */
 		public function index(string $name): Response {
-			$this->entityManager->executeQuery("
+			$result = $this->entityManager->executeQuery("
 				range of x is ProductsEntity
 				range of y is ProductsDescriptionEntity via y.productsId=x.productsId
-				retrieve (x, y) where exists(y)
+				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
 			");
 			
 			/*
@@ -38,6 +38,6 @@
 			$classModifier->addConstructorLine("echo 'test';");
 			$classModifier->save("ProductsEntityModified.php");
 			*/
-			return new Response('Hello ' . $name . '!');
+			return new Response('Hello ' . $result[0]['y']->getProductsName() . '!');
 		}
 	}

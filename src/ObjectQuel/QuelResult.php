@@ -23,7 +23,7 @@
 	/**
 	 * Represents a Quel result.
 	 */
-	class QuelResult {
+	class QuelResult implements \ArrayAccess {
 		private UnitOfWork $unitOfWork;
 		private entityManager $entityManager;
 		private EntityStore $entityStore;
@@ -747,5 +747,99 @@
 		 */
 		public function getPageSize(): ?int {
 			return $this->pageSize;
+		}
+		
+		/**
+		 * Returns the raw data in this recordset
+		 * @return array
+		 */
+		public function getResults(): array {
+			return $this->result;
+		}
+		
+		/**
+		 * Apply a custom transformation function to the entire result set
+		 * @param callable $transformer Function that transforms the entire result array
+		 * @return $this Returns $this for method chaining
+		 */
+		public function transform(callable $transformer): self {
+			$this->result = $transformer($this->result);
+			return $this;
+		}
+		
+		/**
+		 * Filters the entire result set
+		 * @param callable $condition Function that takes the result array and returns filtered array
+		 * @return $this For method chaining
+		 */
+		public function filter(callable $condition): self {
+			$this->result = $condition($this->result);
+			return $this;
+		}
+		
+		/**
+		 * Merge another QuelResult or array of rows into this one
+		 * @param array|QuelResult $otherResult The result to merge
+		 * @return $this Returns $this for method chaining
+		 */
+		public function merge(array|QuelResult $otherResult): self {
+			if ($otherResult instanceof QuelResult) {
+				$this->result = array_merge($this->result, $otherResult->getResults());
+			} else {
+				$this->result = array_merge($this->result, $otherResult);
+			}
+			
+			return $this;
+		}
+		
+		/**
+		 * Extract values for a specific field from the result set
+		 * @param string $field The field to extract
+		 * @return array Array of extracted values
+		 */
+		public function extractFieldValues(string $field): array {
+			$values = [];
+			
+			// Implementation depends on how your QuelResult stores data
+			// This is a generic example:
+			foreach ($this->getResults() as $result) {
+				if (is_object($result)) {
+					// Handle entity objects using getter methods
+					$getter = 'get' . ucfirst($field);
+					
+					if (method_exists($result, $getter)) {
+						$values[] = $result->$getter();
+					} elseif (property_exists($result, $field)) {
+						// Try property access if getter doesn't exist
+						$values[] = $result->$field;
+					}
+				} elseif (is_array($result) && isset($result[$field])) {
+					// Handle array results
+					$values[] = $result[$field];
+				}
+			}
+			
+			// Remove duplicates and null values
+			return array_values(array_filter(array_unique($values)));
+		}
+		
+		public function offsetExists(mixed $offset): bool {
+			return isset($this->result[$offset]);
+		}
+		
+		public function offsetGet(mixed $offset): mixed {
+			return $this->result[$offset] ?? null;
+		}
+		
+		public function offsetSet(mixed $offset, mixed $value): void {
+			if (is_null($offset)) {
+				$this->result[] = $value;
+			} else {
+				$this->result[$offset] = $value;
+			}
+		}
+		
+		public function offsetUnset(mixed $offset): void {
+			unset($this->result[$offset]);
 		}
 	}

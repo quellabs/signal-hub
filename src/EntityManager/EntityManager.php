@@ -4,11 +4,13 @@
 	
 	use Services\Kernel\Kernel;
 	use Services\Kernel\ServiceInterface;
+	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\LexerException;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\ParserException;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
+	use Services\Signalize\AstInterface;
 	use Services\Validation\EntityToValidation;
 	
 	/**
@@ -21,6 +23,7 @@
         protected ObjectQuel $object_quel;
 		protected EntityStore $entity_store;
 		protected QueryBuilder $query_builder;
+		private PlanExecutor $plan_executor;
 		protected ?string $error_message;
 		
 		/**
@@ -34,6 +37,7 @@
             $this->unit_of_work = new UnitOfWork($this);
 			$this->object_quel = new ObjectQuel($this);
 			$this->query_builder = new QueryBuilder($this->entity_store);
+			$this->plan_executor = new PlanExecutor($this);
             $this->error_message = null;
         }
 		
@@ -174,20 +178,19 @@
 		/**
 		 * Execute a database query and return the results
 		 * @param string $query The database query to execute
-		 * @param array $parameters (Optional) An array of parameters to bind to the query
+		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult|null
          */
-		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
+		public function executeSimpleQuery(string $query, array $initialParams=[]): ?QuelResult {
 			try {
-				// Parse de Quel query en converteer naar SQL
+				// Parse de Quel query
 				$e = $this->object_quel->parse($query);
-				$sql = $this->object_quel->convertToSQL($e, $parameters);
 				
-				echo $sql;
-				
+				// Parse de Quel query en converteer naar SQL
+				$sql = $this->object_quel->convertToSQL($e, $initialParams);
 				
 				// Voer de SQL query uit
-				$rs = $this->connection->execute($sql, $parameters);
+				$rs = $this->connection->execute($sql, $initialParams);
 				
 				// Indien de query incorrect is, sla de foutmelding op
 				if (!$rs) {
@@ -201,8 +204,30 @@
 					$result[] = $row;
 				}
 				
+				// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
 				return new QuelResult($this, $e, $result);
-			} catch (ParserException|LexerException|QuelException $e) {
+			} catch (QuelException $e) {
+				$this->error_message = $e->getMessage();
+				return null;
+			}
+		}
+		
+		/**
+		 * Execute a decomposed query plan
+		 * @param string $query The query to execute
+		 * @param array $parameters Initial parameters for the plan
+		 * @return QuelResult|null The results of the execution plan
+		 * @throws \Exception
+		 */
+		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
+			try {
+				// Decompose the query
+				$decomposer = new QueryDecomposer($this);
+				$executionPlan = $decomposer->decompose($query, $parameters);
+				
+				// Execute the returned execution plan and return the QuelResult
+				return $this->plan_executor->execute($executionPlan);
+			} catch (QuelException $e) {
 				$this->error_message = $e->getMessage();
 				return null;
 			}
@@ -273,7 +298,7 @@
 		 * @param class-string<T> $entityType De fully qualified class name van de container
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T[] De gevonden entiteiten
-		 * @throws \Exception
+		 * @throws QuelException|\Exception
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
 			// Normaliseer de primaire sleutel.
@@ -299,7 +324,7 @@
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T|null De gevonden entiteit of null als deze niet gevonden wordt
 		 */
-		public function find(string $entityType, $primaryKey): ?object {
+		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Normaliseer de primaire sleutel.
 			$primaryKeys = $this->normalizePrimaryKey($primaryKey, $entityType);
 			
