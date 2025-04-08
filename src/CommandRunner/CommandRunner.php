@@ -16,7 +16,7 @@
 		 * List of supported classes
 		 * @var array<class-string>
 		 */
-		private const SUPPORTED_CLASSES = [
+		private const array SUPPORTED_CLASSES = [
 			ConsoleOutput::class,
 			ConsoleInput::class
 		];
@@ -169,6 +169,10 @@
 		 * @return object|null The requested instance or null if class is not supported
 		 */
 		public function getInstance(string $class, array $parameters = []): ?object {
+			if (php_sapi_name() !== 'cli') {
+				return null;
+			}
+			
 			return match ($class) {
 				ConsoleOutput::class => $this->consoleOutput,
 				ConsoleInput::class => $this->consoleInput,

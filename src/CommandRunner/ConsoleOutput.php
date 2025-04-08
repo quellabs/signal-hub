@@ -11,9 +11,7 @@
 		 * ConsoleOutput Constructor
 		 */
 		public function __construct() {
-			if (defined('STDOUT')) {
-				$this->output = STDOUT;
-			}
+			$this->output = STDOUT;
 		}
 		
 		/**

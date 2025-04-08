@@ -174,13 +174,34 @@
 		public function getLastErrorMessage(): ?string {
 			return $this->error_message;
 		}
+
+		/**
+		 * Execute a decomposed query plan
+		 * @param string $query The query to execute
+		 * @param array $parameters Initial parameters for the plan
+		 * @return QuelResult|null The results of the execution plan
+		 * @throws \Exception
+		 */
+		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
+			try {
+				// Decompose the query
+				$decomposer = new QueryDecomposer($this);
+				$executionPlan = $decomposer->decompose($query, $parameters);
+				
+				// Execute the returned execution plan and return the QuelResult
+				return $this->plan_executor->execute($executionPlan);
+			} catch (QuelException $e) {
+				$this->error_message = $e->getMessage();
+				return null;
+			}
+		}
 		
 		/**
 		 * Execute a database query and return the results
 		 * @param string $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult|null
-         */
+		 */
 		public function executeSimpleQuery(string $query, array $initialParams=[]): ?QuelResult {
 			try {
 				// Parse de Quel query
@@ -206,27 +227,6 @@
 				
 				// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
 				return new QuelResult($this, $e, $result);
-			} catch (QuelException $e) {
-				$this->error_message = $e->getMessage();
-				return null;
-			}
-		}
-		
-		/**
-		 * Execute a decomposed query plan
-		 * @param string $query The query to execute
-		 * @param array $parameters Initial parameters for the plan
-		 * @return QuelResult|null The results of the execution plan
-		 * @throws \Exception
-		 */
-		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
-			try {
-				// Decompose the query
-				$decomposer = new QueryDecomposer($this);
-				$executionPlan = $decomposer->decompose($query, $parameters);
-				
-				// Execute the returned execution plan and return the QuelResult
-				return $this->plan_executor->execute($executionPlan);
 			} catch (QuelException $e) {
 				$this->error_message = $e->getMessage();
 				return null;

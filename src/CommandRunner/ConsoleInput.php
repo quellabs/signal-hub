@@ -12,10 +12,7 @@
 		 * @param ConsoleOutput $output
 		 */
 		public function __construct(ConsoleOutput $output) {
-			if (defined('STDIN')) {
-				$this->input = STDIN;
-			}
-			
+			$this->input = STDIN;
 			$this->output = $output;
 		}
 		
