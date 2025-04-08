@@ -76,6 +76,7 @@
 		const Window = 117;
 		const Using = 118;
 		const Pagesize = 119;
+		const JsonSource = 120;
         
         protected int $type;
         protected mixed $value;
@@ -180,27 +181,28 @@
 				'\\' => "\\",
 				"'"  => "'",
 			];
-			
-			$this->keywords = [
-				'retrieve'  => Token::Retrieve,
-				'where'     => Token::Where,
-				'and'       => Token::And,
-				'or'        => Token::Or,
-				'range'     => Token::Range,
-				'of'        => Token::Of,
-				'is'        => Token::Is,
-				'in'        => Token::In,
-				'via'       => Token::Via,
-				'unique'    => Token::Unique,
-				'sort'      => Token::Sort,
-				'by'        => Token::By,
-				'not'       => Token::Not,
-				'asc'       => Token::Asc,
-				'desc'      => Token::Desc,
-				'window'    => Token::Window,
-				'using'     => Token::Using,
-				'page_size' => Token::Pagesize,
-			];
+	        
+	        $this->keywords = [
+		        'retrieve'    => Token::Retrieve,
+		        'where'       => Token::Where,
+		        'and'         => Token::And,
+		        'or'          => Token::Or,
+		        'range'       => Token::Range,
+		        'of'          => Token::Of,
+		        'is'          => Token::Is,
+		        'in'          => Token::In,
+		        'via'         => Token::Via,
+		        'unique'      => Token::Unique,
+		        'sort'        => Token::Sort,
+		        'by'          => Token::By,
+		        'not'         => Token::Not,
+		        'asc'         => Token::Asc,
+		        'desc'        => Token::Desc,
+		        'window'      => Token::Window,
+		        'using'       => Token::Using,
+		        'page_size'   => Token::Pagesize,
+		        'json_source' => Token::JsonSource,
+	        ];
 			
 			$this->single_tokens = [
 				'.'  => Token::Dot,

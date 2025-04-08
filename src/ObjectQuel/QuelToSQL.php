@@ -8,7 +8,7 @@
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
@@ -34,9 +34,9 @@
 		 * Zoekt naar een range met een specifieke naam in een array van ranges.
 		 * @param array $ranges De lijst van ranges om te doorzoeken.
 		 * @param string $rangeName De naam van de range die gezocht wordt.
-		 * @return AstRange|null De gevonden range of null als deze niet gevonden is.
+		 * @return AstRangeDatabase|null De gevonden range of null als deze niet gevonden is.
 		 */
-		private function findRangeByName(array $ranges, string $rangeName): ?AstRange {
+		private function findRangeByName(array $ranges, string $rangeName): ?AstRangeDatabase {
 			foreach ($ranges as $range) {
 				if ($range->getName() === $rangeName) {
 					return $range;

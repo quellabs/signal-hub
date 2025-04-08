@@ -104,47 +104,57 @@
 		}
 		
 		/**
-		 * Haalt resultaten op en converteert deze naar entiteiten, inclusief het instellen van relaties.
-		 * Deze methode haalt alle rijen op, converteert gegevens naar entiteiten en stelt diverse
-		 * soorten relaties in. Het maakt ook relaties 'lazy' indien deze leeg zijn, ter optimalisatie
-		 * van de laadtijd en geheugengebruik.
+		 * Fetches results and converts them to entities, including setting up relationships.
 		 * @return void
 		 */
 		private function fetchResults(): void {
-			// Haal waarden op uit de retrieve AST-node.
+			// Get AST values
 			$ast = $this->retrieve->getValues();
 			
-			// Initialiseer benodigde variabelen.
+			// Extract entities from raw data
+			$entities = $this->extractEntitiesFromData($ast, $this->data);
+			
+			// Set up entity relationships
+			$this->setupEntityRelationships($entities);
+		}
+		
+		/**
+		 * Extracts entity objects from raw data rows.
+		 * @param array $ast Abstract syntax tree nodes
+		 * @param array $data Raw data rows
+		 * @return array The extracted entity objects
+		 */
+		private function extractEntitiesFromData(array $ast, array $data): array {
 			$first = true;
 			$entities = [];
 			$relationCache = [];
 			
-			// Loop door de rijen van het resultaatset.
-			foreach($this->data as $row) {
+			// Process each row of data
+			foreach($data as $row) {
 				$updatedRow = [];
 				
-				// Indien dit de eerste rij is, sla dan de gefilterde kolommen op per entiteit.
+				// Initialize the relation cache on first row
 				if ($first) {
 					$this->initializeRelationCache($ast, $row, $relationCache);
 					$first = false;
 				}
 				
-				// Converteer rijdata naar entiteiten of andere relevante data.
+				// Process each value in the row according to AST
 				foreach ($ast as $value) {
 					$name = $value->getName();
 					$isEntity = $value->getExpression() instanceof AstEntity;
 					$rangeName = $isEntity ? $value->getExpression()->getRange()->getName() : null;
 					
-					// Verwerk elke waarde met de huidige rijdata.
+					// Process this value using existing processValue method
 					$processedValue = $this->processValue(
 						$value, $row,
 						$isEntity ? $relationCache[$rangeName] : null,
 					);
 					
-					// Voeg de verwerkte waarde toe aan de bijgewerkte rij.
+					// Store the processed value
 					$updatedRow[$name] = $processedValue;
 					
-					// Sla de entiteit op in de lijst om later relaties op te zetten.
+					// Track entities for relationship setup
 					if ($isEntity && ($processedValue !== null)) {
 						$hash = spl_object_id($processedValue);
 						
@@ -154,13 +164,26 @@
 					}
 				}
 				
-				// Voeg de bijgewerkte rij toe aan de resultatenlijst.
+				// Add to result set
 				$this->result[] = $updatedRow;
 			}
 			
-			// Stel de verschillende relaties in voor de opgehaalde data en maak deze lazy indien nodig.
+			return $entities;
+		}
+		
+		/**
+		 * Sets up relationships between extracted entities.
+		 * @param array $entities The entity objects to set up relationships for
+		 * @return void
+		 */
+		private function setupEntityRelationships(array $entities): void {
+			// Set up direct entity relationships
 			$this->setRelations($entities);
+			
+			// Handle empty relationships by setting up proxies
 			$this->promoteEmptyRelations($entities);
+			
+			// Handle empty OneToMany relationships
 			$this->promoteEmptyOneToMany($entities);
 		}
 		

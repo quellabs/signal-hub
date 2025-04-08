@@ -18,7 +18,7 @@
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Visitors\AddNamespacesToEntities;
 	use Services\ObjectQuel\Visitors\AliasPlugAliasPattern;
@@ -247,13 +247,13 @@
 	     * Verwerkt de annotaties van de gerelateerde entiteit voor een specifieke 'range'.
 	     * De functie controleert of de 'range' als verplicht moet worden ingesteld op basis van
 	     * de 'ManyToOne' annotaties van de gerelateerde entiteit.
-	     * @param AstRange $mainRange De hoofdrange voor deze query
-	     * @param AstRange $range Het 'range' object dat mogelijk als verplicht wordt gemarkeerd.
+	     * @param AstRangeDatabase $mainRange De hoofdrange voor deze query
+	     * @param AstRangeDatabase $range Het 'range' object dat mogelijk als verplicht wordt gemarkeerd.
 	     * @param AstIdentifier $left De linker identifier in de joinProperty van de 'range'.
 	     * @param AstIdentifier $right De rechter identifier in de joinProperty van de 'range'.
 	     * @return void
 	     */
-		private function setRangeRequiredIfNeeded(AstRange $mainRange, AstRange $range, AstIdentifier $left, AstIdentifier $right): void {
+		private function setRangeRequiredIfNeeded(AstRangeDatabase $mainRange, AstRangeDatabase $range, AstIdentifier $left, AstIdentifier $right): void {
 			// Properties
 			$isMainRange = $right->getEntityOrParentIdentifier()->getRange() === $mainRange;
 			$ownPropertyName = $isMainRange ? $right->getName() : $left->getName();
@@ -331,9 +331,9 @@
 		/**
 	     * Returns the main range of the range list. E.g. the first one without a join property
 	     * @param AstRetrieve $ast
-	     * @return AstRange|null
+	     * @return AstRangeDatabase|null
 	     */
-	    private function getMainRange(AstRetrieve $ast): ?AstRange {
+	    private function getMainRange(AstRetrieve $ast): ?AstRangeDatabase {
 		    foreach($ast->getRanges() as $range) {
 			    if ($range->getJoinProperty() == null) {
 				    return $range;

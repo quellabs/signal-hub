@@ -3,7 +3,7 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
@@ -63,7 +63,7 @@
 			} while (in_array($newAlias, $this->range_names));
 			
 			// Make een nieuwe range
-			$newRange = new AstRange($newAlias, $node, null);
+			$newRange = new AstRangeDatabase($newAlias, $node, null);
 			
 			// Voeg de nieuwe, unieke alias toe aan de lijst met bestaande aliassen
 			$this->created_ranges[$node->getName()] = $newRange;

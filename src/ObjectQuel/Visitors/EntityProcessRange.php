@@ -4,7 +4,7 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
@@ -46,9 +46,9 @@
 		/**
 		 * Returns true if the given entity name is a range
 		 * @param string $range
-		 * @return AstRange|null
+		 * @return AstRangeDatabase|null
 		 */
-		protected function getRange(string $range): ?AstRange {
+		protected function getRange(string $range): ?AstRangeDatabase {
 			foreach($this->ranges as $astRange) {
 				if ($astRange->getName() == $range) {
 					return $astRange;

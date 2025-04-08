@@ -3,7 +3,7 @@
 	namespace Services\ObjectQuel\Rules;
 	
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRegExp;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Lexer;
@@ -79,7 +79,7 @@
 		/**
 		 * Parse the 'retrieve' statement of the ObjectQuel language.
 		 * @param array $directives
-		 * @param AstRange[] $ranges
+		 * @param AstRangeDatabase[] $ranges
 		 * @return AstRetrieve
 		 * @throws LexerException
 		 * @throws ParserException

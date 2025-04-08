@@ -26,7 +26,7 @@
 		/**
 		 * AstRetrieve constructor.
 		 * Initializes an empty array of values and sets conditions to null.
-		 * @param AstRange[] $ranges
+		 * @param AstRangeDatabase[] $ranges
 		 * @param bool $unique True if the results are unique (DISTINCT), false if not
 		 */
 		public function __construct(array $directives, array $ranges, bool $unique) {
@@ -145,7 +145,7 @@
 		 * Adds a new range to the range list
 		 * @return void
 		 */
-		public function addRange(AstRange $range): void {
+		public function addRange(AstRangeDatabase $range): void {
 			$this->ranges[] = $range;
 		}
 		

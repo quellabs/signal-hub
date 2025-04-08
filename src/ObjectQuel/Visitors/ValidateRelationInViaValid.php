@@ -6,7 +6,7 @@
 	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	use Services\ObjectQuel\QuelException;

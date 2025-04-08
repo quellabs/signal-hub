@@ -72,6 +72,7 @@
 		const Not = 114;
 		const Asc = 115;
 		const Desc = 116;
+		const JSON_SOURCE = 117;
 		
 		protected int $type;
 		protected mixed $value;
