@@ -99,19 +99,22 @@
 		 * @throws QuelException
 		 */
 		public function execute(ExecutionPlan $plan): ?QuelResult {
-			$intermediateResults = [];
-			
 			// Get stages in execution order (respecting dependencies)
 			$stagesInOrder = $plan->getStagesInOrder();
 			
-			// Execute each stage in the correct order
+			// If there's only one stage, perform a simple query execution
+			if (count($stagesInOrder) === 1) {
+				return $this->entityManager->executeSimpleQuery($stagesInOrder[0]->getQuery(), $stagesInOrder[0]->getStaticParams());
+			}
+			
+			// Otherwise, execute each stage in the correct order and combine the results
+			$intermediateResults = [];
+			
 			foreach($stagesInOrder as $stage) {
 				try {
 					$intermediateResults[$stage->getName()] = $this->executeStage($stage, $intermediateResults);
-				} catch (\Exception $e) {
-					// Log error and handle failure
-					// For now, just throw it up
-					throw $e;
+				} catch (QuelException $e) {
+					throw new QuelException("Stage '{$stage->getName()}' failed: {$e->getMessage()}");
 				}
 			}
 			
