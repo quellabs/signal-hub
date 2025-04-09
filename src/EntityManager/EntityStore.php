@@ -48,53 +48,62 @@
 			// Deze functie initialiseert de proxies
 			$this->proxy_generator = new ProxyGenerator($this);
 		}
-		
-		/**
-		 * Deze functie initialiseert alle entiteiten in de "Entity"-directory.
-		 * @return void
-		 */
-		private function initializeEntities(): void {
-			// Het pad naar de "Entity"-directory.
-			$entityDirectory = $this->services_path . DIRECTORY_SEPARATOR . "Entity";
-			
-			// Ophalen van alle bestandsnamen in de "Entity"-directory.
-			$entityFiles = scandir($entityDirectory);
-			
-			// Itereren over alle bestanden in de "Entity"-directory.
-			foreach ($entityFiles as $fileName) {
-				// Overslaan als het bestand geen PHP-bestand is.
-				if (!$this->isPHPFile($fileName)) {
-					continue;
-				}
-				
-				// Construeren van de entiteitsnaam op basis van de bestandsnaam.
-				$entityName = $this->constructEntityName($fileName);
-				
-				// Overslaan als het niet als een entiteit wordt herkend.
-				if (!$this->isEntity($entityName)) {
-					continue;
-				}
-				
-				// Invullen van de details van de erkende entiteit.
-				// Initialiseren van de annotaties array voor de entiteit.
-				$this->entity_annotations[$entityName] = [];
-				
-				// Ophalen en opslaan van de eigenschappen van de entiteit.
-				$this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
-				
-				// Ophalen en opslaan van de tabelnaam gekoppeld aan de entiteit.
-				$this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
-				
-				// Itereren over de eigenschappen van de entiteit.
-				foreach ($this->entity_properties[$entityName] as $property) {
-					// Ophalen van de annotaties voor de gegeven eigenschap.
-					$annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
-					
-					// Opslaan van de annotaties per eigenschap.
-					$this->entity_annotations[$entityName][$property] = $annotations;
-				}
-			}
-		}
+	    
+	    /**
+	     * Initialize entity classes from the Entity directory.
+	     * This method scans for entity class files, validates them,
+	     * and loads their properties and annotations into memory.
+	     * @return void
+	     */
+	    private function initializeEntities(): void {
+		    // Path to the "Entity" directory
+		    $entityDirectory = $this->services_path . DIRECTORY_SEPARATOR . "Entity";
+		    
+		    // Validate that the directory exists and is accessible
+		    if (!is_dir($entityDirectory) || !is_readable($entityDirectory)) {
+			    // Throw exception if directory validation fails
+			    throw new \RuntimeException("Entity directory does not exist or is not readable: " . $entityDirectory);
+		    }
+		    
+		    // Resolve the actual physical path, eliminating any symbolic links
+		    $entityDirectory = realpath($entityDirectory);
+		    
+		    // Security check: ensure the directory is within our expected path structure
+		    if (!str_starts_with($entityDirectory, realpath($this->services_path))) {
+			    throw new \RuntimeException("Entity directory is outside of the services path");
+		    }
+		    
+		    // Get all PHP files in the Entity directory using glob pattern matching
+		    $entityFiles = glob($entityDirectory . DIRECTORY_SEPARATOR . "*.php");
+		    
+		    // Process each entity file
+		    foreach ($entityFiles as $filePath) {
+			    // Extract just the filename without the path
+			    $fileName = basename($filePath);
+			    
+			    // Derive the entity class name from the filename
+			    $entityName = $this->constructEntityName($fileName);
+			    
+			    // Skip if the file does not represent a valid entity
+			    if (!$this->isEntity($entityName)) {
+				    continue;
+			    }
+			    
+			    // Initialize data structures for this entity
+			    $this->entity_annotations[$entityName] = [];
+			    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
+			    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
+			    
+			    // Process each property of the entity
+			    foreach ($this->entity_properties[$entityName] as $property) {
+				    // Get annotations for the current property
+				    $annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
+				    
+				    // Store property annotations in the entity_annotations array
+				    $this->entity_annotations[$entityName][$property] = $annotations;
+			    }
+		    }
+	    }
 		
 		/**
 		 * Returns a list of entities and their manytoone dependencies
