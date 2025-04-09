@@ -3,12 +3,13 @@
     namespace Services\EntityManager\Normalizer;
     
     interface NormalizerInterface {
-        /**
-         * NormalizerInterface constructor.
-         * @param $value
-         * @param $annotation
-         */
-        public function __construct($value, $annotation);
+
+	    /**
+	     * Sets the value to normalize/denormalize
+	     * @param $value
+	     * @return void
+	     */
+		public function setValue($value): void;
     
         /**
          * The normalize function converts a value residing in an entity into a value

@@ -16,6 +16,8 @@
 		protected array $int_types;
 		protected array $float_types;
 		protected array $char_types;
+		protected array $methodExistsCache;
+		protected array $normalizerInstances;
 		protected string $serialization_group_name;
 		protected EntityStore $entityStore;
 		protected PropertyHandler $propertyHandler;
@@ -36,9 +38,11 @@
 			
 			$this->serialization_group_name = $serializationGroupName;
 			$this->normalizers = [];
-			$this->int_types = ["int", "integer", "smallint", "tinyint", "mediumint", "bigint", "bit"];
-			$this->float_types = ["decimal", "numeric", "float", "double", "real"];
-			$this->char_types = ['text', 'varchar','char'];
+			$this->methodExistsCache = [];
+			$this->normalizerInstances = [];
+			$this->int_types = array_flip(["int", "integer", "smallint", "tinyint", "mediumint", "bigint", "bit"]);
+			$this->float_types = array_flip(["decimal", "numeric", "float", "double", "real"]);
+			$this->char_types = array_flip(['text', 'varchar','char']);
 
 			$this->initializeNormalizers();
 		}
@@ -134,61 +138,93 @@
 		
 		/**
 		 * Normalizes a value based on its column type annotation.
-		 * The function first checks if the column type is in the exclusion list.
-		 * If it is not, the appropriate normalizer class is used to normalize the value.
-		 * Otherwise, basic type casting is applied based on the column type.
-		 * @param object $annotation The annotation object that contains the column type.
-		 * @param mixed $value The value to be normalized.
-		 * @return mixed The normalized value.
+		 *
+		 * This function handles value normalization in two ways:
+		 * 1. For special types registered in $normalizers, it uses dedicated normalizer classes
+		 * 2. For basic types (int, float), it performs simple type casting
+		 * 3. For other types, it returns the value unchanged
+		 *
+		 * @param object $annotation The annotation object containing column metadata and type information
+		 * @param mixed $value The raw value to be normalized
+		 * @return mixed The normalized value appropriate for the column type
+		 * @throws \RuntimeException If a normalizer class cannot be instantiated
 		 */
 		public function normalizeValue(object $annotation, mixed $value): mixed {
-			// Retrieve the column type from the annotation
+			// Extract the column type from the annotation object
 			$columnType = $annotation->getType();
 			
-			// Check if the column type is a type known to need normalization. If not, return the value as-is.
+			// Check if this column type has a dedicated normalizer class
 			if (in_array(strtolower($columnType), $this->normalizers)) {
+				// Build the full normalizer class name based on the column type
 				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
-				$normalizer = new $normalizerClass($value, $annotation);
-				return $normalizer->normalize();
+				
+				// Use cached normalizer instance if available, otherwise create a new one
+				// This improves performance by reusing normalizer objects
+				if (!isset($this->normalizerInstances[$columnType])) {
+					$this->normalizerInstances[$columnType] = new $normalizerClass();
+				}
+				
+				// Configure the normalizer with the current value and process it
+				$this->normalizerInstances[$columnType]->setValue($value);
+				return $this->normalizerInstances[$columnType]->normalize();
 			}
 			
-			// Cast to int if the column type is an integer
+			// For integer column types (int, bigint, smallint, etc.), perform integer casting
 			if ($this->isIntColumnType($columnType)) {
 				return (int)$value;
 			}
 			
-			// Cast to float if the column type is a float
+			// For floating point column types (float, double, decimal, etc.), perform float casting
 			if ($this->isFloatColumnType($columnType)) {
 				return (float)$value;
 			}
 			
-			// Return the value as-is if no normalizer or type casting is applicable
+			// For all other column types (string, text, etc.), return the value unchanged
+			// No special normalization needed for these types
 			return $value;
 		}
 		
 		/**
-		 * Denormalize the given value based on its annotation and column type.
-		 * @param object $annotation The annotation object describing the column's metadata.
-		 * @param mixed $value The value to be denormalized.
-		 * @return mixed The denormalized value.
+		 * Denormalizes a value based on its column type annotation.
+		 *
+		 * This function handles transforming database values back to their appropriate application formats:
+		 * 1. Uses default values when appropriate
+		 * 2. For special types registered in $normalizers, it uses dedicated normalizer classes
+		 * 3. For other types, it returns the value unchanged
+		 *
+		 * @param object $annotation The annotation object containing column metadata and type information
+		 * @param mixed $value The database value to be denormalized
+		 * @return mixed The denormalized value appropriate for application use
+		 * @throws \RuntimeException If a normalizer class cannot be instantiated
 		 */
 		public function denormalizeValue(object $annotation, mixed $value): mixed {
-			// Retrieve the column type from the annotation
+			// Extract the column type from the annotation object
 			$columnType = $annotation->getType();
 			
-			// If there's no value, but there's a default, grab the default
+			// Handle null values with defaults
+			// If the value is null but the column has a default value defined, return that default
 			if (($value === null) && $annotation->hasDefault()) {
 				return $annotation->getDefault();
 			}
 			
-			// Check if the column type is a type known to need denormalization. If not, return the value as-is.
+			// Check if this column type has a dedicated normalizer class
 			if (in_array(strtolower($columnType), $this->normalizers)) {
+				// Build the full normalizer class name based on the column type
 				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
-				$normalizer = new $normalizerClass($value, $annotation);
-				return $normalizer->denormalize();
+				
+				// Use cached normalizer instance if available, otherwise create a new one
+				// This improves performance by reusing normalizer objects
+				if (!isset($this->normalizerInstances[$columnType])) {
+					$this->normalizerInstances[$columnType] = new $normalizerClass();
+				}
+				
+				// Configure the normalizer with the current value and process it for denormalization
+				$this->normalizerInstances[$columnType]->setValue($value);
+				return $this->normalizerInstances[$columnType]->denormalize();
 			}
 			
-			// If no specific denormalization logic applies, return the value as-is
+			// For all other column types, return the value unchanged
+			// No special denormalization needed for these types
 			return $value;
 		}
 		
@@ -268,6 +304,9 @@
 		 * @return void
 		 */
 		public function deserialize(object $entity, array $values): void {
+			// Store the class name
+			$className = get_class($entity);
+			
 			// Retrieve annotations for the entity class to understand how to map properties
 			$annotationList = $this->entityStore->getAnnotations($entity);
 			
@@ -290,8 +329,16 @@
 						// Determine the setter method name
 						$setterMethod = 'set' . ucfirst($this->camelCase($property));
 						
+						// Check the cache for the method_exist result
+						$methodKey = $className . '::' . $setterMethod;
+						
+						// If it's not there, add it
+						if (!isset($this->methodExistsCache[$methodKey])) {
+							$this->methodExistsCache[$methodKey] = method_exists($entity, $setterMethod);
+						}
+						
 						// Set the property using the setter method. If that doesn't exist, use reflection
-						if (method_exists($entity, $setterMethod)) {
+						if ($this->methodExistsCache[$methodKey]) {
 							$entity->$setterMethod($normalizedValue);
 						} else {
 							$this->propertyHandler->set($entity, $property, $normalizedValue);

@@ -46,68 +46,93 @@
 		 * @return array The modified array with the range removed from the keys.
 		 */
 		private function removeRangeFromRow(string $range, array $array): array {
-			$rangeLength = strlen($range) + 1; // Bereken de lengte van de te verwijderen prefix inclusief de punt
+			$rangePrefix = $range . '.';
+			$rangePrefixLength = strlen($rangePrefix);
 			$modifiedArray = [];
 			
 			foreach ($array as $key => $value) {
-				$newKey = substr($key, $rangeLength);
-				$modifiedArray[$newKey] = $value;
+				// Check if key starts with the prefix before doing substring operation
+				if (strncmp($key, $rangePrefix, $rangePrefixLength) === 0) {
+					$modifiedArray[substr($key, $rangePrefixLength)] = $value;
+				}
 			}
 			
 			return $modifiedArray;
 		}
 		
 		/**
-		 * Verwerkt een entity op basis van de gegeven waarde en gefilterde rij.
-		 * Retourneert `null` als de rij geen waarden bevat, wat duidt op een mislukte LEFT JOIN.
-		 * Creëert een nieuwe entity als deze niet bestaat, of retourneert de bestaande.
-		 * @param AstAlias $value De alias met de expressie voor entity naam en bereik.
-		 * @param array $filteredRow De gefilterde rijgegevens van de database.
-		 * @param array $relationCache
-		 * @return object|null De gevonden of nieuw aangemaakte entity, of `null`.
+		 * Initializes a proxy object with data
+		 * @param ProxyInterface $proxy The proxy object to initialize
+		 * @param array $data The data to populate the proxy with
+		 * @return void
+		 */
+		private function initializeProxy(ProxyInterface $proxy, array $data): void {
+			// Mark the proxy as initialized so it knows it has been loaded
+			$proxy->setInitialized();
+			
+			// Deserialize the provided data into the proxy entity
+			// This populates the proxy with all the properties from the data array
+			$this->serializer->deserialize($proxy, $data);
+			
+			// Detach the entity from the Unit of Work
+			// This allows the entity to be re-attached later as an existing entity
+			// rather than being treated as a new entity to be persisted
+			$this->unitOfWork->detach($proxy);
+		}
+		
+		/**
+		 * Processes a row of data into an entity object
+		 * @param AstAlias $value The alias representing the entity to process
+		 * @param array $filteredRow Data row containing entity properties
+		 * @param array $relationCache Cache containing relationship information
+		 * @return object|null The processed entity object or null if no data
 		 */
 		private function processEntity(AstAlias $value, array $filteredRow, array $relationCache): ?object {
-			// Kijk of de array wel gevuld is
+			// Check if the array contains any meaningful data
+			// If the array is empty or contains only null values, return null
 			if (!$this->isArrayPopulated($filteredRow)) {
 				return null;
 			}
 			
-			// Haal de expression en entity informatie eenmalig op
+			// Extract metadata about the entity from the expression
 			$expression = $value->getExpression();
-			$entity = $expression->getName();
-			$rangeName = $expression->getRange()->getName();
+			$entity = $expression->getName(); // The entity class name
+			$rangeName = $expression->getRange()->getName(); // The alias/range name in the query
 			
-			// Filter de primary key waarden uit de rij
+			// Remove the range prefix from column names in the row data
+			// This converts prefixed column names like "range.user_id" to just "user_id"
 			$filteredRow = $this->removeRangeFromRow($rangeName, $filteredRow);
 			
-			// Gebruik array_intersect_key voor efficiëntere filtering van primaryKeyValues
+			// Extract only the primary key values from the filtered row
+			// Uses array_intersect_key for better performance than manual filtering
 			$primaryKeyValues = array_intersect_key($filteredRow, $relationCache['identifiers_flipped']);
 			
-			// Kijk of we de entiteit al ingelezen hebben. Zoja, retourneer dan de al bestaande entiteit.
+			// Try to find an existing entity with the same primary key values
+			// This prevents duplicate entities for the same database record
 			$existingEntity = $this->unitOfWork->findEntity($entity, $primaryKeyValues);
 			
 			if ($existingEntity !== null) {
+				// If the entity exists but is a non-initialized proxy,
+				// initialize it with the current data
 				if ($existingEntity instanceof ProxyInterface && !$existingEntity->isInitialized()) {
-					// Markeer de proxy als geïnitialiseerd
-					$existingEntity->setInitialized();
-					
-					// Neem de gegevens in de entity over en geef aan dat de proxy nu ingeladen is
-					$this->serializer->deserialize($existingEntity, $filteredRow);
-					
-					// Ontkoppel de entity zodat deze weer als bestaande entity kan worden toegevoegd
-					$this->unitOfWork->detach($existingEntity);
+					$this->initializeProxy($existingEntity, $filteredRow);
 				}
 				
-				// Persist de entity voor latere flushes
+				// Mark the entity as "existing" in the Unit of Work
+				// This ensures it will be tracked for changes but not inserted as new
 				$this->unitOfWork->persistExisting($existingEntity);
 				
-				// Bestaande entity teruggeven.
+				// Return the existing entity (possibly newly initialized)
 				return $existingEntity;
 			}
 			
-			// Nieuwe entity aanmaken en teruggeven.
+			// If no existing entity was found, create a new one and
+			// populate it with data from the filtered row
 			$newEntity = new $entity;
 			$this->serializer->deserialize($newEntity, $filteredRow);
+
+			// Add the new entity to the Unit of Work as an existing entity
+			// (not as a new entity since it came from the database)
 			$this->unitOfWork->persistExisting($newEntity);
 			return $newEntity;
 		}

@@ -305,7 +305,7 @@
 			// Return the array of primary key names and their corresponding values
 			return $result;
 		}
-		
+
 		/**
 		 * Find an entity based on its class and primary keys.
 		 * @template T of object

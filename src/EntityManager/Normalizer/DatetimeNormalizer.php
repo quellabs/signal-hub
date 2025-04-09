@@ -5,19 +5,17 @@
     class DatetimeNormalizer implements NormalizerInterface  {
     
         protected $value;
-        protected $annotation;
         
-        /**
-         * IntNormalizer constructor.
-         * @param $value
-         * @param $annotation
-         */
-        public function __construct($value, $annotation) {
-            $this->value = $value;
-            $this->annotation = $annotation;
-        }
-    
-        /**
+	    /**
+	     * Sets the value to normalize/denormalize
+	     * @param $value
+	     * @return void
+	     */
+	    public function setValue($value): void {
+		    $this->value = $value;
+	    }
+	    
+	    /**
          * @return \DateTime|null
          */
         public function normalize(): ?\DateTime {
