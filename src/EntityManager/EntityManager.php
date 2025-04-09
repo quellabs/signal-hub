@@ -44,26 +44,7 @@
 			$this->property_handler = new PropertyHandler();
             $this->error_message = null;
         }
-		
-		/**
-		 * Normaliseert de primaire sleutel tot een array.
-		 * Deze functie controleert of de gegeven primaire sleutel al een array is.
-		 * Zo niet, dan wordt de primaire sleutel omgezet naar een array met de juiste sleutel
-		 * op basis van de entiteitstype.
-		 * @param mixed $primaryKey De primaire sleutel die moet worden genormaliseerd.
-		 * @param string $entityType Het type van de entiteit waarvoor de primaire sleutel nodig is.
-		 * @return array Een genormaliseerde weergave van de primaire sleutel als een array.
-		 */
-		private function normalizePrimaryKey(mixed $primaryKey, string $entityType): array {
-			// Als de primaire sleutel al een array is, retourneer deze direct.
-			if (is_array($primaryKey)) {
-				return $primaryKey;
-			}
-			
-			// Zo niet, haal de identifier keys op en maak een array met de juiste sleutel en waarde.
-			$identifierKeys = $this->entity_store->getIdentifierKeys($entityType);
-			return [$identifierKeys[0] => $primaryKey];
-		}
+
 		
 		/**
 		 * Verwijdert dubbele objecten uit een array op basis van hun object-hash.
@@ -314,7 +295,7 @@
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
 			// Normaliseer de primaire sleutel.
-			$primaryKeys = $this->normalizePrimaryKey($primaryKey, $entityType);
+			$primaryKeys = $this->entity_store->normalizePrimaryKey($primaryKey, $entityType);
 			
 			// Bereid een query voor als de entiteit niet gevonden is.
 			$query = $this->query_builder->prepareQuery($entityType, $primaryKeys);
@@ -338,7 +319,7 @@
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Normaliseer de primaire sleutel.
-			$primaryKeys = $this->normalizePrimaryKey($primaryKey, $entityType);
+			$primaryKeys = $this->entity_store->normalizePrimaryKey($primaryKey, $entityType);
 			
 			// Probeer de entiteit te vinden in de huidige unit of work.
 			$existingEntity = $this->unit_of_work->findEntity($entityType, $primaryKeys);

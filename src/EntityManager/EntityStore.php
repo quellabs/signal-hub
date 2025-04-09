@@ -607,4 +607,24 @@
 			// Dit komt in de praktijk nooit voor, omdat een dergelijke query niet gemaakt kan worden.
 			return null;
 		}
+	    
+	    /**
+	     * Normaliseert de primaire sleutel tot een array.
+	     * Deze functie controleert of de gegeven primaire sleutel al een array is.
+	     * Zo niet, dan wordt de primaire sleutel omgezet naar een array met de juiste sleutel
+	     * op basis van de entiteitstype.
+	     * @param mixed $primaryKey De primaire sleutel die moet worden genormaliseerd.
+	     * @param string $entityType Het type van de entiteit waarvoor de primaire sleutel nodig is.
+	     * @return array Een genormaliseerde weergave van de primaire sleutel als een array.
+	     */
+	    public function normalizePrimaryKey(mixed $primaryKey, string $entityType): array {
+		    // Als de primaire sleutel al een array is, retourneer deze direct.
+		    if (is_array($primaryKey)) {
+			    return $primaryKey;
+		    }
+		    
+		    // Zo niet, haal de identifier keys op en maak een array met de juiste sleutel en waarde.
+		    $identifierKeys = $this->getIdentifierKeys($entityType);
+		    return [$identifierKeys[0] => $primaryKey];
+	    }
     }
