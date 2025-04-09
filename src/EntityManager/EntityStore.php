@@ -128,16 +128,6 @@
 		}
 		
 		/**
-		 * Controleert of het opgegeven bestand een PHP-bestand is.
-		 * @param string $fileName Naam van het bestand.
-		 * @return bool True als het een PHP-bestand is, anders false.
-		 */
-		private function isPHPFile(string $fileName): bool {
-			$fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-			return ($fileExtension === 'php');
-		}
-		
-		/**
 		 * Constructs the full entity name
 		 * @param string $fileName
 		 * @return string
