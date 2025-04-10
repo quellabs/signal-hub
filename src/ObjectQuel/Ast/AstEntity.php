@@ -19,9 +19,9 @@
 		
 		/**
 		 * The range (AST) of the entity.
-		 * @var AstRangeDatabase|null
+		 * @var AstRange|null
 		 */
-		private ?AstRangeDatabase $range;
+		private ?AstRange $range;
 		
 		/**
 		 * True if an implicit entity, false if not
@@ -34,7 +34,7 @@
 		 * @param string $entityName The name of the entity.
 		 * @param AstRangeDatabase|null $range The range the entity belongs to
 		 */
-		public function __construct(string $entityName, ?AstRangeDatabase $range=null) {
+		public function __construct(string $entityName, ?AstRange $range=null) {
 			$this->name = $entityName;
 			$this->range = $range;
 			$this->implicit = false;
@@ -50,18 +50,18 @@
 		
 		/**
 		 * Returns the range (alias)
-		 * @return AstRangeDatabase|null
+		 * @return AstRange|null
 		 */
-		public function getRange(): ?AstRangeDatabase {
+		public function getRange(): ?AstRange {
 			return $this->range;
 		}
 		
 		/**
 		 * Sets the range (alias)
-		 * @param AstRangeDatabase $range
+		 * @param AstRange $range
 		 * @return void
 		 */
-		public function setRange(AstRangeDatabase $range) {
+		public function setRange(AstRange $range): void {
 			$this->range = $range;
 		}
 		
@@ -70,7 +70,7 @@
 		 * @param string $name
 		 * @return void
 		 */
-		public function setName(string $name) {
+		public function setName(string $name): void {
 			$this->name = $name;
 		}
 		
