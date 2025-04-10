@@ -2,9 +2,6 @@
 	
 	namespace Services\ObjectQuel\Ast;
 	
-	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\Visitors\RangePresent;
-	
 	/**
 	 * Class AstEntity
 	 * Represents an entity within the AST.
@@ -66,15 +63,6 @@
 		}
 		
 		/**
-		 * Sets the entity
-		 * @param string $name
-		 * @return void
-		 */
-		public function setName(string $name): void {
-			$this->name = $name;
-		}
-		
-		/**
 		 * Get the name of the entity.
 		 * @return string The name of the entity.
 		 */
@@ -88,6 +76,15 @@
 			}
 			
 			return $this->range->getEntity()->getName();
+		}
+		
+		/**
+		 * Sets the entity
+		 * @param string $name
+		 * @return void
+		 */
+		public function setName(string $name): void {
+			$this->name = $name;
 		}
 		
 		/**
