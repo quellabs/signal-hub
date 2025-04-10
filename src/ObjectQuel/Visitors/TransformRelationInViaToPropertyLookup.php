@@ -5,18 +5,14 @@
 	
 	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
 	use Services\AnnotationsReader\Annotations\Orm\OneToMany;
-	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstAnd;
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstOr;
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\QuelException;
 	
 	/**
 	 * Class TransformRelationInViaToPropertyLookup
@@ -60,7 +56,7 @@
 		 * @param string $propertyB
 		 * @return AstExpression
 		 */
-		public function createPropertyLookupAst(string $propertyA, AstRangeDatabase $rangeB, string $propertyB): AstInterface {
+		public function createPropertyLookupAst(string $propertyA, AstRange $rangeB, string $propertyB): AstInterface {
 			$identifierA = new AstIdentifier(clone $this->range->getEntity(), $propertyA);
 			$identifierB = new AstIdentifier(clone $rangeB->getEntity(), $propertyB);
 			return new AstExpression($identifierA, $identifierB, '=');
@@ -145,8 +141,8 @@
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Als de node niet van het type AstOr of AstAnd is, doen we niets.
-			if (!($node instanceof AstOr || $node instanceof AstAnd)) {
+			// Als de node niet van het type AstBinaryOperator is, doen we niets.
+			if (!$node instanceof AstBinaryOperator) {
 				return;
 			}
 			

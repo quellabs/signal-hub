@@ -2,7 +2,6 @@
 	
 	namespace Services\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstAnd;
 	use Services\ObjectQuel\Ast\AstBool;
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstExpression;
@@ -12,7 +11,6 @@
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
 	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRegExp;
 	use Services\ObjectQuel\Ast\AstString;

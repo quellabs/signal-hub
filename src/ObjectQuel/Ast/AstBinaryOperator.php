@@ -5,17 +5,35 @@
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
-	class AstOr extends Ast {
+	/**
+	 * Class AstBinaryOperator
+	 *
+	 * Represents AND/OR logical expression in the AST (Abstract Syntax Tree).
+	 */
+	class AstBinaryOperator extends Ast {
 		
+		/**
+		 * @var AstInterface The left-hand operand of the AND expression.
+		 */
 		protected AstInterface $left;
+		
+		/**
+		 * @var AstInterface The right-hand operand of the AND expression.
+		 */
 		protected AstInterface $right;
 		
 		/**
-		 * AstOr constructor
-		 * @param AstInterface $left
-		 * @param AstInterface $right
+		 * @var string Operator ('AND' or 'OR')
 		 */
-		public function __construct(AstInterface $left, AstInterface $right) {
+		private string $operator;
+		
+		/**
+		 * AstBinaryOperator constructor.
+		 * @param AstInterface $left  The left-hand operand.
+		 * @param AstInterface $right The right-hand operand.
+		 */
+		public function __construct(AstInterface $left, AstInterface $right, string $operator) {
+			$this->operator = $operator;
 			$this->left = $left;
 			$this->right = $right;
 		}
@@ -46,7 +64,7 @@
 		public function setLeft(AstInterface $ast): void {
 			$this->left = $ast;
 		}
-		
+
 		/**
 		 * Get the right-hand operand of the AND expression.
 		 * @return AstInterface The right operand.
@@ -63,4 +81,22 @@
 		public function setRight(AstInterface $ast): void {
 			$this->right = $ast;
 		}
+		
+		/**
+		 * Returns the operator ('AND' or 'OR')
+		 * @return string
+		 */
+		public function getOperator(): string {
+			return $this->operator;
+		}
+		
+		/**
+		 * Updates the operator
+		 * @param string $operator
+		 * @return void
+		 */
+		public function setOperator(string $operator): void {
+			$this->operator = $operator;
+		}
+		
 	}

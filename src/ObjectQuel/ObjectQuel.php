@@ -7,12 +7,11 @@
 	use Services\EntityManager\DatabaseAdapter;
 	use Services\EntityManager\EntityManager;
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstAnd;
+	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
     use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
 	use Services\EntityManager\EntityStore;
@@ -482,12 +481,12 @@
 	     */
 	    private function handleExistsOperatorHelper(?AstInterface $parent, AstInterface $item, array &$list, bool $parentLeft = false): void {
 		    // Process left branch for AND/OR operations
-		    if ($item->getLeft() instanceof AstOr || $item->getLeft() instanceof AstAnd) {
+		    if ($item->getLeft() instanceof AstBinaryOperator) {
 			    $this->handleExistsOperatorHelper($item, $item->getLeft(), $list, true);
 		    }
 		    
 		    // Process right branch for AND/OR operations
-		    if ($item->getRight() instanceof AstOr || $item->getRight() instanceof AstAnd) {
+		    if ($item->getRight() instanceof AstBinaryOperator) {
 			    $this->handleExistsOperatorHelper($item, $item->getRight(), $list, false);
 		    }
 		    
@@ -540,7 +539,7 @@
 			if ($conditions instanceof AstExists) {
 				$astExistsList = [$conditions];
 				$ast->setConditions(null);
-			} elseif ($conditions instanceof AstOr || $conditions instanceof AstAnd) {
+			} elseif ($conditions instanceof AstBinaryOperator) {
 				$this->handleExistsOperatorHelper($ast, $conditions, $astExistsList);
 			}
 
@@ -763,7 +762,7 @@
 			if ($e->getConditions() === null) {
 				$e->setConditions($astIn);
 			} else {
-				$e->setConditions(new AstAnd($e->getConditions(), $astIn));
+				$e->setConditions(new AstBinaryOperator($e->getConditions(), $astIn, "AND"));
 			}
 		}
 		

@@ -69,7 +69,7 @@
 		 * @param AstInterface $ast
 		 * @return void
 		 */
-		public function setLeft(AstInterface $ast) {
+		public function setLeft(AstInterface $ast): void {
 			$this->left = $ast;
 		}
 		
@@ -85,7 +85,7 @@
 		 * @param AstInterface $ast
 		 * @return void
 		 */
-		public function setRight(AstInterface $ast) {
+		public function setRight(AstInterface $ast): void {
 			$this->right = $ast;
 		}
 	}

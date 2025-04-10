@@ -2,9 +2,8 @@
 	
 	namespace Services\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstAnd;
+	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\Lexer;
 	use Services\ObjectQuel\LexerException;
@@ -68,7 +67,7 @@
 				
 				// Parse the right-hand side of the AND expression and combine it
 				// with the left-hand side to form a new AND expression
-				$left = new AstAnd($left, $this->parseAtomicExpression($entity));
+				$left = new AstBinaryOperator($left, $this->parseAtomicExpression($entity), 'AND');
 			}
 			
 			// Return the final AND expression
@@ -93,7 +92,7 @@
 				
 				// Parse the right-hand side of the OR expression and combine it
 				// with the left-hand side to form a new OR expression
-				$left = new AstOr($left, $this->parseAndExpression($entity));
+				$left = new AstBinaryOperator($left, $this->parseAndExpression($entity), 'OR');
 			}
 			
 			// Return the final OR expression

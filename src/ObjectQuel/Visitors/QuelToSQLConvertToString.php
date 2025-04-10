@@ -7,7 +7,7 @@
 	use Services\AnnotationsReader\Annotations\Orm\Column;
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstAnd;
+	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstBool;
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;
@@ -24,7 +24,6 @@
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNull;
 	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstOr;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRegExp;
 	use Services\ObjectQuel\Ast\AstSearch;
@@ -100,7 +99,7 @@
 		 */
 		public function inferReturnType(AstInterface $ast): ?string {
 			// Boolean operations
-			if ($ast instanceof AstAnd || $ast instanceof AstOr || $ast instanceof AstExpression) {
+			if ($ast instanceof AstBinaryOperator || $ast instanceof AstExpression) {
 				return 'boolean';
 			}
 			
@@ -308,21 +307,12 @@
 		}
 		
 		/**
-		 * Verwerkt een AstAnd-object en converteert dit naar SQL met een alias.
-		 * @param AstAnd $ast Het AstAnd-object
+		 * Verwerkt een AstBinaryOperator-object en converteert dit naar SQL met een alias.
+		 * @param AstBinaryOperator $ast Het AstBinaryOperator-object
 		 * @return void
 		 */
-		protected function handleAnd(AstAnd $ast): void {
-			$this->genericHandleExpression($ast, "AND");
-		}
-		
-		/**
-		 * Verwerkt een AstOr-object
-		 * @param AstOr $ast Het AstOr-object
-		 * @return void
-		 */
-		protected function handleOR(AstOr $ast): void {
-			$this->genericHandleExpression($ast, "OR");
+		protected function handleBinaryOperator(AstBinaryOperator $ast): void {
+			$this->genericHandleExpression($ast, $ast->getOperator());
 		}
 		
 		/**
