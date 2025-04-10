@@ -119,7 +119,7 @@
 		 * 4. Combines stage results into a final output
 		 * @param ExecutionPlan $plan The plan containing stages to execute
 		 * @return QuelResult|null Results from executing the plan
-		 * @throws QuelException|QueryExecutionException When any stage execution fails
+		 * @throws QuelException When any stage execution fails
 		 */
 		public function execute(ExecutionPlan $plan): ?QuelResult {
 			// Get stages in execution order (respecting dependencies)

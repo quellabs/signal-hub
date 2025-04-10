@@ -121,7 +121,7 @@
 		 * @param string $query The query to execute
 		 * @param array $parameters Initial parameters for the plan
 		 * @return QuelResult|null The results of the execution plan
-		 * @throws \Exception
+		 * @throws QuelException
 		 */
 		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
 			return $this->query_executor->executeQuery($query, $parameters);
@@ -132,7 +132,7 @@
 		 * @param string $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult|null
-		 * @throws QueryExecutionException
+		 * @throws QuelException
 		 */
 		public function executeSimpleQuery(string $query, array $initialParams=[]): ?QuelResult {
 			return $this->query_executor->executeSimpleQuery($query, $initialParams);
@@ -143,7 +143,7 @@
 		 * @param string $query
 		 * @param array $parameters
 		 * @return array
-		 * @throws \Exception
+		 * @throws QuelException
 		 */
 		public function getAll(string $query, array $parameters=[]): array {
 			return $this->query_executor->getAll($query, $parameters);
@@ -166,7 +166,7 @@
 		 * @param class-string<T> $entityType De fully qualified class name van de container
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T[] De gevonden entiteiten
-		 * @throws QueryExecutionException|\Exception
+		 * @throws QuelException
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
 			// Normaliseer de primaire sleutel.
@@ -191,7 +191,7 @@
 		 * @param class-string<T> $entityType De fully qualified class name van de container
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T|null De gevonden entiteit of null als deze niet gevonden wordt
-		 * @throws QueryExecutionException|\Exception
+		 * @throws QuelException
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Normaliseer de primaire sleutel.

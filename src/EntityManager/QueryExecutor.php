@@ -70,19 +70,15 @@
 		 * @param string $query The query to execute
 		 * @param array $parameters Initial parameters for the plan
 		 * @return QuelResult The results of the execution plan
-		 * @throws QueryExecutionException
+		 * @throws QuelException
 		 */
 		public function executeQuery(string $query, array $parameters=[]): QuelResult {
-			try {
-				// Decompose the query
-				$decomposer = new QueryDecomposer($this->entityManager);
-				$executionPlan = $decomposer->decompose($query, $parameters);
-				
-				// Execute the returned execution plan and return the QuelResult
-				return $this->planExecutor->execute($executionPlan);
-			} catch (QuelException $e) {
-				throw new QueryExecutionException($e->getMessage(), 0, $e);
-			}
+			// Decompose the query
+			$decomposer = new QueryDecomposer($this->entityManager);
+			$executionPlan = $decomposer->decompose($query, $parameters);
+			
+			// Execute the returned execution plan and return the QuelResult
+			return $this->planExecutor->execute($executionPlan);
 		}
 		
 		/**
@@ -90,35 +86,31 @@
 		 * @param string $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult
-		 * @throws QueryExecutionException
+		 * @throws QuelException
 		 */
 		public function executeSimpleQuery(string $query, array $initialParams=[]): QuelResult {
-			try {
-				// Parse de Quel query
-				$e = $this->objectQuel->parse($query);
-				
-				// Parse de Quel query en converteer naar SQL
-				$sql = $this->objectQuel->convertToSQL($e, $initialParams);
-				
-				// Voer de SQL query uit
-				$rs = $this->connection->execute($sql, $initialParams);
-				
-				// Indien de query incorrect is, gooi een exception
-				if (!$rs) {
-					throw new QueryExecutionException($this->connection->getLastErrorMessage(), 0, $e);
-				}
-				
-				// Haal alle data op en stuur dit door naar QuelResult
-				$result = [];
-				while ($row = $rs->fetchRow()) {
-					$result[] = $row;
-				}
-				
-				// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
-				return new QuelResult($this->entityManager, $e, $result);
-			} catch (QuelException $e) {
-				throw new QueryExecutionException($e->getMessage(), 0, $e);
+			// Parse de Quel query
+			$e = $this->objectQuel->parse($query);
+			
+			// Parse de Quel query en converteer naar SQL
+			$sql = $this->objectQuel->convertToSQL($e, $initialParams);
+			
+			// Voer de SQL query uit
+			$rs = $this->connection->execute($sql, $initialParams);
+			
+			// Indien de query incorrect is, gooi een exception
+			if (!$rs) {
+				throw new QuelException($this->connection->getLastErrorMessage(), 0, $e);
 			}
+			
+			// Haal alle data op en stuur dit door naar QuelResult
+			$result = [];
+			while ($row = $rs->fetchRow()) {
+				$result[] = $row;
+			}
+			
+			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
+			return new QuelResult($this->entityManager, $e, $result);
 		}
 		
 		/**
@@ -126,7 +118,7 @@
 		 * @param string $query
 		 * @param array $parameters
 		 * @return array
-		 * @throws \Exception
+		 * @throws QuelException
 		 */
 		public function getAll(string $query, array $parameters=[]): array {
 			// Voert de query uit met de opgegeven parameters.
@@ -152,7 +144,7 @@
 		 * @param string $query De ObjectQuel-query om uit te voeren.
 		 * @param array $parameters Optionele parameters voor de query.
 		 * @return array Een array met unieke objecten uit de eerste kolom van de queryresultaten.
-		 * @throws QueryExecutionException
+		 * @throws QuelException
 		 */
 		public function getCol(string $query, array $parameters=[]): array {
 			// Voert de query uit met de opgegeven parameters.
