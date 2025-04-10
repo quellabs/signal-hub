@@ -5,15 +5,9 @@
 	use Services\Kernel\Kernel;
 	use Services\Kernel\PropertyHandler;
 	use Services\Kernel\ServiceInterface;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ObjectQuel;
-	use Services\ObjectQuel\ParserException;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
-	use Services\Signalize\AstInterface;
 	use Services\Validation\EntityToValidation;
-	use Symfony\Component\Config\Builder\Property;
 	
 	/**
 	 * Represents an Entity Manager.
@@ -22,12 +16,10 @@
 		protected Kernel $kernel;
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
-        protected ObjectQuel $object_quel;
 		protected EntityStore $entity_store;
 		protected QueryBuilder $query_builder;
 		protected PropertyHandler $property_handler;
-		protected PlanExecutor $plan_executor;
-		protected ?string $error_message;
+		private QueryExecutor $query_executor;
 		
 		/**
 		 * @param Kernel $kernel
@@ -38,46 +30,10 @@
             $this->connection = new DatabaseAdapter($kernel->getConfiguration());
 	        $this->entity_store = new EntityStore();
             $this->unit_of_work = new UnitOfWork($this);
-			$this->object_quel = new ObjectQuel($this);
-			$this->query_builder = new QueryBuilder($this->entity_store);
-			$this->plan_executor = new PlanExecutor($this);
+			$this->query_executor = new QueryExecutor($this);
 			$this->property_handler = new PropertyHandler();
-            $this->error_message = null;
         }
 
-		
-		/**
-		 * Verwijdert dubbele objecten uit een array op basis van hun object-hash.
-		 * Niet-objecten in de array worden ongewijzigd gelaten.
-		 * @param array $array De input array met mogelijk dubbele objecten.
-		 * @return array Een array met unieke objecten en alle oorspronkelijke niet-object elementen.
-		 */
-		private function deDuplicateObjects(array $array): array {
-			// Opslag voor de hashes van objecten die al zijn gezien.
-			$objectKeys = [];
-			
-			// Gebruik array_filter om door de array te gaan en dubbele objecten te verwijderen.
-			return array_filter($array, function($item) use (&$objectKeys) {
-				// Als het item geen object is, behoud het in de array.
-				if (!is_object($item)) {
-					return true;
-				}
-				
-				// Bereken de unieke hash van het object.
-				$hash = spl_object_hash($item);
-				
-				// Controleer of de hash al in de lijst van gezien objecten staat.
-				if (in_array($hash, $objectKeys)) {
-					// Als ja, filter dit object uit de array.
-					return false;
-				}
-				
-				// Voeg de hash toe aan de lijst van gezien objecten en behoud het item in de array.
-				$objectKeys[] = $hash;
-				return true;
-			});
-		}
-		
 		/**
 		 * Returns the Kernel
 		 * @return Kernel
@@ -161,14 +117,6 @@
 		}
 		
 		/**
-		 * Retourneert de laatste query fout
-		 * @return null|string
-		 */
-		public function getLastErrorMessage(): ?string {
-			return $this->error_message;
-		}
-
-		/**
 		 * Execute a decomposed query plan
 		 * @param string $query The query to execute
 		 * @param array $parameters Initial parameters for the plan
@@ -176,17 +124,7 @@
 		 * @throws \Exception
 		 */
 		public function executeQuery(string $query, array $parameters=[]): ?QuelResult {
-			try {
-				// Decompose the query
-				$decomposer = new QueryDecomposer($this);
-				$executionPlan = $decomposer->decompose($query, $parameters);
-				
-				// Execute the returned execution plan and return the QuelResult
-				return $this->plan_executor->execute($executionPlan);
-			} catch (QuelException $e) {
-				$this->error_message = $e->getMessage();
-				return null;
-			}
+			return $this->query_executor->executeQuery($query, $parameters);
 		}
 		
 		/**
@@ -194,36 +132,10 @@
 		 * @param string $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult|null
+		 * @throws QueryExecutionException
 		 */
 		public function executeSimpleQuery(string $query, array $initialParams=[]): ?QuelResult {
-			try {
-				// Parse de Quel query
-				$e = $this->object_quel->parse($query);
-				
-				// Parse de Quel query en converteer naar SQL
-				$sql = $this->object_quel->convertToSQL($e, $initialParams);
-				
-				// Voer de SQL query uit
-				$rs = $this->connection->execute($sql, $initialParams);
-				
-				// Indien de query incorrect is, sla de foutmelding op
-				if (!$rs) {
-					$this->error_message = $this->connection->getLastErrorMessage();
-					return null;
-				}
-				
-				// Haal alle data op en stuur dit door naar QuelResult
-				$result = [];
-				while ($row = $rs->fetchRow()) {
-					$result[] = $row;
-				}
-				
-				// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
-				return new QuelResult($this, $e, $result);
-			} catch (QuelException $e) {
-				$this->error_message = $e->getMessage();
-				return null;
-			}
+			return $this->query_executor->executeSimpleQuery($query, $initialParams);
 		}
 		
 		/**
@@ -234,21 +146,7 @@
 		 * @throws \Exception
 		 */
 		public function getAll(string $query, array $parameters=[]): array {
-			// Voert de query uit met de opgegeven parameters.
-			$rs = $this->executeQuery($query, $parameters);
-			
-			// Controleert of de query succesvol was en resultaten heeft.
-			if (!$rs || $rs->recordCount() == 0) {
-				return [];
-			}
-			
-			// Loopt door alle rijen van het resultaat.
-			$result = [];
-			while ($row = $rs->fetchRow()) {
-				$result[] = $row;
-			}
-			
-			return $result;
+			return $this->query_executor->getAll($query, $parameters);
 		}
 		
 		/**
@@ -259,30 +157,7 @@
 		 * @return array Een array met unieke objecten uit de eerste kolom van de queryresultaten.
 		 */
 		public function getCol(string $query, array $parameters=[]): array {
-			// Voert de query uit met de opgegeven parameters.
-			$rs = $this->executeQuery($query, $parameters);
-			
-			// Controleert of de query succesvol was en resultaten heeft.
-			if (!$rs || $rs->recordCount() == 0) {
-				return [];
-			}
-			
-			// Haal resultaat op
-			$result = [];
-			$keys = null;
-			
-			while ($row = $rs->fetchRow()) {
-				// Bepaalt de sleutels (kolomnamen) van de eerste rij, indien nog niet bepaald.
-				if ($keys === null) {
-					$keys = array_keys($row);
-				}
-				
-				// Voegt de waarde van de eerste kolom toe aan het resultaat.
-				$result[] = $row[$keys[0]];
-			}
-			
-			// Retourneert ontdubbelde resultaten.
-			return $this->deDuplicateObjects($result);
+			return $this->query_executor->getCol($query, $parameters);
 		}
 		
 		/**
@@ -291,7 +166,7 @@
 		 * @param class-string<T> $entityType De fully qualified class name van de container
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T[] De gevonden entiteiten
-		 * @throws QuelException|\Exception
+		 * @throws QueryExecutionException|\Exception
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
 			// Normaliseer de primaire sleutel.
@@ -301,13 +176,13 @@
 			$query = $this->query_builder->prepareQuery($entityType, $primaryKeys);
 			
 			// Voer query uit en haal resultaat op
-			$result = $this->getAll($query, $primaryKeys);
+			$result = $this->query_executor->getAll($query, $primaryKeys);
 			
 			// Haal de main column uit het resultaat
 			$filteredResult = array_column($result, "main");
 			
 			// Retourneer ontdubbelde resultaten
-			return $this->deDuplicateObjects($filteredResult);
+			return $this->query_executor->deDuplicateObjects($filteredResult);
 		}
 		
 		/**
@@ -316,6 +191,7 @@
 		 * @param class-string<T> $entityType De fully qualified class name van de container
 		 * @param mixed $primaryKey De primaire sleutel van de entiteit
 		 * @return T|null De gevonden entiteit of null als deze niet gevonden wordt
+		 * @throws QueryExecutionException|\Exception
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Normaliseer de primaire sleutel.
@@ -351,7 +227,7 @@
 		}
 		
 		/**
-		 * Returns the valiation rules of a given entity
+		 * Returns the validation rules of a given entity
 		 * @param object $entity
 		 * @return array
 		 */
