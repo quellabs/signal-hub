@@ -56,7 +56,7 @@
 			if ($node instanceof AstEntity) {
 				$this->addEntityIfNotExists($node);
 			} elseif ($node instanceof AstIdentifier) {
-				$this->addEntityIfNotExists($node->getEntityOrParentIdentifier());
+				$this->addEntityIfNotExists($node->getParentIdentifier());
 			}
 		}
 		

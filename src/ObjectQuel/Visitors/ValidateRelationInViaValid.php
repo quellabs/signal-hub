@@ -49,7 +49,7 @@
 			
 			// Haal alle afhankelijkheden op.
 			$entityName = $node->getEntityName();
-			$rangeName = $node->getEntityOrParentIdentifier()->getRange()->getName();
+			$rangeName = $node->getParentIdentifier()->getRange()->getName();
 			$propertyName = $node->getName();
 			
 			$dependencies = [

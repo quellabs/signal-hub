@@ -69,7 +69,7 @@
                 return;
             }
             
-            if ($node->getIdentifier()->getEntityOrParentIdentifier()->getRange()->getName() !== $this->primaryKey->getEntityOrParentIdentifier()->getRange()->getName()) {
+            if ($node->getIdentifier()->getParentIdentifier()->getRange()->getName() !== $this->primaryKey->getParentIdentifier()->getRange()->getName()) {
 				return;
 			}
 			

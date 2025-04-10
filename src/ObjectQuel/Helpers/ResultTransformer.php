@@ -22,7 +22,7 @@
 				foreach ($sortItems as $sortItem) {
 					$ast = $sortItem['ast'];
 					$order = $sortItem['order'];
-					$entity = $ast->getEntityOrParentIdentifier();
+					$entity = $ast->getParentIdentifier();
 					$range = $entity->getRange()->getName();
 					
 					if ($ast instanceof AstMethodCall) {

@@ -32,6 +32,14 @@
 				range of y is ProductsDescriptionEntity via y.productsId=x.productsId
 				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
 			");
+
+			/*
+			$result = $this->entityManager->executeQuery("
+				range of x is ProductsEntity
+				range of y is JSON_SOURCE('xyz.json')
+				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
+			");
+			*/
 			
 			return new Response('Hello ' . $result[0]['y']->getProductsName() . '!');
 		}

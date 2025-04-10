@@ -29,12 +29,12 @@
 			}
 			
 			// The identifier must be part of an entity reference
-			if (!$node->getEntityOrParentIdentifier() instanceof AstEntity) {
+			if (!$node->getParentIdentifier() instanceof AstEntity) {
 				return;
 			}
 			
 			// Check if the entity's range is a JSON source
-			if (!$node->getEntityOrParentIdentifier()->getRange() instanceof AstRangeJsonSource) {
+			if (!$node->getParentIdentifier()->getRange() instanceof AstRangeJsonSource) {
 				return;
 			}
 			

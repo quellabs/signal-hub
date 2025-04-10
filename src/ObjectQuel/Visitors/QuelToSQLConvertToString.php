@@ -147,12 +147,12 @@
 			
 			foreach ($search->getIdentifiers() as $identifier) {
 				// Mark nodes as visited
-				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
+				$this->addToVisitedNodes($identifier->getParentIdentifier());
 				$this->addToVisitedNodes($identifier);
 				
 				// Get column name
 				$entityName = $identifier->getEntityName();
-				$rangeName = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
+				$rangeName = $identifier->getParentIdentifier()->getRange()->getName();
 				$propertyName = $identifier->getName();
 				$columnMap = $this->entityStore->getColumnMap($entityName);
 				$columnName = "{$rangeName}.{$columnMap[$propertyName]}";
@@ -386,7 +386,7 @@
 		 */
 		protected function handleIdentifier(AstIdentifier $ast): void {
 			// Ast or parent identifier
-			$entityOrParentIdentifier = $ast->getEntityOrParentIdentifier();
+			$entityOrParentIdentifier = $ast->getParentIdentifier();
 			
 			// Visit the node
 			$this->addToVisitedNodes($entityOrParentIdentifier);
@@ -514,10 +514,10 @@
 			if ($identifier instanceof AstIdentifier) {
 				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
 				$this->addToVisitedNodes($identifier);
-				$this->addToVisitedNodes($identifier->getEntityOrParentIdentifier());
+				$this->addToVisitedNodes($identifier->getParentIdentifier());
 				
 				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
-				$range = $identifier->getEntityOrParentIdentifier()->getRange()->getName();
+				$range = $identifier->getParentIdentifier()->getRange()->getName();
 				
 				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
 				$property = $identifier->getName();

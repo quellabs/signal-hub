@@ -92,10 +92,10 @@
 		 */
 		protected function getFieldNameFromIdentifier(AstIdentifier $astIdentifier): string {
 			// Get the table alias or range from the entity
-			$range = $astIdentifier->getEntityOrParentIdentifier()->getRange()->getName();
+			$range = $astIdentifier->getParentIdentifier()->getRange()->getName();
 			
 			// Get the entity name
-			$entity = $astIdentifier->getEntityOrParentIdentifier()->getName();
+			$entity = $astIdentifier->getParentIdentifier()->getName();
 			
 			// Get the property name from the AST Identifier
 			$propertyName = $astIdentifier->getName();

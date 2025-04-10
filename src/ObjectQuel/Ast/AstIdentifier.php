@@ -9,7 +9,7 @@
 	 */
 	class AstIdentifier extends Ast {
 		
-		protected AstEntity|AstIdentifier $entityOrParentIdentifier;
+		protected AstEntity|AstIdentifier $parentIdentifier;
 		
 		/**
 		 * @var string The actual identifier value.
@@ -22,7 +22,7 @@
 		 * @param string $identifier The identifier value
 		 */
 		public function __construct(AstEntity|AstIdentifier $entityOrParentIdentifier, string $identifier) {
-			$this->entityOrParentIdentifier = $entityOrParentIdentifier;
+			$this->parentIdentifier = $entityOrParentIdentifier;
 			$this->identifier = $identifier;
 		}
 		
@@ -32,15 +32,15 @@
 		 */
 		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor); // Accepteer eerst de bezoeker op ouderklasse
-			$this->entityOrParentIdentifier->accept($visitor); // Accepteer hem daarna op de entity AST
+			$this->parentIdentifier->accept($visitor); // Accepteer hem daarna op de entity AST
 		}
 		
 		/**
 		 * Returns the entity
 		 * @return AstEntity|AstIdentifier The entity node
 		 */
-		public function getEntityOrParentIdentifier(): AstEntity|AstIdentifier {
-			return $this->entityOrParentIdentifier;
+		public function getParentIdentifier(): AstEntity|AstIdentifier {
+			return $this->parentIdentifier;
 		}
 		
 		/**
@@ -48,23 +48,11 @@
 		 * @return string The entity name or the full identifier if no property specified.
 		 */
 		public function getEntityName(): string {
-			if (!$this->entityOrParentIdentifier instanceof AstEntity) {
+			if (!$this->parentIdentifier instanceof AstEntity) {
 				return "";
 			}
 			
-			return $this->entityOrParentIdentifier->getName();
-		}
-		
-		/**
-		 * Extracts and returns the entity name from the identifier.
-		 * @return string The entity name or the full identifier if no property specified.
-		 */
-		public function getParentIdentifierName(): string {
-			if (!$this->entityOrParentIdentifier instanceof AstIdentifier) {
-				return "";
-			}
-			
-			return $this->entityOrParentIdentifier->getName();
+			return $this->parentIdentifier->getName();
 		}
 		
 		/**

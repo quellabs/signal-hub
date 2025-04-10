@@ -79,7 +79,15 @@
 		 * @return string The name of the entity.
 		 */
 		public function getName(): string {
-			return $this->name;
+			if (!$this->range instanceof AstRangeDatabase) {
+				return $this->name;
+			}
+			
+			if ($this->range->getEntity() === $this) {
+				return $this->name;
+			}
+			
+			return $this->range->getEntity()->getName();
 		}
 		
 		/**

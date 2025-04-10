@@ -70,7 +70,7 @@
 		 */
 		public function createPropertyLookupAstUsingRelation(AstIdentifier $joinProperty, mixed $relation): AstInterface {
 			// Haal de entiteit en range op van de join property
-			$entity = $joinProperty->getEntityOrParentIdentifier();
+			$entity = $joinProperty->getParentIdentifier();
 			$range = $entity->getRange();
 			$relationColumn = $relation->getRelationColumn();
 			

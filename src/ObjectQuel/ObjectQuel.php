@@ -254,11 +254,11 @@
 	     */
 		private function setRangeRequiredIfNeeded(AstRangeDatabase $mainRange, AstRangeDatabase $range, AstIdentifier $left, AstIdentifier $right): void {
 			// Properties
-			$isMainRange = $right->getEntityOrParentIdentifier()->getRange() === $mainRange;
+			$isMainRange = $right->getParentIdentifier()->getRange() === $mainRange;
 			$ownPropertyName = $isMainRange ? $right->getName() : $left->getName();
-			$ownEntityName = $isMainRange ? $right->getEntityOrParentIdentifier()->getName() : $left->getEntityName();
+			$ownEntityName = $isMainRange ? $right->getParentIdentifier()->getName() : $left->getEntityName();
 			$relatedPropertyName = $isMainRange ? $left->getName() : $right->getName();
-			$relatedEntityName = $isMainRange ? $left->getEntityName() : $right->getEntityOrParentIdentifier()->getName();
+			$relatedEntityName = $isMainRange ? $left->getEntityName() : $right->getParentIdentifier()->getName();
 			
 			// Ophalen van de annotaties van de gerelateerde entiteit.
 			$entityAnnotations = $this->entityStore->getAnnotations($ownEntityName);
@@ -363,14 +363,14 @@
 				$right = $joinProperty->getRight();
 				
 				// Draai de twee om, als het rechterdeel de huidige range target
-				if ($right->getEntityOrParentIdentifier()->getName() == $range->getEntity()->getName()) {
+				if ($right->getParentIdentifier()->getName() == $range->getEntity()->getName()) {
 					$tmp = $left;
 					$left = $right;
 					$right = $tmp;
 				}
 				
 				// Als het linkerdeel niet de huidige range hit, dan kan hij zeker niet required worden
-				if ($left->getEntityOrParentIdentifier()->getName() !== $range->getEntity()->getName()) {
+				if ($left->getParentIdentifier()->getName() !== $range->getEntity()->getName()) {
 					continue;
 				}
 				
@@ -441,8 +441,8 @@
 			// Controleer elke methodeaanroep om te zien of de volledige entiteit al geladen is, en voeg deze toe indien nodig.
 			foreach ($methodCallsVisitor->getResult() as $method) {
 				// Controleer of de entiteit al onderdeel is van de waarden die ingelezen worden.
-				$entityName = $method->getEntityOrParentIdentifier()->getName();
-				$range = $method->getEntityOrParentIdentifier()->getRange();
+				$entityName = $method->getParentIdentifier()->getName();
+				$range = $method->getParentIdentifier()->getRange();
 				
 				foreach ($ast->getValues() as $value) {
 					if ($value->getName() == $range->getName()) {

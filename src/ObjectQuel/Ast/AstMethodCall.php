@@ -39,7 +39,7 @@
 		 * Returns the entity
 		 * @return AstEntity|AstIdentifier The entity node
 		 */
-		public function getEntityOrParentIdentifier(): AstEntity|AstMethodCall {
+		public function getParentIdentifier(): AstEntity|AstMethodCall {
 			return $this->entityOrParentIdentifier;
 		}
 		

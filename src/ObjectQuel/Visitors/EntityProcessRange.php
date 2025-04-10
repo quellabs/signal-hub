@@ -11,7 +11,7 @@
 	/**
 	 * Class EntityProcessRange
 	 * If a given entity is a range, fetch the attached entity and
-	 * store it in the AstEntity node.
+	 * store the range in the AstEntity node.
 	 */
 	class EntityProcessRange implements AstVisitorInterface {
 		
@@ -19,34 +19,19 @@
 		 * Array of ranges (aliases)
 		 */
 		private array $ranges;
-
+		
 		/**
 		 * EntityProcessRange constructor.
-		 * @param array $ranges Table of ranges
+		 * @param array $ranges Table of ranges (should contain AstRangeDatabase objects)
 		 */
 		public function __construct(array $ranges) {
 			$this->ranges = $ranges;
 		}
 		
 		/**
-		 * Returns the entity name from the range array
-		 * @param string $range
-		 * @return AstEntity|null
-		 */
-		protected function getEntityFromRange(string $range): ?AstEntity {
-			foreach($this->ranges as $astRange) {
-				if ($astRange->getName() == $range) {
-					return $astRange->getEntity();
-				}
-			}
-			
-			return null;
-		}
-		
-		/**
 		 * Returns true if the given entity name is a range
-		 * @param string $range
-		 * @return AstRangeDatabase|null
+		 * @param string $range The name of the range to search for
+		 * @return AstRangeDatabase|null Returns the matching range object or null if not found
 		 */
 		protected function getRange(string $range): ?AstRangeDatabase {
 			foreach($this->ranges as $astRange) {
@@ -70,7 +55,6 @@
 				
 				if ($range !== null) {
 					$node->setRange($range);
-					$node->setName($this->getEntityFromRange($entityName)->getName());
 				}
 			}
 		}
