@@ -2,6 +2,8 @@
 	
     namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstRangeJsonSource;
+	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;

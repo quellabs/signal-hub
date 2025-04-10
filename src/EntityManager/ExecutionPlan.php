@@ -2,6 +2,9 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstRangeJsonSource;
+	use Services\ObjectQuel\Ast\AstRetrieve;
+	
 	/**
 	 * ExecutionPlan class manages the execution of query stages within the EntityManager system.
 	 * It maintains a collection of stages and provides methods to organize and retrieve them
