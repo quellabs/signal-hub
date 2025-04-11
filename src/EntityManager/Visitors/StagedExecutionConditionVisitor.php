@@ -52,11 +52,10 @@
 		
 		/**
 		 * Visits an AST node and classifies it into the appropriate condition category
-		 *
 		 * @param AstInterface $node The current node being visited
 		 * @return void
 		 */
-		public function visitNode(AstInterface $node) {
+		public function visitNode(AstInterface $node): void {
 			if ($node instanceof AstBinaryOperator) {
 				$this->processBinaryOperator($node);
 			} else {
@@ -166,7 +165,6 @@
 		
 		/**
 		 * Adds a join condition to the list
-		 *
 		 * @param AstBinaryOperator $node
 		 * @return void
 		 */
@@ -199,13 +197,11 @@
 		 * @return array
 		 */
 		private function getReferencedRanges(AstInterface $node): array {
-			// Implementeer logica om alle gerefereerde ranges te vinden
-			// Dit is een placeholder - je moet deze implementeren
-			$ranges = [];
-			// ...
-			return $ranges;
+			$visitor = new GatherReferencedRanges();
+			$node->accept($visitor);
+			return $visitor->getRanges();
+			
 		}
-		
 		
 		/**
 		 * Returns true if the identifier is an entity, false if not
