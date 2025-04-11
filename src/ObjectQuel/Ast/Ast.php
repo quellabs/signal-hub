@@ -12,6 +12,8 @@
 	 */
 	abstract class Ast implements AstInterface {
 		
+		private ?Ast $parent = null;
+		
 		/**
 		 * Accepts a visitor to perform operations on this node.
 		 * The method delegates the call to the visitor, allowing it to
@@ -29,5 +31,30 @@
 		 */
 		public function getReturnType(): ?string {
 			return null;
+		}
+		
+		/**
+		 * Returns true if the node has a parent, false if not
+		 * @return bool
+		 */
+		public function hasParent(): bool {
+			return $this->parent !== null;
+		}
+		
+		/**
+		 * Returns the parent Ast
+		 * @return Ast|null
+		 */
+		public function getParent(): ?Ast {
+			return $this->parent;
+		}
+		
+		/**
+		 * Sets a new parent Ast
+		 * @param Ast|null $parent
+		 * @return void
+		 */
+		public function setParent(?Ast $parent): void {
+			$this->parent = $parent;
 		}
 	}

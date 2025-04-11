@@ -9,21 +9,28 @@
 	 */
 	class AstIdentifier extends Ast {
 		
-		protected AstEntity|AstIdentifier $parentIdentifier;
-		
 		/**
 		 * @var string The actual identifier value.
 		 */
 		protected string $identifier;
 		
 		/**
+		 * @var ?AstRange The attached range
+		 */
+		protected ?AstRange $range;
+		
+		/**
+		 * @var ?AstIdentifier Next identifier in chain
+		 */
+		protected ?AstIdentifier $next = null;
+		
+		/**
 		 * Constructor.
-		 * @param AstEntity|AstIdentifier $entityOrParentIdentifier
 		 * @param string $identifier The identifier value
 		 */
-		public function __construct(AstEntity|AstIdentifier $entityOrParentIdentifier, string $identifier) {
-			$this->parentIdentifier = $entityOrParentIdentifier;
+		public function __construct(string $identifier) {
 			$this->identifier = $identifier;
+			$this->range = null;
 		}
 		
 		/**
@@ -31,28 +38,30 @@
 		 * @param AstVisitorInterface $visitor Bezoeker object voor AST-manipulatie.
 		 */
 		public function accept(AstVisitorInterface $visitor): void {
-			parent::accept($visitor); // Accepteer eerst de bezoeker op ouderklasse
-			$this->parentIdentifier->accept($visitor); // Accepteer hem daarna op de entity AST
-		}
-		
-		/**
-		 * Returns the entity
-		 * @return AstEntity|AstIdentifier The entity node
-		 */
-		public function getParentIdentifier(): AstEntity|AstIdentifier {
-			return $this->parentIdentifier;
+			parent::accept($visitor);
+			
+			if ($this->hasNext()) {
+				$this->getNext()->accept($visitor);
+			}
 		}
 		
 		/**
 		 * Extracts and returns the entity name from the identifier.
-		 * @return string The entity name or the full identifier if no property specified.
+		 * @return string|null The entity name or the full identifier if no property specified.
 		 */
-		public function getEntityName(): string {
-			if (!$this->parentIdentifier instanceof AstEntity) {
-				return "";
+		public function getEntityName(): ?string {
+			// If this identifier has a range, use the entity from the range
+			if ($this->range !== null) {
+				return $this->range->getEntityName();
 			}
 			
-			return $this->parentIdentifier->getName();
+			// If this is part of a chain (has a parent), we don't need to resolve an entity
+			if ($this->getParent() !== null) {
+				return null;
+			}
+			
+			// No range and no parent, just use the identifier name itself as entity
+			return $this->getName();
 		}
 		
 		/**
@@ -61,5 +70,86 @@
 		 */
 		public function getName(): string {
 			return $this->identifier;
+		}
+		
+		/**
+		 * Extracts and returns the property name from the identifier.
+		 * @param string $name The property name or an empty string if not specified.
+		 * @return void
+		 */
+		public function setName(string $name): void {
+			$this->identifier = $name;
+		}
+		
+		/**
+		 * Chains all the names of identifiers together
+		 * @return string
+		 */
+		public function getCompleteName(): string {
+			// Start with base identifier
+			$current = $this;
+			$name = $this->getName();
+			
+			// Build the property access chain by walking the linked properties
+			while ($current->getNext() !== null) {
+				// Fetch next identifier in the list
+				$current = $current->getNext();
+				
+				// Add name to list
+				$name .= "." . $current->getName();
+			}
+			
+			// Return the name
+			return $name;
+		}
+		
+		/**
+		 * Returns true if the identifier contains another entry
+		 * @return bool
+		 */
+		public function hasNext(): bool {
+			return $this->next !== null;
+		}
+		
+		/**
+		 * Returns the next identifier in the chain
+		 * @return AstIdentifier|null
+		 */
+		public function getNext(): ?AstIdentifier {
+			return $this->next;
+		}
+		
+		/**
+		 * Sets the next identifier in the chain
+		 * @param Ast|null $next
+		 * @return void
+		 */
+		public function setNext(?Ast $next): void {
+			$this->next = $next;
+		}
+		
+		/**
+		 * Returns true if a range was assigned to this identifier
+		 * @return bool
+		 */
+		public function hasRange(): bool {
+			return $this->range !== null;
+		}
+		
+		/**
+		 * Returns the attached range
+		 * @return AstRange|null
+		 */
+		public function getRange(): ?AstRange {
+			return $this->range;
+		}
+		
+		/**
+		 * Sets or clears a range
+		 * @param AstRange|null $range
+		 * @return void
+		 */
+		public function setRange(?AstRange $range): void {
+			$this->range = $range;
 		}
 	}

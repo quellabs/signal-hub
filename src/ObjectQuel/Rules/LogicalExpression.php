@@ -3,7 +3,7 @@
 	namespace Services\ObjectQuel\Rules;
 	
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\Lexer;
 	use Services\ObjectQuel\LexerException;
@@ -23,42 +23,17 @@
 		}
 		
 		/**
-		 * Parse een 'atomaire' expressie, dit kan een eenvoudige expressie zijn of een volledige
-		 * logische expressie tussen haakjes.
-		 * @param AstEntity|null $entity
-		 * @return AstInterface De AST-node voor de atomaire expressie.
-		 * @throws LexerException|ParserException
-		 */
-		protected function parseAtomicExpression(?AstEntity $entity = null): AstInterface {
-			// Controleer of de volgende token een open haakje is.
-			if ($this->lexer->lookahead() == Token::ParenthesesOpen) {
-				// Verwacht een open haakje en ga verder.
-				$this->lexer->match(Token::ParenthesesOpen);
-				
-				// Parse de logische expressie die tussen de haakjes staat.
-				$expression = $this->parse($entity);
-				
-				// Verwacht een sluitend haakje om de expressie af te sluiten.
-				$this->lexer->match(Token::ParenthesesClose);
-				
-				// Retourneer de geparseerde logische expressie.
-				return $expression;
-			}
-			
-			// Als er geen open haakje is, parse dan een eenvoudige expressie.
-			$expressionRule = new FilterExpression($this->lexer);
-			return $expressionRule->parse($entity);
-		}
-		
-		/**
 		 * Parse an AND expression. This function handles chains of AND operations.
 		 * @return AstInterface The resulting AST node representing the parsed AND expression.
-		 * @param AstEntity|null $entity
-		 * @throws LexerException|ParserException
+		 * @throws LexerException
+		 * @throws ParserException
 		 */
-		protected function parseAndExpression(?AstEntity $entity = null): AstInterface {
+		protected function parseAndExpression(): AstInterface {
+			// Load parser for comparisons
+			$comparisonExpression = new ComparisonExpression($this->lexer);
+
 			// Parse the left-hand side of the AND expression
-			$left = $this->parseAtomicExpression($entity);
+			$left = $comparisonExpression->parse();
 			
 			// Keep parsing as long as we encounter 'AND' tokens
 			while ($this->lexer->lookahead() == Token::And) {
@@ -67,7 +42,7 @@
 				
 				// Parse the right-hand side of the AND expression and combine it
 				// with the left-hand side to form a new AND expression
-				$left = new AstBinaryOperator($left, $this->parseAtomicExpression($entity), 'AND');
+				$left = new AstBinaryOperator($left, $comparisonExpression->parse(), 'AND');
 			}
 			
 			// Return the final AND expression
@@ -77,13 +52,18 @@
 		/**
 		 * Parse a logical expression. This function handles OR operations,
 		 * and delegates to `parseAndExpression` to handle AND expressions.
-		 * @param AstEntity|null $entity
 		 * @return AstInterface The resulting AST node representing the parsed logical expression.
 		 * @throws LexerException|ParserException
 		 */
-		public function parse(?AstEntity $entity = null): AstInterface {
+		public function parse(): AstInterface {
+			// Handle NOT expression
+			if ($this->lexer->lookahead() == Token::Not) {
+				$this->lexer->match(Token::Not);
+				return new AstNot($this->parse());
+			}
+			
 			// Parse the left-hand side of the OR expression; this could be an AND expression
-			$left = $this->parseAndExpression($entity);
+			$left = $this->parseAndExpression();
 			
 			// Continue parsing as long as we encounter 'OR' tokens
 			while ($this->lexer->lookahead() == Token::Or) {
@@ -92,7 +72,7 @@
 				
 				// Parse the right-hand side of the OR expression and combine it
 				// with the left-hand side to form a new OR expression
-				$left = new AstBinaryOperator($left, $this->parseAndExpression($entity), 'OR');
+				$left = new AstBinaryOperator($left, $this->parseAndExpression(), 'OR');
 			}
 			
 			// Return the final OR expression

@@ -13,7 +13,7 @@
 	class AstRangeDatabase extends AstRange {
 		
 		// Entiteit geassocieerd met het bereik
-		private AstEntity $entity;
+		private string $entityName;
 		
 		// De via string geeft aan op welk veld gejoined moet worden (LEFT JOIN etc)
 		private ?AstInterface $joinProperty;
@@ -24,17 +24,15 @@
 		/**
 		 * AstRange constructor.
 		 * @param string $name De naam voor dit bereik.
-		 * @param AstEntity $entity De entiteit die is geassocieerd met dit bereik.
+		 * @param string $entityName Naam van de entiteit die is geassocieerd met dit bereik.
 		 * @param AstInterface|null $joinProperty
 		 * @param bool $required True als de relatie verplicht is. E.g. het gaat om een INNER JOIN. False voor LEFT JOIN.
 		 */
-		public function __construct(string $name, AstEntity $entity, ?AstInterface $joinProperty=null, bool $required=false) {
+		public function __construct(string $name, string $entityName, ?AstInterface $joinProperty=null, bool $required=false) {
 			parent::__construct($name);
-			$this->entity = $entity;
+			$this->entityName = $entityName;
 			$this->joinProperty = $joinProperty;
 			$this->required = $required;
-			
-			$this->entity->setRange($this);
 		}
 		
 		/**
@@ -43,7 +41,6 @@
 		 */
 		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);  // Accepteer eerst de bezoeker op ouderklasse
-			$this->entity->accept($visitor);  // Accepteer vervolgens de bezoeker op de entiteit
 			
 			if (!is_null($this->joinProperty)) {
 				$this->joinProperty->accept($visitor); // En accepteer de 'via' property
@@ -52,10 +49,10 @@
 		
 		/**
 		 * Haal de AST van de entiteit op die is geassocieerd met dit bereik.
-		 * @return AstEntity De naam van de entiteit.
+		 * @return string De naam van de entiteit.
 		 */
-		public function getEntity(): AstEntity {
-			return $this->entity;
+		public function getEntityName(): string {
+			return $this->entityName;
 		}
 		
 		/**

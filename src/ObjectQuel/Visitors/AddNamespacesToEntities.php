@@ -3,15 +3,10 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\QuelException;
 	
 	/**
 	 * Class AddNamespacesToEntities
@@ -78,7 +73,12 @@
 		 */
 		public function visitNode(AstInterface $node): void {
 			// Controleert of de node een instantie van AstEntity is. Zo niet, dan stopt de functie.
-			if (!$node instanceof AstEntity) {
+			if (!$node instanceof AstIdentifier) {
+				return;
+			}
+			
+			// Controleert dat de node geen onderdeel is van een keten
+			if ($node->getParent() !== null) {
 				return;
 			}
 			

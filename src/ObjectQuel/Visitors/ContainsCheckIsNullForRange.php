@@ -3,7 +3,6 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\AstInterface;
     use Services\ObjectQuel\Ast\AstCheckNull;
     use Services\ObjectQuel\Ast\AstIdentifier;
@@ -39,7 +38,7 @@
                 return;
             }
             
-            if ($node->getExpression()->getEntity()->getRange()->getName() === $this->rangeName) {
+            if ($node->getExpression()->getRange()->getName() === $this->rangeName) {
                 throw new \Exception("Contains {$this->rangeName}");
 			}
 		}

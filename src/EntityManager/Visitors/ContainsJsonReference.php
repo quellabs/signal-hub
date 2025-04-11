@@ -2,7 +2,6 @@
 	
 	namespace Services\EntityManager\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\AstInterface;
@@ -28,13 +27,8 @@
 				return;
 			}
 			
-			// The identifier must be part of an entity reference
-			if (!$node->getParentIdentifier() instanceof AstEntity) {
-				return;
-			}
-			
 			// Check if the entity's range is a JSON source
-			if (!$node->getParentIdentifier()->getRange() instanceof AstRangeJsonSource) {
+			if (!$node->getRange() instanceof AstRangeJsonSource) {
 				return;
 			}
 			

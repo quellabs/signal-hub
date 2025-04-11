@@ -19,10 +19,16 @@
 		 * @throws QuelException
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstIdentifier) {
-				if (empty($node->getParentIdentifier()->getRange())) {
-					throw new QuelException("The 'via' clause in the range '%s' directly refers to an entity. The 'via' clause must reference another range. Please review the query and ensure that the 'via' clause correctly represents the relationship between ranges.");
-				}
+			if (!$node instanceof AstIdentifier) {
+				return;
+			}
+			
+			if ($node->hasParent()) {
+				return;
+			}
+			
+			if (empty($node->getRange())) {
+				throw new QuelException("The 'via' clause in the range '%s' directly refers to an entity. The 'via' clause must reference another range. Please review the query and ensure that the 'via' clause correctly represents the relationship between ranges.");
 			}
 		}
 	}

@@ -15,6 +15,9 @@
 			$this->left = $left;
 			$this->right = $right;
 			$this->operator = $operator;
+			
+			$this->left->setParent($this);
+			$this->right->setParent($this);
 		}
 		
 		/**

@@ -33,9 +33,12 @@
 		 * @param AstInterface $right The right-hand operand.
 		 */
 		public function __construct(AstInterface $left, AstInterface $right, string $operator) {
-			$this->operator = $operator;
 			$this->left = $left;
 			$this->right = $right;
+			$this->operator = $operator;
+			
+			$this->left->setParent($this);
+			$this->right->setParent($this);
 		}
 		
 		/**

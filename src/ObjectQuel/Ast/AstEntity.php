@@ -71,11 +71,7 @@
 				return $this->name;
 			}
 			
-			if ($this->range->getEntity() === $this) {
-				return $this->name;
-			}
-			
-			return $this->range->getEntity()->getName();
+			return $this->range->getEntityName();
 		}
 		
 		/**

@@ -11,7 +11,6 @@
 	use Services\ObjectQuel\Ast\AstBool;
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;
-	use Services\ObjectQuel\Ast\AstEntity;
     use Services\ObjectQuel\Ast\AstCheckNull;
     use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstFactor;
@@ -25,6 +24,7 @@
 	use Services\ObjectQuel\Ast\AstNull;
 	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRegExp;
 	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
@@ -62,7 +62,20 @@
 			$this->parameters = &$parameters;
 			$this->partOfQuery = $partOfQuery;
 		}
-
+		
+		/**
+		 * Returns true if the identifier is an entity, false if not
+		 * @param AstInterface $ast
+		 * @return bool
+		 */
+		protected function identifierIsEntity(AstInterface $ast): bool {
+			return (
+				$ast instanceof AstIdentifier &&
+				$ast->getRange() instanceof AstRangeDatabase &&
+				!$ast->hasNext()
+			);
+		}
+		
 		/**
 		 * Determines the return type of the identifier by checking its annotations
 		 * @param AstIdentifier $identifier Entity identifier to analyze
@@ -132,7 +145,15 @@
 		 * @return void
 		 */
 		protected function addToVisitedNodes(AstInterface $ast): void {
+			// Add node to the visited list
 			$this->visitedNodes[spl_object_id($ast)] = true;
+			
+			// Also add all AstIdentifier child properties
+			if ($ast instanceof AstIdentifier) {
+				if ($ast->hasNext()) {
+					$this->addToVisitedNodes($ast->getNext());
+				}
+			}
 		}
 		
 		/**
@@ -147,13 +168,12 @@
 			
 			foreach ($search->getIdentifiers() as $identifier) {
 				// Mark nodes as visited
-				$this->addToVisitedNodes($identifier->getParentIdentifier());
 				$this->addToVisitedNodes($identifier);
 				
 				// Get column name
 				$entityName = $identifier->getEntityName();
-				$rangeName = $identifier->getParentIdentifier()->getRange()->getName();
-				$propertyName = $identifier->getName();
+				$rangeName = $identifier->getRange()->getName();
+				$propertyName = $identifier->getNext()->getName();
 				$columnMap = $this->entityStore->getColumnMap($entityName);
 				$columnName = "{$rangeName}.{$columnMap[$propertyName]}";
 				
@@ -324,7 +344,7 @@
 			// Verwerk een entity apart
 			$expression = $ast->getExpression();
 			
-			if ($expression instanceof AstEntity) {
+			if ($this->identifierIsEntity($expression)) {
 				$this->addToVisitedNodes($expression);
 				$this->handleEntity($expression);
 				return;
@@ -385,17 +405,14 @@
 		 * @return void
 		 */
 		protected function handleIdentifier(AstIdentifier $ast): void {
-			// Ast or parent identifier
-			$entityOrParentIdentifier = $ast->getParentIdentifier();
-			
-			// Visit the node
-			$this->addToVisitedNodes($entityOrParentIdentifier);
+			// Voeg de identifier en alle properties toe aan de 'visited nodes' lijst
+			$this->addToVisitedNodes($ast);
 			
 			// Haal informatie van de identifier op
-			$range = $entityOrParentIdentifier->getRange();
+			$range = $ast->getRange();
 			$rangeName = $range->getName();
-			$entityName = $entityOrParentIdentifier->getName();
-			$propertyName = $ast->getName();
+			$entityName = $ast->getEntityName();
+			$propertyName = $ast->getNext()->getName();
 			$columnMap = $this->entityStore->getColumnMap($entityName);
 			
 			// Als dit niet het onderdeel 'SORT BY' is, voeg dan de genormaliseerde property toe
@@ -428,15 +445,15 @@
 		}
 
 		/**
-		 * Verwerkt een AstEntity-object
-		 * @param AstEntity $ast
+		 * Verwerkt een entity
+		 * @param AstIdentifier $ast
 		 * @return void
 		 */
-		protected function handleEntity(AstEntity $ast): void {
+		protected function handleEntity(AstIdentifier $ast): void {
 			$result = [];
 			$range = $ast->getRange();
 			$rangeName = $range->getName();
-			$columnMap = $this->entityStore->getColumnMap($ast->getName());
+			$columnMap = $this->entityStore->getColumnMap($ast->getEntityName());
 			
 			foreach($columnMap as $item => $value) {
 				$result[] = "{$rangeName}.{$value} as `{$rangeName}.{$item}`";
@@ -491,7 +508,7 @@
 			$identifier = $ast->getIdentifier();
 			
 			// Als de identifier een entiteit is, tellen we het aantal unieke instanties van deze entiteit.
-			if ($identifier instanceof AstEntity) {
+			if ($this->identifierIsEntity($identifier)) {
 				// Voeg de entiteit toe aan de lijst van bezochte nodes.
 				$this->addToVisitedNodes($identifier);
 				
@@ -514,13 +531,12 @@
 			if ($identifier instanceof AstIdentifier) {
 				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
 				$this->addToVisitedNodes($identifier);
-				$this->addToVisitedNodes($identifier->getParentIdentifier());
 				
 				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
-				$range = $identifier->getParentIdentifier()->getRange()->getName();
+				$range = $identifier->getRange()->getName();
 				
 				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
-				$property = $identifier->getName();
+				$property = $identifier->getNext()->getName();
 				$columnMap = $this->entityStore->getColumnMap($identifier->getEntityName());
 				
 				// Voeg de COUNT operatie toe aan het resultaat, om de frequentie van een specifieke eigenschap te tellen.

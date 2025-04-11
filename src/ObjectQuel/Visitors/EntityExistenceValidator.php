@@ -3,9 +3,7 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
@@ -37,10 +35,16 @@
 		 * @throws QuelException
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstEntity) {
-				$entityName = basename(str_replace('\\', '/', $node->getName()));
+			if ($node instanceof AstIdentifier) {
+				$entityName = $node->getEntityName();
 				
-				if (!$this->entityStore->exists($entityName)) {
+				if ($entityName === null) {
+					return;
+				}
+				
+				$entityNameFixed = basename(str_replace('\\', '/', $entityName));
+				
+				if (!$this->entityStore->exists($entityNameFixed)) {
 					throw new QuelException("The entity or range {$entityName} referenced in the query does not exist. Please check the query for incorrect references and ensure all specified entities or ranges are correctly defined.");
 				}
 			}

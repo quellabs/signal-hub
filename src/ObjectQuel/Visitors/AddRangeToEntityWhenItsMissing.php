@@ -2,7 +2,7 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
@@ -31,12 +31,17 @@
 		 */
 		public function visitNode(AstInterface $node): void {
 			// Deze visitor behandeld alleen AstEntity
-			if (!$node instanceof AstEntity) {
+			if (!$node instanceof AstIdentifier) {
 				return;
 			}
 			
 			// Sla deze node over als hij al een alias heeft
 			if ($node->hasRange()) {
+				return;
+			}
+			
+			// Sla deze node over als het onderdeel is van een keten
+			if ($node->getParent() instanceof AstIdentifier) {
 				return;
 			}
 			
@@ -63,7 +68,7 @@
 			} while (in_array($newAlias, $this->range_names));
 			
 			// Make een nieuwe range
-			$newRange = new AstRangeDatabase($newAlias, $node, null);
+			$newRange = new AstRangeDatabase($newAlias, $node->getEntityName(), null);
 			
 			// Voeg de nieuwe, unieke alias toe aan de lijst met bestaande aliassen
 			$this->created_ranges[$node->getName()] = $newRange;

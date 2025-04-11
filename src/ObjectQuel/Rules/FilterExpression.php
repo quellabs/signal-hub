@@ -2,7 +2,6 @@
 	
 	namespace Services\ObjectQuel\Rules;
 	
-    use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNot;
 	use Services\ObjectQuel\Ast\AstNumber;
@@ -14,7 +13,7 @@
     use Services\ObjectQuel\Ast\AstCheckNull;
     use Services\ObjectQuel\Ast\AstCheckNotNull;
     
-    class FilterExpression extends GeneralExpression {
+    class FilterExpression extends ArithmeticExpression {
 		
 		/**
 		 * Parses the IN() keyword
@@ -84,13 +83,12 @@
 		/**
 		 * Parse an expression, which can either be a simple term, a ternary
 		 * conditional expression, or a relational expression.
-		 * @param AstEntity|null $entity
 		 * @return AstInterface The resulting AST node representing the parsed expression.
 		 * @throws LexerException|ParserException
 		 */
-		public function parse(?AstEntity $entity = null): AstInterface {
+		public function parse(): AstInterface {
 			// Parse the first term in the expression
-			$expression = parent::parse($entity);
+			$expression = parent::parse();
 	
             // After matching IS, look for 'null' or 'not null'
             if ($this->lexer->lookahead() == Token::Is) {

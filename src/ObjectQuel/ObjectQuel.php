@@ -8,7 +8,6 @@
 	use Services\EntityManager\EntityManager;
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNumber;
@@ -254,11 +253,11 @@
 	     */
 		private function setRangeRequiredIfNeeded(AstRangeDatabase $mainRange, AstRangeDatabase $range, AstIdentifier $left, AstIdentifier $right): void {
 			// Properties
-			$isMainRange = $right->getParentIdentifier()->getRange() === $mainRange;
+			$isMainRange = $right->getRange() === $mainRange;
 			$ownPropertyName = $isMainRange ? $right->getName() : $left->getName();
-			$ownEntityName = $isMainRange ? $right->getParentIdentifier()->getName() : $left->getEntityName();
+			$ownEntityName = $isMainRange ? $right->getEntityName() : $left->getEntityName();
 			$relatedPropertyName = $isMainRange ? $left->getName() : $right->getName();
-			$relatedEntityName = $isMainRange ? $left->getEntityName() : $right->getParentIdentifier()->getName();
+			$relatedEntityName = $isMainRange ? $left->getEntityName() : $right->getEntityName();
 			
 			// Ophalen van de annotaties van de gerelateerde entiteit.
 			$entityAnnotations = $this->entityStore->getAnnotations($ownEntityName);
@@ -363,14 +362,14 @@
 				$right = $joinProperty->getRight();
 				
 				// Draai de twee om, als het rechterdeel de huidige range target
-				if ($right->getParentIdentifier()->getName() == $range->getEntity()->getName()) {
+				if ($right->getEntityName() == $range->getEntityName()) {
 					$tmp = $left;
 					$left = $right;
 					$right = $tmp;
 				}
 				
 				// Als het linkerdeel niet de huidige range hit, dan kan hij zeker niet required worden
-				if ($left->getParentIdentifier()->getName() !== $range->getEntity()->getName()) {
+				if ($left->getEntityName() !== $range->getEntityName()) {
 					continue;
 				}
 				
@@ -411,52 +410,6 @@
 			}
 		}
 		
-		/**
-		 * Verwerkt sorteerlogica door de benodigde entiteiten volledig in te lezen als de 'sort in application' vlag actief is.
-		 *
-		 * Deze functie controleert eerst of de sorteerlogica in de applicatie zelf moet worden uitgevoerd.
-		 * Als dit het geval is, controleert de functie vervolgens of de 'InValuesAreFinal' richtlijn aanwezig is.
-		 * Als 'InValuesAreFinal' aanwezig is, wordt de verdere verwerking overgeslagen.
-		 * Anders verzamelt de functie alle methodeaanroepen binnen de sorteeroperatie en controleert of
-		 * de complete entiteit van elke methodeaanroep al geladen is. Zo niet, dan wordt deze toegevoegd aan de AST.
-		 * @param AstRetrieve $ast De AST die mogelijk aangepast moet worden om alle benodigde data in te laden.
-		 */
-		private function plugCompleteEntityIfSortInApplicationFlagSet(AstRetrieve $ast): void {
-			// Controleer of sorteren in de applicatie logica nodig is.
-			if (!$ast->getSortInApplicationLogic()) {
-				return;
-			}
-			
-			// Controleer of de 'InValuesAreFinal' richtlijn ingesteld is, wat betekent dat geen verdere sorteerlogica nodig is.
-			if (!empty($ast->getDirective('InValuesAreFinal'))) {
-				return;
-			}
-			
-			// Verzamel alle methodeaanroepen die relevant zijn voor de sorteeroperatie.
-			$methodCallsVisitor = new FetchMethodCalls();
-			foreach ($ast->getSort() as $item) {
-				$item['ast']->accept($methodCallsVisitor);
-			}
-			
-			// Controleer elke methodeaanroep om te zien of de volledige entiteit al geladen is, en voeg deze toe indien nodig.
-			foreach ($methodCallsVisitor->getResult() as $method) {
-				// Controleer of de entiteit al onderdeel is van de waarden die ingelezen worden.
-				$entityName = $method->getParentIdentifier()->getName();
-				$range = $method->getParentIdentifier()->getRange();
-				
-				foreach ($ast->getValues() as $value) {
-					if ($value->getName() == $range->getName()) {
-						continue 2;
-					}
-				}
-				
-				// Voeg de complete entiteit toe aan de AST.
-				$astEntity = new AstEntity($entityName, clone $range);
-				$alias = new AstAlias($range->getName(), $astEntity, "{$range->getName()}.");
-				$ast->addValue($alias);
-			}
-		}
-	 
 		private function handleExistsOperatorHelperSetParent(AstInterface $parent, AstInterface $item, bool $parentLeft): void {
 			if ($parent instanceof AstRetrieve) {
 				$parent->setConditions($item);
@@ -647,9 +600,6 @@
 			// Add a 'sort in application' flag when the sort conditions contain a method call
 			$this->setSortInApplicationFlag($ast);
 			
-			// Add complete entity to fetch list if 'sort in application' is set and it's not there
-			$this->plugCompleteEntityIfSortInApplicationFlagSet($ast);
-			
 			// Handle exists() operator
 			$this->handleExistsOperator($ast);
 		}
@@ -703,7 +653,7 @@
 					$joinProperty = $range->getJoinProperty();
 					
 					if ($joinProperty !== null) {
-						$rangeOnlyOtherRanges = new ValidateRelationInViaValid($this->entityStore, $range->getEntity()->getName(), $range->getName());
+						$rangeOnlyOtherRanges = new ValidateRelationInViaValid($this->entityStore, $range->getEntityName(), $range->getName());
 						$joinProperty->accept($rangeOnlyOtherRanges);
 					}
 				} catch (QuelException $e) {

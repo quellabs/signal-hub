@@ -3,7 +3,7 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
@@ -49,7 +49,7 @@
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstEntity) {
+			if ($node instanceof AstIdentifier) {
 				$entityName = $node->getName();
 				$range = $this->getRange($entityName);
 				

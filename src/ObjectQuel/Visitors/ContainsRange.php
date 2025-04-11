@@ -3,7 +3,7 @@
 	
 	namespace Services\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
@@ -30,10 +30,18 @@
 		 * @throws \Exception
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstEntity) {
-				if ($node->getRange()->getName() == $this->rangeName) {
-					throw new \Exception("Contains {$this->rangeName}");
-				}
+			if (!$node instanceof AstIdentifier) {
+				return;
 			}
+			
+			if ($node->getRange() === null) {
+				return;
+			}
+			
+			if ($node->getRange()->getName() !== $this->rangeName) {
+				return;
+			}
+			
+			throw new \Exception("Contains {$this->rangeName}");
 		}
 	}

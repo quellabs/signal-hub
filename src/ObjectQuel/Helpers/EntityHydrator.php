@@ -4,17 +4,18 @@
 	
 	use Services\AnnotationsReader\Annotations\Orm\Column;
 	use Services\EntityManager\EntityManager;
+	use Services\EntityManager\EntityStore;
 	use Services\EntityManager\ProxyInterface;
 	use Services\EntityManager\Serializers\Serializer;
+	use Services\EntityManager\UnitOfWork;
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	
 	class EntityHydrator {
 		
-		private \Services\EntityManager\UnitOfWork $unitOfWork;
+		private UnitOfWork $unitOfWork;
 		private EntityManager $entityManager;
-		private \Services\EntityManager\EntityStore $entityStore;
+		private EntityStore $entityStore;
 		private Serializer $serializer;
 		
 		public function __construct(EntityManager $entityManager) {
@@ -96,7 +97,7 @@
 			
 			// Extract metadata about the entity from the expression
 			$expression = $value->getExpression();
-			$entity = $expression->getName(); // The entity class name
+			$entity = $this->entityStore->normalizeEntityName($expression->getEntityName()); // The entity class name
 			$rangeName = $expression->getRange()->getName(); // The alias/range name in the query
 			
 			// Remove the range prefix from column names in the row data
@@ -148,8 +149,8 @@
 			// Bewaar de node
 			$node = $value->getExpression();
 			
-			// Fetch Entity
-			if ($node instanceof AstEntity) {
+			// Fetch entity
+			if ($node instanceof AstIdentifier && !$node->hasParent()) {
 				// Filter de rows voor deze entity uit
 				$filteredRow = array_intersect_key($row, $relationCache["keys_flipped"]);
 				
@@ -158,9 +159,10 @@
 			}
 			
 			// Fetch identifier
-			if ($node instanceof AstIdentifier) {
+			if ($node instanceof AstIdentifier && $node->hasParent()) {
+				$parent = $node->getParent();
 				$value = $row[$value->getName()];
-				$annotations = $this->entityStore->getAnnotations($node->getEntityName());
+				$annotations = $this->entityStore->getAnnotations($parent->getEntityName());
 				$annotationsForProperty = $annotations[$node->getName()];
 				
 				foreach ($annotationsForProperty as $annotation) {
@@ -181,7 +183,7 @@
 			
 			foreach ($ast as $value) {
 				$name = $value->getName();
-				$isEntity = $value->getExpression() instanceof AstEntity;
+				$isEntity = $value->getExpression() instanceof AstIdentifier && !$value->getExpression()->hasParent() && !$value->getExpression()->hasNext();
 				$rangeName = $isEntity ? $value->getExpression()->getRange()->getName() : null;
 				
 				$processedValue = $this->processValue(
@@ -216,30 +218,36 @@
 			foreach ($ast as $value) {
 				$expression = $value->getExpression();
 				
-				if ($expression instanceof AstEntity) {
-					$rangeName = $expression->getRange()->getName();
-					$rangeNameLength = strlen($rangeName) + 1;
-					$class = $expression->getName();
+				if (!$expression instanceof AstIdentifier) {
+					continue;
+				}
+				
+				if ($expression->hasParent()) {
+					continue;
+				}
+				
+				// Check if entity is already cached
+				$rangeName = $expression->getRange()->getName();
+				$rangeNameLength = strlen($rangeName) + 1;
+				$class = $expression->getEntityName();
+				
+				if (!isset($relationCache[$rangeName])) {
+					$keys = [];
+					$identifierKeys = $this->entityStore->getIdentifierKeys($class);
 					
-					// Check if entity is already cached
-					if (!isset($relationCache[$rangeName])) {
-						$keys = [];
-						$identifierKeys = $this->entityStore->getIdentifierKeys($class);
-						
-						// Collect matching keys
-						foreach ($row as $rowKey => $rowValue) {
-							if (strncmp($rowKey, "{$rangeName}.", $rangeNameLength) === 0) {
-								$keys[] = $rowKey;
-							}
+					// Collect matching keys
+					foreach ($row as $rowKey => $rowValue) {
+						if (strncmp($rowKey, "{$rangeName}.", $rangeNameLength) === 0) {
+							$keys[] = $rowKey;
 						}
-						
-						$relationCache[$rangeName] = [
-							'identifiers'         => $identifierKeys,
-							'identifiers_flipped' => array_flip($identifierKeys),
-							'keys'                => $keys,
-							'keys_flipped'        => array_flip($keys)
-						];
 					}
+					
+					$relationCache[$rangeName] = [
+						'identifiers'         => $identifierKeys,
+						'identifiers_flipped' => array_flip($identifierKeys),
+						'keys'                => $keys,
+						'keys_flipped'        => array_flip($keys)
+					];
 				}
 			}
 			

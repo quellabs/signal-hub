@@ -5,14 +5,12 @@
 	
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIsEmpty;
 	use Services\ObjectQuel\Ast\AstIsFloat;
 	use Services\ObjectQuel\Ast\AstIsInteger;
 	use Services\ObjectQuel\Ast\AstIsNumeric;
-	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
@@ -26,13 +24,13 @@
 	class QueryFunction {
 		
 		private Lexer $lexer;
-		private GeneralExpression $expressionRule;
+		private ArithmeticExpression $expressionRule;
 		
 		/**
 		 * QueryFunction constructor
-		 * @param GeneralExpression $expression
+		 * @param ArithmeticExpression $expression
 		 */
-		public function __construct(GeneralExpression $expression) {
+		public function __construct(ArithmeticExpression $expression) {
 			$this->expressionRule = $expression;
 			$this->lexer = $expression->getLexer();
 		}
@@ -41,17 +39,11 @@
 		 * Count operator
 		 * @return AstCount
 		 * @throws LexerException
-		 * @throws ParserException
 		 */
 		protected function parseCount(): AstCount {
 			$this->lexer->match(Token::ParenthesesOpen);
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parsePropertyChain();
 			$this->lexer->match(Token::ParenthesesClose);
-			
-			if ((!$countIdentifier instanceof AstEntity) && (!$countIdentifier instanceof AstIdentifier)) {
-				throw new ParserException("COUNT operator takes an entity or entity property as parameter.");
-			}
-			
 			return new AstCount($countIdentifier);
 		}
 		
@@ -59,27 +51,20 @@
 		 * Count operator
 		 * @return AstUCount
 		 * @throws LexerException
-		 * @throws ParserException
 		 */
 		protected function parseUCount(): AstUCount {
 			$this->lexer->match(Token::ParenthesesOpen);
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parsePropertyChain();
 			$this->lexer->match(Token::ParenthesesClose);
-			
-			if ((!$countIdentifier instanceof AstEntity) && (!$countIdentifier instanceof AstIdentifier)) {
-				throw new ParserException("UCOUNT operator takes an entity or entity property as parameter.");
-			}
-			
 			return new AstUCount($countIdentifier);
 		}
 		
 		/**
 		 * Parses a CONCAT function in the query.
-		 * @param AstEntity|null $entity The entity that owns this Concat operation.
 		 * @return AstConcat An AstConcat object containing parsed parameters.
 		 * @throws LexerException|ParserException
 		 */
-		protected function parseConcat(?AstEntity $entity=null): AstConcat {
+		protected function parseConcat(): AstConcat {
 			// Match the opening parenthesis.
 			$this->lexer->match(Token::ParenthesesOpen);
 			
@@ -87,7 +72,7 @@
 			$parameters = [];
 			
 			do {
-				$parameters[] = $this->expressionRule->parse($entity);
+				$parameters[] = $this->expressionRule->parse();
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			// Match the closing parenthesis.
@@ -177,7 +162,7 @@
 			$this->lexer->match(Token::ParenthesesOpen);
 
 			// Fetch identifier or string to check
-			$countIdentifier = $this->expressionRule->parseConstantOrIdentifier();
+			$countIdentifier = $this->expressionRule->parsePropertyChain();
 
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
@@ -217,12 +202,12 @@
 			$this->lexer->match(Token::ParenthesesOpen);
 			
 			// Fetch identifier or string to check
-			$entity = $this->expressionRule->parseConstantOrIdentifier();
+			$entity = $this->expressionRule->parsePropertyChain();
 			
 			// Closing parenthesis
 			$this->lexer->match(Token::ParenthesesClose);
 			
-			if (!$entity instanceof AstEntity) {
+			if ($entity->hasNext()) {
 				throw new ParserException("exists operator takes an entity as parameter.");
 			}
 			

@@ -11,16 +11,16 @@
 		
 		/**
 		 * The value or string to check
-		 * @var AstEntity
+		 * @var AstIdentifier
 		 */
-		protected AstEntity $entity;
+		protected AstIdentifier $identifier;
 		
 		/**
 		 * AstExists constructor.
-		 * @param AstEntity $entity
+		 * @param AstIdentifier $identifier
 		 */
-		public function __construct(AstEntity $entity) {
-			$this->entity = $entity;
+		public function __construct(AstIdentifier $identifier) {
+			$this->identifier = $identifier;
 		}
 		
 		/**
@@ -30,15 +30,15 @@
 		 */
 		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);
-			$this->entity->accept($visitor);
+			$this->identifier->accept($visitor);
 		}
 		
 		/**
 		 * Retrieves the entity
-		 * @return AstEntity
+		 * @return AstIdentifier
 		 */
-		public function getEntity(): AstEntity {
-			return $this->entity;
+		public function getIdentifier(): AstIdentifier {
+			return $this->identifier;
 		}
 		
 		/**
@@ -48,4 +48,5 @@
 		public function getReturnType(): ?string {
 			return "boolean";
 		}
+		
 	}

@@ -15,7 +15,7 @@
 	class Retrieve {
 
 		private Lexer $lexer;
-		private GeneralExpression $expressionRule;
+		private ArithmeticExpression $expressionRule;
 		private LogicalExpression $logicalExpressionRule;
 		
 		/**
@@ -24,7 +24,7 @@
 		 */
 		public function __construct(Lexer $lexer) {
 			$this->lexer = $lexer;
-			$this->expressionRule = new GeneralExpression($this->lexer);
+			$this->expressionRule = new ArithmeticExpression($this->lexer);
 			$this->logicalExpressionRule = new LogicalExpression($this->lexer);
 		}
 		

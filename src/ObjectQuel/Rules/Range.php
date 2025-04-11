@@ -3,9 +3,6 @@
 	namespace Services\ObjectQuel\Rules;
 	
 	// Import necessary AST classes and exceptions
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstJsonSource;
 	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
@@ -99,7 +96,7 @@
 			}
 			
 			// Create and return the AST node for a database entity with alias, entity name, and optional VIA condition
-			return new AstRangeDatabase($alias->getValue(), new AstEntity($entityName), $viaIdentifier);
+			return new AstRangeDatabase($alias->getValue(), $entityName, $viaIdentifier);
 		}
 		
 		/**

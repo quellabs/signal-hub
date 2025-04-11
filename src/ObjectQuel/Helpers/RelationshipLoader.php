@@ -10,8 +10,10 @@
 	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\ProxyInterface;
 	use Services\Kernel\PropertyHandler;
-	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRetrieve;
+	use Services\ObjectQuel\AstInterface;
 	
 	class RelationshipLoader {
 		
@@ -195,6 +197,19 @@
 		}
 		
 		/**
+		 * Returns true if the identifier is an entity, false if not
+		 * @param AstInterface $ast
+		 * @return bool
+		 */
+		protected function identifierIsEntity(AstInterface $ast): bool {
+			return (
+				$ast instanceof AstIdentifier &&
+				$ast->getRange() instanceof AstRangeDatabase &&
+				!$ast->hasNext()
+			);
+		}
+		
+		/**
 		 * Filtert en retourneert een array van geldige OneToMany dependencies voor een gegeven entiteit en eigenschap.
 		 * @param object $entity De entiteit waarvan de eigenschap wordt gecontroleerd.
 		 * @param string $property De naam van de eigenschap van de entiteit.
@@ -256,7 +271,7 @@
 			// Find a range that matches the relation criteria. If one is found, return true.
 			foreach ($this->retrieve->getValues() as $value) {
 				// Omit non entity values
-				if (!$value->getExpression() instanceof AstEntity) {
+				if (!$this->identifierIsEntity($value->getExpression())) {
 					continue;
 				}
 				
@@ -265,7 +280,7 @@
 				$range = $entity->getRange();
 				
 				if (
-					$entity->getName() === $targetEntity &&
+					$entity->getEntityName() === $targetEntity &&
 					$range->hasJoinProperty($targetEntity, $joinProperty)
 				) {
 					return true;

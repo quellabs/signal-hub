@@ -2,15 +2,6 @@
 	
 	namespace Services\ObjectQuel\Helpers;
 	
-	use Services\AnnotationsReader\Annotations\Orm\Column;
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\ProxyInterface;
-	use Services\EntityManager\Serializers\Serializer;
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstEntity;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstMethodCall;
-	
 	class ResultTransformer {
 		
 		/**
@@ -25,6 +16,7 @@
 					$entity = $ast->getParentIdentifier();
 					$range = $entity->getRange()->getName();
 					
+					/*
 					if ($ast instanceof AstMethodCall) {
 						$methodName = $ast->getName();
 						$aValue = $a[$range]->{$methodName}();
@@ -33,7 +25,11 @@
 						$aValue = $a[$range];
 						$bValue = $b[$range];
 					}
+					*/
 					
+					$aValue = $a[$range];
+					$bValue = $b[$range];
+
 					if ($aValue < $bValue) {
 						return $order === 'desc' ? 1 : -1;
 					} elseif ($aValue > $bValue) {

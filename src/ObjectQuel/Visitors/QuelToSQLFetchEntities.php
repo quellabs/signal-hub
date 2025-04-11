@@ -4,8 +4,8 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	// Importeer de vereiste klassen en interfaces
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
@@ -27,15 +27,16 @@
 		
 		/**
 		 * Voeg een entiteit toe aan de lijst als deze nog niet bestaat.
-		 * @param AstEntity $entity De entiteit die mogelijk wordt toegevoegd.
+		 * @param AstIdentifier $entity De entiteit die mogelijk wordt toegevoegd.
 		 * @return void
 		 */
-		protected function addEntityIfNotExists(AstEntity $entity): void {
+		protected function addEntityIfNotExists(AstIdentifier $entity): void {
 			// Loop door alle bestaande entiteiten om te controleren op duplicaten
 			foreach($this->entities as $e) {
 				// Als een entiteit met dezelfde gegevens al bestaat, verlaat de functie vroegtijdig
 				if (
-					($e->getName() == $entity->getName()) &&
+					$e->getRange() instanceof AstRangeDatabase &&
+					($e->getName() == $entity->getEntityName()) &&
 					($e->getRange() == $entity->getRange())
 				) {
 					return;
@@ -53,16 +54,14 @@
 		 */
 		public function visitNode(AstInterface $node): void {
 			// Controleer of het knooppunt een entiteit is en voeg het toe aan de array
-			if ($node instanceof AstEntity) {
+			if ($node instanceof AstIdentifier) {
 				$this->addEntityIfNotExists($node);
-			} elseif ($node instanceof AstIdentifier) {
-				$this->addEntityIfNotExists($node->getParentIdentifier());
 			}
 		}
 		
 		/**
 		 * Verkrijg de verzamelde entiteiten.
-		 * @return AstEntity[] De verzamelde entiteiten.
+		 * @return AstIdentifier[] De verzamelde entiteiten.
 		 */
 		public function getEntities(): array {
 			return $this->entities;

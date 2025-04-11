@@ -4,6 +4,7 @@
 	
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstEntity;
+	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	
@@ -21,7 +22,14 @@
 			}
 			
 			// Sla deze node over als het niet om een entity gaat
-			if (!$node->getExpression() instanceof AstEntity) {
+			if (!$node->getExpression() instanceof AstIdentifier) {
+				return;
+			}
+			
+			/**
+			 * Sla properties over
+			 */
+			if ($node->getExpression()->hasParent()) {
 				return;
 			}
 			

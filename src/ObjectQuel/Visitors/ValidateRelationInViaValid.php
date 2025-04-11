@@ -47,10 +47,20 @@
 				return;
 			}
 			
+			// Doe niets als de identifier onderdeel is van een ketting
+			if ($node->hasParent()) {
+				return;
+			}
+			
+			// Doe niets als de identifier geen properties heeft
+			if (!$node->hasNext()) {
+				return;
+			}
+			
 			// Haal alle afhankelijkheden op.
 			$entityName = $node->getEntityName();
-			$rangeName = $node->getParentIdentifier()->getRange()->getName();
-			$propertyName = $node->getName();
+			$rangeName = $node->getRange()->getName();
+			$propertyName = $node->getNext()->getName();
 			
 			$dependencies = [
 				'oneToOne'  => $this->entityStore->getOneToOneDependencies($entityName),

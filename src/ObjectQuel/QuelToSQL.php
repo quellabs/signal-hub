@@ -2,12 +2,9 @@
 	
 	namespace Services\ObjectQuel;
 	
-	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
@@ -59,18 +56,18 @@
 		
 		/**
 		 * Retrieve a list of fully qualified field names, along with aliases, from a given AST Entity object.
-		 * @param AstEntity $astEntity The AST Entity object to analyze.
+		 * @param AstIdentifier $identifier The AST Entity object to analyze.
 		 * @return array An array of fully qualified field names with aliases.
 		 */
-		protected function getFieldNamesFromEntity(AstEntity $astEntity): array {
+		protected function getFieldNamesFromEntity(AstIdentifier $identifier): array {
 			// Initialize an empty array to hold the result
 			$result = [];
 			
 			// Get the table alias or range from the AST Entity
-			$range = $astEntity->getRange()->getName();
+			$range = $identifier->getRange()->getName();
 			
 			// Get the actual entity name from the AST Entity
-			$entity = $astEntity->getName();
+			$entity = $identifier->getEntityName();
 			
 			// Retrieve the column map for the given entity
 			$columnMap = $this->entityStore->getColumnMap($entity);
@@ -92,13 +89,13 @@
 		 */
 		protected function getFieldNameFromIdentifier(AstIdentifier $astIdentifier): string {
 			// Get the table alias or range from the entity
-			$range = $astIdentifier->getParentIdentifier()->getRange()->getName();
+			$range = $astIdentifier->getRange()->getName();
 			
 			// Get the entity name
-			$entity = $astIdentifier->getParentIdentifier()->getName();
+			$entity = $astIdentifier->getName();
 			
 			// Get the property name from the AST Identifier
-			$propertyName = $astIdentifier->getName();
+			$propertyName = $astIdentifier->getNext()->getName();
 			
 			// Retrieve the column map based on the entity
 			$columnMap = $this->entityStore->getColumnMap($entity);
@@ -114,6 +111,19 @@
 		 */
 		protected function getUnique(AstRetrieve $retrieve): string {
 			return $retrieve->isUnique() ? "DISTINCT " : "";
+		}
+		
+		/**
+		 * Returns true if the identifier is an entity, false if not
+		 * @param AstInterface $ast
+		 * @return bool
+		 */
+		protected function identifierIsEntity(AstInterface $ast): bool {
+			return (
+				$ast instanceof AstIdentifier &&
+				$ast->getRange() instanceof AstRangeDatabase &&
+				!$ast->hasNext()
+			);
 		}
 		
 		/**
@@ -136,8 +146,8 @@
 				// Haal het geconverteerde SQL-resultaat op
 				$sqlResult = $quelToSQLConvertToString->getResult();
 				
-				// Controleer of de waarde een alias is die geen AstEntity-expressie bevat
-				if (($value instanceof AstAlias) && (!$value->getExpression() instanceof AstEntity)) {
+				// Controleer of de alias geen volledige entity is
+				if (($value instanceof AstAlias) && !$this->identifierIsEntity($value->getExpression())) {
 					// Voeg de alias toe aan het SQL-resultaat
 					$sqlResult .= " as `{$value->getName()}`";
 				}
@@ -153,7 +163,7 @@
 		/**
 		 * Verzamel alle entiteiten die in de retrieve-query worden gebruikt.
 		 * @param AstRetrieve $retrieve Het retrieve-object waaruit entiteiten worden gehaald.
-		 * @return AstEntity[] De lijst van gebruikte entiteiten.
+		 * @return AstIdentifier[] De lijst van gebruikte entiteiten.
 		 */
 		protected function getAllEntitiesUsed(AstRetrieve $retrieve): array {
 			// Maak een nieuwe instantie van de visitor om entiteiten te verzamelen
@@ -221,7 +231,7 @@
 				$rangeName = $range->getName();
 	
 				// Verkrijg de corresponderende tabelnaam voor de entiteit.
-				$owningTable = $this->entityStore->getOwningTable($range->getEntity()->getName());
+				$owningTable = $this->entityStore->getOwningTable($range->getEntityName());
 				
 				// Voeg de tabelnaam en alias toe aan de lijst voor de FROM-clausule.
 				$tableNames[] = "`{$owningTable}` as `{$rangeName}`";
@@ -278,8 +288,7 @@
 			}
 			
 			// Maak een AstIdentifier voor het zoeken naar een IN() in de query
-			$astEntity = new AstEntity($primaryKeyInfo['entityName'], clone $primaryKeyInfo['range']);
-			$astIdentifier = new AstIdentifier($astEntity, $primaryKeyInfo['primaryKey']);
+			$astIdentifier = new AstIdentifier($primaryKeyInfo['entityName']);
 			
 			try {
 				$visitor = new GetMainEntityInAst($astIdentifier);
@@ -380,7 +389,7 @@
 				// Verkrijg de naam en join-eigenschap van de entiteit.
 				$rangeName = $range->getName();
 				$joinProperty = $range->getJoinProperty();
-				$entityName = $range->getEntity()->getName();
+				$entityName = $range->getEntityName();
 
 				// Vind de tabel die bij de entiteit hoort.
 				$owningTable = $this->entityStore->getOwningTable($entityName);
