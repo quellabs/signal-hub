@@ -29,7 +29,7 @@
 		public function index(string $name): Response {
 			$result = $this->entityManager->executeQuery("
 				retrieve (ProductsDescriptionEntity) where ProductsDescriptionEntity.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
-				 and ProductsDescriptionEntity.productsId IN (1492)
+				 and ProductsDescriptionEntity.productsId >= 1492
 			");
 
 			/*

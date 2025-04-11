@@ -5,54 +5,27 @@
 	
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\AstInterface;
-    use Services\ObjectQuel\Ast\AstIdentifier;
-    use Services\ObjectQuel\AstVisitorInterface;
+	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\AstVisitorInterface;
 	
 	/**
-	 * Class GetMainEntityInAstException
-	 */
-	class GetMainEntityInAstException extends \Exception {
-		/**
-		 * Het opgeslagen AST-object dat aan de exception wordt meegegeven.
-		 * @var AstInterface
-		 */
-		private AstInterface $astObject;
-		
-		/**
-		 * Constructor voor GetMainEntityInAstException.
-		 * @param AstInterface $astObject Het AST-object dat de hoofdentiteit vertegenwoordigt.
-		 * @param string $message De foutmelding voor de exception (standaard leeg).
-		 * @param int $code De foutcode voor de exception (standaard 0).
-		 * @param \Throwable|null $previous Eventuele eerdere exception die deze exception heeft veroorzaakt.
-		 */
-		public function __construct(AstInterface $astObject, $message = "", $code = 0, \Throwable $previous = null) {
-			// Roep de parent Exception constructor aan
-			parent::__construct($message, $code, $previous);
-			
-			// Sla het AST-object op in een privé-eigenschap
-			$this->astObject = $astObject;
-		}
-		
-		/**
-		 * Haal het opgeslagen AST-object op.
-		 * @return AstInterface Het opgeslagen AST-object.
-		 */
-		public function getAstObject(): AstInterface {
-			return $this->astObject;
-		}
-	}
-	
-	/**
-	 * Class GetMainEntityInAst
-	 * Identifies the first IN() clause used on the primary key
+	 * A visitor implementation that traverses the AST to identify the first IN() clause
+	 * used on the primary key. This class follows the Visitor design pattern to separate
+	 * the traversal logic from the AST structure. When the target node is found, it
+	 * throws a GetMainEntityInAstException containing the found node, effectively terminating
+	 * the traversal.
 	 */
 	class GetMainEntityInAst implements AstVisitorInterface {
 		
+		/**
+		 * The primary key identifier that we're looking for in the AST
+		 * @var AstIdentifier
+		 */
 		private AstIdentifier $primaryKey;
 		
 		/**
 		 * ContainsRange constructor.
-		 * @param AstIdentifier $primaryKey
+		 * @param AstIdentifier $primaryKey The primary key identifier to search for
 		 */
 		public function __construct(AstIdentifier $primaryKey) {
 			$this->primaryKey = $primaryKey;
@@ -60,23 +33,31 @@
 		
 		/**
 		 * Loop door de AST en gooit een exception zodra de AstIn node voor de primary key is gevonden
-		 * @param AstInterface $node
+		 * Traverse through the AST and throw an exception as soon as the AstIn node for the primary key is found.
+		 * @param AstInterface $node The current node being visited in the AST
 		 * @return void
-		 * @throws \Exception
+		 * @throws GetMainEntityInAstException When the target AstIn node is found
 		 */
 		public function visitNode(AstInterface $node): void {
+			// If the node is not an AstIn instance, we're not interested in it
 			if (!$node instanceof AstIn) {
-                return;
-            }
-            
-            if ($node->getIdentifier()->getParentIdentifier()->getRange()->getName() !== $this->primaryKey->getParentIdentifier()->getRange()->getName()) {
 				return;
 			}
 			
-            if ($node->getIdentifier()->getName() !== $this->primaryKey->getName()) {
+			// Check if the range name of the node's identifier matches our primary key's range name
+			// If not, this is not the node we're looking for
+			if ($node->getIdentifier()->getRange()->getName() !== $this->primaryKey->getRange()->getName()) {
 				return;
 			}
 			
+			// Check if the name of the node's identifier matches our primary key's name
+			// If not, this is not the node we're looking for
+			if ($node->getIdentifier()->getName() !== $this->primaryKey->getName()) {
+				return;
+			}
+			
+			// If we've reached this point, we've found the AstIn node for our primary key
+			// Throw an exception with the found node to interrupt the traversal
 			throw new GetMainEntityInAstException($node);
 		}
 	}

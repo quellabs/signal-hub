@@ -57,7 +57,7 @@
 		public function visitNode(AstInterface $node): void {
 			// Validate the property if the node is of type AstIdentifier.
 			if ($node instanceof AstIdentifier) {
-				if ($node->hasParent()) {
+				if ($node->hasParent() && $node->getParent() instanceof AstIdentifier) {
 					$this->validateProperty($node->getParent()->getEntityName(), $node->getName());
 				}
 			}
