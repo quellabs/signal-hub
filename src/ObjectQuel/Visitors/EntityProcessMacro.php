@@ -48,17 +48,19 @@
 		 * @eeturn void
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstIdentifier) {
-				$entityName = $node->getEntityName();
-				
-				if ($entityName === null) {
-					return;
-				}
-				
-				if (array_key_exists($entityName, $this->macros) && $this->identifierIsEntity($this->macros[$entityName])) {
-					$node->setName($this->macros[$entityName]->getName());
-					$node->setRange($this->macros[$entityName]->getRange());
-				}
+			if (!$node instanceof AstIdentifier) {
+				return;
+			}
+			
+			$entityName = $node->getEntityName();
+			
+			if ($entityName === null) {
+				return;
+			}
+			
+			if (array_key_exists($entityName, $this->macros) && $this->identifierIsEntity($this->macros[$entityName])) {
+				$node->setName($this->macros[$entityName]->getName());
+				$node->setRange($this->macros[$entityName]->getRange());
 			}
 		}
 	}

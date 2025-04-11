@@ -4,6 +4,7 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
@@ -31,9 +32,9 @@
 		/**
 		 * Returns true if the given entity name is a range
 		 * @param string $range The name of the range to search for
-		 * @return AstRangeDatabase|null Returns the matching range object or null if not found
+		 * @return AstRange|null Returns the matching range object or null if not found
 		 */
-		protected function getRange(string $range): ?AstRangeDatabase {
+		protected function getRange(string $range): ?AstRange {
 			foreach($this->ranges as $astRange) {
 				if ($astRange->getName() == $range) {
 					return $astRange;
@@ -49,13 +50,15 @@
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			if ($node instanceof AstIdentifier) {
-				$entityName = $node->getName();
-				$range = $this->getRange($entityName);
-				
-				if ($range !== null) {
-					$node->setRange($range);
-				}
+			if (!$node instanceof AstIdentifier) {
+				return;
+			}
+			
+			$name = $node->getName();
+			$range = $this->getRange($name);
+			
+			if ($range !== null) {
+				$node->setRange($range);
 			}
 		}
 	}

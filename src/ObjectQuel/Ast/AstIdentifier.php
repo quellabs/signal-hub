@@ -50,8 +50,8 @@
 		 * @return string|null The entity name or the full identifier if no property specified.
 		 */
 		public function getEntityName(): ?string {
-			// If this identifier has a range, use the entity from the range
-			if ($this->range !== null) {
+			// If this identifier has a range that's attached to the database, use the entity from the range
+			if ($this->range instanceof AstRangeDatabase) {
 				return $this->range->getEntityName();
 			}
 			
