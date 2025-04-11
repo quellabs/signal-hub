@@ -3,7 +3,6 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstEntity;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
