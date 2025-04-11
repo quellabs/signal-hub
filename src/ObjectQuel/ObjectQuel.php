@@ -391,34 +391,34 @@
 			// Het AST-object accepteert de 'rangeProcessor' voor verdere verwerking.
 			$ast->accept($rangeProcessor);
 		}
-		
-		/**
-		 * Controleer of de sort een method call bevat. Zoja, zet dan de sort_in_application_logic flag
-		 * zodat de sorteerlogica en paginering logica in de applicatie gebeurd in plaats van in de query.
-		 * @param AstRetrieve $ast
-		 * @return void
-		 */
-		private function setSortInApplicationFlag(AstRetrieve $ast): void {
-			try {
-				$containsMethodCallVisitor = new ContainsMethodCall();
-				
-				foreach ($ast->getSort() as $item) {
-					$item['ast']->accept($containsMethodCallVisitor);
-				}
-			} catch (\Exception $exception) {
-				$ast->setSortInApplicationLogic(true);
-			}
-		}
-		
-		private function handleExistsOperatorHelperSetParent(AstInterface $parent, AstInterface $item, bool $parentLeft): void {
-			if ($parent instanceof AstRetrieve) {
-				$parent->setConditions($item);
-			} elseif ($parentLeft) {
-				$parent->setLeft($item);
-			} else {
-				$parent->setRight($item);
-			}
-		}
+	    
+	    
+	    /**
+	     * Sets the appropriate child relationship between parent and item nodes in the AST.
+	     * This helper method is used when processing the 'exists' operator to properly
+	     * structure the Abstract Syntax Tree (AST).
+	     * @param AstInterface $parent     The parent node in the AST
+	     * @param AstInterface $item       The child node to be linked to the parent
+	     * @param bool $parentLeft         Flag indicating if the item should be set as the left child
+	     *                                 (true = left child, false = right child)
+	     * @return void
+	     */
+	    private function handleExistsOperatorHelperSetParent(AstInterface $parent, AstInterface $item, bool $parentLeft): void {
+		    // Special case: If parent is an AstRetrieve node, set the item as its conditions
+		    if ($parent instanceof AstRetrieve) {
+			    $parent->setConditions($item);
+		    }
+		    
+			// If parentLeft flag is true, set the item as the left child of the parent
+		    elseif ($parentLeft) {
+			    $parent->setLeft($item);
+		    }
+		    
+			// Otherwise, set the item as the right child of the parent
+		    else {
+			    $parent->setRight($item);
+		    }
+	    }
 		
 	    /**
 	     * Handles the EXISTS operator in Abstract Syntax Tree (AST) transformations
@@ -510,30 +510,6 @@
 		}
 		
 		/**
-		 * Valideert dat methodeaanroepen enkel worden gebruikt in SORT BY clausules binnen de AST.
-		 * Deze functie doorloopt de AST-componenten om te controleren of er ergens methodeaanroepen zijn gebruikt.
-		 * Het controleert specifiek de join properties van alle ranges en de condities van de AST.
-		 * Als er een methodeaanroep wordt gevonden buiten een SORT BY clausule, wordt een QuelException geworpen.
-		 * @param AstRetrieve $ast De AST (Abstract Syntax Tree) die gevalideerd moet worden.
-		 * @throws QuelException Als er methodeaanroepen worden gevonden buiten SORT BY clausules.
-		 */
-		private function validateMethodCallNotUsedInAnythingOtherThanSort(AstRetrieve $ast): void {
-			try {
-				$containsMethodCallVisitor = new ContainsMethodCall();
-				
-				// Doorloop elke range in de AST en controleer de join properties op methodeaanroepen.
-				foreach ($ast->getRanges() as $item) {
-					$item->getJoinProperty()?->accept($containsMethodCallVisitor);
-				}
-				
-				// Controleer ook de condities van de AST op methodeaanroepen.
-				$ast->getConditions()?->accept($containsMethodCallVisitor);
-			} catch (\Exception $exception) {
-				throw new QuelException("Method calls are only allowed in SORT BY.");
-			}
-		}
-		
-		/**
 		 * Validates the given AstRetrieve object.
 		 * @param AstRetrieve $ast The AstRetrieve object to be validated.
 		 * @return void
@@ -581,9 +557,6 @@
 			// Valideer dat er geen hele entities worden gebruikt als condities.
 			$this->validateNoExpressionsAllowedOnEntitiesValidator($ast);
 			
-			// Throw error when method calls are used in anything but 'sort by'
-			$this->validateMethodCallNotUsedInAnythingOtherThanSort($ast);
-			
 			// Voeg 'alias patterns' toe indien nodig. Deze patterns maken het makkelijk
 			// om gegevens uit het SQL-resultaat te hydrateren.
 			$this->plugAliasPatterns($ast);
@@ -596,9 +569,6 @@
 	
 			// Analyse where and clear the required flag if 'is null' used on the join column
 			$this->setRangesNotRequiredThroughWhere($ast);
-			
-			// Add a 'sort in application' flag when the sort conditions contain a method call
-			$this->setSortInApplicationFlag($ast);
 			
 			// Handle exists() operator
 			$this->handleExistsOperator($ast);
