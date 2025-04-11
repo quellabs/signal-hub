@@ -12,11 +12,14 @@
 	use Services\ObjectQuel\Token;
 	use Services\ObjectQuel\Visitors\ContainsMethodCall;
 	
+	/**
+	 * @property FilterExpression $filterExpressionRule
+	 */
 	class Retrieve {
 
 		private Lexer $lexer;
 		private ArithmeticExpression $expressionRule;
-		private LogicalExpression $logicalExpressionRule;
+		private FilterExpression $filterExpressionRule;
 		
 		/**
 		 * Range parser
@@ -25,7 +28,7 @@
 		public function __construct(Lexer $lexer) {
 			$this->lexer = $lexer;
 			$this->expressionRule = new ArithmeticExpression($this->lexer);
-			$this->logicalExpressionRule = new LogicalExpression($this->lexer);
+			$this->filterExpressionRule = new FilterExpression($this->lexer);
 		}
 		
 		/**
@@ -104,7 +107,7 @@
 			
 			// Check for an optional 'where' clause and parse its conditions if present
 			if ($this->lexer->optionalMatch(Token::Where)) {
-				$retrieve->setConditions($this->logicalExpressionRule->parse());
+				$retrieve->setConditions($this->filterExpressionRule->parse());
 			}
 			
 			// Sort by

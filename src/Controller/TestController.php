@@ -28,9 +28,8 @@
 		 */
 		public function index(string $name): Response {
 			$result = $this->entityManager->executeQuery("
-				range of x is ProductsEntity
-				range of y is ProductsDescriptionEntity via y.productsId=x.productsId
-				retrieve (x, x.productsId, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
+				retrieve (ProductsDescriptionEntity) where ProductsDescriptionEntity.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
+				 and ProductsDescriptionEntity.productsId IN (1492)
 			");
 
 			/*

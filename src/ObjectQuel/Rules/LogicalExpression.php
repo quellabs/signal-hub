@@ -12,7 +12,7 @@
 	
 	class LogicalExpression	{
 		
-		private Lexer $lexer;
+		protected Lexer $lexer;
 		
 		/**
 		 * LogicalExpression constructor
