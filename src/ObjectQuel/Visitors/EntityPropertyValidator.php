@@ -4,9 +4,7 @@
 	namespace Services\ObjectQuel\Visitors;
 	
 	use Services\EntityManager\EntityStore;
-	use Services\Kernel\ReflectionHandler;
 	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstMethodCall;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
 	use Services\ObjectQuel\QuelException;
@@ -18,7 +16,6 @@
 	class EntityPropertyValidator implements AstVisitorInterface {
 		
 		private EntityStore $entityStore;
-		private ReflectionHandler $reflectionHandler;
 		
 		/**
 		 * EntityPropertyValidator constructor.
@@ -26,7 +23,6 @@
 		 */
 		public function __construct(EntityStore $entityStore) {
 			$this->entityStore = $entityStore;
-			$this->reflectionHandler = $this->entityStore->getReflectionHandler();
 		}
 		
 		/**
@@ -56,10 +52,16 @@
 		 */
 		public function visitNode(AstInterface $node): void {
 			// Validate the property if the node is of type AstIdentifier.
-			if ($node instanceof AstIdentifier) {
-				if ($node->hasParent() && $node->getParent() instanceof AstIdentifier) {
-					$this->validateProperty($node->getParent()->getEntityName(), $node->getName());
-				}
+			if (!$node instanceof AstIdentifier) {
+				return;
 			}
+			
+			// If this is not a property, do nothing
+			if (!$node->hasParent() || !$node->getParent() instanceof AstIdentifier) {
+				return;
+			}
+			
+			// Validate the property
+			$this->validateProperty($node->getParent()->getEntityName(), $node->getName());
 		}
 	}
