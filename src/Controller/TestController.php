@@ -30,7 +30,7 @@
 			$result = $this->entityManager->executeQuery("
 				range of x is ProductsEntity
 				range of y is ProductsDescriptionEntity via y.productsId=x.productsId
-				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
+				retrieve (x, x.productsId, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
 			");
 
 			/*

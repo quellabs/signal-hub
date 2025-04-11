@@ -104,6 +104,14 @@
 		}
 		
 		/**
+		 * Returns true if this node is the root node
+		 * @return bool
+		 */
+		public function isRoot(): bool {
+			return !$this->hasParent();
+		}
+
+		/**
 		 * Returns true if the identifier contains another entry
 		 * @return bool
 		 */

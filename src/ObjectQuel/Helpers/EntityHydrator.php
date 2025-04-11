@@ -14,37 +14,29 @@
 	class EntityHydrator {
 		
 		private UnitOfWork $unitOfWork;
-		private EntityManager $entityManager;
 		private EntityStore $entityStore;
 		private Serializer $serializer;
 		
 		public function __construct(EntityManager $entityManager) {
-			$this->entityManager = $entityManager;
 			$this->unitOfWork = $entityManager->getUnitOfWork();
 			$this->entityStore = $entityManager->getEntityStore();
 			$this->serializer = new Serializer($this->entityStore);
 		}
 		
 		/**
-		 * Snel controleren of er enige niet-lege waarde in de gefilterde rij is
-		 * @param array $array
-		 * @return bool
+		 * Quickly checks if the array contains any non-null values
+		 * @param array<string|int, mixed> $array The array to check
+		 * @return bool True if at least one non-null value exists
 		 */
 		private function isArrayPopulated(array $array): bool {
-			foreach ($array as $val) {
-				if ($val !== null) {
-					return true;
-				}
-			}
-			
-			return false;
+			return !empty(array_filter($array, fn($val) => $val !== null));
 		}
 		
 		/**
-		 * Remove a specified range from the keys of an array.
-		 * @param string $range The range to remove from the array keys.
-		 * @param array $array The array to modify.
-		 * @return array The modified array with the range removed from the keys.
+		 * Remove a specified range prefix from the keys of an array.
+		 * @param string $range The range prefix to remove from the array keys.
+		 * @param array<string, mixed> $array The array to modify.
+		 * @return array<string, mixed> The modified array with the range removed from the keys.
 		 */
 		private function removeRangeFromRow(string $range, array $array): array {
 			$rangePrefix = $range . '.';
@@ -52,7 +44,6 @@
 			$modifiedArray = [];
 			
 			foreach ($array as $key => $value) {
-				// Check if key starts with the prefix before doing substring operation
 				if (strncmp($key, $rangePrefix, $rangePrefixLength) === 0) {
 					$modifiedArray[substr($key, $rangePrefixLength)] = $value;
 				}
@@ -131,7 +122,7 @@
 			// populate it with data from the filtered row
 			$newEntity = new $entity;
 			$this->serializer->deserialize($newEntity, $filteredRow);
-
+			
 			// Add the new entity to the Unit of Work as an existing entity
 			// (not as a new entity since it came from the database)
 			$this->unitOfWork->persistExisting($newEntity);
@@ -139,70 +130,160 @@
 		}
 		
 		/**
-		 * Verwerkt een enkele waarde uit het resultaat.
-		 * @param mixed $value De te verwerken waarde.
-		 * @param array $row De huidige rij uit de database.
-		 * @param array|null $relationCache
-		 * @return mixed
+		 * Processes a single value from the query result.
+		 * @param AstAlias $value The value to process.
+		 * @param array<string, mixed> $row The current database row.
+		 * @param array<string, mixed>|null $relationCache Cache containing relationship information.
+		 * @return mixed The processed value (entity object, primitive value, or null).
 		 */
-		private function processValue(mixed $value, array $row, ?array $relationCache): mixed {
-			// Bewaar de node
+		private function processValue(AstAlias $value, array $row, ?array $relationCache): mixed {
 			$node = $value->getExpression();
 			
-			// Fetch entity
-			if ($node instanceof AstIdentifier && !$node->hasParent()) {
-				// Filter de rows voor deze entity uit
-				$filteredRow = array_intersect_key($row, $relationCache["keys_flipped"]);
-				
-				// Retourneer de entity
-				return $this->processEntity($value, $filteredRow, $relationCache);
+			// Case 1: Process an entity (AstIdentifier with no next/parent nodes)
+			if ($node instanceof AstIdentifier && !$node->hasNext() && !$node->hasParent()) {
+				return $this->processEntityValue($value, $row, $relationCache);
 			}
 			
-			// Fetch identifier
-			if ($node instanceof AstIdentifier && $node->hasParent()) {
-				$parent = $node->getParent();
-				$value = $row[$value->getName()];
-				$annotations = $this->entityStore->getAnnotations($parent->getEntityName());
-				$annotationsForProperty = $annotations[$node->getName()];
-				
-				foreach ($annotationsForProperty as $annotation) {
-					if ($annotation instanceof Column) {
-						return $this->unitOfWork->getSerializer()->normalizeValue($annotation, $value);
-					}
-				}
-				
+			// Case 2: Process a property value (AstIdentifier with next node)
+			if ($node instanceof AstIdentifier && $node->hasNext()) {
+				return $this->processPropertyValue($value, $row, $node);
+			}
+			
+			// Case 3: Process a simple value (direct lookup from row)
+			return $row[$value->getName()] ?? null;
+		}
+		
+		/**
+		 * Processes an entity value from the query result.
+		 * @param AstAlias $value The value representing the entity.
+		 * @param array<string, mixed> $row The current database row.
+		 * @param array<string, mixed>|null $relationCache Cache containing relationship information.
+		 * @return object|null The processed entity object or null if no data.
+		 */
+		private function processEntityValue(AstAlias $value, array $row, ?array $relationCache): ?object {
+			// Early return if no relation cache is provided
+			// This suggests there's no relationship data available for processing
+			if ($relationCache === null) {
 				return null;
 			}
 			
-			// Otherwise try to fetch the data from the row
-			return $row[$value->getName()] ?? null;
+			// Filter the row to only include columns relevant to this entity.
+			// Uses the flipped keys from relationCache to identify relevant columns.
+			// This is likely used to extract only the fields belonging to this entity.
+			// from a potentially larger result set that may include joined tables
+			$filteredRow = array_intersect_key($row, $relationCache["keys_flipped"]);
+			
+			// Delegate to a separate method to transform the filtered row data into an entity object
+			// Passes along the entity alias, filtered row data, and relation cache for context
+			// The processEntity method likely handles instantiation and population of the entity
+			return $this->processEntity($value, $filteredRow, $relationCache);
 		}
-
+		
+		/**
+		 * Processes a property value from the query result.
+		 * @param AstAlias $value The value representing the property.
+		 * @param array<string, mixed> $row The current database row.
+		 * @param AstIdentifier $node The AST node with property information.
+		 * @return mixed The processed property value.
+		 */
+		private function processPropertyValue(AstAlias $value, array $row, AstIdentifier $node): mixed {
+			// Extract the raw value from the database row using the alias name as key
+			// Return null if the key doesn't exist in the row
+			$rawValue = $row[$value->getName()] ?? null;
+			
+			// Early return if no value was found
+			if ($rawValue === null) {
+				return null;
+			}
+			
+			// Get the entity name from the node
+			$entityName = $node->getEntityName();
+			
+			// Get the property name from the next node in the chain
+			$propertyName = $node->getNext()->getName();
+			
+			try {
+				// Retrieve annotations for the entity from the entity store
+				$annotations = $this->entityStore->getAnnotations($entityName);
+				
+				// If no annotations exist for this property, return the raw value unchanged
+				if (!isset($annotations[$propertyName])) {
+					return $rawValue;
+				}
+				
+				// Iterate through all annotations for this property
+				foreach ($annotations[$propertyName] as $annotation) {
+					// Check if the annotation is a Column type
+					if ($annotation instanceof Column) {
+						// If it's a Column, use the serializer from the unit of work
+						// to convert the raw database value to its proper PHP type
+						return $this->unitOfWork->getSerializer()->normalizeValue($annotation, $rawValue);
+					}
+				}
+				
+				// If we didn't find a Column annotation, return the raw value unchanged
+				return $rawValue;
+			} catch (\Exception $e) {
+				// Silently handle any exceptions that occur during annotation processing
+				// This could be improved by adding proper logging here
+				// Consider logging the exception
+				return $rawValue;
+			}
+		}
+		
+		/**
+		 * Processes a database result row into a structured result based on the AST.
+		 * @param array $ast Abstract Syntax Tree representing the query structure.
+		 * @param array $row Raw database row from the query result.
+		 * @param array $relationCache Cache of relationship information for entity mapping.
+		 * @param array &$entities Reference to collection of unique entity objects for tracking.
+		 * @return array Processed row with values mapped according to the AST.
+		 */
 		private function processRow(array $ast, array $row, array $relationCache, array &$entities): array {
+			// Initialize the result row as an empty array
 			$resultRow = [];
 			
+			// Process each value node in the abstract syntax tree
 			foreach ($ast as $value) {
+				// Get the alias name for this value in the result set
 				$name = $value->getName();
-				$isEntity = $value->getExpression() instanceof AstIdentifier && !$value->getExpression()->hasParent() && !$value->getExpression()->hasNext();
+				
+				// Determine if this value represents an entity (top-level identifier without parent or next nodes)
+				// This distinguishes between entity objects and scalar property values
+				$isEntity = $value->getExpression() instanceof AstIdentifier &&
+					!$value->getExpression()->hasParent() &&
+					!$value->getExpression()->hasNext();
+				
+				// If it's an entity, get the range name (typically the table/entity name in the query)
 				$rangeName = $isEntity ? $value->getExpression()->getRange()->getName() : null;
 				
+				// Process the current value based on its type:
+				// - For entities: pass the relation cache specific to this entity
+				// - For properties: pass null for the relation cache
 				$processedValue = $this->processValue(
-					$value, $row,
+					$value,
+					$row,
 					$isEntity ? $relationCache[$rangeName] : null
 				);
 				
+				// Store the processed value in the result row using the alias name as key
 				$resultRow[$name] = $processedValue;
 				
-				// Track entities for relationship loading
+				// If the value is an entity and not null, track it in the entities collection
+				// This helps avoid duplicate processing and enables relationship loading
 				if ($isEntity && ($processedValue !== null)) {
+					// Generate a unique hash for the entity object
 					$hash = spl_object_id($processedValue);
 					
+					// Only add the entity to the tracking collection if not already present
+					// This ensures we maintain a set of unique entity instances
 					if (!isset($entities[$hash])) {
 						$entities[$hash] = $processedValue;
 					}
 				}
 			}
 			
+			// Return the fully processed row with all values mapped according to the AST
 			return $resultRow;
 		}
 		
@@ -255,28 +336,43 @@
 		}
 		
 		/**
-		 * Hydrates entities from raw database rows
-		 * @param array $ast Abstract syntax tree nodes
-		 * @param array $data Raw data rows
-		 * @return array [resultRows, extractedEntities]
+		 * Converts raw database query results into hydrated entity objects.
+		 * @param array $ast Abstract Syntax Tree representing the query structure.
+		 * @param array $data Raw database rows from the query result.
+		 * @return array An associative array containing processed result rows and unique entity objects.
 		 */
 		public function hydrateEntities(array $ast, array $data): array {
+			// Flag to identify the first row (used for initializing relation cache)
 			$first = true;
+			
+			// Collection to track unique entity objects across all rows
 			$entities = [];
+			
+			// Storage for processed result rows
 			$resultRows = [];
+			
+			// Cache for relationship information to optimize entity mapping
+			// This is built once from the first row and reused for subsequent rows
 			$relationCache = [];
 			
-			// Process each row
-			foreach($data as $row) {
+			// Process each row from the database result
+			foreach ($data as $row) {
+				// For the first row only, build a relation cache that maps
+				// AST nodes to their corresponding database columns
 				if ($first) {
 					$relationCache = $this->buildRelationCache($ast, $row);
 					$first = false;
 				}
 				
-				$resultRow = $this->processRow($ast, $row, $relationCache, $entities);
-				$resultRows[] = $resultRow;
+				// Process the current row using the AST and relation cache
+				// Also pass the entities collection by reference to track unique entities
+				$resultRows[] = $this->processRow($ast, $row, $relationCache, $entities);
 			}
 			
+			// Return both the processed result rows and the collection of unique entities
+			// - 'result' contains the transformed data as requested in the query
+			// - 'entities' contains all unique entity objects that were hydrated,
+			//   which may be used for relationship loading or change tracking
 			return [
 				'result'   => $resultRows,
 				'entities' => $entities

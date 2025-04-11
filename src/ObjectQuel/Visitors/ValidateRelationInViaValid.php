@@ -48,7 +48,7 @@
 			}
 			
 			// Doe niets als de identifier onderdeel is van een ketting
-			if ($node->hasParent()) {
+			if (!$node->isRoot()) {
 				return;
 			}
 			
