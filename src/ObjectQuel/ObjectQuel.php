@@ -11,6 +11,7 @@
 	use Services\ObjectQuel\Ast\AstExists;
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNumber;
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
     use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
 	use Services\EntityManager\EntityStore;
@@ -333,6 +334,12 @@
 	     */
 	    private function getMainRange(AstRetrieve $ast): ?AstRangeDatabase {
 		    foreach($ast->getRanges() as $range) {
+				// Skip non database ranges
+			    if (!$range instanceof AstRangeDatabase) {
+				    continue;
+		        }
+			
+				// If the join property is absent, this is what we'll use for FROM
 			    if ($range->getJoinProperty() == null) {
 				    return $range;
 			    }
@@ -580,13 +587,29 @@
 		 * @throws QuelException
 		 */
 		private function validateAtLeastOneRangeExistsWithoutViaClause(AstRetrieve $ast): void {
+			$databaseRangeCount = 0;
+			$nonDatabaseRangeCount = 0;
+			
 			foreach($ast->getRanges() as $range) {
+				// Skip JSON ranges
+				if (!$range instanceof AstRangeDatabase) {
+					++$nonDatabaseRangeCount;
+					continue;
+				}
+				
+				// If the range has no 'via', the condition is met
 				if ($range->getJoinProperty() === null) {
 					return;
 				}
+				
+				// Increase databaseRangeCount
+				++$databaseRangeCount;
 			}
-			
-			throw new QuelException("The query must include at least one range definition without a 'via' clause. This serves as the 'FROM' clause in SQL and is essential for defining the data source for the query.");
+
+			// Only
+			if ($databaseRangeCount > 0) {
+				throw new QuelException("The query must include at least one range definition without a 'via' clause. This serves as the 'FROM' clause in SQL and is essential for defining the data source for the query.");
+			}
 		}
 		
 		/**
@@ -754,10 +777,10 @@
          * Otherwise, it returns null.
          * @param string $query The Quel query string.
 		 * @param array $parameters
-		 * @return AstInterface|null The AST representation of the query or null if parsing fails.
+		 * @return AstRetrieve|null The AST representation of the query or null if parsing fails.
          * @throws QuelException If there is a problem during lexing or parsing.
          */
-        public function parse(string $query, array $parameters=[]): ?AstInterface {
+        public function parse(string $query, array $parameters=[]): ?AstRetrieve {
             try {
                 // Initialize the lexer with the query to tokenize the input.
                 $lexer = new Lexer($query);

@@ -2,6 +2,7 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	
 	/**
@@ -22,10 +23,10 @@
 		
 		/**
 		 * The ObjectQuel query to execute for this stage
-		 * This contains the actual query string that will be parsed and executed
-		 * @var string
+		 * This contains the parsed query string that will be parsed and executed
+		 * @var AstRetrieve
 		 */
-		private string $query;
+		private AstRetrieve $query;
 		
 		/**
 		 * Parameter names that should be bound from previous stages' results
@@ -64,26 +65,33 @@
 		private $resultProcessor = null;
 		
 		/**
+		 * Attached range
+		 */
+		private ?AstRange $range = null;
+		
+		/**
 		 * Create a new execution stage
 		 *
 		 * Initializes a stage with the required parameters. Additional configuration like
 		 * dependencies and output settings can be added through method chaining.
 		 *
 		 * @param string $name Unique identifier for this stage
-		 * @param string $query The ObjectQuel query for this stage
+		 * @param AstRetrieve $query The ObjectQuel query for this stage
 		 * @param array $staticParams Fixed parameters that don't depend on other stages
+		 * @param AstRange|null $attachedRange The range attached to this stage. Null if none.
 		 */
-		public function __construct(string $name, string $query, array $staticParams = []) {
+		public function __construct(string $name, AstRetrieve $query, array $staticParams = [], ?AstRange $attachedRange=null) {
 			$this->name = $name;
 			$this->query = $query;
 			$this->staticParams = $staticParams;
+			$this->range = $attachedRange;
 		}
 		
 		/**
 		 * Returns the query to execute
-		 * @return string The ObjectQuel query associated with this stage
+		 * @return AstRetrieve The ObjectQuel query associated with this stage
 		 */
-		public function getQuery(): string {
+		public function getQuery(): AstRetrieve {
 			return $this->query;
 		}
 		
@@ -212,4 +220,18 @@
 		public function getDependentParams(): array {
 			return $this->dependentParams;
 		}
+		
+		/**
+		 * Returns the attached range
+		 * @return AstRange|null
+		 */
+		public function getRange(): ?AstRange {
+			return $this->range;
+		}
+		
+		// Sets a new attached range, or clears it if $range is null
+		public function setRange(?AstRange $range): void {
+			$this->range = $range;
+		}
+		
 	}

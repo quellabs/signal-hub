@@ -134,6 +134,26 @@
 		}
 		
 		/**
+		 * Returns database ranges
+		 * @return array
+		 */
+		public function getDatabaseRanges(): array {
+			return array_filter($this->ranges, function($range) {
+				return $range instanceof AstRangeDatabase;
+			});
+		}
+		
+		/**
+		 * Returns database ranges
+		 * @return array
+		 */
+		public function getOtherRanges(): array {
+			return array_filter($this->ranges, function($range) {
+				return !$range instanceof AstRangeDatabase;
+			});
+		}
+		
+		/**
 		 * Returns the ranges used in the retrieve statement
 		 * @return array
 		 */

@@ -18,9 +18,6 @@
 		// De via string geeft aan op welk veld gejoined moet worden (LEFT JOIN etc)
 		private ?AstInterface $joinProperty;
 		
-		// True als de relatie optioneel is. E.g. of het om een LEFT JOIN gaat.
-		private bool $required;
-		
 		/**
 		 * AstRange constructor.
 		 * @param string $name De naam voor dit bereik.
@@ -29,10 +26,9 @@
 		 * @param bool $required True als de relatie verplicht is. E.g. het gaat om een INNER JOIN. False voor LEFT JOIN.
 		 */
 		public function __construct(string $name, string $entityName, ?AstInterface $joinProperty=null, bool $required=false) {
-			parent::__construct($name);
+			parent::__construct($name, $required);
 			$this->entityName = $entityName;
 			$this->joinProperty = $joinProperty;
-			$this->required = $required;
 		}
 		
 		/**
@@ -91,22 +87,5 @@
 			} catch (\Exception $exception) {
 				return true;
 			}
-		}
-
-		/**
-		 * Maakt de relatie verplicht
-		 * @var bool $required
-		 * @return void
-		 */
-		public function setRequired(bool $required=true): void {
-			$this->required = $required;
-		}
-		
-		/**
-		 * True als de relatie verplicht is. E.g. het gaat om een INNER JOIN.
-		 * @return bool
-		 */
-		public function isRequired(): bool {
-			return $this->required;
 		}
 	}

@@ -7,6 +7,7 @@
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
+	use Services\Signalize\AstInterface;
 	
 	/**
 	 * Represents an Entity Manager.
@@ -26,6 +27,22 @@
 	        $this->planExecutor = new PlanExecutor($entityManager);
 	        $this->objectQuel = new ObjectQuel($entityManager);
         }
+		
+		/**
+		 * Returns the entity manager object
+		 * @return EntityManager
+		 */
+		public function getEntityManager(): EntityManager {
+			return $this->entityManager;
+		}
+		
+		/**
+		 * Returns the ObjectQuel parser
+		 * @return ObjectQuel
+		 */
+		public function getObjectQuel(): ObjectQuel {
+			return $this->objectQuel;
+		}
 		
 		/**
 		 * Verwijdert dubbele objecten uit een array op basis van hun object-hash.
@@ -76,7 +93,7 @@
 		 */
 		public function executeQuery(string $query, array $parameters=[]): QuelResult {
 			// Decompose the query
-			$decomposer = new QueryDecomposer($this->entityManager);
+			$decomposer = new QueryDecomposer($this);
 			$executionPlan = $decomposer->decompose($query, $parameters);
 			
 			// Execute the returned execution plan and return the QuelResult
@@ -85,14 +102,14 @@
 		
 		/**
 		 * Execute a database query and return the results
-		 * @param string $query The database query to execute
+		 * @param string|AstRetrieve $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult
 		 * @throws QuelException
 		 */
-		public function executeSimpleQuery(string $query, array $initialParams=[]): QuelResult {
+		public function executeSimpleQuery(string|AstRetrieve $query, array $initialParams=[]): QuelResult {
 			// Parse de Quel query
-			$e = $this->objectQuel->parse($query);
+			$e = $query instanceof AstRetrieve ? $query : $this->objectQuel->parse($query);
 			
 			// Parse de Quel query en converteer naar SQL
 			$sql = $this->objectQuel->convertToSQL($e, $initialParams);

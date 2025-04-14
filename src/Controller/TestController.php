@@ -28,8 +28,8 @@
 		 */
 		public function index(string $name): Response {
 			$result = $this->entityManager->executeQuery("
-				range of x is JSON_SOURCE('xyz.json')
-				retrieve (x) where x.id <> 10
+				range of y is ProductsEntity
+				retrieve (y) where y.productsId=10
 			");
 
 			/*
@@ -40,6 +40,6 @@
 			");
 			*/
 			
-			return new Response('Hello ' . $result[0]['y']->getProductsName() . '!');
+			return new Response('Hello ' . $result[0]['y']->getProductsId() . '!');
 		}
 	}

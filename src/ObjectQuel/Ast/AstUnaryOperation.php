@@ -6,18 +6,18 @@
 	use Services\ObjectQuel\AstVisitorInterface;
 	
 	class AstUnaryOperation extends Ast {
-		private AstInterface $operand;
+		private AstInterface $expression;
 		private string $operator;
 		
-		public function __construct(AstInterface $operand, string $operator) {
-			$this->operand = $operand;
+		public function __construct(AstInterface $expression, string $operator) {
+			$this->expression = $expression;
 			$this->operator = $operator;
 			
-			$operand->setParent($this);
+			$expression->setParent($this);
 		}
 		
-		public function getOperand(): AstInterface {
-			return $this->operand;
+		public function getExpression(): AstInterface {
+			return $this->expression;
 		}
 		
 		public function getOperator(): string {
@@ -26,7 +26,7 @@
 		
 		public function accept(AstVisitorInterface $visitor): void {
 			parent::accept($visitor);
-			$this->operand->accept($visitor);
+			$this->expression->accept($visitor);
 		}
 		
 	}

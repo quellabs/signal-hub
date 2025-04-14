@@ -5,8 +5,11 @@
 	use Services\Kernel\Kernel;
 	use Services\Kernel\PropertyHandler;
 	use Services\Kernel\ServiceInterface;
+	use Services\ObjectQuel\Ast\AstIn;
+	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
+	use Services\Signalize\AstInterface;
 	use Services\Validation\EntityToValidation;
 	
 	/**
@@ -129,12 +132,12 @@
 		
 		/**
 		 * Execute a database query and return the results
-		 * @param string $query The database query to execute
+		 * @param string|AstInterface $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return QuelResult|null
 		 * @throws QuelException
 		 */
-		public function executeSimpleQuery(string $query, array $initialParams=[]): ?QuelResult {
+		public function executeSimpleQuery(string|AstRetrieve $query, array $initialParams=[]): ?QuelResult {
 			return $this->query_executor->executeSimpleQuery($query, $initialParams);
 		}
 		

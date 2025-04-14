@@ -55,13 +55,8 @@
 				return $this->range->getEntityName();
 			}
 			
-			// If this is part of a chain (has a parent), we don't need to resolve an entity
-			if ($this->getParent() !== null) {
-				return null;
-			}
-			
-			// No range and no parent, just use the identifier name itself as entity
-			return $this->getName();
+			// Range is not a database range. Return null
+			return null;
 		}
 		
 		/**

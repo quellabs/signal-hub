@@ -2,6 +2,7 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	
@@ -37,12 +38,13 @@
 		/**
 		 * Adds a new execution stage to the plan with the specified parameters.
 		 * @param string $name The unique identifier for this stage
-		 * @param string $query The query to be executed in this stage
+		 * @param AstRetrieve $query The query to be executed in this stage
 		 * @param array $staticParams Static parameters to be passed to the query execution
+		 * @param AstRange|null $attachedRange The range attached to this stage. Null if none.
 		 * @return void
 		 */
-		public function createStage(string $name, string $query, array $staticParams = []): void {
-			$this->stages[] = new ExecutionStage($name, $query, $staticParams);
+		public function createStage(string $name, AstRetrieve $query, array $staticParams = [], ?AstRange $attachedRange=null): void {
+			$this->stages[] = new ExecutionStage($name, $query, $staticParams, $attachedRange);
 		}
 		
 		/**
