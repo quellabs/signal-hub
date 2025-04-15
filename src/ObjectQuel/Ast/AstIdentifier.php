@@ -155,4 +155,18 @@
 		public function setRange(?AstRange $range): void {
 			$this->range = $range;
 		}
+		
+		/**
+		 * Deep clone the identifier
+		 * @return AstIdentifier|null
+		 */
+		public function deepClone(): ?AstIdentifier {
+			$clone = clone $this;
+			
+			if ($clone->hasNext()) {
+				$clone->setNext($this->getNext()->deepClone());
+			}
+			
+			return $clone;
+		}
 	}

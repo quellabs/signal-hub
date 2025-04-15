@@ -33,7 +33,7 @@
             $this->entityManager = $entityManager;
             $this->connection = $entityManager->getConnection();
             $this->queryAnalyzer = new QueryAnalyzer();
-	        $this->planExecutor = new PlanExecutor($entityManager);
+	        $this->planExecutor = new PlanExecutor($this);
 	        $this->objectQuel = new ObjectQuel($entityManager);
         }
 		
@@ -94,29 +94,13 @@
 		}
 
 		/**
-		 * Execute a decomposed query plan
-		 * @param string $query The query to execute
-		 * @param array $parameters Initial parameters for the plan
-		 * @return QuelResult The results of the execution plan
-		 * @throws QuelException
-		 */
-		public function executeQuery(string $query, array $parameters=[]): QuelResult {
-			// Decompose the query
-			$decomposer = new QueryDecomposer($this);
-			$executionPlan = $decomposer->decompose($query, $parameters);
-			
-			// Execute the returned execution plan and return the QuelResult
-			return $this->planExecutor->execute($executionPlan);
-		}
-		
-		/**
 		 * Transforms a Quel query to SQL, executes the SQL and returns the result
 		 * @param AstRetrieve $query The parsed query (AST)
 		 * @param array $initialParams Parameters for this query
-		 * @return QuelResult The QuelResult object
+		 * @return array The QuelResult object
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryDatabase(AstRetrieve $query, array $initialParams=[]): QuelResult {
+		protected function executeSimpleQueryDatabase(AstRetrieve $query, array $initialParams=[]): array {
 			// Converteer de query naar SQL
 			$sql = $this->objectQuel->convertToSQL($query, $initialParams);
 			
@@ -134,8 +118,7 @@
 				$result[] = $row;
 			}
 			
-			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
-			return new QuelResult($this->entityManager, $query, $result);
+			return $result;
 		}
 		
 		/**
@@ -230,9 +213,12 @@
 		
 		/**
 		 * Execute a JSON query and returns the result
+		 * @param AstRetrieve $query
+		 * @param array $initialParams
+		 * @return array
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryJson(AstRetrieve $query, array $initialParams=[]): QuelResult {
+		protected function executeSimpleQueryJson(AstRetrieve $query, array $initialParams=[]): array {
 			// We do not allow joins in simple queries. For joins, we need to decompose the query
 			if (count($query->getRanges()) > 1) {
 				throw new QuelException("Joins not allowed in simple JSON queries");
@@ -250,29 +236,26 @@
 				}
 			}
 			
-			return new QuelResult($this->entityManager, $query, $result);
+			return $result;
 		}
 		
 		/**
 		 * Execute a database query and return the results
-		 * @param string|AstRetrieve $query The database query to execute
+		 * @param AstRetrieve $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
-		 * @return QuelResult
+		 * @return array
 		 * @throws QuelException
 		 */
-		public function executeSimpleQuery(string|AstRetrieve $query, array $initialParams=[]): QuelResult {
-			// Parse de Quel query
-			$e = $query instanceof AstRetrieve ? $query : $this->objectQuel->parse($query);
-			
+		public function executeSimpleQuery(AstRetrieve $query, array $initialParams=[]): array {
 			// Check the type of query
-			$queryType = $this->queryAnalyzer->getQueryType($e);
+			$queryType = $this->queryAnalyzer->getQueryType($query);
 			
 			switch($queryType) {
 				case 'json' :
-					return $this->executeSimpleQueryJson($e, $initialParams);
+					return $this->executeSimpleQueryJson($query, $initialParams);
 
 				case 'database':
-					return $this->executeSimpleQueryDatabase($e, $initialParams);
+					return $this->executeSimpleQueryDatabase($query, $initialParams);
 					
 				case 'hybrid' :
 					throw new QuelException("Hybrid queries not allowed for simple queries");
@@ -340,5 +323,27 @@
 			
 			// Retourneert ontdubbelde resultaten.
 			return $this->deDuplicateObjects($result);
+		}
+		
+		/**
+		 * Execute a decomposed query plan
+		 * @param string $query The query to execute
+		 * @param array $parameters Initial parameters for the plan
+		 * @return QuelResult The results of the execution plan
+		 * @throws QuelException
+		 */
+		public function executeQuery(string $query, array $parameters=[]): QuelResult {
+			// Parse the input query string into an Abstract Syntax Tree (AST)
+			$ast = $this->getObjectQuel()->parse($query);
+			
+			// Decompose the query
+			$decomposer = new QueryDecomposer($this);
+			$executionPlan = $decomposer->decompose($ast, $parameters);
+			
+			// Execute the returned execution plan and return the QuelResult
+			$result = $this->planExecutor->execute($executionPlan);
+			
+			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
+			return new QuelResult($this->entityManager, $ast, $result);
 		}
 	}

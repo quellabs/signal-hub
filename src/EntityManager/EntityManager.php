@@ -131,17 +131,6 @@
 		}
 		
 		/**
-		 * Execute a database query and return the results
-		 * @param string|AstInterface $query The database query to execute
-		 * @param array $initialParams (Optional) An array of parameters to bind to the query
-		 * @return QuelResult|null
-		 * @throws QuelException
-		 */
-		public function executeSimpleQuery(string|AstRetrieve $query, array $initialParams=[]): ?QuelResult {
-			return $this->query_executor->executeSimpleQuery($query, $initialParams);
-		}
-		
-		/**
 		 * Haalt alle resultaten van een uitgevoerde ObjectQuel-query op.
 		 * @param string $query
 		 * @param array $parameters

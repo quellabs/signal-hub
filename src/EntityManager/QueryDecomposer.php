@@ -7,9 +7,11 @@
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Ast\AstTerm;
 	use Services\ObjectQuel\Ast\AstUnaryOperation;
 	use Services\ObjectQuel\AstInterface;
+	use Services\ObjectQuel\QuelException;
 	use Services\Signalize\Ast\AstBool;
 	use Services\Signalize\Ast\AstNumber;
 	use Services\Signalize\Ast\AstString;
@@ -169,29 +171,26 @@
 		 * This function takes a mixed-source query and creates an execution plan with
 		 * appropriate stages for database and JSON sources.
 		 *
-		 * @param string $query The ObjectQuel query to decompose
+		 * @param AstRetrieve $query The ObjectQuel query to decompose
 		 * @param array $staticParams Optional static parameters for the query
 		 * @return ExecutionPlan|null The execution plan containing all stages, or null if decomposition failed
 		 */
-		public function decompose(string $query, array $staticParams = []): ?ExecutionPlan {
+		public function decompose(AstRetrieve $query, array $staticParams = []): ?ExecutionPlan {
 			// Create a new execution plan to hold all the query stages
 			$plan = new ExecutionPlan();
 			
-			// Parse the input query string into an Abstract Syntax Tree (AST)
-			$ast = $this->queryExecutor->getObjectQuel()->parse($query);
-			
 			// Get all database ranges from the AST
 			// These will be processed together in a single database query
-			$databaseRanges = $ast->getDatabaseRanges();
+			$databaseRanges = $query->getDatabaseRanges();
 			
 			// If there are database ranges, create a stage for the database query
 			if (!empty($databaseRanges)) {
 				// Create a shallow clone of the original AST
-				$clonedAst = clone $ast;
+				$clonedAst = clone $query;
 				
 				// Extract only the WHERE conditions that involve database ranges
 				// This creates a modified WHERE clause specific to database sources
-				$clonedAst->setConditions($this->getWherePartOfRange($databaseRanges, $ast->getConditions()));
+				$clonedAst->setConditions($this->getWherePartOfRange($databaseRanges, $query->getConditions()));
 				
 				// Create a new execution stage with a unique ID for this database query
 				$plan->createStage(uniqid(), $clonedAst, $staticParams);
@@ -199,13 +198,13 @@
 			
 			// Process each non-database range (like JSON sources) individually
 			// Each range gets its own execution stage
-			foreach($ast->getOtherRanges() as $otherRange) {
+			foreach($query->getOtherRanges() as $otherRange) {
 				// Create a shallow clone of the original AST for this range
-				$clonedAst = clone $ast;
+				$clonedAst = clone $query;
 				
 				// Extract only the WHERE conditions that involve this specific range
 				// This creates a modified WHERE clause specific to this data source
-				$clonedAst->setConditions($this->getWherePartOfRange([$otherRange], $ast->getConditions()));
+				$clonedAst->setConditions($this->getWherePartOfRange([$otherRange], $query->getConditions()));
 				
 				// Create a new execution stage with a unique ID for this range
 				$plan->createStage(uniqid(), $clonedAst, $staticParams, $otherRange);

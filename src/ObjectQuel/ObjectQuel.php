@@ -537,7 +537,7 @@
 		    // Iterate through all the gathered identifiers and add them to the query's value list
 		    foreach($visitor->getIdentifiers() as $identifier) {
 			    // Clone the identifier to avoid modifying the original reference in the conditions
-			    $clonedIdentifier = clone $identifier;
+			    $clonedIdentifier = $identifier->deepClone();
 			    
 			    // Create an alias for the identifier using its complete name
 			    // This ensures the field appears in the result set with its full reference name
