@@ -10,6 +10,7 @@
 	use Services\EntityManager\UnitOfWork;
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	
 	class EntityHydrator {
 		
@@ -130,6 +131,17 @@
 		}
 		
 		/**
+		 * Extract all values out of the JSON row
+		 * @param AstAlias $value
+		 * @param array $row
+		 * @param array|null $relationCache
+		 * @return array
+		 */
+		private function processJsonAllValue(AstAlias $value, array $row, ?array $relationCache): array {
+			return $this->removeRangeFromRow($value->getName(), $row);
+		}
+		
+		/**
 		 * Processes a single value from the query result.
 		 * @param AstAlias $value The value to process.
 		 * @param array<string, mixed> $row The current database row.
@@ -141,7 +153,11 @@
 			
 			// Case 1: Process an entity (AstIdentifier with no next/parent nodes)
 			if ($node instanceof AstIdentifier && !$node->hasNext() && !$node->hasParent()) {
-				return $this->processEntityValue($value, $row, $relationCache);
+				if ($node->getRange() instanceof AstRangeJsonSource) {
+					return $this->processJsonAllValue($value, $row, $relationCache);
+				} else {
+					return $this->processEntityValue($value, $row, $relationCache);
+				}
 			}
 			
 			// Case 2: Process a property value (AstIdentifier with next node)
@@ -169,7 +185,7 @@
 			
 			// Filter the row to only include columns relevant to this entity.
 			// Uses the flipped keys from relationCache to identify relevant columns.
-			// This is likely used to extract only the fields belonging to this entity.
+			// This is used to extract only the fields belonging to this entity
 			// from a potentially larger result set that may include joined tables
 			$filteredRow = array_intersect_key($row, $relationCache["keys_flipped"]);
 			
@@ -251,6 +267,7 @@
 				// Determine if this value represents an entity (top-level identifier without parent or next nodes)
 				// This distinguishes between entity objects and scalar property values
 				$isEntity = $value->getExpression() instanceof AstIdentifier &&
+					!$value->getExpression()->getRange() instanceof AstRangeJsonSource &&
 					!$value->getExpression()->hasParent() &&
 					!$value->getExpression()->hasNext();
 				

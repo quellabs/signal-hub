@@ -29,7 +29,7 @@
 		public function index(string $name): Response {
 			$result = $this->entityManager->executeQuery("
 				range of y is JSON_SOURCE('F:\\test.json', '$.rows.*')
-				retrieve (y) where y.suppliers_id = 6
+				retrieve (y.suppliers_id) where y.suppliers_id = 6
 			");
 
 			/*
