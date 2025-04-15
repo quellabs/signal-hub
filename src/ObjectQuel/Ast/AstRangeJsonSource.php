@@ -36,7 +36,7 @@
 			$this->path = $path;
 		}
 		
-		public function getExpression(): string {
+		public function getExpression(): ?string {
 			return $this->expression;
 		}
 		

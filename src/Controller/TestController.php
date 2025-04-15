@@ -28,15 +28,13 @@
 		 */
 		public function index(string $name): Response {
 			$result = $this->entityManager->executeQuery("
-				range of y is ProductsEntity
-				retrieve (y) where y.productsId=10
+				range of y is JSON_SOURCE('F:\\test.json', '$.rows.*')
+				retrieve (y) where y.suppliers_id = 6
 			");
 
 			/*
 			$result = $this->entityManager->executeQuery("
 				range of x is ProductsEntity
-				range of y is JSON_SOURCE('xyz.json')
-				retrieve (x, y) where y.productsName='Excentrisch draagarm voorzijde rubber OEM (M3)'
 			");
 			*/
 			

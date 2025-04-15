@@ -2,12 +2,19 @@
 	
     namespace Services\EntityManager;
 	
+	use Flow\JSONPath\JSONPathException;
+	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
+	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
-	use Services\Signalize\AstInterface;
+	use Services\ObjectQuel\Ast\AstBool;
+	use Services\ObjectQuel\Ast\AstExpression;
+	use Services\ObjectQuel\Ast\AstIdentifier;
+	use Services\ObjectQuel\Ast\AstNumber;
+	use Services\ObjectQuel\Ast\AstString;
 	
 	/**
 	 * Represents an Entity Manager.
@@ -15,6 +22,7 @@
 	class QueryExecutor {
         protected DatabaseAdapter $connection;
 		private EntityManager $entityManager;
+		private QueryAnalyzer $queryAnalyzer;
 		private PlanExecutor $planExecutor;
 		private ObjectQuel $objectQuel;
 		
@@ -24,6 +32,7 @@
         public function __construct(EntityManager $entityManager) {
             $this->entityManager = $entityManager;
             $this->connection = $entityManager->getConnection();
+            $this->queryAnalyzer = new QueryAnalyzer();
 	        $this->planExecutor = new PlanExecutor($entityManager);
 	        $this->objectQuel = new ObjectQuel($entityManager);
         }
@@ -101,6 +110,150 @@
 		}
 		
 		/**
+		 * Transforms a Quel query to SQL, executes the SQL and returns the result
+		 * @param AstRetrieve $query The parsed query (AST)
+		 * @param array $initialParams Parameters for this query
+		 * @return QuelResult The QuelResult object
+		 * @throws QuelException
+		 */
+		protected function executeSimpleQueryDatabase(AstRetrieve $query, array $initialParams=[]): QuelResult {
+			// Converteer de query naar SQL
+			$sql = $this->objectQuel->convertToSQL($query, $initialParams);
+			
+			// Voer de SQL query uit
+			$rs = $this->connection->execute($sql, $initialParams);
+			
+			// Indien de query incorrect is, gooi een exception
+			if (!$rs) {
+				throw new QuelException($this->connection->getLastErrorMessage(), 0, $query);
+			}
+			
+			// Haal alle data op en stuur dit door naar QuelResult
+			$result = [];
+			while ($row = $rs->fetchRow()) {
+				$result[] = $row;
+			}
+			
+			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
+			return new QuelResult($this->entityManager, $query, $result);
+		}
+		
+		/**
+		 * Load and filter a JSON file from a JSON source
+		 * @param AstRangeJsonSource $source
+		 * @return array
+		 * @throws QuelException
+		 */
+		protected function loadAndFilterJsonFile(AstRangeJsonSource $source): array {
+			// Load the JSON file
+			$contents = file_get_contents($source->getPath());
+			
+			if ($contents === false) {
+				throw new QuelException("JSON file {$source->getName()} not found");
+			}
+			
+			// Decode the json file
+			$decoded = json_decode($contents, true);
+			
+			if (json_last_error() !== JSON_ERROR_NONE) {
+				throw new QuelException("Error decoding JSON file {$source->getName()}: " . json_last_error_msg());
+			}
+			
+			// If a JSONPath was given, use it to filter the output
+			if (!empty($source->getExpression())) {
+				try {
+					$decoded = (new \Flow\JSONPath\JSONPath($decoded))->find($source->getExpression())->getData();
+				} catch (JSONPathException $e) {
+					throw new QuelException($e->getMessage(), $e->getCode(), $e);
+				}
+			}
+			
+			// Prefix all items with the range alias
+			$result = [];
+			$alias = $source->getName();
+			
+			foreach($decoded as $row) {
+				$line = [];
+				
+				foreach($row as $key => $value) {
+					$line["{$alias}.{$key}"] = $value;
+				}
+				
+				$result[] = $line;
+			}
+			
+			return $result;
+		}
+		
+		/**
+		 * Evaluate the conditions
+		 * @throws QuelException
+		 */
+		protected function evaluateConditions(AstInterface $ast, array $row) {
+			switch(get_class($ast)) {
+				case AstNumber::class:
+				case AstString::class:
+				case AstBool::class:
+					return $ast->getValue();
+					
+				case AstIdentifier::class:
+					return $row[$ast->getCompleteName()];
+					
+				case AstExpression::class:
+					$left = $this->evaluateConditions($ast->getLeft(), $row);
+					$right = $this->evaluateConditions($ast->getRight(), $row);
+					
+					return match ($ast->getOperator()) {
+						'=' => $left == $right,
+						'<>', '!=' => $left != $right,
+						'<' => $left < $right,
+						'>' => $left > $right,
+						'<=' => $left <= $right,
+						'>=' => $left >= $right,
+						default => throw new QuelException("Unknown operator {$ast->getOperator()}"),
+					};
+					
+				case AstBinaryOperator::class:
+					$left = $this->evaluateConditions($ast->getLeft(), $row);
+					$right = $this->evaluateConditions($ast->getRight(), $row);
+					
+					return match ($ast->getOperator()) {
+						'AND' => $left && $right,
+						'OR' => $left || $right,
+						default => throw new QuelException("Unknown operator {$ast->getOperator()}"),
+					};
+					
+				default:
+					throw new QuelException("Unknown AST node " . get_class($ast));
+			}
+		}
+		
+		/**
+		 * Execute a JSON query and returns the result
+		 * @throws QuelException
+		 */
+		protected function executeSimpleQueryJson(AstRetrieve $query, array $initialParams=[]): QuelResult {
+			// We do not allow joins in simple queries. For joins, we need to decompose the query
+			if (count($query->getRanges()) > 1) {
+				throw new QuelException("Joins not allowed in simple JSON queries");
+			}
+			
+			// Load the JSON file and perform initial filtering
+			$contents = $this->loadAndFilterJsonFile($query->getRanges()[0]);
+			
+			// Use the conditions to further filter the file
+			$result = [];
+			
+			foreach($contents as $row) {
+				if ($query->getConditions() === null || $this->evaluateConditions($query->getConditions(), $row)) {
+					$result[] = $row;
+				}
+			}
+			
+			return new QuelResult($this->entityManager, $query, $result);
+		}
+		
+		/**
 		 * Execute a database query and return the results
 		 * @param string|AstRetrieve $query The database query to execute
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
@@ -111,25 +264,22 @@
 			// Parse de Quel query
 			$e = $query instanceof AstRetrieve ? $query : $this->objectQuel->parse($query);
 			
-			// Parse de Quel query en converteer naar SQL
-			$sql = $this->objectQuel->convertToSQL($e, $initialParams);
+			// Check the type of query
+			$queryType = $this->queryAnalyzer->getQueryType($e);
 			
-			// Voer de SQL query uit
-			$rs = $this->connection->execute($sql, $initialParams);
-			
-			// Indien de query incorrect is, gooi een exception
-			if (!$rs) {
-				throw new QuelException($this->connection->getLastErrorMessage(), 0, $e);
+			switch($queryType) {
+				case 'json' :
+					return $this->executeSimpleQueryJson($e, $initialParams);
+
+				case 'database':
+					return $this->executeSimpleQueryDatabase($e, $initialParams);
+					
+				case 'hybrid' :
+					throw new QuelException("Hybrid queries not allowed for simple queries");
+					
+				default:
+					throw new QuelException("Unknown query type {$queryType}");
 			}
-			
-			// Haal alle data op en stuur dit door naar QuelResult
-			$result = [];
-			while ($row = $rs->fetchRow()) {
-				$result[] = $row;
-			}
-			
-			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
-			return new QuelResult($this->entityManager, $e, $result);
 		}
 		
 		/**
