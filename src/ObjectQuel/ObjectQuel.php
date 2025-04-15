@@ -30,6 +30,7 @@
 	use Services\ObjectQuel\Visitors\EntityProcessRange;
 	use Services\ObjectQuel\Visitors\EntityPropertyValidator;
 	use Services\ObjectQuel\Visitors\FetchMethodCalls;
+	use Services\ObjectQuel\Visitors\GatherReferenceJoinValues;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
 	use Services\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;
@@ -515,6 +516,37 @@
 				}
 			}
 		}
+	    
+	    /**
+	     * Adds referenced field values to the retrieve query's value list.
+	     * This helps ensure that fields used in join conditions are included in the query results.
+	     * @param AstRetrieve $ast The abstract syntax tree of the retrieve query
+	     * @return void
+	     */
+	    private function addReferencedValuesToValuesList(AstRetrieve $ast): void {
+		    // Do nothing when the query has no conditions - no references to gather
+		    if ($ast->getConditions() === null) {
+			    return;
+		    }
+		    
+		    // Create a visitor that collects all field identifiers referenced in join conditions
+		    // The visitor pattern traverses the AST nodes and gathers referenced values
+		    $visitor = new GatherReferenceJoinValues();
+		    $ast->getConditions()->accept($visitor);
+		    
+		    // Iterate through all the gathered identifiers and add them to the query's value list
+		    foreach($visitor->getIdentifiers() as $identifier) {
+			    // Clone the identifier to avoid modifying the original reference in the conditions
+			    $clonedIdentifier = clone $identifier;
+			    
+			    // Create an alias for the identifier using its complete name
+			    // This ensures the field appears in the result set with its full reference name
+			    $alias = new AstAlias($identifier->getCompleteName(), $clonedIdentifier);
+			    
+			    // Add the aliased identifier to the query's value list
+			    $ast->addValue($alias);
+		    }
+	    }
 		
 		/**
 		 * Validates the given AstRetrieve object.
@@ -579,6 +611,9 @@
 			
 			// Handle exists() operator
 			$this->handleExistsOperator($ast);
+			
+			// Add identifiers that are referenced in the WHERE statement, to the values list
+			$this->addReferencedValuesToValuesList($ast);
 		}
 		
 		/**
