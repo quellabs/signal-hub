@@ -261,6 +261,11 @@
 			
 			// Process each value node in the abstract syntax tree
 			foreach ($ast as $value) {
+				// Skip the value if designated to do so
+				if (!$value->isVisibleInResult()) {
+					continue;
+				}
+				
 				// Get the alias name for this value in the result set
 				$name = $value->getName();
 				

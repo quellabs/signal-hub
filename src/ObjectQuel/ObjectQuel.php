@@ -542,6 +542,7 @@
 			    // Create an alias for the identifier using its complete name
 			    // This ensures the field appears in the result set with its full reference name
 			    $alias = new AstAlias($identifier->getCompleteName(), $clonedIdentifier);
+				$alias->setVisibleInResult(false);
 			    
 			    // Add the aliased identifier to the query's value list
 			    $ast->addValue($alias);

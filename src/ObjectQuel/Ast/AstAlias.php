@@ -14,6 +14,7 @@
 		protected string $name;
 		protected AstInterface $expression;
 		protected ?string $aliasPattern;
+		private bool $visibleInResult;
 		
 		/**
 		 * AstAlias constructor.
@@ -26,6 +27,7 @@
 			$this->name = $name;
 			$this->expression = $expression;
 			$this->aliasPattern = $aliasPattern;
+			$this->visibleInResult = true;
 		}
 		
 		/**
@@ -69,4 +71,24 @@
 		public function setAliasPattern(?string $aliasPattern): void {
 			$this->aliasPattern = $aliasPattern;
 		}
+		
+		/**
+		 * Returns true if this field is present in the eventual result, false if not
+		 * A field may be invisible if it was automatically added for join purposes
+		 * @return true
+		 */
+		public function isVisibleInResult(): bool {
+			return $this->visibleInResult;
+		}
+		
+		/**
+		 * Sets the visibleInResult flag
+		 * @param bool $visibleInResult
+		 * @return void
+		 */
+		public function setVisibleInResult(bool $visibleInResult): void {
+			$this->visibleInResult = $visibleInResult;
+		}
+		
+		
 	}
