@@ -25,6 +25,7 @@
 	use Services\ObjectQuel\Ast\AstNumber;
 	use Services\ObjectQuel\Ast\AstParameter;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
+	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRegExp;
 	use Services\ObjectQuel\Ast\AstSearch;
 	use Services\ObjectQuel\Ast\AstString;
@@ -407,6 +408,11 @@
 		protected function handleIdentifier(AstIdentifier $ast): void {
 			// Voeg de identifier en alle properties toe aan de 'visited nodes' lijst
 			$this->addToVisitedNodes($ast);
+			
+			// Laat de informatie weg uit de query als de range geen database range is
+			if ($ast->getRange() instanceof AstRangeJsonSource) {
+				return;
+			}
 			
 			// Haal informatie van de identifier op
 			$range = $ast->getRange();

@@ -4,6 +4,7 @@
 	
 	use Flow\JSONPath\JSONPathException;
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\AstInterface;
@@ -95,21 +96,21 @@
 
 		/**
 		 * Transforms a Quel query to SQL, executes the SQL and returns the result
-		 * @param AstRetrieve $query The parsed query (AST)
+		 * @param ExecutionStage $stage The parsed query (AST)
 		 * @param array $initialParams Parameters for this query
 		 * @return array The QuelResult object
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryDatabase(AstRetrieve $query, array $initialParams=[]): array {
+		protected function executeSimpleQueryDatabase(ExecutionStage $stage, array $initialParams=[]): array {
 			// Converteer de query naar SQL
-			$sql = $this->objectQuel->convertToSQL($query, $initialParams);
+			$sql = $this->objectQuel->convertToSQL($stage->getQuery(), $initialParams);
 			
 			// Voer de SQL query uit
 			$rs = $this->connection->execute($sql, $initialParams);
 			
 			// Indien de query incorrect is, gooi een exception
 			if (!$rs) {
-				throw new QuelException($this->connection->getLastErrorMessage(), 0, $query);
+				throw new QuelException($this->connection->getLastErrorMessage());
 			}
 			
 			// Haal alle data op en stuur dit door naar QuelResult
@@ -213,25 +214,20 @@
 		
 		/**
 		 * Execute a JSON query and returns the result
-		 * @param AstRetrieve $query
+		 * @param ExecutionStage $stage
 		 * @param array $initialParams
 		 * @return array
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryJson(AstRetrieve $query, array $initialParams=[]): array {
-			// We do not allow joins in simple queries. For joins, we need to decompose the query
-			if (count($query->getRanges()) > 1) {
-				throw new QuelException("Joins not allowed in simple JSON queries");
-			}
-			
+		protected function executeSimpleQueryJson(ExecutionStage $stage, array $initialParams=[]): array {
 			// Load the JSON file and perform initial filtering
-			$contents = $this->loadAndFilterJsonFile($query->getRanges()[0]);
+			$contents = $this->loadAndFilterJsonFile($stage->getRange());
 			
 			// Use the conditions to further filter the file
 			$result = [];
 			
 			foreach($contents as $row) {
-				if ($query->getConditions() === null || $this->evaluateConditions($query->getConditions(), $row)) {
+				if ($stage->getQuery()->getConditions() === null || $this->evaluateConditions($stage->getQuery()->getConditions(), $row)) {
 					$result[] = $row;
 				}
 			}
@@ -241,28 +237,18 @@
 		
 		/**
 		 * Execute a database query and return the results
-		 * @param AstRetrieve $query The database query to execute
+		 * @param ExecutionStage $stage
 		 * @param array $initialParams (Optional) An array of parameters to bind to the query
 		 * @return array
 		 * @throws QuelException
 		 */
-		public function executeSimpleQuery(AstRetrieve $query, array $initialParams=[]): array {
-			// Check the type of query
-			$queryType = $this->queryAnalyzer->getQueryType($query);
+		public function executeStage(ExecutionStage $stage, array $initialParams=[]): array {
+			$queryType = $stage->getRange() instanceof AstRangeJsonSource ? 'json' : 'database';
 			
-			switch($queryType) {
-				case 'json' :
-					return $this->executeSimpleQueryJson($query, $initialParams);
-
-				case 'database':
-					return $this->executeSimpleQueryDatabase($query, $initialParams);
-					
-				case 'hybrid' :
-					throw new QuelException("Hybrid queries not allowed for simple queries");
-					
-				default:
-					throw new QuelException("Unknown query type {$queryType}");
-			}
+			return match ($queryType) {
+				'json' => $this->executeSimpleQueryJson($stage, $initialParams),
+				'database' => $this->executeSimpleQueryDatabase($stage, $initialParams),
+			};
 		}
 		
 		/**

@@ -334,7 +334,7 @@
 				$rangeNameLength = strlen($rangeName) + 1;
 				$class = $expression->getEntityName();
 				
-				if (!isset($relationCache[$rangeName])) {
+				if (($class !== null) && !isset($relationCache[$rangeName])) {
 					$keys = [];
 					$identifierKeys = $this->entityStore->getIdentifierKeys($class);
 					

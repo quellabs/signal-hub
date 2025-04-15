@@ -147,13 +147,15 @@
 				$sqlResult = $quelToSQLConvertToString->getResult();
 				
 				// Controleer of de alias geen volledige entity is
-				if (($value instanceof AstAlias) && !$this->identifierIsEntity($value->getExpression())) {
-					// Voeg de alias toe aan het SQL-resultaat
-					$sqlResult .= " as `{$value->getName()}`";
+				if (!empty($sqlResult)) {
+					if (($value instanceof AstAlias) && !$this->identifierIsEntity($value->getExpression())) {
+						// Voeg de alias toe aan het SQL-resultaat
+						$sqlResult .= " as `{$value->getName()}`";
+					}
+					
+					// Voeg het SQL-resultaat toe aan de resultaat array
+					$result[] = $sqlResult;
 				}
-				
-				// Voeg het SQL-resultaat toe aan de resultaat array
-				$result[] = $sqlResult;
 			}
 			
 			// Converteer de array naar een string en verwijder dubbele waarden
@@ -222,6 +224,11 @@
 			
 			// Doorloop alle ranges (entiteiten) in de retrieve-query.
 			foreach($ranges as $range) {
+				// Sla JSON ranges over
+				if (!$range instanceof AstRangeDatabase) {
+					continue;
+				}
+				
 				// Sla ranges met JOIN-eigenschappen over. Deze komen in de JOIN.
 				if ($range->getJoinProperty() !== null) {
 					continue;
@@ -377,7 +384,7 @@
 			// Doorloop alle entiteiten (ranges) en verwerk degenen met join-eigenschappen.
 			foreach($ranges as $range) {
 				// Sla de range over als deze een json data-source is
-				if ($range instanceof AstRangeJsonSource) {
+				if (!$range instanceof AstRangeDatabase) {
 					continue;
 				}
 				

@@ -65,7 +65,7 @@
 			}
 			
 			// Execute the query with combined parameters
-			$result = $this->queryExecutor->executeSimpleQuery($stage->getQuery(), $params);
+			$result = $this->queryExecutor->executeStage($stage, $params);
 			
 			// Apply post-processing if specified
 			if ($result && $stage->hasResultProcessor()) {
@@ -127,7 +127,7 @@
 			
 			// If there's only one stage, perform a simple query execution
 			if (count($stagesInOrder) === 1) {
-				return $this->queryExecutor->executeSimpleQuery($stagesInOrder[0]->getQuery(), $stagesInOrder[0]->getStaticParams());
+				return $this->queryExecutor->executeStage($stagesInOrder[0], $stagesInOrder[0]->getStaticParams());
 			}
 			
 			// Otherwise, execute each stage in the correct order and combine the results

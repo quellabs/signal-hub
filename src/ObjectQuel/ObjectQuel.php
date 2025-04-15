@@ -863,7 +863,7 @@
 		}
 		
 		/**
-		 * Returns the full query result count when paginating
+		 * Returns the full query results count when paginating
 		 * @return int
 		 */
 		public function getFullQueryResultCount(): int {
