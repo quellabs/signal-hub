@@ -38,6 +38,144 @@
 		}
 		
 		/**
+		 * Extracts just the filtering conditions for a specific range (not join conditions)
+		 * @param AstRange $range The range to extract filter conditions for
+		 * @param AstInterface|null $whereCondition The complete WHERE condition AST
+		 * @return AstInterface|null The filter conditions for this range
+		 */
+		protected function extractFilterConditions(AstRange $range, ?AstInterface $whereCondition): ?AstInterface {
+			// Do nothing if there's no $whereCondition
+			if ($whereCondition === null) {
+				return null;
+			}
+			
+			// For comparison operations, check if it's a filter condition
+			if ($whereCondition instanceof AstExpression) {
+				$leftInvolvesRange = $this->doesConditionInvolveRange($whereCondition->getLeft(), $range);
+				$rightInvolvesRange = $this->doesConditionInvolveRange($whereCondition->getRight(), $range);
+				
+				// If only one side involves our range and the other doesn't involve any range,
+				// it's a filter condition (e.g., x.value > 100)
+				if ($leftInvolvesRange && !$this->involvesAnyRange($whereCondition->getRight())) {
+					return clone $whereCondition;
+				}
+				
+				if ($rightInvolvesRange && !$this->involvesAnyRange($whereCondition->getLeft())) {
+					return clone $whereCondition;
+				}
+				
+				// Otherwise, it might be a join condition, so we don't include it here
+				return null;
+			}
+			
+			// For binary operators (AND, OR)
+			if ($whereCondition instanceof AstBinaryOperator) {
+				$leftFilters = $this->extractFilterConditions($range, $whereCondition->getLeft());
+				$rightFilters = $this->extractFilterConditions($range, $whereCondition->getRight());
+				
+				// If both sides have filters
+				if ($leftFilters !== null && $rightFilters !== null) {
+					$newNode = clone $whereCondition;
+					$newNode->setLeft($leftFilters);
+					$newNode->setRight($rightFilters);
+					return $newNode;
+				}
+				
+				// If only one side has filters
+				if ($leftFilters !== null) {
+					return $leftFilters;
+				} elseif ($rightFilters !== null) {
+					return $rightFilters;
+				} else {
+					return null;
+				}
+			}
+			
+			return null;
+		}
+		
+		/**
+		 * Extracts join conditions between two specific ranges
+		 * @param AstRange $rangeA First range in the join
+		 * @param AstRange $rangeB Second range in the join
+		 * @param AstInterface|null $whereCondition The complete WHERE condition AST
+		 * @return AstInterface|null The join conditions between these ranges
+		 */
+		protected function extractJoinConditions(AstRange $rangeA, AstRange $rangeB, ?AstInterface $whereCondition): ?AstInterface {
+			if ($whereCondition === null) {
+				return null;
+			}
+			
+			// For comparison operations, check if it's a join condition
+			if ($whereCondition instanceof AstExpression) {
+				$leftInvolvesA = $this->doesConditionInvolveRange($whereCondition->getLeft(), $rangeA);
+				$leftInvolvesB = $this->doesConditionInvolveRange($whereCondition->getLeft(), $rangeB);
+				$rightInvolvesA = $this->doesConditionInvolveRange($whereCondition->getRight(), $rangeA);
+				$rightInvolvesB = $this->doesConditionInvolveRange($whereCondition->getRight(), $rangeB);
+				
+				// If one side involves rangeA and the other involves rangeB, it's a join condition
+				if (($leftInvolvesA && $rightInvolvesB) || ($leftInvolvesB && $rightInvolvesA)) {
+					return clone $whereCondition;
+				}
+				
+				// Otherwise, it's not a join condition between these specific ranges
+				return null;
+			}
+			
+			// For binary operators (AND, OR)
+			if ($whereCondition instanceof AstBinaryOperator) {
+				$leftJoins = $this->extractJoinConditions($rangeA, $rangeB, $whereCondition->getLeft());
+				$rightJoins = $this->extractJoinConditions($rangeA, $rangeB, $whereCondition->getRight());
+				
+				// If both sides have join conditions
+				if ($leftJoins !== null && $rightJoins !== null) {
+					$newNode = clone $whereCondition;
+					$newNode->setLeft($leftJoins);
+					$newNode->setRight($rightJoins);
+					return $newNode;
+				}
+				
+				// If only one side has join conditions
+				if ($leftJoins !== null) {
+					return $leftJoins;
+				} elseif ($rightJoins !== null) {
+					return $rightJoins;
+				} else {
+					return null;
+				}
+			}
+			
+			return null;
+		}
+		
+		/**
+		 * Helper method to check if a condition involves any range at all
+		 * (Used to distinguish filter conditions from literals)
+		 */
+		private function involvesAnyRange(AstInterface $condition): bool {
+			if ($condition instanceof AstIdentifier) {
+				return $condition->getRange() !== null;
+			}
+			
+			if ($condition instanceof AstUnaryOperation) {
+				return $this->involvesAnyRange($condition->getExpression());
+			}
+			
+			if (
+				$condition instanceof AstExpression ||
+				$condition instanceof AstBinaryOperator ||
+				$condition instanceof AstTerm ||
+				$condition instanceof AstFactor
+			) {
+				return $this->involvesAnyRange($condition->getLeft()) ||
+					$this->involvesAnyRange($condition->getRight());
+			}
+			
+			// Literals and other nodes don't involve ranges
+			return false;
+		}
+		
+		/**
 		 * Transforms a WHERE condition to include only parts involving specific ranges.
 		 * @param array $ranges Array of AstRange objects to keep in the condition
 		 * @param AstInterface|null $whereCondition The complete WHERE condition AST
