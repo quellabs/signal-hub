@@ -38,6 +38,134 @@
 		}
 		
 		/**
+		 * Creates a database-only subset of the original query.
+		 *
+		 * This method extracts a portion of the query that can be executed entirely by
+		 * the database engine, filtering out any parts that would require post-processing
+		 * or in-memory evaluation (such as JSON operations).
+		 * @param AstRetrieve $query The original query AST
+		 * @return AstRetrieve A new query AST with only database-executable components
+		 */
+		protected function extractDatabaseOnlyQuery(AstRetrieve $query): AstRetrieve {
+			// Clone the query to avoid modifying the original
+			// This ensures we preserve the complete query for potential in-memory operations later
+			$dbQuery = clone $query;
+			
+			// Get all database ranges (tables/views that exist in the database)
+			// These are data sources that SQL can directly access
+			$dbRanges = $query->getDatabaseRanges();
+			
+			// Remove any non-database ranges (e.g., in-memory collections, JSON data)
+			// The resulting query will only reference actual database tables/views
+			$dbQuery->setRanges($dbRanges);
+			
+			// Filter the conditions to include only those relevant to database ranges
+			// This removes conditions that can't be executed by the database engine
+			// and preserves the structure of AND/OR operations where possible
+			$dbQuery->setConditions($this->getDatabaseOnlyConditions($query->getConditions(), $dbRanges));
+			
+			// Return the optimized query that can be fully executed by the database
+			return $dbQuery;
+		}
+		
+		/**
+		 * Extracts conditions that can be executed directly by the database engine.
+		 *
+		 * This function filters a condition tree to include only expressions that can be
+		 * evaluated by the database (based on the provided database ranges), removing any
+		 * parts that would require in-memory processing (like JSON operations).
+		 * @param AstInterface|null $condition The condition AST to filter
+		 * @param array $dbRanges Array of ranges that can be handled by the database
+		 * @return AstInterface|null The filtered condition AST, or null if nothing can be handled by DB
+		 */
+		protected function getDatabaseOnlyConditions(?AstInterface $condition, array $dbRanges): ?AstInterface {
+			// Base case: if no condition provided, return null
+			if ($condition === null) {
+				return null;
+			}
+			
+			// Handle unary operations (NOT, IS NULL, etc.)
+			if ($condition instanceof AstUnaryOperation) {
+				// Recursively process the inner expression
+				$innerCondition = $this->getDatabaseOnlyConditions($condition->getExpression(), $dbRanges);
+				
+				// If inner expression can be handled by DB, create a new unary operation with it
+				if ($innerCondition !== null) {
+					return new AstUnaryOperation($innerCondition, $condition->getOperator());
+				}
+				
+				// If inner expression can't be handled by DB, return null
+				return null;
+			}
+			
+			// Handle comparison operations (e.g., =, >, <, LIKE, etc.)
+			if ($condition instanceof AstExpression) {
+				// Check if either side of the expression involves database fields
+				$leftInvolvesDb = $this->doesConditionInvolveAnyRange($condition->getLeft(), $dbRanges);
+				$rightInvolvesDb = $this->doesConditionInvolveAnyRange($condition->getRight(), $dbRanges);
+				
+				// Case 1: Keep expressions where both sides involve database ranges
+				// (e.g., table1.column = table2.column)
+				if ($leftInvolvesDb && $rightInvolvesDb) {
+					return clone $condition;
+				}
+				
+				// Case 2: Keep expressions where left side is a DB field and right side is a literal
+				// (e.g., table.column = 'value')
+				if ($leftInvolvesDb && !$this->involvesAnyRange($condition->getRight())) {
+					return clone $condition;
+				}
+				
+				// Case 3: Keep expressions where right side is a DB field and left side is a literal
+				// (e.g., 'value' = table.column)
+				if ($rightInvolvesDb && !$this->involvesAnyRange($condition->getLeft())) {
+					return clone $condition;
+				}
+				
+				// If expression involves JSON ranges or other non-DB operations, exclude it
+				return null;
+			}
+			
+			// Handle binary operators (AND, OR)
+			if ($condition instanceof AstBinaryOperator) {
+				// Recursively process both sides of the operator
+				$leftCondition = $this->getDatabaseOnlyConditions($condition->getLeft(), $dbRanges);
+				$rightCondition = $this->getDatabaseOnlyConditions($condition->getRight(), $dbRanges);
+				
+				// Case 1: If both sides have valid database conditions
+				// (e.g., (table1.col = 5) AND (table2.col = 'text'))
+				if ($leftCondition !== null && $rightCondition !== null) {
+					$newNode = clone $condition;
+					$newNode->setLeft($leftCondition);
+					$newNode->setRight($rightCondition);
+					return $newNode;
+				}
+				
+				// Case 2: If only left side has valid database conditions
+				if ($leftCondition !== null) {
+					return $leftCondition;
+				}
+				
+				// Case 3: If only right side has valid database conditions
+				if ($rightCondition !== null) {
+					return $rightCondition;
+				}
+				
+				// Case 4: If neither side has valid database conditions
+				return null;
+			}
+			
+			// For literals or other standalone expressions that don't involve any ranges.
+			// These can be safely pushed to the database.
+			if (!$this->involvesAnyRange($condition)) {
+				return clone $condition;
+			}
+			
+			// Default case: condition not suitable for database execution
+			return null;
+		}
+		
+		/**
 		 * Extracts just the filtering conditions for a specific range (not join conditions)
 		 * @param AstRange $range The range to extract filter conditions for
 		 * @param AstInterface|null $whereCondition The complete WHERE condition AST
@@ -149,29 +277,39 @@
 		}
 		
 		/**
-		 * Helper method to check if a condition involves any range at all
-		 * (Used to distinguish filter conditions from literals)
+		 * Determines if an AST node involves any data range (database table or other data source).
+		 * This recursive method checks whether any part of the given condition references
+		 * a data range, which helps identify expressions that need database or in-memory execution.
+		 * @param AstInterface $condition The AST node to check
+		 * @return bool True if the condition involves any data range, false otherwise
 		 */
 		private function involvesAnyRange(AstInterface $condition): bool {
+			// For identifiers (column names), check if they have an associated range
 			if ($condition instanceof AstIdentifier) {
+				// An identifier with a range represents a field from a table or other data source
 				return $condition->getRange() !== null;
 			}
 			
+			// For unary operations (NOT, IS NULL, etc.), check the inner expression
 			if ($condition instanceof AstUnaryOperation) {
+				// Recursively check if the inner expression involves any range
 				return $this->involvesAnyRange($condition->getExpression());
 			}
 			
+			// For binary nodes with left and right children, check both sides
 			if (
-				$condition instanceof AstExpression ||
-				$condition instanceof AstBinaryOperator ||
-				$condition instanceof AstTerm ||
-				$condition instanceof AstFactor
+				$condition instanceof AstExpression ||   // Comparison expressions (=, <, >, etc.)
+				$condition instanceof AstBinaryOperator || // Logical operators (AND, OR)
+				$condition instanceof AstTerm ||         // Addition, subtraction
+				$condition instanceof AstFactor          // Multiplication, division
 			) {
-				return $this->involvesAnyRange($condition->getLeft()) ||
+				// Return true if either the left or right side involves any range
+				return
+					$this->involvesAnyRange($condition->getLeft()) ||
 					$this->involvesAnyRange($condition->getRight());
 			}
 			
-			// Literals and other nodes don't involve ranges
+			// Literals (numbers, strings) and other node types don't involve ranges
 			return false;
 		}
 		
@@ -308,7 +446,6 @@
 		 * Decomposes a query into separate execution stages for different data sources.
 		 * This function takes a mixed-source query and creates an execution plan with
 		 * appropriate stages for database and JSON sources.
-		 *
 		 * @param AstRetrieve $query The ObjectQuel query to decompose
 		 * @param array $staticParams Optional static parameters for the query
 		 * @return ExecutionPlan|null The execution plan containing all stages, or null if decomposition failed
