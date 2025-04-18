@@ -176,7 +176,7 @@
 			
 			foreach ($contents as $row) {
 				if ($stage->getQuery()->getConditions() === null ||
-					$this->conditionEvaluator->evaluate($stage->getQuery()->getConditions(), $row)) {
+					$this->conditionEvaluator->evaluate($stage->getQuery()->getConditions(), $row, $initialParams)) {
 					$result[] = $row;
 				}
 			}

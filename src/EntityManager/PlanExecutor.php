@@ -4,7 +4,6 @@
 	
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\QuelException;
-	use Services\ObjectQuel\QuelResult;
 	
 	/**
 	 * Responsible for executing individual stages of a decomposed query plan

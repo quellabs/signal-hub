@@ -5,7 +5,6 @@
 	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Rules\Range;
 	
 	/**
 	 * Represents a single execution stage within a decomposed query execution plan.

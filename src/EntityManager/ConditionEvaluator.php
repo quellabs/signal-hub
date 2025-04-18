@@ -25,10 +25,11 @@
 		 *
 		 * @param AstInterface $ast The AST condition to evaluate
 		 * @param array $row The data row to evaluate against
+		 * @param array $initialParams
 		 * @return mixed The result of the evaluation
 		 * @throws QuelException When an unknown AST node or operator is encountered
 		 */
-		public function evaluate(AstInterface $ast, array $row): mixed {
+		public function evaluate(AstInterface $ast, array $row, array $initialParams=[]): mixed {
 			switch(get_class($ast)) {
 				case AstNumber::class:
 				case AstString::class:
@@ -39,8 +40,8 @@
 					return $row[$ast->getCompleteName()];
 				
 				case AstExpression::class:
-					$left = $this->evaluate($ast->getLeft(), $row);
-					$right = $this->evaluate($ast->getRight(), $row);
+					$left = $this->evaluate($ast->getLeft(), $row, $initialParams);
+					$right = $this->evaluate($ast->getRight(), $row, $initialParams);
 					
 					return match ($ast->getOperator()) {
 						'=' => $left == $right,
@@ -53,8 +54,8 @@
 					};
 				
 				case AstBinaryOperator::class:
-					$left = $this->evaluate($ast->getLeft(), $row);
-					$right = $this->evaluate($ast->getRight(), $row);
+					$left = $this->evaluate($ast->getLeft(), $row, $initialParams);
+					$right = $this->evaluate($ast->getRight(), $row, $initialParams);
 					
 					return match ($ast->getOperator()) {
 						'AND' => $left && $right,
