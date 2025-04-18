@@ -2,8 +2,6 @@
 	
 	namespace Services\EntityManager;
 	
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	
 	/**
@@ -65,5 +63,13 @@
 			// This would implement topological sorting of the stage dependency graph
 			// For now, a simple implementation assuming stages are already in order
 			return $this->stages;
+		}
+		
+		/**
+		 * Returns true if the execution plan is empty, false if not
+		 * @return bool
+		 */
+		public function isEmpty(): bool {
+			return empty($this->stages);
 		}
 	}

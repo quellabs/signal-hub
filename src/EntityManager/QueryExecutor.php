@@ -324,7 +324,7 @@
 			
 			// Decompose the query
 			$decomposer = new QueryDecomposer($this);
-			$executionPlan = $decomposer->decompose($ast, $parameters);
+			$executionPlan = $decomposer->buildExecutionPlan($ast, $parameters);
 			
 			// Execute the returned execution plan and return the QuelResult
 			$result = $this->planExecutor->execute($executionPlan);
