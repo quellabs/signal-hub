@@ -379,6 +379,11 @@
 		 * @return bool True if the condition involves the range
 		 */
 		protected function hasReferenceToRange(AstInterface $condition, AstRange $range): bool {
+			// For aliases, check the matching identifier
+			if ($condition instanceof AstAlias) {
+				return $this->hasReferenceToRange($condition->getExpression(), $range);
+			}
+			
 			// For property access, check if the base entity matches our range
 			if ($condition instanceof AstIdentifier) {
 				return $condition->getRange()->getName() === $range->getName();
