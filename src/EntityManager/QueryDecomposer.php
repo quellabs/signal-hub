@@ -109,7 +109,7 @@
 			$dbQuery->setConditions($this->filterDatabaseCompatibleConditions($query->getConditions(), $dbRanges));
 			
 			// Return the optimized query that can be fully executed by the database
-			return new ExecutionStage(uniqid(), $dbQuery, $staticParams);
+			return new ExecutionStage(uniqid(), $dbQuery, null, $staticParams);
 		}
 		
 		/**
@@ -144,7 +144,7 @@
 			$joinConditions = $this->isolateJoinConditionsForRange($range, $query->getConditions());
 			
 			// Return the optimized query that can be fully executed by the database
-			return new ExecutionStage(uniqid(), $dbQuery, $staticParams, $joinConditions);
+			return new ExecutionStage(uniqid(), $dbQuery, $range, $staticParams, $joinConditions);
 		}
 		
 		/**

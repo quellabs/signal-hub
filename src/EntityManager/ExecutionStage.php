@@ -2,8 +2,10 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstRange;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\AstInterface;
+	use Services\ObjectQuel\Rules\Range;
 	
 	/**
 	 * Represents a single execution stage within a decomposed query execution plan.
@@ -46,18 +48,26 @@
 		 * The conditions for a join
 		 * @var null
 		 */
-		private $joinConditions = null;
+		private ?AstInterface $joinConditions = null;
+		
+		/**
+		 * The attached range
+		 * @var AstRange|null
+		 */
+		private ?AstRange $range;
 		
 		/**
 		 * Create a new execution stage
 		 * @param string $name Unique identifier for this stage
 		 * @param AstRetrieve $query The ObjectQuel query for this stage
+		 * @param AstRange|null $range The attached range, or null if none attached
 		 * @param array $staticParams Fixed parameters that don't depend on other stages
 		 * @param AstInterface|null $joinConditions The conditions for joining this stage with the final result
 		 */
-		public function __construct(string $name, AstRetrieve $query, array $staticParams = [], ?AstInterface $joinConditions=null) {
+		public function __construct(string $name, AstRetrieve $query, ?AstRange $range, array $staticParams = [], ?AstInterface $joinConditions=null) {
 			$this->name = $name;
 			$this->query = $query;
+			$this->range = $range;
 			$this->staticParams = $staticParams;
 			$this->joinConditions = $joinConditions;
 		}
@@ -130,4 +140,21 @@
 		public function setJoinConditions(?AstInterface $joinConditions): void {
 			$this->joinConditions = $joinConditions;
 		}
+		
+		/**
+		 * Gets the query type
+		 * @return AstRange|null
+		 */
+		public function getRange(): ?AstRange {
+			return $this->range;
+		}
+		
+		/**
+		 * Sets the range
+		 * @return void
+		 */
+		public function setRange(?AstRange $range): void {
+			$this->range = $range;
+		}
+		
 	}

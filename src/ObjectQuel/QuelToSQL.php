@@ -6,7 +6,6 @@
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;

@@ -136,7 +136,7 @@
 				throw new QuelException("JSON file {$source->getName()} not found");
 			}
 			
-			// Decode the json file
+			// Decode the JSON file
 			$decoded = json_decode($contents, true);
 			
 			if (json_last_error() !== JSON_ERROR_NONE) {

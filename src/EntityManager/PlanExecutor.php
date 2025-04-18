@@ -31,41 +31,13 @@
 		
 		/**
 		 * Process an individual stage with dependencies
-		 *
-		 * This method:
-		 * 1. Prepares parameters by combining static values with results from previous stages
-		 * 2. Executes the query with the combined parameters
-		 * 3. Applies any post-processing functions to the results
 		 * @param ExecutionStage $stage The stage to execute
-		 * @param array $intermediateResults Results from previous stages, indexed by stage name
 		 * @return array The result of this stage's execution
 		 * @throws QuelException When dependencies cannot be satisfied or execution fails
 		 */
-		private function executeStage(ExecutionStage $stage, array $intermediateResults): array {
-			// Prepare parameters by combining static params with values from previous stages
-			$params = $stage->getStaticParams();
-			
-			foreach ($stage->getDependentParams() as $paramName => $source) {
-				$sourceStage = $source['sourceStage'];
-				$sourceField = $source['sourceField'];
-				
-				if (!isset($intermediateResults[$sourceStage])) {
-					throw new QuelException("Stage '{$stage->getName()}' depends on stage '{$sourceStage}' which has not been executed yet");
-				}
-				
-				$sourceResults = $intermediateResults[$sourceStage];
-				
-				if ($sourceField !== null && $sourceResults instanceof QuelResult) {
-					// Extract specific field values from the source results
-					$params[$paramName] = $sourceResults->extractFieldValues($sourceField);
-				} else {
-					// Use the entire result set
-					$params[$paramName] = $sourceResults;
-				}
-			}
-			
+		private function executeStage(ExecutionStage $stage): array {
 			// Execute the query with combined parameters
-			$result = $this->queryExecutor->executeStage($stage, $params);
+			$result = $this->queryExecutor->executeStage($stage, $stage->getStaticParams());
 			
 			// Apply post-processing if specified
 			if ($result && $stage->hasResultProcessor()) {
@@ -135,7 +107,7 @@
 			
 			foreach($stagesInOrder as $stage) {
 				try {
-					$intermediateResults[$stage->getName()] = $this->executeStage($stage, $intermediateResults);
+					$intermediateResults[$stage->getName()] = $this->executeStage($stage);
 				} catch (QuelException $e) {
 					throw new QuelException("Stage '{$stage->getName()}' failed: {$e->getMessage()}");
 				}
