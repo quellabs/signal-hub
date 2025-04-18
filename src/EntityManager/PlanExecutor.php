@@ -23,11 +23,19 @@
 		private QueryExecutor $queryExecutor;
 		
 		/**
+		 * Condition evaluator used to evaluate join conditions
+		 * @var ConditionEvaluator
+		 */
+		private ConditionEvaluator $conditionEvaluator;
+		
+		/**
 		 * Create a new stage executor
 		 * @param QueryExecutor $queryExecutor The entity manager to use for execution
+		 * @param ConditionEvaluator $conditionEvaluator The evaluator for conditions
 		 */
-		public function __construct(QueryExecutor $queryExecutor) {
+		public function __construct(QueryExecutor $queryExecutor, ConditionEvaluator $conditionEvaluator) {
 			$this->queryExecutor = $queryExecutor;
+			$this->conditionEvaluator = $conditionEvaluator;
 		}
 		
 		/**
@@ -56,6 +64,7 @@
 		 * @param ExecutionPlan $plan The execution plan with stage information
 		 * @param array $intermediateResults Results from all stages, indexed by stage name
 		 * @return array The combined result after performing all necessary joins
+		 * @throws QuelException
 		 */
 		private function combineResults(ExecutionPlan $plan, array $intermediateResults): array {
 			// Get the main stage name from the plan
@@ -79,7 +88,7 @@
 				}
 				
 				// Get the stage object to access join conditions and type
-				$stageFiltered = array_values(array_filter($allStages, function($e) use ($stageName) {
+				$stageFiltered = array_values(array_filter($allStages, function ($e) use ($stageName) {
 					return $e->getName() === $stageName;
 				}));
 				
@@ -136,6 +145,7 @@
 		 * @param array $rightResult The right result set
 		 * @param AstInterface $joinConditions The join conditions
 		 * @return array The joined result set
+		 * @throws QuelException
 		 */
 		private function performLeftJoin(array $leftResult, array $rightResult, AstInterface $joinConditions): array {
 			$combined = [];
@@ -149,8 +159,8 @@
 					// Temporarily combine the rows to evaluate join condition
 					$combinedRow = array_merge($leftRow, $rightRow);
 					
-					// Evaluate join condition against combined row
-					if ($this->evaluateCondition($joinConditions, $combinedRow)) {
+					// Evaluate join condition against combined row using the ConditionEvaluator
+					if ($this->conditionEvaluator->evaluate($joinConditions, $combinedRow)) {
 						// Add the combined row to the result
 						$combined[] = $combinedRow;
 						$matched = true;
@@ -174,18 +184,19 @@
 		 * @param array $rightResult The right result set
 		 * @param AstInterface $joinConditions The join conditions
 		 * @return array The joined result set
+		 * @throws QuelException
 		 */
 		private function performInnerJoin(array $leftResult, array $rightResult, AstInterface $joinConditions): array {
 			$combined = [];
-
+			
 			foreach ($leftResult as $leftRow) {
 				// Check against each row in the right result
 				foreach ($rightResult as $rightRow) {
 					// Temporarily combine the rows to evaluate join condition
 					$combinedRow = array_merge($leftRow, $rightRow);
 					
-					// Evaluate join condition against combined row
-					if ($this->evaluateCondition($joinConditions, $combinedRow)) {
+					// Evaluate join condition against combined row using the ConditionEvaluator
+					if ($this->conditionEvaluator->evaluate($joinConditions, $combinedRow)) {
 						// Add the combined row to the result
 						$combined[] = $combinedRow;
 					}
@@ -193,24 +204,6 @@
 			}
 			
 			return $combined;
-		}
-		
-		/**
-		 * Evaluates a join condition against a combined row
-		 * @param AstInterface $condition The join condition to evaluate
-		 * @param array $row The combined row data
-		 * @return bool Whether the condition is satisfied
-		 */
-		private function evaluateCondition(AstInterface $condition, array $row): bool {
-			// This is a placeholder for the actual condition evaluation logic
-			// In a real implementation, this would interpret the AST condition
-			// and evaluate it against the row data
-			
-			// You'll need to implement the actual condition evaluation based on your AST structure
-			// For example, checking if user.id = order.user_id
-			
-			// For demonstration purposes, we'll assume the condition is always met
-			return true;
 		}
 		
 		/**
@@ -231,7 +224,7 @@
 			// Otherwise, execute each stage in the correct order and combine the results
 			$intermediateResults = [];
 			
-			foreach($stagesInOrder as $stage) {
+			foreach ($stagesInOrder as $stage) {
 				try {
 					$intermediateResults[$stage->getName()] = $this->executeStage($stage);
 				} catch (QuelException $e) {

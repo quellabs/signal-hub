@@ -1,38 +1,33 @@
 <?php
 	
-    namespace Services\EntityManager;
+	namespace Services\EntityManager;
 	
 	use Flow\JSONPath\JSONPathException;
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
-	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
-	use Services\ObjectQuel\Ast\AstBool;
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstString;
 	
 	/**
 	 * Represents an Entity Manager.
 	 */
 	class QueryExecutor {
-        protected DatabaseAdapter $connection;
+		protected DatabaseAdapter $connection;
 		private EntityManager $entityManager;
 		private PlanExecutor $planExecutor;
 		private ObjectQuel $objectQuel;
+		private ConditionEvaluator $conditionEvaluator;
 		
 		/**
 		 * @param EntityManager $entityManager
 		 */
-        public function __construct(EntityManager $entityManager) {
-            $this->entityManager = $entityManager;
-            $this->connection = $entityManager->getConnection();
-	        $this->planExecutor = new PlanExecutor($this);
-	        $this->objectQuel = new ObjectQuel($entityManager);
-        }
+		public function __construct(EntityManager $entityManager) {
+			$this->entityManager = $entityManager;
+			$this->connection = $entityManager->getConnection();
+			$this->conditionEvaluator = new ConditionEvaluator();
+			$this->planExecutor = new PlanExecutor($this, $this->conditionEvaluator);
+			$this->objectQuel = new ObjectQuel($entityManager);
+		}
 		
 		/**
 		 * Returns the entity manager object
@@ -61,7 +56,7 @@
 			$objectKeys = [];
 			
 			// Gebruik array_filter om door de array te gaan en dubbele objecten te verwijderen.
-			return array_filter($array, function($item) use (&$objectKeys) {
+			return array_filter($array, function ($item) use (&$objectKeys) {
 				// Als het item geen object is, behoud het in de array.
 				if (!is_object($item)) {
 					return true;
@@ -89,7 +84,7 @@
 		public function getConnection(): DatabaseAdapter {
 			return $this->connection;
 		}
-
+		
 		/**
 		 * Transforms a Quel query to SQL, executes the SQL and returns the result
 		 * @param ExecutionStage $stage The parsed query (AST)
@@ -97,7 +92,7 @@
 		 * @return array The QuelResult object
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryDatabase(ExecutionStage $stage, array $initialParams=[]): array {
+		protected function executeSimpleQueryDatabase(ExecutionStage $stage, array $initialParams = []): array {
 			// Converteer de query naar SQL
 			$sql = $this->objectQuel->convertToSQL($stage->getQuery(), $initialParams);
 			
@@ -152,10 +147,10 @@
 			$result = [];
 			$alias = $source->getName();
 			
-			foreach($decoded as $row) {
+			foreach ($decoded as $row) {
 				$line = [];
 				
-				foreach($row as $key => $value) {
+				foreach ($row as $key => $value) {
 					$line["{$alias}.{$key}"] = $value;
 				}
 				
@@ -166,64 +161,22 @@
 		}
 		
 		/**
-		 * Evaluate the conditions
-		 * @throws QuelException
-		 */
-		protected function evaluateConditions(AstInterface $ast, array $row) {
-			switch(get_class($ast)) {
-				case AstNumber::class:
-				case AstString::class:
-				case AstBool::class:
-					return $ast->getValue();
-					
-				case AstIdentifier::class:
-					return $row[$ast->getCompleteName()];
-					
-				case AstExpression::class:
-					$left = $this->evaluateConditions($ast->getLeft(), $row);
-					$right = $this->evaluateConditions($ast->getRight(), $row);
-					
-					return match ($ast->getOperator()) {
-						'=' => $left == $right,
-						'<>', '!=' => $left != $right,
-						'<' => $left < $right,
-						'>' => $left > $right,
-						'<=' => $left <= $right,
-						'>=' => $left >= $right,
-						default => throw new QuelException("Unknown operator {$ast->getOperator()}"),
-					};
-					
-				case AstBinaryOperator::class:
-					$left = $this->evaluateConditions($ast->getLeft(), $row);
-					$right = $this->evaluateConditions($ast->getRight(), $row);
-					
-					return match ($ast->getOperator()) {
-						'AND' => $left && $right,
-						'OR' => $left || $right,
-						default => throw new QuelException("Unknown operator {$ast->getOperator()}"),
-					};
-					
-				default:
-					throw new QuelException("Unknown AST node " . get_class($ast));
-			}
-		}
-		
-		/**
 		 * Execute a JSON query and returns the result
 		 * @param ExecutionStage $stage
 		 * @param array $initialParams
 		 * @return array
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryJson(ExecutionStage $stage, array $initialParams=[]): array {
+		protected function executeSimpleQueryJson(ExecutionStage $stage, array $initialParams = []): array {
 			// Load the JSON file and perform initial filtering
 			$contents = $this->loadAndFilterJsonFile($stage->getRange());
 			
 			// Use the conditions to further filter the file
 			$result = [];
 			
-			foreach($contents as $row) {
-				if ($stage->getQuery()->getConditions() === null || $this->evaluateConditions($stage->getQuery()->getConditions(), $row)) {
+			foreach ($contents as $row) {
+				if ($stage->getQuery()->getConditions() === null ||
+					$this->conditionEvaluator->evaluate($stage->getQuery()->getConditions(), $row)) {
 					$result[] = $row;
 				}
 			}
@@ -238,7 +191,7 @@
 		 * @return array
 		 * @throws QuelException
 		 */
-		public function executeStage(ExecutionStage $stage, array $initialParams=[]): array {
+		public function executeStage(ExecutionStage $stage, array $initialParams = []): array {
 			$queryType = $stage->getRange() instanceof AstRangeJsonSource ? 'json' : 'database';
 			
 			return match ($queryType) {
@@ -254,7 +207,7 @@
 		 * @return array
 		 * @throws QuelException
 		 */
-		public function getAll(string $query, array $parameters=[]): array {
+		public function getAll(string $query, array $parameters = []): array {
 			// Voert de query uit met de opgegeven parameters.
 			$rs = $this->executeQuery($query, $parameters);
 			
@@ -280,7 +233,7 @@
 		 * @return array Een array met unieke objecten uit de eerste kolom van de queryresultaten.
 		 * @throws QuelException
 		 */
-		public function getCol(string $query, array $parameters=[]): array {
+		public function getCol(string $query, array $parameters = []): array {
 			// Voert de query uit met de opgegeven parameters.
 			$rs = $this->executeQuery($query, $parameters);
 			
@@ -314,7 +267,7 @@
 		 * @return QuelResult The results of the execution plan
 		 * @throws QuelException
 		 */
-		public function executeQuery(string $query, array $parameters=[]): QuelResult {
+		public function executeQuery(string $query, array $parameters = []): QuelResult {
 			// Parse the input query string into an Abstract Syntax Tree (AST)
 			$ast = $this->getObjectQuel()->parse($query);
 			
