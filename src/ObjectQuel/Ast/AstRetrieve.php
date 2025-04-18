@@ -134,14 +134,38 @@
 		}
 		
 		/**
-		 * Returns database ranges
-		 * @return array
+		 * Checks if a condition node involves a specific range.
+		 * @param AstInterface $condition The condition AST node
+		 * @param AstRange $range The range to check for
+		 * @return bool True if the condition involves the range
 		 */
-		public function getDatabaseRanges(): array {
-			return array_filter($this->ranges, function($range) {
-				return $range instanceof AstRangeDatabase;
-			});
+		protected function doesConditionInvolveRange(AstInterface $condition, AstRange $range): bool {
+			// For property access, check if the base entity matches our range
+			if ($condition instanceof AstIdentifier) {
+				return $condition->getRange()->getName() === $range->getName();
+			}
+			
+			// For unary operations (NOT, etc.)
+			if ($condition instanceof AstUnaryOperation) {
+				return $this->doesConditionInvolveRange($condition->getExpression(), $range);
+			}
+			
+			// For comparison operations, check each side
+			if (
+				$condition instanceof AstExpression ||
+				$condition instanceof AstBinaryOperator ||
+				$condition instanceof AstTerm ||
+				$condition instanceof AstFactor
+			) {
+				$leftInvolves = $this->doesConditionInvolveRange($condition->getLeft(), $range);
+				$rightInvolves = $this->doesConditionInvolveRange($condition->getRight(), $range);
+				return $leftInvolves || $rightInvolves;
+			}
+			
+			return false;
 		}
+		
+
 		
 		/**
 		 * Returns database ranges
@@ -159,6 +183,14 @@
 		 */
 		public function getRanges(): array {
 			return $this->ranges;
+		}
+		
+		/**
+		 * Sets a new set of ranges
+		 * @return void
+		 */
+		public function setRanges(array $ranges): void {
+			$this->ranges = $ranges;
 		}
 		
 		/**

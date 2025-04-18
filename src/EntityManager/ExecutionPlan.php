@@ -40,11 +40,19 @@
 		 * @param string $name The unique identifier for this stage
 		 * @param AstRetrieve $query The query to be executed in this stage
 		 * @param array $staticParams Static parameters to be passed to the query execution
-		 * @param AstRange|null $attachedRange The range attached to this stage. Null if none.
 		 * @return void
 		 */
-		public function createStage(string $name, AstRetrieve $query, array $staticParams = [], ?AstRange $attachedRange=null): void {
-			$this->stages[] = new ExecutionStage($name, $query, $staticParams, $attachedRange);
+		public function createStage(string $name, AstRetrieve $query, array $staticParams = []): void {
+			$this->stages[] = new ExecutionStage($name, $query, $staticParams);
+		}
+		
+		/**
+		 * Adds a new execution stage to the plan
+		 * @param ExecutionStage $stage
+		 * @return void
+		 */
+		public function addStage(ExecutionStage $stage): void {
+			$this->stages[] = $stage;
 		}
 		
 		/**

@@ -2,16 +2,17 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstRange;
+	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\Ast\AstTerm;
 	use Services\ObjectQuel\Ast\AstUnaryOperation;
 	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\QuelException;
 	use Services\Signalize\Ast\AstBool;
 	use Services\Signalize\Ast\AstNumber;
 	use Services\Signalize\Ast\AstString;
@@ -23,41 +24,82 @@
 	class QueryDecomposer {
 		
 		/**
-		 * Reference to the EntityManager instance
-		 * Used to access entity metadata and other resources needed for query analysis
-		 * @var QueryExecutor
+		 * Returns database ranges
+		 * @param AstRetrieve $query
+		 * @return AstRange[]
 		 */
-		private QueryExecutor $queryExecutor;
-		
-		/**
-		 * Creates a new QueryDecomposer instance
-		 * @param QueryExecutor $queryExecutor
-		 */
-		public function __construct(QueryExecutor $queryExecutor) {
-			$this->queryExecutor = $queryExecutor;
+		public function getDatabaseRanges(AstRetrieve $query): array {
+			return array_filter($query->getRanges(), function($range) {
+				return $range instanceof AstRangeDatabase;
+			});
 		}
 		
 		/**
-		 * Creates a database-only subset of the original query.
-		 *
-		 * This method extracts a portion of the query that can be executed entirely by
-		 * the database engine, filtering out any parts that would require post-processing
-		 * or in-memory evaluation (such as JSON operations).
-		 * @param AstRetrieve $query The original query AST
-		 * @return AstRetrieve A new query AST with only database-executable components
+		 * Returns only the database projections
+		 * @return AstAlias[]
 		 */
-		protected function extractDatabaseOnlyQuery(AstRetrieve $query): AstRetrieve {
+		public function getDatabaseProjections(AstRetrieve $query): array {
+			$result = [];
+			$databaseRanges = $this->getDatabaseRanges($query);
+			
+			foreach($query->getValues() as $value) {
+				foreach($databaseRanges as $range) {
+					if ($this->doesConditionInvolveRange($value, $range)) {
+						$result[] = $value;
+					}
+				}
+			}
+			
+			return $result;
+		}
+		
+		/**
+		 * Returns only the projections for the range
+		 * @return AstAlias[]
+		 */
+		public function getRangeProjections(AstRetrieve $query, AstRange $range): array {
+			$result = [];
+			
+			foreach($query->getValues() as $value) {
+				if ($this->doesConditionInvolveRange($value, $range)) {
+					$result[] = $value;
+				}
+			}
+			
+			return $result;
+		}
+		
+		/**
+		 * This method creates a version of the original query that only includes
+		 * operations that can be handled directly by the database engine,
+		 * removing any parts that would require in-memory processing.
+		 * @param AstRetrieve $query The original query to be analyzed
+		 * @return ExecutionStage|null The execution stage, or null if there is none
+		 */
+		protected function extractDatabaseOnlyQuery(AstRetrieve $query, array $staticParams=[]): ?ExecutionStage {
 			// Clone the query to avoid modifying the original
 			// This ensures we preserve the complete query for potential in-memory operations later
 			$dbQuery = clone $query;
 			
 			// Get all database ranges (tables/views that exist in the database)
 			// These are data sources that SQL can directly access
-			$dbRanges = $query->getDatabaseRanges();
+			$dbRanges = $this->getDatabaseRanges($query);
+			
+			// Return null when there are no database ranges
+			if (empty($dbRanges)) {
+				return null;
+			}
 			
 			// Remove any non-database ranges (e.g., in-memory collections, JSON data)
 			// The resulting query will only reference actual database tables/views
 			$dbQuery->setRanges($dbRanges);
+			
+			// Get the database-compatible projections (columns/expressions to select)
+			$dbProjections = $this->getDatabaseProjections($query);
+			
+			// Remove any non-database projections
+			// This removes any projections that depend on in-memory operations
+			$dbQuery->setValues($dbProjections);
 			
 			// Filter the conditions to include only those relevant to database ranges
 			// This removes conditions that can't be executed by the database engine
@@ -65,7 +107,42 @@
 			$dbQuery->setConditions($this->getDatabaseOnlyConditions($query->getConditions(), $dbRanges));
 			
 			// Return the optimized query that can be fully executed by the database
-			return $dbQuery;
+			return new ExecutionStage(uniqid(), $dbQuery, $staticParams);
+		}
+		
+		/**
+		 * This method creates a version of the original query that only includes
+		 * operations that can be handled directly by the database engine,
+		 * removing any parts that would require in-memory processing.
+		 * @param AstRetrieve $query The original query to be analyzed
+		 * @return ExecutionStage A new query containing only database-executable operations
+		 */
+		protected function extractRange(AstRetrieve $query, AstRange $range, array $staticParams): ExecutionStage {
+			// Clone the query to avoid modifying the original
+			// This ensures we preserve the complete query for potential in-memory operations later
+			$dbQuery = clone $query;
+			
+			// Remove any non-database ranges (e.g., in-memory collections, JSON data)
+			// The resulting query will only reference actual database tables/views
+			$dbQuery->setRanges([$range]);
+			
+			// Get the database-compatible projections (columns/expressions to select)
+			$dbProjections = $this->getRangeProjections($query, $range);
+			
+			// Remove any non-database projections
+			// This removes any projections that depend on in-memory operations
+			$dbQuery->setValues($dbProjections);
+			
+			// Filter the conditions to include only those relevant to database ranges
+			// This removes conditions that can't be executed by the database engine
+			// and preserves the structure of AND/OR operations where possible
+			$dbQuery->setConditions($this->extractFilterConditions($range, $query->getConditions()));
+			
+			// Extract join conditions
+			$joinConditions = $this->extractJoinConditions($range, $query->getConditions());
+			
+			// Return the optimized query that can be fully executed by the database
+			return new ExecutionStage(uniqid(), $dbQuery, $staticParams, $joinConditions);
 		}
 		
 		/**
@@ -223,37 +300,41 @@
 		}
 		
 		/**
-		 * Extracts join conditions between two specific ranges
-		 * @param AstRange $rangeA First range in the join
-		 * @param AstRange $rangeB Second range in the join
+		 * Extracts join conditions involving a specific range with any other range
+		 * @param AstRange $range The range to extract join conditions for
 		 * @param AstInterface|null $whereCondition The complete WHERE condition AST
-		 * @return AstInterface|null The join conditions between these ranges
+		 * @return AstInterface|null The join conditions involving this range
 		 */
-		protected function extractJoinConditions(AstRange $rangeA, AstRange $rangeB, ?AstInterface $whereCondition): ?AstInterface {
+		protected function extractJoinConditions(AstRange $range, ?AstInterface $whereCondition): ?AstInterface {
 			if ($whereCondition === null) {
 				return null;
 			}
 			
 			// For comparison operations, check if it's a join condition
 			if ($whereCondition instanceof AstExpression) {
-				$leftInvolvesA = $this->doesConditionInvolveRange($whereCondition->getLeft(), $rangeA);
-				$leftInvolvesB = $this->doesConditionInvolveRange($whereCondition->getLeft(), $rangeB);
-				$rightInvolvesA = $this->doesConditionInvolveRange($whereCondition->getRight(), $rangeA);
-				$rightInvolvesB = $this->doesConditionInvolveRange($whereCondition->getRight(), $rangeB);
+				$leftInvolvesRange = $this->doesConditionInvolveRange($whereCondition->getLeft(), $range);
+				$rightInvolvesRange = $this->doesConditionInvolveRange($whereCondition->getRight(), $range);
 				
-				// If one side involves rangeA and the other involves rangeB, it's a join condition
-				if (($leftInvolvesA && $rightInvolvesB) || ($leftInvolvesB && $rightInvolvesA)) {
+				// If one side involves our range and the other side involves a different range,
+				// then it's a join condition
+				if ($leftInvolvesRange && $this->involvesAnyRange($whereCondition->getRight()) &&
+					!$rightInvolvesRange) {
 					return clone $whereCondition;
 				}
 				
-				// Otherwise, it's not a join condition between these specific ranges
+				if ($rightInvolvesRange && $this->involvesAnyRange($whereCondition->getLeft()) &&
+					!$leftInvolvesRange) {
+					return clone $whereCondition;
+				}
+				
+				// Otherwise, it's not a join condition involving our range
 				return null;
 			}
 			
 			// For binary operators (AND, OR)
 			if ($whereCondition instanceof AstBinaryOperator) {
-				$leftJoins = $this->extractJoinConditions($rangeA, $rangeB, $whereCondition->getLeft());
-				$rightJoins = $this->extractJoinConditions($rangeA, $rangeB, $whereCondition->getRight());
+				$leftJoins = $this->extractJoinConditions($range, $whereCondition->getLeft());
+				$rightJoins = $this->extractJoinConditions($range, $whereCondition->getRight());
 				
 				// If both sides have join conditions
 				if ($leftJoins !== null && $rightJoins !== null) {
@@ -453,36 +534,23 @@
 		public function decompose(AstRetrieve $query, array $staticParams = []): ?ExecutionPlan {
 			// Create a new execution plan to hold all the query stages
 			$plan = new ExecutionPlan();
+
+			// Extract the database query
+			$databaseStage = $this->extractDatabaseOnlyQuery($query);
 			
-			// Get all database ranges from the AST
-			// These will be processed together in a single database query
-			$databaseRanges = $query->getDatabaseRanges();
-			
-			// If there are database ranges, create a stage for the database query
-			if (!empty($databaseRanges)) {
-				// Create a shallow clone of the original AST
-				$clonedAst = clone $query;
-				
-				// Extract only the WHERE conditions that involve database ranges
-				// This creates a modified WHERE clause specific to database sources
-				$clonedAst->setConditions($this->getWherePartOfRange($databaseRanges, $query->getConditions()));
-				
-				// Create a new execution stage with a unique ID for this database query
-				$plan->createStage(uniqid(), $clonedAst, $staticParams);
+			// Create a new execution stage with a unique ID for this database query
+			if (!empty($databaseStage)) {
+				$plan->addStage($databaseStage);
 			}
 			
 			// Process each non-database range (like JSON sources) individually
 			// Each range gets its own execution stage
 			foreach($query->getOtherRanges() as $otherRange) {
-				// Create a shallow clone of the original AST for this range
-				$clonedAst = clone $query;
+				// Create a copy of the query with only the range information in it
+				$rangeStage = $this->extractRange($query, $otherRange, $staticParams);
 				
-				// Extract only the WHERE conditions that involve this specific range
-				// This creates a modified WHERE clause specific to this data source
-				$clonedAst->setConditions($this->getWherePartOfRange([$otherRange], $query->getConditions()));
-				
-				// Create a new execution stage with a unique ID for this range
-				$plan->createStage(uniqid(), $clonedAst, $staticParams, $otherRange);
+				// Adds the execution to the list
+				$plan->addStage($rangeStage);
 			}
 			
 			// Return the complete execution plan with all stages
