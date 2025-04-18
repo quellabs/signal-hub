@@ -162,52 +162,6 @@
 		}
 		
 		/**
-		 * Verzamel alle entiteiten die in de retrieve-query worden gebruikt.
-		 * @param AstRetrieve $retrieve Het retrieve-object waaruit entiteiten worden gehaald.
-		 * @return AstIdentifier[] De lijst van gebruikte entiteiten.
-		 */
-		protected function getAllEntitiesUsed(AstRetrieve $retrieve): array {
-			// Maak een nieuwe instantie van de visitor om entiteiten te verzamelen
-			$retrieveEntitiesVisitor = new QuelToSQLFetchEntities();
-			
-			// Loop door alle waarden in de retrieve-query en verzamel de entiteiten
-			foreach($retrieve->getValues() as $value) {
-				$value->accept($retrieveEntitiesVisitor);
-			}
-			
-			// Verzamel de entiteiten uit de voorwaarden van de retrieve-query
-			$retrieve->getConditions()->accept($retrieveEntitiesVisitor);
-			
-			// Retourneer de verzamelde entiteiten
-			return $retrieveEntitiesVisitor->getEntities();
-		}
-		
-		/**
-		 * Verzamelt en retourneert ranges die gebruikt worden in gegeven entities.
-		 * Deze functie werkt recursief om join properties van ranges te verwerken.
-		 * @param array $ranges De lijst van beschikbare ranges.
-		 * @param array $entitiesUsed De lijst van entities om te verwerken.
-		 * @return array De lijst van unieke ranges die gebruikt worden in de gegeven entities.
-		 */
-		protected function getRangesUsedInEntities(array $ranges, array $entitiesUsed): array {
-			$result = [];
-			
-			foreach ($entitiesUsed as $entity) {
-				$rangeName = $entity->getRange()->getName();
-				
-				// Vind de range die overeenkomt met de huidige entity
-				$range = $this->findRangeByName($ranges, $rangeName);
-				
-				// Voeg de range toe aan resultaten als het nog niet aanwezig is, en verwerk eventuele join properties
-				if ($range !== null && !$this->isRangeNameInResult($rangeName, $result)) {
-					$result[] = $range;
-				}
-			}
-			
-			return $result;
-		}
-		
-		/**
 		 * Genereer het FROM-gedeelte van de SQL-query op basis van ranges zonder JOINS.
 		 * @param AstRetrieve $retrieve Het retrieve-object waaruit entiteiten worden gehaald.
 		 * @return string Het FROM-gedeelte van de SQL-query.
