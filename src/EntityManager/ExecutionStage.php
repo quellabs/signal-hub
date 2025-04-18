@@ -157,4 +157,17 @@
 			$this->range = $range;
 		}
 		
+		/**
+		 * Returns the join type (always 'left' for now)
+		 * @todo Implement code to determine the join type
+		 * @return string
+		 */
+		public function getJoinType(): string {
+			if ($this->getJoinConditions() === null) {
+				return 'cross';
+			} else {
+				return 'left';
+			}
+		}
+		
 	}

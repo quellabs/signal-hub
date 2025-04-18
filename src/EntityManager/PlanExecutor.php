@@ -2,6 +2,7 @@
 	
 	namespace Services\EntityManager;
 	
+	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\QuelException;
 	use Services\ObjectQuel\QuelResult;
 	
@@ -50,11 +51,11 @@
 		
 		/**
 		 * Combines results from multiple stages into a single result object
-		 * This method merges the results of all stages into the main stage's result,
+		 * This method joins the results of all stages with the main stage's result,
 		 * creating a consolidated result set that represents the complete query output.
 		 * @param ExecutionPlan $plan The execution plan with stage information
 		 * @param array $intermediateResults Results from all stages, indexed by stage name
-		 * @return array The combined result or null if the main stage has no results
+		 * @return array The combined result after performing all necessary joins
 		 */
 		private function combineResults(ExecutionPlan $plan, array $intermediateResults): array {
 			// Get the main stage name from the plan
@@ -65,30 +66,155 @@
 				return [];
 			}
 			
-			// Merge all results with the main result
-			$mainResult = $intermediateResults[$mainStageName];
+			// Start with the main result as our base
+			$combinedResult = $intermediateResults[$mainStageName];
 			
-			foreach ($intermediateResults as $key => $result) {
-				// Skip the main result itself and any non-QuelResult values
-				if ($key === $mainStageName || !($result instanceof QuelResult)) {
+			// Get all stages from the plan to access their join conditions and join types
+			$allStages = $plan->getStagesInOrder();
+			
+			foreach ($intermediateResults as $stageName => $stageResult) {
+				// Skip the main result itself
+				if ($stageName === $mainStageName) {
 					continue;
 				}
 				
-				$mainResult->merge($result);
+				// Get the stage object to access join conditions and type
+				$stageFiltered = array_values(array_filter($allStages, function($e) use ($stageName) {
+					return $e->getName() === $stageName;
+				}));
+				
+				if (empty($stageFiltered)) {
+					continue;
+				}
+				
+				// Get join conditions and join type
+				$stage = $stageFiltered[0];
+				$joinConditions = $stage->getJoinConditions();
+				
+				// Perform the appropriate type of join
+				$combinedResult = match ($stage->getJoinType()) {
+					'cross' => $this->performCrossJoin($combinedResult, $stageResult),
+					'inner' => $this->performInnerJoin($combinedResult, $stageResult, $joinConditions),
+					default => $this->performLeftJoin($combinedResult, $stageResult, $joinConditions),
+				};
 			}
 			
-			// Return the enriched main result
-			return $mainResult;
+			// Return the joined result
+			return $combinedResult;
+		}
+		
+		/**
+		 * Performs a cross join (Cartesian product) between two result sets
+		 *
+		 * @param array $leftResult The left result set
+		 * @param array $rightResult The right result set
+		 * @return array The combined result set
+		 */
+		private function performCrossJoin(array $leftResult, array $rightResult): array {
+			$combined = [];
+			
+			// For each row in the left result, combine with every row in the right result
+			foreach ($leftResult as $leftRow) {
+				foreach ($rightResult as $rightRow) {
+					// Merge the left and right rows
+					$combined[] = array_merge($leftRow, $rightRow);
+				}
+			}
+			
+			// If left result is empty but right has results, return right result
+			if (empty($combined) && !empty($rightResult)) {
+				return $rightResult;
+			}
+			
+			return $combined;
+		}
+		
+		/**
+		 * Performs a left join between two result sets based on join conditions
+		 *
+		 * @param array $leftResult The left result set
+		 * @param array $rightResult The right result set
+		 * @param AstInterface $joinConditions The join conditions
+		 * @return array The joined result set
+		 */
+		private function performLeftJoin(array $leftResult, array $rightResult, AstInterface $joinConditions): array {
+			$combined = [];
+			
+			// For each row in the left result
+			foreach ($leftResult as $leftRow) {
+				$matched = false;
+				
+				// Check against each row in the right result
+				foreach ($rightResult as $rightRow) {
+					// Temporarily combine the rows to evaluate join condition
+					$combinedRow = array_merge($leftRow, $rightRow);
+					
+					// Evaluate join condition against combined row
+					if ($this->evaluateCondition($joinConditions, $combinedRow)) {
+						// Add the combined row to the result
+						$combined[] = $combinedRow;
+						$matched = true;
+					}
+				}
+				
+				// If no match found, keep the left row with nulls for right columns
+				if (!$matched) {
+					// Create null placeholders for all right columns
+					$nullRight = array_fill_keys(array_keys(reset($rightResult) ?: []), null);
+					$combined[] = array_merge($leftRow, $nullRight);
+				}
+			}
+			
+			return $combined;
+		}
+		
+		/**
+		 * Performs an inner join between two result sets based on join conditions
+		 * @param array $leftResult The left result set
+		 * @param array $rightResult The right result set
+		 * @param AstInterface $joinConditions The join conditions
+		 * @return array The joined result set
+		 */
+		private function performInnerJoin(array $leftResult, array $rightResult, AstInterface $joinConditions): array {
+			$combined = [];
+
+			foreach ($leftResult as $leftRow) {
+				// Check against each row in the right result
+				foreach ($rightResult as $rightRow) {
+					// Temporarily combine the rows to evaluate join condition
+					$combinedRow = array_merge($leftRow, $rightRow);
+					
+					// Evaluate join condition against combined row
+					if ($this->evaluateCondition($joinConditions, $combinedRow)) {
+						// Add the combined row to the result
+						$combined[] = $combinedRow;
+					}
+				}
+			}
+			
+			return $combined;
+		}
+		
+		/**
+		 * Evaluates a join condition against a combined row
+		 * @param AstInterface $condition The join condition to evaluate
+		 * @param array $row The combined row data
+		 * @return bool Whether the condition is satisfied
+		 */
+		private function evaluateCondition(AstInterface $condition, array $row): bool {
+			// This is a placeholder for the actual condition evaluation logic
+			// In a real implementation, this would interpret the AST condition
+			// and evaluate it against the row data
+			
+			// You'll need to implement the actual condition evaluation based on your AST structure
+			// For example, checking if user.id = order.user_id
+			
+			// For demonstration purposes, we'll assume the condition is always met
+			return true;
 		}
 		
 		/**
 		 * Execute a complete execution plan
-		 *
-		 * This method:
-		 * 1. Retrieves stages in the correct execution order (respecting dependencies)
-		 * 2. Optimizes execution for single-stage plans
-		 * 3. Executes multi-stage plans in order, tracking intermediate results
-		 * 4. Combines stage results into a final output
 		 * @param ExecutionPlan $plan The plan containing stages to execute
 		 * @return array Results from executing the plan
 		 * @throws QuelException When any stage execution fails

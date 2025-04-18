@@ -4,9 +4,7 @@
 	
 	use Flow\JSONPath\JSONPathException;
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;
-	use Services\ObjectQuel\Ast\AstRetrieve;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\ObjectQuel;
 	use Services\ObjectQuel\QuelException;
@@ -23,7 +21,6 @@
 	class QueryExecutor {
         protected DatabaseAdapter $connection;
 		private EntityManager $entityManager;
-		private QueryAnalyzer $queryAnalyzer;
 		private PlanExecutor $planExecutor;
 		private ObjectQuel $objectQuel;
 		
@@ -33,7 +30,6 @@
         public function __construct(EntityManager $entityManager) {
             $this->entityManager = $entityManager;
             $this->connection = $entityManager->getConnection();
-            $this->queryAnalyzer = new QueryAnalyzer();
 	        $this->planExecutor = new PlanExecutor($this);
 	        $this->objectQuel = new ObjectQuel($entityManager);
         }
@@ -323,7 +319,7 @@
 			$ast = $this->getObjectQuel()->parse($query);
 			
 			// Decompose the query
-			$decomposer = new QueryDecomposer($this);
+			$decomposer = new QueryDecomposer();
 			$executionPlan = $decomposer->buildExecutionPlan($ast, $parameters);
 			
 			// Execute the returned execution plan and return the QuelResult

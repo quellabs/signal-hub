@@ -25,25 +25,18 @@
 		 * @return string The name of the main output stage
 		 */
 		public function getMainStageName(): string {
-			if (count($this->stages) == 1) {
-				$firstKey = array_key_first($this->stages);
-				return $this->stages[$firstKey]->getName();
+			// Try to find a database stage
+			foreach($this->stages as $stage) {
+				if ($stage->getRange() === null) {
+					return $stage->getName();
+				}
 			}
 			
-			return "main";
+			// If none, return the first json stage
+			$firstKey = array_key_first($this->stages);
+			return $this->stages[$firstKey]->getName();
 		}
-		
-		/**
-		 * Adds a new execution stage to the plan with the specified parameters.
-		 * @param string $name The unique identifier for this stage
-		 * @param AstRetrieve $query The query to be executed in this stage
-		 * @param array $staticParams Static parameters to be passed to the query execution
-		 * @return void
-		 */
-		public function createStage(string $name, AstRetrieve $query, array $staticParams = []): void {
-			$this->stages[] = new ExecutionStage($name, $query, $staticParams);
-		}
-		
+
 		/**
 		 * Adds a new execution stage to the plan
 		 * @param ExecutionStage $stage
