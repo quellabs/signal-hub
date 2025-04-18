@@ -263,6 +263,7 @@
 				if ($predicate($whereCondition, $range)) {
 					return clone $whereCondition;
 				}
+				
 				return null;
 			}
 			
@@ -306,7 +307,8 @@
 					
 					// If only one side involves our range and the other doesn't involve any range,
 					// it's a filter condition (e.g., x.value > 100)
-					return ($leftInvolvesRange && !$this->containsAnyRangeReference($expr->getRight())) ||
+					return
+						($leftInvolvesRange && !$this->containsAnyRangeReference($expr->getRight())) ||
 						($rightInvolvesRange && !$this->containsAnyRangeReference($expr->getLeft()));
 				}
 			);
