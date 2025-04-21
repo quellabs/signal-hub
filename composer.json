@@ -1,10 +1,16 @@
 {
-  "config": {
-    "platform": {
-      "php": "8.2"
+  "name": "quellabs/objectquel",
+  "description": "A sophisticated ORM system with a unique query language and streamlined architecture",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Floris van den Berg",
+      "email": "floris@quellabs.com"
     }
-  },
+  ],
   "require": {
+    "php": ">=8.2",
     "ext-json": "*",
     "ext-mysqli": "*",
     "ext-pdo": "*",
@@ -20,5 +26,10 @@
     "cakephp/database": "^4.4",
     "vlucas/phpdotenv": "*",
     "softcreatr/jsonpath": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\ObjectQuel\\": "src/"
+    }
   }
 }
