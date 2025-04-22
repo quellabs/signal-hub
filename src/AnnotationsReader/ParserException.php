@@ -4,7 +4,7 @@
 	
 	/**
 	 * Class ParserException
-	 * @package Services\AnnotationsReader
+	 * @package Quellabs\ObjectQuel\AnnotationsReader
 	 */
 	class ParserException extends \Exception {
 		/**

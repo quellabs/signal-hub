@@ -118,7 +118,7 @@
 		 * @return string
 		 */
 		private function constructEntityName(string $fileName): string {
-			return "Services\\Entity\\" . substr($fileName, 0, strpos($fileName, ".php"));
+			return "Quellabs\\ObjectQuel\\Entity\\" . substr($fileName, 0, strpos($fileName, ".php"));
 		}
 		
 		/**
@@ -127,7 +127,7 @@
 		 * @return string
 		 */
 		private function constructProxyName(string $fileName): string {
-			return "Services\\EntityManager\\Proxies\\" . substr($fileName, 0, strpos($fileName, ".php"));
+			return "Quellabs\\ObjectQuel\\EntityManager\\Proxies\\" . substr($fileName, 0, strpos($fileName, ".php"));
 		}
 		
 		/**

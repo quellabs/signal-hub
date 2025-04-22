@@ -5,7 +5,7 @@
 	/**
 	 * Lists, gets and sets object properties through reflection
 	 * Class PropertyHandler
-	 * @package Services\AnnotationsReader
+	 * @package Quellabs\ObjectQuel\AnnotationsReader
 	 */
 	class PropertyHandler {
 		

@@ -4,7 +4,7 @@
 	
 	/**
 	 * Class LexerException
-	 * @package Services\ObjectQuel
+	 * @package Quellabs\ObjectQuel\ObjectQuel
 	 */
 	class LexerException extends \Exception {
 		/**

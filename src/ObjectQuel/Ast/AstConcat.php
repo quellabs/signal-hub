@@ -7,7 +7,7 @@
 	/**
 	 * Class AstConcat
 	 * Represents the SQL Concat keyword in the AST (Abstract Syntax Tree).
-	 * @package Services\ObjectQuel\Ast
+	 * @package Quellabs\ObjectQuel\ObjectQuel\Ast
 	 */
 	class AstConcat extends Ast {
 		

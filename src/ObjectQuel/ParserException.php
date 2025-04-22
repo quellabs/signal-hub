@@ -2,9 +2,11 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
+	use Throwable;
+	
 	/**
 	 * Class ParserException
-	 * @package Services\ObjectQuel
+	 * @package Quellabs\ObjectQuel\ObjectQuel
 	 */
 	class ParserException extends \Exception {
 		/**

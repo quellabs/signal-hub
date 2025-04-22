@@ -23,7 +23,7 @@
 		 * @return string De volledige namespace van de doelentiteit.
 		 */
 		public function getTargetEntity(): string {
-			return "Services\\Entity\\{$this->parameters["targetEntity"]}";
+			return "Quellabs\\ObjectQuel\\Entity\\{$this->parameters["targetEntity"]}";
 		}
 		
 		/**

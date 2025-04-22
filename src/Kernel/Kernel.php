@@ -33,8 +33,8 @@
 			
 			// Registreert een autoloader functie om klassen automatisch te laden vanuit een gespecificeerde root directory.
 			spl_autoload_register(function ($className) {
-				if (str_starts_with($className, "Services\\")) {
-					$classPath = substr(str_replace("\\", DIRECTORY_SEPARATOR, $className), 9);
+				if (str_starts_with($className, "Quellabs\\ObjectQuel\\")) {
+					$classPath = substr(str_replace("\\", DIRECTORY_SEPARATOR, $className), 20);
 					$documentRoot = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 					$completePath = "{$documentRoot}/{$classPath}.php";
 					
@@ -165,7 +165,7 @@
 				
 				foreach ($annotations as $controllerAnnotation) {
 					if ($controllerAnnotation instanceof BeforeFilter) {
-						$middleware = $this->getService("Services\\Middleware\\{$controllerAnnotation->getName()}");
+						$middleware = $this->getService("Quellabs\\ObjectQuel\\Middleware\\{$controllerAnnotation->getName()}");
 						$middleware->onBeforeFilter($request, $controller);
 					}
 				}
@@ -176,7 +176,7 @@
 				// handle after filter
 				foreach ($annotations as $controllerAnnotation) {
 					if ($controllerAnnotation instanceof AfterFilter) {
-						$middleware = $this->getService("Services\\Middleware\\{$controllerAnnotation->getName()}");
+						$middleware = $this->getService("Quellabs\\ObjectQuel\\Middleware\\{$controllerAnnotation->getName()}");
 						$middleware->onAfterFilter($request, $controller);
 					}
 				}

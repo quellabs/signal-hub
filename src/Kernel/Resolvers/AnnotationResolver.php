@@ -26,7 +26,7 @@
 		/**
 		 * Scant een directory recursief en converteert alle PHP bestanden naar class names
 		 * met de juiste namespace voor controllers
-		 * Voorbeeld: "Controller/User/UserController.php" wordt "Services\Controllers\User\UserController"
+		 * Voorbeeld: "Controller/User/UserController.php" wordt "Quellabs\ObjectQuel\Controllers\User\UserController"
 		 * @param string $dir Absolute pad naar de te scannen directory
 		 * @return array<string> Array met fully qualified class names
 		 * @throws \RuntimeException Als de directory niet leesbaar is
@@ -38,7 +38,7 @@
 			}
 			
 			// Stel de basis namespace in voor controllers
-			$baseNamespace = 'Services\\Controller';
+			$baseNamespace = 'Quellabs\ObjectQuel\Controller';
 			
 			// Loop door alle bestanden en directories
 			$result = [];
@@ -114,7 +114,7 @@
 				$className = get_class($annotation);
 				$namespace = substr($className, 0, strrpos($className, '\\'));
 				
-				if (str_starts_with($namespace, "Services\AnnotationsReader\Annotations\Validation")) {
+				if (str_starts_with($namespace, "Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation")) {
 					$result[] = $annotation;
 				}
 			}

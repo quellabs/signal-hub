@@ -133,7 +133,7 @@
 		 * @return string
 		 */
 		private function constructEntityName(string $fileName): string {
-			return "Services\\Entity\\" . substr($fileName, 0, strpos($fileName, ".php"));
+			return "Quellabs\\ObjectQuel\\Entity\\" . substr($fileName, 0, strpos($fileName, ".php"));
 		}
 		
 		/**
@@ -230,7 +230,7 @@
 				} elseif (str_contains($class, "\\")) {
 					$this->completed_entity_name_cache[$class] = $class;
 				} else {
-					$this->completed_entity_name_cache[$class] = "Services\\Entity\\{$class}";
+					$this->completed_entity_name_cache[$class] = "Quellabs\\ObjectQuel\\Entity\\{$class}";
 				}
 			}
 			

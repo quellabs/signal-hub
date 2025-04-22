@@ -6,7 +6,7 @@
 	
 	/**
 	 * Class AstFinderException
-	 * @package Services\ObjectQuel
+	 * @package Quellabs\ObjectQuel\ObjectQuel
 	 */
 	class AstFinderException extends \Exception {
 

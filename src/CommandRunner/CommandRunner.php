@@ -56,7 +56,7 @@
 					$itemWithoutDirectory = substr($item, $currentDirnameLength);
 					$itemWithoutPhp = substr($itemWithoutDirectory, 0, -4);
 					$itemFixedSlashes = str_replace("/", "\\", $itemWithoutPhp);
-					$itemAddedNamespace = "Services\\CommandRunner\\{$itemFixedSlashes}";
+					$itemAddedNamespace = "Quellabs\\ObjectQuel\\CommandRunner\\{$itemFixedSlashes}";
 					
 					$this->commands[$itemAddedNamespace::getSignature()] = $itemAddedNamespace;
 				}

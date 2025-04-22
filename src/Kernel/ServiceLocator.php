@@ -3,6 +3,7 @@
 	namespace Quellabs\ObjectQuel\Kernel;
 	
 	class ServiceLocator {
+		
 		private Kernel $kernel;
 		private array $loadedContainers;
 		
@@ -63,7 +64,7 @@
 				if (file_exists($expectedFile)) {
 					// Bepaal de namespace + classname
 					$relativePath = str_replace($baseDirectory . '/', '', $directory);
-					$className = "Services\\" . str_replace('/', '\\', $relativePath) . '\\' . $dirName;
+					$className = "Quellabs\\ObjectQuel\\" . str_replace('/', '\\', $relativePath) . '\\' . $dirName;
 					
 					try {
 						// Laad het bestand

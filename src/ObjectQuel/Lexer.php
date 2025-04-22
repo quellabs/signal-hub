@@ -6,7 +6,7 @@
     
     /**
      * Class Token
-     * @package Services\AnnotationsReader
+     * @package Quellabs\ObjectQuel\AnnotationsReader
      */
     class Token extends BasicEnum {
         const None = 0;
@@ -132,7 +132,7 @@
     
     /**
      * Simple lexer to dissect doc blocks
-     * @package Services\AnnotationsReader
+     * @package Quellabs\ObjectQuel\AnnotationsReader
      */
     class Lexer {
         protected string $string;
