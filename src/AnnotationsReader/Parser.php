@@ -1,36 +1,52 @@
 <?php
-    
-    namespace Quellabs\ObjectQuel\AnnotationsReader;
-
-    use \Throwable;
-    
-    class Parser {
-        
-        protected Lexer $lexer;
-        protected array $ignore_annotations;
-    
-        /**
-         * Parser constructor.
-         * @param Lexer $lexer
-         */
-        public function __construct(Lexer $lexer) {
-            $this->lexer = $lexer;
-            $this->ignore_annotations = [
-                'param',
-                'return',
-                'var',
-                'type',
-                'throws',
-                'todo',
-                'fixme',
-                'author',
-                'copyright',
-                'license',
-                'package',
-                'template',
-                'url'
-            ];
-        }
+	
+	namespace Quellabs\ObjectQuel\AnnotationsReader;
+	
+	class Parser {
+		
+		protected Lexer $lexer;
+		protected array $ignore_annotations;
+		
+		/**
+		 * @var array<string, string> Map of aliases to fully qualified class names
+		 */
+		protected array $imports = [];
+		
+		/**
+		 * Parser constructor.
+		 * @param Lexer $lexer
+		 * @param array<string, string> $imports Optional map of aliases to fully qualified class names
+		 */
+		public function __construct(Lexer $lexer, array $imports = []) {
+			$this->lexer = $lexer;
+			$this->imports = $imports;
+			$this->ignore_annotations = [
+				'param',
+				'return',
+				'var',
+				'type',
+				'throws',
+				'todo',
+				'fixme',
+				'author',
+				'copyright',
+				'license',
+				'package',
+				'template',
+				'url'
+			];
+		}
+		
+		/**
+		 * Set the imports for annotation resolution
+		 *
+		 * @param array<string, string> $imports Map of aliases to fully qualified class names
+		 * @return self
+		 */
+		public function setImports(array $imports): self {
+			$this->imports = $imports;
+			return $this;
+		}
 		
 		/**
 		 * Helper for parseParameters
@@ -68,11 +84,11 @@
 		
 		/**
 		 * Helper for parseJson
-		 * @return array|bool|mixed|null
+		 * @return mixed
 		 * @throws LexerException
 		 * @throws ParserException
 		 */
-		private function parseJsonValue() {
+		private function parseJsonValue(): mixed {
 			$parameterValue = new Token();
 			
 			if ($this->lexer->optionalMatch(Token::CurlyBraceOpen)) {
@@ -95,10 +111,10 @@
 		}
 		
 		/**
-         * Parse JSON string. Not perfect but will do for now
-         * @return array
-         * @throws LexerException
-         * @throws ParserException
+		 * Parse JSON string. Not perfect but will do for now
+		 * @return array
+		 * @throws LexerException
+		 * @throws ParserException
 		 */
 		protected function parseJson(): array {
 			$parameters = [];
@@ -129,12 +145,12 @@
 			return $parameters;
 		}
 		
-        /**
-         * Parse a string of parameters
-         * @return array
-         * @throws LexerException
-         * @throws ParserException
-         */
+		/**
+		 * Parse a string of parameters
+		 * @return array
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
 		protected function parseParameters(): array {
 			$parameters = [];
 			
@@ -166,42 +182,75 @@
 			return $parameters;
 		}
 		
-        /**
-         * Parse the Docblock
-         * @return array
-         * @throws LexerException
-         * @throws ParserException
+		/**
+		 * Resolve a class name using the imports
+		 * @param string $className Name or alias of the class
+		 * @return string Fully qualified class name
 		 */
-        public function parse(): array {
-            $result = [];
-            $token = $this->lexer->get();
-
-            while ($token->getType() !== Token::Eof) {
-                if ($token->getType() == Token::Annotation) {
-                    $value = $token->getValue();
-                    
-                    if (!in_array($value, $this->ignore_annotations)) {
-                        // skip swagger docs
-                        if ((str_starts_with($value, "OA\\")) !== false) {
-                            $token = $this->lexer->get();
-                            continue;
-                        }
-                        
-                        $tokenName = "\\Quellabs\ObjectQuel\\AnnotationsReader\\Annotations\\{$value}";
-    
-                        if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
-                            $parameters = $this->parseParameters();
-                            $this->lexer->match(Token::ParenthesesClose);
-                            $result[$value] = new $tokenName($parameters);
-                        } else {
-                            $result[$value] = new $tokenName([]);
-                        }
-                    }
-                }
-    
-                $token = $this->lexer->get();
-            }
-            
-            return $result;
-        }
-    }
+		protected function resolveClassName(string $className): string {
+			// Already fully qualified
+			if (str_starts_with($className, '\\')) {
+				return $className;
+			}
+			
+			// Check if it's an imported alias
+			if (isset($this->imports[$className])) {
+				return $this->imports[$className];
+			}
+			
+			// For compound names like Alias\SubClass, resolve the alias part
+			if (str_contains($className, '\\')) {
+				$parts = explode('\\', $className, 2);
+				$alias = $parts[0];
+				$rest = $parts[1];
+				
+				if (isset($this->imports[$alias])) {
+					return $this->imports[$alias] . '\\' . $rest;
+				}
+			}
+			
+			// Return as is - will be looked up in default namespaces
+			return $className;
+		}
+		
+		/**
+		 * Parse the Docblock
+		 * @return array
+		 * @throws LexerException
+		 * @throws ParserException
+		 */
+		public function parse(): array {
+			$result = [];
+			$token = $this->lexer->get();
+			
+			while ($token->getType() !== Token::Eof) {
+				if ($token->getType() == Token::Annotation) {
+					$value = $token->getValue();
+					
+					if (!in_array($value, $this->ignore_annotations)) {
+						// skip swagger docs
+						if (str_starts_with($value, "OA\\")) {
+							$token = $this->lexer->get();
+							continue;
+						}
+						
+						// Resolve the annotation class name using imports
+						$resolvedValue = $this->resolveClassName($value);
+						$tokenName = "\\Quellabs\\ObjectQuel\\AnnotationsReader\\Annotations\\{$resolvedValue}";
+						
+						if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
+							$parameters = $this->parseParameters();
+							$this->lexer->match(Token::ParenthesesClose);
+							$result[$value] = new $tokenName($parameters);
+						} else {
+							$result[$value] = new $tokenName([]);
+						}
+					}
+				}
+				
+				$token = $this->lexer->get();
+			}
+			
+			return $result;
+		}
+	}

@@ -1,34 +1,41 @@
 <?php
-    
-    namespace Quellabs\ObjectQuel\AnnotationsReader;
-    
-    class AnnotationsReader {
-    
-        protected string|false $current_dir;
-        protected array $cached_annotations;
-        protected array $cached_annotations_filemtime;
-        protected array $cached_annotations_filemtime_checked;
-        
-        /**
-         * AnnotationReader constructor
-         */
-        public function __construct() {
-            $this->current_dir = realpath(dirname(__FILE__));
-
-            // read cached data
-            $this->cached_annotations = [];
-            $this->cached_annotations_filemtime = [];
-            $this->cached_annotations_filemtime_checked = [];
-            $files = scandir("{$this->current_dir}/Cache");
-    
-            foreach($files as $file) {
-                if (str_ends_with($file, '.cache')) {
-                    $this->cached_annotations[$file] = unserialize(file_get_contents("{$this->current_dir}/Cache/{$file}"));
-                    $this->cached_annotations_filemtime[$file] = filemtime("{$this->current_dir}/Cache/{$file}");
-                    $this->cached_annotations_filemtime_checked[$file] = false;
-                }
-            }
-        }
+	
+	namespace Quellabs\ObjectQuel\AnnotationsReader;
+	
+	use Quellabs\ObjectQuel\AnnotationsReader\Helpers\UseStatementParser;
+	
+	class AnnotationsReader {
+		
+		protected UseStatementParser $use_statement_parser;
+		protected string|false $current_dir;
+		protected array $cached_annotations;
+		protected array $cached_annotations_filemtime;
+		protected array $cached_annotations_filemtime_checked;
+		
+		/**
+		 * AnnotationReader constructor
+		 */
+		public function __construct() {
+			// Instantiate use statement parser
+			$this->use_statement_parser = new UseStatementParser();
+			
+			// Store current directory
+			$this->current_dir = realpath(dirname(__FILE__));
+			
+			// read cached data
+			$this->cached_annotations = [];
+			$this->cached_annotations_filemtime = [];
+			$this->cached_annotations_filemtime_checked = [];
+			$files = scandir("{$this->current_dir}/Cache");
+			
+			foreach($files as $file) {
+				if (str_ends_with($file, '.cache')) {
+					$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->current_dir}/Cache/{$file}"));
+					$this->cached_annotations_filemtime[$file] = filemtime("{$this->current_dir}/Cache/{$file}");
+					$this->cached_annotations_filemtime_checked[$file] = false;
+				}
+			}
+		}
 		
 		/**
 		 * Transforms a className to a filename
@@ -73,8 +80,12 @@
 		 * Parse annotations for properties or methods and update the result array.
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
+		 * @param \ReflectionClass $reflection The class reflection to get imports from.
 		 */
-		protected function parseAnnotations(array $items, array &$result): void {
+		protected function parseAnnotations(array $items, array &$result, \ReflectionClass $reflection): void {
+			// Get imports for class
+			$imports = $this->use_statement_parser->getImportsForClass($reflection);
+			
 			// Loop through each Reflection item (either property or method)
 			foreach ($items as $item) {
 				// Get the doc comment for the current item
@@ -85,8 +96,8 @@
 					continue;
 				}
 				
-				// Retrieve annotations from the doc comment
-				$annotations = $this->getAnnotations($docComment);
+				// Retrieve annotations from the doc comment with imports
+				$annotations = $this->getAnnotationsWithImports($docComment, $imports);
 				
 				// Skip if there are no annotations
 				if (empty($annotations)) {
@@ -97,13 +108,13 @@
 				$result[$item->getName()] = $annotations;
 			}
 		}
-
+		
 		/**
-         * Fetch all object annotations
-         * @param mixed $class
-         * @return array
-         */
-		protected function readAllObjectAnnotations($class): array {
+		 * Fetch all object annotations
+		 * @param mixed $class
+		 * @return array
+		 */
+		protected function readAllObjectAnnotations(mixed $class): array {
 			$result = [
 				'class'      => [],
 				'properties' => [],
@@ -116,9 +127,15 @@
 				return $result;
 			}
 			
-			$result['class'] = $this->getAnnotations($reflection->getDocComment());
-			$this->parseAnnotations($reflection->getProperties(), $result['properties']);
-			$this->parseAnnotations($reflection->getMethods(), $result['methods']);
+			// Load the use statements of this file
+			$imports = $this->use_statement_parser->getImportsForClass($reflection);
+			
+			// Resolve the annotations with imports
+			$result['class'] = $this->getAnnotationsWithImports($reflection->getDocComment(), $imports);
+			
+			// Parse the annotations and return result
+			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $reflection);
+			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $reflection);
 			return $result;
 		}
 		
@@ -154,55 +171,77 @@
 				return [];
 			}
 		}
-
-        /**
-         * Takes a class's docComment and parses it
-         * @param $class
-         * @return array
-         */
-        public function getClassAnnotations($class): array {
-            $annotations = $this->getAllObjectAnnotations($class);
-            return $annotations["class"] ?? [];
-        }
-        
-        /**
-         * Takes a method's docComment and parses it
-         * @param $class
-         * @param $method
-         * @return array
-         */
-        public function getMethodAnnotations($class, $method): array {
-            $annotations = $this->getAllObjectAnnotations($class);
-            return $annotations["methods"][$method] ?? [];
-        }
-
-        /**
-         * Takes a property's docComment and parses it
-         * @param $class
-         * @param $property
-         * @return array
-         */
-        public function getPropertyAnnotations($class, $property): array {
-            $annotations = $this->getAllObjectAnnotations($class);
-            return $annotations["properties"][$property] ?? [];
-        }
-     
-        /**
-         * Parses a string and returns the found annotations
-         * @param $string
-         * @return array
-         */
-        public function getAnnotations($string, ?string &$errorMessage=null): array {
-            try {
-                $lexer = new Lexer($string);
-                $parser = new Parser($lexer);
-                return $parser->parse();
-            } catch (LexerException | ParserException $e) {
+		
+		/**
+		 * Parses a string and returns the found annotations, with import resolution
+		 * @param string $string The docblock to parse
+		 * @param array $imports Map of aliases to fully qualified class names
+		 * @param string|null &$errorMessage Optional error message reference
+		 * @return array
+		 */
+		protected function getAnnotationsWithImports(string $string, array $imports, ?string &$errorMessage=null): array {
+			try {
+				$lexer = new Lexer($string);
+				$parser = new Parser($lexer, $imports);
+				return $parser->parse();
+			} catch (LexerException | ParserException $e) {
 				if ($errorMessage !== null) {
 					$errorMessage = $e->getMessage();
 				}
 				
-                return [];
-            }
-        }
-    }
+				return [];
+			}
+		}
+
+		/**
+		 * Takes a class's docComment and parses it
+		 * @param $class
+		 * @return array
+		 */
+		public function getClassAnnotations($class): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["class"] ?? [];
+		}
+		
+		/**
+		 * Takes a method's docComment and parses it
+		 * @param $class
+		 * @param $method
+		 * @return array
+		 */
+		public function getMethodAnnotations($class, $method): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["methods"][$method] ?? [];
+		}
+		
+		/**
+		 * Takes a property's docComment and parses it
+		 * @param $class
+		 * @param $property
+		 * @return array
+		 */
+		public function getPropertyAnnotations($class, $property): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["properties"][$property] ?? [];
+		}
+		
+		/**
+		 * Parses a string and returns the found annotations
+		 * @param $string
+		 * @param string|null &$errorMessage Optional error message reference
+		 * @return array
+		 */
+		public function getAnnotations($string, ?string &$errorMessage=null): array {
+			try {
+				$lexer = new Lexer($string);
+				$parser = new Parser($lexer);
+				return $parser->parse();
+			} catch (LexerException | ParserException $e) {
+				if ($errorMessage !== null) {
+					$errorMessage = $e->getMessage();
+				}
+				
+				return [];
+			}
+		}
+	}

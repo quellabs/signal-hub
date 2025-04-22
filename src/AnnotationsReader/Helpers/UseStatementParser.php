@@ -76,7 +76,7 @@
 			// Remove any leading backslash
 			$className = ltrim($className, '\\');
 			
-			// Handle empty case
+			// Handle an empty case
 			if (empty($className)) {
 				return '';
 			}
@@ -99,11 +99,7 @@
 			}
 			
 			// Get namespace and imports
-			$imports = [
-				'fileName'      => $class->getFileName(),
-				'namespace'     => $class->getNamespaceName(),
-				'useStatements' => $this->parseUseStatements($class),
-			];
+			$imports = $this->parseUseStatements($class);
 			
 			// Cache and return
 			$this->importsCache[$className] = $imports;
