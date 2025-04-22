@@ -9,12 +9,5 @@
 	
 	$kernel = new Kernel();
 	$request = Request::createFromGlobals();
-	
-	$helper = new \Quellabs\ObjectQuel\AnnotationsReader\Helpers\UseStatementParser();
-	$class = new \ReflectionClass(\Quellabs\ObjectQuel\EntityManager\EntityManager::class);
-	$tmp = $helper->getImportsForClass($class);
-	
-	
-	
 	$response = $kernel->handle($request);
 	$response->send();
