@@ -2,13 +2,13 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstFactor;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstTerm;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstFactor;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstTerm;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * This class implements the Visitor pattern to process an Abstract Syntax Tree (AST).

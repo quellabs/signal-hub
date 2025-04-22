@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
 	
-	class MakeEntityCommand extends \Quellabs\ObjectQuel\CommandRunner\Command {
+	use Quellabs\ObjectQuel\CommandRunner\Command;
+	
+	class MakeEntityCommand extends Command {
 		
 		public function execute(array $parameters = []): int {
 			// Ask for entity name

@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
 	
 	/**
 	 * @template T

@@ -3,6 +3,7 @@
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
 	abstract class Command {
+		
 		protected ConsoleInput $input;
 		protected ConsoleOutput $output;
 		

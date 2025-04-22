@@ -2,15 +2,15 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Helpers;
 	
-	use Services\AnnotationsReader\Annotations\Orm\Column;
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\EntityStore;
-	use Services\EntityManager\ProxyInterface;
-	use Services\EntityManager\Serializers\Serializer;
-	use Services\EntityManager\UnitOfWork;
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\ProxyInterface;
+	use Quellabs\ObjectQuel\EntityManager\Serializers\Serializer;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
 	
 	class EntityHydrator {
 		

@@ -2,15 +2,15 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
-	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
-	use Services\ObjectQuel\Visitors\QuelToSQLConvertToString;
-	use Services\ObjectQuel\Visitors\QuelToSQLFetchEntities;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAst;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAstException;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\QuelToSQLConvertToString;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\QuelToSQLFetchEntities;
 	
 	class QuelToSQL {
 		

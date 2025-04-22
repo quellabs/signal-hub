@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	
 	/**
 	 * Responsible for executing individual stages of a decomposed query plan

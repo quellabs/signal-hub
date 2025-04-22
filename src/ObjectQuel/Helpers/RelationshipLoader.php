@@ -8,7 +8,9 @@
 	use Quellabs\ObjectQuel\EntityManager\Collection;
 	use Quellabs\ObjectQuel\EntityManager\EntityCollection;
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\ProxyInterface;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
@@ -18,9 +20,9 @@
 	class RelationshipLoader {
 		
 		private AstRetrieve $retrieve;
-		private \Quellabs\ObjectQuel\EntityManager\UnitOfWork $unitOfWork;
+		private UnitOfWork $unitOfWork;
 		private EntityManager $entityManager;
-		private \Quellabs\ObjectQuel\EntityManager\EntityStore $entityStore;
+		private EntityStore $entityStore;
 		private PropertyHandler $propertyHandler;
 		private array $proxyEntityCache;
 		

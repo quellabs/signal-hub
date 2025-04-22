@@ -2,13 +2,13 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstRegExp;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRegExp;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	class ComparisonExpression {
 		

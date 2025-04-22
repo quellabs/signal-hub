@@ -25,7 +25,7 @@
 		 * @param array $errors
 		 * @return void
 		 */
-		public function validate(array $input, array $rules, array &$errors) {
+		public function validate(array $input, array $rules, array &$errors): void {
 			foreach($rules as $key => $value) {
 				if (is_array($value)) {
 					foreach($value as $v) {

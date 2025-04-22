@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	
 	class JsonApiSerializer extends Serializer {
 		private EntityManager $entityManager;

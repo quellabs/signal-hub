@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
 	
 	/**
 	 * ExecutionPlan class manages the execution of query stages within the EntityManager system.

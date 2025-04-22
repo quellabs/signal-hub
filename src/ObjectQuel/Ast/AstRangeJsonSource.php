@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Ast;
 	
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\Visitors\FindIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\FindIdentifier;
 	
 	/**
 	 * Class AstRange

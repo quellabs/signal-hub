@@ -2,7 +2,7 @@
     
     namespace Quellabs\ObjectQuel\AnnotationsReader;
 
-    use Throwable;
+    use \Throwable;
     
     class Parser {
         

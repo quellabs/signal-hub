@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\PrimaryKeyGenerators;
 	
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\PrimaryKeyGeneratorInterface;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\PrimaryKeyGeneratorInterface;
 	
 	/**
 	 * UuidGenerator class for generating UUID (Universally Unique Identifier) primary keys

@@ -2,18 +2,18 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstFactor;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\Ast\AstTerm;
-	use Services\ObjectQuel\Ast\AstUnaryOperation;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstFactor;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstTerm;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstUnaryOperation;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	
 	/**
 	 * QueryDecomposer is responsible for breaking down complex queries into simpler

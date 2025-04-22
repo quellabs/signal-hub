@@ -2,11 +2,11 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Services\EntityManager\entityManager;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\Helpers\EntityHydrator;
-	use Services\ObjectQuel\Helpers\RelationshipLoader;
-	use Services\ObjectQuel\Helpers\ResultTransformer;
+	use Quellabs\ObjectQuel\EntityManager\entityManager;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Helpers\EntityHydrator;
+	use Quellabs\ObjectQuel\ObjectQuel\Helpers\RelationshipLoader;
+	use Quellabs\ObjectQuel\ObjectQuel\Helpers\ResultTransformer;
 	
 	/**
 	 * Represents a Quel result.

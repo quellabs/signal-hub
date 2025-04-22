@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Visitor class that detects if an AST node contains references to JSON sources

@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Ast;
 	
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Represents an identifier node in the AST.

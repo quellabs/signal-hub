@@ -2,13 +2,13 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstNot;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNot;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	class LogicalExpression	{
 		

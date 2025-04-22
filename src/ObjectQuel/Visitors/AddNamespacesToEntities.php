@@ -3,10 +3,10 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Class AddNamespacesToEntities
@@ -67,35 +67,35 @@
 		}
 		
 		/**
-		 * Functie om een node in de AST (Abstract Syntax Tree) te bezoeken.
+		 * Function to visit a node in the AST (Abstract Syntax Tree).
 		 * @param AstInterface $node
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Controleert of de node een instantie van AstEntity is. Zo niet, dan stopt de functie.
+			// Checks if the node is an instance of AstEntity. If not, the function stops.
 			if (!$node instanceof AstIdentifier) {
 				return;
 			}
 			
-			// Controleert dat de node geen onderdeel is van een keten
+			// Checks that the node is not part of a chain
 			if ($node->getParent() !== null) {
 				return;
 			}
 			
-			// Controleert of er een macro bestaat met dezelfde naam als de node.
-			// Als dat het geval is, stopt de functie zonder verdere actie.
+			// Checks if there is a macro with the same name as the node.
+			// If that's the case, the function stops without further action.
 			if ($this->macroExists($node->getName())) {
 				return;
 			}
 			
-			// Controleert of er een bereik (range) bestaat met dezelfde naam als de node.
-			// Ook hier, als dat het geval is, stopt de functie zonder verdere actie.
+			// Checks if there is a range with the same name as the node.
+			// Here too, if that's the case, the function stops without further action.
 			if ($this->rangeExists($node->getName())) {
 				return;
 			}
 			
-			// Als geen van de bovenstaande controles waar is, voegt de functie een namespace toe
-			// aan de naam van de node. Dit wordt gedaan door een methode van het entityStore-object.
+			// If none of the above checks are true, the function adds a namespace
+			// to the name of the node. This is done by a method of the entityStore object.
 			$node->setName($this->entityStore->normalizeEntityName($node->getName()));
 		}
 	}

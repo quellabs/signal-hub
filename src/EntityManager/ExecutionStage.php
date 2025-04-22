@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	
 	/**
 	 * Represents a single execution stage within a decomposed query execution plan.

@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\AnnotationsReader\AnnotationsReader;
-	use Services\Kernel\ReflectionHandler;
+	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
 	
 	class ProxyGenerator {
 		

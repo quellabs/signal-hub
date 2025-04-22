@@ -5,7 +5,7 @@
 	class ResultTransformer {
 		
 		/**
-		 * Sorteert het resultaat
+		 * Sort the result
 		 * @return void
 		 */
 		public function sortResults(array &$results, array $sortItems): void {

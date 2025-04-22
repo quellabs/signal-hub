@@ -3,16 +3,16 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Services\AnnotationsReader\Annotations\Orm\OneToMany;
-	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToMany;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Class TransformRelationInViaToPropertyLookup

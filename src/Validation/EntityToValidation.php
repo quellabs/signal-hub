@@ -28,45 +28,45 @@
 		}
 		
 		/**
-		 * Converteert entity-annotaties naar validatieregels.
-		 * Deze functie neemt een entity-object en converteert de annotaties van zijn eigenschappen
-		 * naar corresponderende validatieregels. Het gebruikt een vooraf gedefinieerde mapping
-		 * tussen annotatieklassen en validatieregelklassen.
-		 * @param object $entity Het entity-object waarvan de annotaties geconverteerd moeten worden
-		 * @return array Een array met validatieregels voor elke eigenschap van het entity
+		 * Converts entity annotations to validation rules.
+		 * This function takes an entity object and converts the annotations of its properties
+		 * to corresponding validation rules. It uses a predefined mapping
+		 * between annotation classes and validation rule classes.
+		 * @param object $entity The entity object whose annotations need to be converted
+		 * @return array An array with validation rules for each property of the entity
 		 */
 		public function convert(object $entity): array {
-			// Mapping van annotatieklassen naar validatieregelklassen
+			// Mapping of annotation classes to validation rule classes
 			$annotationMap = [
-				Date::class          => \Quellabs\ObjectQuel\Validation\Rules\Date::class,
-				Email::class         => \Quellabs\ObjectQuel\Validation\Rules\Email::class,
-				Length::class        => \Quellabs\ObjectQuel\Validation\Rules\Length::class,
-				NotBlank::class      => \Quellabs\ObjectQuel\Validation\Rules\NotBlank::class,
-				RegExp::class        => \Quellabs\ObjectQuel\Validation\Rules\RegExp::class,
-				Type::class          => \Quellabs\ObjectQuel\Validation\Rules\Type::class,
-				ValueIn::class       => \Quellabs\ObjectQuel\Validation\Rules\ValueIn::class,
+				Date::class          => Rules\Date::class,
+				Email::class         => Rules\Email::class,
+				Length::class        => Rules\Length::class,
+				NotBlank::class      => Rules\NotBlank::class,
+				RegExp::class        => Rules\RegExp::class,
+				Type::class          => Rules\Type::class,
+				ValueIn::class       => Rules\ValueIn::class,
 			];
 			
-			// Loop door alle eigenschappen van het entity
+			// Loop through all properties of the entity
 			$result = [];
-
+			
 			foreach ($this->reflectionHandler->getProperties($entity) as $property) {
-				// Haal de annotaties op voor de huidige eigenschap
+				// Get the annotations for the current property
 				$annotations = $this->annotationReader->getPropertyAnnotations($entity, $property);
 				
-				// Verwerk elke annotatie
+				// Process each annotation
 				foreach ($annotations as $annotation) {
 					$annotationClass = get_class($annotation);
 					
-					// Controleer of er een corresponderende validatieregel bestaat voor deze annotatie
+					// Check if there is a corresponding validation rule for this annotation
 					if (isset($annotationMap[$annotationClass])) {
-						// Voeg een nieuwe instantie van de validatieregel toe aan het resultaat
+						// Add a new instance of the validation rule to the result
 						$result[$property][] = new $annotationMap[$annotationClass]($annotation->getParameters());
 					}
 				}
 			}
 			
-			// Retourneer de array met validatieregels
+			// Return the array with validation rules
 			return $result;
 		}
 	}

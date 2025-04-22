@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\AstFinderException;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\AstFinderException;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * FindIdentifier class

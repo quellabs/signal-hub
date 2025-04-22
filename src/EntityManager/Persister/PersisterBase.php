@@ -2,8 +2,8 @@
     
     namespace Quellabs\ObjectQuel\EntityManager\Persister;
     
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	
 	class PersisterBase {
 		

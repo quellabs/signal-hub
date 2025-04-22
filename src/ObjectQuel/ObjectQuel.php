@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-	use Services\EntityManager\DatabaseAdapter;
-	use Services\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\EntityManager\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExists;
@@ -14,7 +14,7 @@
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\RequiredRelation;
-	use Services\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;

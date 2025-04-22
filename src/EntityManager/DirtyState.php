@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\Kernel\BasicEnum;
+	use Quellabs\ObjectQuel\Kernel\BasicEnum;
 	
 	class DirtyState extends BasicEnum {
 		const None = 0;

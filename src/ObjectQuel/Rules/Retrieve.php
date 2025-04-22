@@ -2,15 +2,14 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRegExp;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
-	use Services\ObjectQuel\Visitors\ContainsMethodCall;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRegExp;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	/**
 	 * @property FilterExpression $filterExpressionRule

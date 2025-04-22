@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
-	use Services\Kernel\Kernel;
-	use Services\Kernel\ServiceInterface;
+	use Quellabs\ObjectQuel\Kernel\Kernel;
+	use Quellabs\ObjectQuel\Kernel\ServiceInterface;
 	
 	class CommandRunner implements ServiceInterface {
 

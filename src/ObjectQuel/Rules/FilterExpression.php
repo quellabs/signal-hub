@@ -2,16 +2,16 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstIn;
-	use Services\ObjectQuel\Ast\AstNot;
-	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstString;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
-	use Services\ObjectQuel\Ast\AstCheckNull;
-	use Services\ObjectQuel\Ast\AstCheckNotNull;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNot;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstString;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNotNull;
 	
 	class FilterExpression extends LogicalExpression {
 		
@@ -123,7 +123,7 @@
 					return $this->parseFilterExpression($expression);
 				}
 				
-				// If not, just return the expression
+				// If not, return the expression
 				return $expression;
 			} catch (ParserException $e) {
 				if ($e->getMessage() !== "Expected a logical operator") {

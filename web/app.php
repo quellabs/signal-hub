@@ -3,7 +3,7 @@
 	include_once("../src/Kernel/Kernel.php");
 	include_once("../vendor/autoload.php");
 	
-	use Services\Kernel\Kernel;
+	use Quellabs\ObjectQuel\Kernel\Kernel;
 	
 	use Symfony\Component\HttpFoundation\Request;
 	

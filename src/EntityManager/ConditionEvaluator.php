@@ -2,14 +2,14 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstBool;
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstString;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBool;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstString;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	
 	/**
 	 * Responsible for evaluating conditions in AST nodes against data rows

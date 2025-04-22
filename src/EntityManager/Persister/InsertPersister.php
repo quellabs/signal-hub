@@ -2,13 +2,13 @@
     
     namespace Quellabs\ObjectQuel\EntityManager\Persister;
     
-	use Services\AnnotationsReader\Annotations\Orm\PostPersist;
-	use Services\AnnotationsReader\Annotations\Orm\PrePersist;
-	use Services\EntityManager\DatabaseAdapter;
-	use Services\EntityManager\EntityStore;
-	use Services\EntityManager\OrmException;
-	use Services\EntityManager\UnitOfWork;
-	use Services\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\PostPersist;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\PrePersist;
+	use Quellabs\ObjectQuel\EntityManager\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\OrmException;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
 	
 	class InsertPersister extends PersisterBase {
 		

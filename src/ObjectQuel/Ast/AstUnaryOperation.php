@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Ast;
 	
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	class AstUnaryOperation extends Ast {
 		private AstInterface $expression;

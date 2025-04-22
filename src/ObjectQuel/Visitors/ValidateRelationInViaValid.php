@@ -3,13 +3,13 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\AstVisitorInterface;
-	use Services\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	
 	/**
 	 * Class EntityExistenceValidator

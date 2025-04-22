@@ -3,10 +3,10 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\Ast\AstIn;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * A visitor implementation that traverses the AST to identify the first IN() clause

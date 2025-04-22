@@ -3,13 +3,13 @@
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
 	// Import necessary AST classes and exceptions
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	/**
 	 * Class Range

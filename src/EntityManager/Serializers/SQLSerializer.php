@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
-	use Services\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	
 	class SQLSerializer extends Serializer {
 		

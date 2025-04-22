@@ -2,13 +2,12 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
-	use Services\AnnotationsReader\AnnotationReader;
-	use Services\AnnotationsReader\Annotations\Orm\Column;
-	use Services\AnnotationsReader\Annotations\SerializationGroups;
-	use Services\AnnotationsReader\AnnotationsReader;
-	use Services\EntityManager\EntityStore;
-	use Services\Kernel\PropertyHandler;
-	use Services\Kernel\ReflectionHandler;
+	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\SerializationGroups;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
 	
 	class Serializer {
 		

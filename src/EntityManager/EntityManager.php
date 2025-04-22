@@ -2,15 +2,12 @@
 	
     namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Services\Kernel\Kernel;
-	use Services\Kernel\PropertyHandler;
-	use Services\Kernel\ServiceInterface;
-	use Services\ObjectQuel\Ast\AstIn;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\QuelException;
-	use Services\ObjectQuel\QuelResult;
-	use Services\Signalize\AstInterface;
-	use Services\Validation\EntityToValidation;
+	use Quellabs\ObjectQuel\Kernel\Kernel;
+	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\Kernel\ServiceInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
+	use Quellabs\ObjectQuel\Validation\EntityToValidation;
 	
 	/**
 	 * Represents an Entity Manager.

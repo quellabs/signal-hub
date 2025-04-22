@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
 	
-	class TestCommand extends \Quellabs\ObjectQuel\CommandRunner\Command {
+	use Quellabs\ObjectQuel\CommandRunner\Command;
+	
+	class TestCommand extends Command {
 		
 		public function execute(array $parameters = []): int {
 			echo "run";

@@ -3,23 +3,23 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstConcat;
-	use Services\ObjectQuel\Ast\AstCount;
-	use Services\ObjectQuel\Ast\AstExists;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstIsEmpty;
-	use Services\ObjectQuel\Ast\AstIsFloat;
-	use Services\ObjectQuel\Ast\AstIsInteger;
-	use Services\ObjectQuel\Ast\AstIsNumeric;
-	use Services\ObjectQuel\Ast\AstParameter;
-	use Services\ObjectQuel\Ast\AstSearch;
-	use Services\ObjectQuel\Ast\AstString;
-	use Services\ObjectQuel\Ast\AstUCount;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstConcat;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCount;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExists;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIsEmpty;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIsFloat;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIsInteger;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIsNumeric;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstParameter;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstSearch;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstString;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstUCount;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	class QueryFunction {
 		
@@ -218,6 +218,7 @@
 		/**
 		 * Parse the identifier list
 		 * @return AstIdentifier[]
+		 * @throws LexerException
 		 */
 		private function parseIdentifierList(): array {
 			$identifiers = [];

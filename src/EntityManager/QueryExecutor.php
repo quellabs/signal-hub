@@ -3,10 +3,10 @@
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	use Flow\JSONPath\JSONPathException;
-	use Services\ObjectQuel\Ast\AstRangeJsonSource;
-	use Services\ObjectQuel\ObjectQuel;
-	use Services\ObjectQuel\QuelException;
-	use Services\ObjectQuel\QuelResult;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
+	use Quellabs\ObjectQuel\ObjectQuel\ObjectQuel;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
+	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
 	
 	/**
 	 * Represents an Entity Manager.

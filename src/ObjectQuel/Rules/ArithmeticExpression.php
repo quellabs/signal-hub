@@ -2,21 +2,21 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
-	use Services\ObjectQuel\Ast\AstBool;
-	use Services\ObjectQuel\Ast\AstFactor;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstNull;
-	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstParameter;
-	use Services\ObjectQuel\Ast\AstRegExp;
-	use Services\ObjectQuel\Ast\AstString;
-	use Services\ObjectQuel\Ast\AstTerm;
-	use Services\ObjectQuel\Ast\AstUnaryOperation;
-	use Services\ObjectQuel\AstInterface;
-	use Services\ObjectQuel\Lexer;
-	use Services\ObjectQuel\LexerException;
-	use Services\ObjectQuel\ParserException;
-	use Services\ObjectQuel\Token;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBool;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstFactor;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNull;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstParameter;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRegExp;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstString;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstTerm;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstUnaryOperation;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Lexer;
+	use Quellabs\ObjectQuel\ObjectQuel\LexerException;
+	use Quellabs\ObjectQuel\ObjectQuel\ParserException;
+	use Quellabs\ObjectQuel\ObjectQuel\Token;
 	
 	class ArithmeticExpression {
 		
@@ -199,6 +199,8 @@
 		 * Parse unary expressions (-, +, *, &, etc.)
 		 * @param bool $isJumpTarget Whether this is used as a jump target
 		 * @return AstInterface
+		 * @throws LexerException
+		 * @throws ParserException
 		 */
 		protected function parseUnaryExpression(bool $isJumpTarget = false): AstInterface {
 			$token = $this->lexer->peek();

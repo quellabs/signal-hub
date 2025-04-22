@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Services\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	
 	/**
 	 * Class GetMainEntityInAstException
