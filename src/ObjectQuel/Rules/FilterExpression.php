@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Rules;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
 	use Services\ObjectQuel\Ast\AstIn;
 	use Services\ObjectQuel\Ast\AstNot;

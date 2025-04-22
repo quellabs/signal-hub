@@ -1,9 +1,9 @@
 <?php
     
-    namespace Services\ObjectQuel;
+    namespace Quellabs\ObjectQuel\ObjectQuel;
 
-	use Services\ObjectQuel\Rules\Range;
-	use Services\ObjectQuel\Rules\Retrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Rules\Range;
+	use Quellabs\ObjectQuel\ObjectQuel\Rules\Retrieve;
     
     class Parser {
         

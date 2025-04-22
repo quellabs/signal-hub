@@ -1,14 +1,14 @@
 <?php
     
-    namespace Services\EntityManager;
+    namespace Quellabs\ObjectQuel\EntityManager;
 
-    use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-    use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-    use Services\EntityManager\Persister\DeletePersister;
-    use Services\EntityManager\Persister\InsertPersister;
-    use Services\EntityManager\Persister\UpdatePersister;
-    use Services\EntityManager\Serializers\SQLSerializer;
-    use Services\Kernel\PropertyHandler;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
+    use Quellabs\ObjectQuel\EntityManager\Persister\DeletePersister;
+    use Quellabs\ObjectQuel\EntityManager\Persister\InsertPersister;
+    use Quellabs\ObjectQuel\EntityManager\Persister\UpdatePersister;
+    use Quellabs\ObjectQuel\EntityManager\Serializers\SQLSerializer;
+   use Quellabs\ObjectQuel\Kernel\PropertyHandler;
     
     class UnitOfWork {
 	    

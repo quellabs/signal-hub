@@ -1,6 +1,6 @@
 <?php
     
-    namespace Services\EntityManager\Persister;
+    namespace Quellabs\ObjectQuel\EntityManager\Persister;
     
 	use Services\AnnotationsReader\Annotations\Orm\PostPersist;
 	use Services\AnnotationsReader\Annotations\Orm\PrePersist;

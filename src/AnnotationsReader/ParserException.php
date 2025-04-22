@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\AnnotationsReader;
+	namespace Quellabs\ObjectQuel\AnnotationsReader;
 	
 	/**
 	 * Class ParserException

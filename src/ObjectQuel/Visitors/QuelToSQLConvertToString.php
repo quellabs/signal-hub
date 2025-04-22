@@ -1,7 +1,7 @@
 <?php
 	
 	// Namespace declaration voor gestructureerde code
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	// Importeer de vereiste klassen en interfaces
 	use Services\AnnotationsReader\Annotations\Orm\Column;
@@ -11,8 +11,8 @@
 	use Services\ObjectQuel\Ast\AstBool;
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;
-    use Services\ObjectQuel\Ast\AstCheckNull;
-    use Services\ObjectQuel\Ast\AstExpression;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Services\ObjectQuel\Ast\AstFactor;
 	use Services\ObjectQuel\Ast\AstIdentifier;
 	use Services\ObjectQuel\Ast\AstIn;
@@ -33,7 +33,7 @@
 	use Services\ObjectQuel\Ast\AstUCount;
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;
-    use Services\ObjectQuel\Ast\AstCheckNotNull;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNotNull;
     
     /**
 	 * Class QuelToSQLConvertToString

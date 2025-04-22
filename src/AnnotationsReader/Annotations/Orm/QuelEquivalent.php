@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\AnnotationsReader\Annotations\Orm;
+	namespace Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm;
 	
 	/**
 	 * De klasse QuelEquivalent is bedoeld om Quel-equivalente waarden te hanteren.

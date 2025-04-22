@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Helpers;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Helpers;
 	
 	use Services\AnnotationsReader\Annotations\Orm\Column;
 	use Services\EntityManager\EntityManager;

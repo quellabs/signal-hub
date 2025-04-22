@@ -1,8 +1,8 @@
 <?php
     
-    namespace Services\ObjectQuel;
+    namespace Quellabs\ObjectQuel\ObjectQuel;
 
-    use Services\Kernel\BasicEnum;
+    use Quellabs\ObjectQuel\Kernel\BasicEnum;
     
     /**
      * Class Token

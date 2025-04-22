@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	use Flow\JSONPath\JSONPathException;
 	use Services\ObjectQuel\Ast\AstRangeJsonSource;

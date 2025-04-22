@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager\PrimaryKeyGenerators;
+	namespace Quellabs\ObjectQuel\EntityManager\PrimaryKeyGenerators;
 	
 	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\PrimaryKeyGeneratorInterface;

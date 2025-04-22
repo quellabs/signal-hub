@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstAlias;
 	use Services\ObjectQuel\Ast\AstIdentifier;

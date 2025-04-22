@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\Validation;
+	namespace Quellabs\ObjectQuel\Validation;
 	
 	interface ValidationInterface {
 		

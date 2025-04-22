@@ -1,14 +1,14 @@
 <?php
     
-    namespace Services\Kernel;
+    namespace Quellabs\ObjectQuel\Kernel;
     
     use Dotenv\Dotenv;
     use Dotenv\Exception\InvalidFileException;
     use Dotenv\Exception\InvalidPathException;
-    use Services\AnnotationsReader\Annotations\AfterFilter;
-    use Services\AnnotationsReader\Annotations\BeforeFilter;
-    use Services\AnnotationsReader\AnnotationsReader;
-    use Services\Kernel\Resolvers\AnnotationResolver;
+   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\AfterFilter;
+   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\BeforeFilter;
+   use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+    use Quellabs\ObjectQuel\Kernel\Resolvers\AnnotationResolver;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
     

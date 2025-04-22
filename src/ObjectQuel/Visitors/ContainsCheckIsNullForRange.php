@@ -1,12 +1,12 @@
 <?php
 	
 	
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	use Services\ObjectQuel\AstInterface;
-    use Services\ObjectQuel\Ast\AstCheckNull;
-    use Services\ObjectQuel\Ast\AstIdentifier;
-    use Services\ObjectQuel\AstVisitorInterface;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+   use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Class ContainsRange

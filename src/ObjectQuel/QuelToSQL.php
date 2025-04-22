@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel;
+	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstAlias;

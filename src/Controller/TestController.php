@@ -1,11 +1,11 @@
 <?php
 	
-	namespace Services\Controller;
+	namespace Quellabs\ObjectQuel\Controller;
 	
-	use Services\AnnotationsReader\Annotations\Route;
-	use Services\Entity\ProductsEntity;
-	use Services\EntityManager\EntityManager;
-	use Services\Kernel\ClassModifier;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
+	use Quellabs\ObjectQuel\Entity\ProductsEntity;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\Kernel\ClassModifier;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	class TestController {

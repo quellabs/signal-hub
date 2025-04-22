@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Ast;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Ast;
 	
 	use Services\ObjectQuel\AstInterface;
 	use Services\ObjectQuel\AstVisitorInterface;

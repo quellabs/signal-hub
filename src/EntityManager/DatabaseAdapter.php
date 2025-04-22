@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	/**
 	 * Default database class voor mysqli handelingen

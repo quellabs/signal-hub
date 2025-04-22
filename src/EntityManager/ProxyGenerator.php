@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	use Services\AnnotationsReader\AnnotationsReader;
 	use Services\Kernel\ReflectionHandler;
@@ -137,12 +137,12 @@
 		protected function getTemplate(): string {
 			return "
 <?php
-	namespace Services\EntityManager\Proxies;
+	namespace Quellabs\ObjectQuel\EntityManager\Proxies;
 	
 	include_once('%s');
 	
 	%s
-	class %s extends \%s implements \Services\EntityManager\ProxyInterface {
+	class %s extends \%s implements Quellabs\ObjectQuel\EntityManager\ProxyInterface {
 		%s
 	}
 ";
@@ -237,7 +237,7 @@
 				private \$entityManager;
 				private \$initialized;
 				
-				public function __construct(\\Services\\EntityManager\\EntityManager \$entityManager) {
+				public function __construct(\\Quellabs\ObjectQuel\\EntityManager\\EntityManager \$entityManager) {
 					\$this->entityManager = \$entityManager;
 					\$this->initialized = false;
 					{$constructorParentCode}

@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager;
+	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	use Services\ObjectQuel\Ast\AstRetrieve;
 	

@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\CommandRunner\Commands;
+	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
 	
-	class TestCommand extends \Services\CommandRunner\Command {
+	class TestCommand extends \Quellabs\ObjectQuel\CommandRunner\Command {
 		
 		public function execute(array $parameters = []): int {
 			echo "run";

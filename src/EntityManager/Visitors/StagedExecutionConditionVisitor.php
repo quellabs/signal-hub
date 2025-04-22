@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager\Visitors;
+	namespace Quellabs\ObjectQuel\EntityManager\Visitors;
 	
 	use Services\ObjectQuel\Ast\AstBinaryOperator;
 	use Services\ObjectQuel\Ast\AstIdentifier;

@@ -1,6 +1,6 @@
 <?php
     
-    namespace Services\EntityManager\Normalizer;
+    namespace Quellabs\ObjectQuel\EntityManager\Normalizer;
     
     class DecimalNormalizer implements NormalizerInterface  {
     

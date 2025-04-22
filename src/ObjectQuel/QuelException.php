@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel;
+	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
 	/**
 	 * Thrown when an entity was not found

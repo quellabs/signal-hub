@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\Kernel;
+	namespace Quellabs\ObjectQuel\Kernel;
 	
 	/**
 	 * Lists, gets and sets object properties through reflection

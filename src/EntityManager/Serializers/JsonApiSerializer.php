@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager\Serializers;
+	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
 	use Services\EntityManager\EntityManager;
 	use Services\EntityManager\EntityStore;

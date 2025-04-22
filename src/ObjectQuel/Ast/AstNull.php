@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Ast;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Ast;
 	
 	class AstNull extends Ast {
 		

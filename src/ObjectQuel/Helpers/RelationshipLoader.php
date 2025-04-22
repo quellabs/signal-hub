@@ -1,26 +1,26 @@
 <?php
 	
-	namespace Services\ObjectQuel\Helpers;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Helpers;
 	
-	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Services\AnnotationsReader\Annotations\Orm\OneToMany;
-	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-	use Services\EntityManager\Collection;
-	use Services\EntityManager\EntityCollection;
-	use Services\EntityManager\EntityManager;
-	use Services\EntityManager\ProxyInterface;
-	use Services\Kernel\PropertyHandler;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToMany;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\EntityManager\Collection;
+	use Quellabs\ObjectQuel\EntityManager\EntityCollection;
+	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\ProxyInterface;
+	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	
 	class RelationshipLoader {
 		
 		private AstRetrieve $retrieve;
-		private \Services\EntityManager\UnitOfWork $unitOfWork;
+		private \Quellabs\ObjectQuel\EntityManager\UnitOfWork $unitOfWork;
 		private EntityManager $entityManager;
-		private \Services\EntityManager\EntityStore $entityStore;
+		private \Quellabs\ObjectQuel\EntityManager\EntityStore $entityStore;
 		private PropertyHandler $propertyHandler;
 		private array $proxyEntityCache;
 		
@@ -41,7 +41,7 @@
 		private function getProxyEntityName(string $targetEntityName): string {
 			if (!isset($this->proxyEntityCache[$targetEntityName])) {
 				$baseEntityName = substr($targetEntityName, strrpos($targetEntityName, "\\") + 1);
-				$this->proxyEntityCache[$targetEntityName] = "\\Services\\EntityManager\\Proxies\\{$baseEntityName}";
+				$this->proxyEntityCache[$targetEntityName] = "\\Quellabs\ObjectQuel\\EntityManager\\Proxies\\{$baseEntityName}";
 			}
 			
 			return $this->proxyEntityCache[$targetEntityName];

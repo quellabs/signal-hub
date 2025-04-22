@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\Validation\Rules;
+	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class ValueIn implements \Services\Validation\ValidationInterface {
+	class ValueIn implements Quellabs\ObjectQuel\Validation\ValidationInterface {
 		
 		protected $conditions;
 		

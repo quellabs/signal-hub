@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\Kernel;
+	namespace Quellabs\ObjectQuel\Kernel;
 	
 	class ServiceLocator {
 		private Kernel $kernel;

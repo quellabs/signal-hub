@@ -1,14 +1,14 @@
 <?php
     
-    namespace Services\EntityManager;
+    namespace Quellabs\ObjectQuel\EntityManager;
     
-    use Services\AnnotationsReader\Annotations\Orm\Column;
-    use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
-    use Services\AnnotationsReader\Annotations\Orm\OneToMany;
-    use Services\AnnotationsReader\Annotations\Orm\OneToOne;
-    use Services\AnnotationsReader\AnnotationsReader;
-    use Services\Kernel\ReflectionHandler;
-    use Services\ObjectQuel\Ast\AstRetrieve;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToMany;
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
+    use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+   use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
+   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     
     class EntityStore {
         protected AnnotationsReader $annotation_reader;

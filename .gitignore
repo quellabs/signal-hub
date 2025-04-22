@@ -1,9 +1,6 @@
 composer.lock
 .env
 /vendor/
-/src/create_entity.php
-/src/signalize_executer.php
-/src/signalize.js
 /src/AnnotationsReader/Cache
 !/src/AnnotationsReader/Cache/.htaccess
 /src/EntityManager/Proxies

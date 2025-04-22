@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Helpers;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Helpers;
 	
 	class ResultTransformer {
 		

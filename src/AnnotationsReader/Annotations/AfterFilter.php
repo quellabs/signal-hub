@@ -1,6 +1,6 @@
 <?php
     
-    namespace Services\AnnotationsReader\Annotations;
+    namespace Quellabs\ObjectQuel\AnnotationsReader\Annotations;
     
     class AfterFilter {
         

@@ -1,7 +1,7 @@
 <?php
 	
 	
-	namespace Services\ObjectQuel\Rules;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
 	use Services\ObjectQuel\Ast\AstConcat;
 	use Services\ObjectQuel\Ast\AstCount;

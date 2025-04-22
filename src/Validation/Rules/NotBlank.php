@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\Validation\Rules;
+	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class NotBlank implements \Services\Validation\ValidationInterface {
+	class NotBlank implements Quellabs\ObjectQuel\Validation\ValidationInterface {
 		
 		protected $conditions;
 		

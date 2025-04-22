@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\EntityManager\Serializers;
+	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
 	use Services\AnnotationsReader\AnnotationReader;
 	use Services\AnnotationsReader\Annotations\Orm\Column;
@@ -156,7 +156,7 @@
 			// Check if this column type has a dedicated normalizer class
 			if (in_array(strtolower($columnType), $this->normalizers)) {
 				// Build the full normalizer class name based on the column type
-				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
+				$normalizerClass = "\\Quellabs\ObjectQuel\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
 				
 				// Use cached normalizer instance if available, otherwise create a new one
 				// This improves performance by reusing normalizer objects
@@ -210,7 +210,7 @@
 			// Check if this column type has a dedicated normalizer class
 			if (in_array(strtolower($columnType), $this->normalizers)) {
 				// Build the full normalizer class name based on the column type
-				$normalizerClass = "\\Services\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
+				$normalizerClass = "\\Quellabs\ObjectQuel\\EntityManager\\Normalizer\\" . ucfirst($columnType) . "Normalizer";
 				
 				// Use cached normalizer instance if available, otherwise create a new one
 				// This improves performance by reusing normalizer objects

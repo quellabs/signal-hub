@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel;
+	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
 	interface AstVisitorInterface {
 		public function visitNode(AstInterface $node);

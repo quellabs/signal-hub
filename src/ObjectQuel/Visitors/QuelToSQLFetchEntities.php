@@ -1,7 +1,7 @@
 <?php
 	
 	// Namespace declaration voor gestructureerde code
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	// Importeer de vereiste klassen en interfaces
 	use Services\ObjectQuel\Ast\AstIdentifier;

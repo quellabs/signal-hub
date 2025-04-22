@@ -1,14 +1,14 @@
 <?php
     
-    namespace Services\EntityManager\Persister;
+    namespace Quellabs\ObjectQuel\EntityManager\Persister;
     
-    use Services\AnnotationsReader\Annotations\Orm\PostUpdate;
-    use Services\AnnotationsReader\Annotations\Orm\PreUpdate;
-    use Services\EntityManager\databaseAdapter;
-    use Services\EntityManager\EntityStore;
-    use Services\EntityManager\OrmException;
-    use Services\EntityManager\UnitOfWork;
-    use Services\Kernel\PropertyHandler;
+   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\PostUpdate;
+   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\PreUpdate;
+   use Quellabs\ObjectQuel\EntityManager\databaseAdapter;
+   use Quellabs\ObjectQuel\EntityManager\EntityStore;
+   use Quellabs\ObjectQuel\EntityManager\OrmException;
+   use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+   use Quellabs\ObjectQuel\Kernel\PropertyHandler;
     
     class UpdatePersister extends PersisterBase {
     

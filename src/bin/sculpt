@@ -3,10 +3,10 @@
 	include_once(dirname(__FILE__) . "/../Kernel/Kernel.php");
 	include_once(dirname(__FILE__) . "/../../vendor/autoload.php");
 	
-	use Services\Kernel\Kernel;
+	use Quellabs\ObjectQuel\Kernel;
 
 	$kernel = new Kernel();
-	$sculpter = new \Services\CommandRunner\CommandRunner($kernel);
+	$sculpter = new \Quellabs\ObjectQuel\CommandRunner\CommandRunner($kernel);
 	$sculpter->run($argv);
 	
 	

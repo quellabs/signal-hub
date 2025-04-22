@@ -1,8 +1,8 @@
 <?php
     
-    namespace Services\AnnotationsReader;
+    namespace Quellabs\ObjectQuel\AnnotationsReader;
 
-    use Services\Kernel\BasicEnum;
+    use Quellabs\ObjectQuel\Kernel\BasicEnum;
 
     /**
      * Class Token
@@ -57,15 +57,15 @@
         const BinaryShiftRight = 45;
         const Arrow = 46;
         
-        protected $type;
-        protected $value;
+        protected string|int $type;
+        protected mixed $value;
     
         /**
          * Token constructor.
-         * @param string $type
+         * @param int|string $type
          * @param null $value
          */
-        public function __construct($type=Token::None, $value=null) {
+        public function __construct(int|string $type=Token::None, $value=null) {
             $this->type = $type;
             $this->value = $value;
         }
@@ -92,13 +92,13 @@
      * @package Services\AnnotationsReader
      */
     class Lexer {
-        protected $string;
-        protected $pos;
-        protected $length;
-        protected $tokens;
-        protected $single_tokens;
-        protected $two_char_tokens;
-        protected $lookahead;
+        protected string $string;
+        protected int $pos;
+        protected int $length;
+        protected array $tokens;
+        protected array $single_tokens;
+        protected array $two_char_tokens;
+        protected Token $lookahead;
         
         /**
          * Lexer constructor.

@@ -1,7 +1,7 @@
 <?php
 	
 	
-	namespace Services\CommandRunner;
+	namespace Quellabs\ObjectQuel\CommandRunner;
 	
 	class ConsoleOutput {
 		

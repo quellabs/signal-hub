@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\CommandRunner\Commands;
+	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
 	
-	class MakeEntityCommand extends \Services\CommandRunner\Command {
+	class MakeEntityCommand extends \Quellabs\ObjectQuel\CommandRunner\Command {
 		
 		public function execute(array $parameters = []): int {
 			// Ask for entity name

@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\AnnotationsReader\Annotations\Validation;
+	namespace Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation;
 	
 	class ValueIn {
 		

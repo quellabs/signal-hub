@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\CommandRunner;
+	namespace Quellabs\ObjectQuel\CommandRunner;
 	
 	abstract class Command {
 		protected ConsoleInput $input;

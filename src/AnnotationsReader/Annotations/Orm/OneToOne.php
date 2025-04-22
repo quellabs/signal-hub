@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\AnnotationsReader\Annotations\Orm;
+	namespace Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm;
 	
 	/**
 	 * Definieert de OneToOne klasse die de relatie tussen entiteiten beschrijft

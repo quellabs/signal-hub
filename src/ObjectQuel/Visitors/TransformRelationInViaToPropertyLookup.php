@@ -1,7 +1,7 @@
 <?php
 	
 	
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
 	use Services\AnnotationsReader\Annotations\Orm\OneToMany;

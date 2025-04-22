@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\Validation\Rules;
+	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class RegExp implements \Services\Validation\ValidationInterface {
+	class RegExp implements Quellabs\ObjectQuel\Validation\ValidationInterface {
 		
 		protected $conditions;
 		

@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Rules;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Rules;
 	
 	// Import necessary AST classes and exceptions
 	use Services\ObjectQuel\Ast\AstRange;

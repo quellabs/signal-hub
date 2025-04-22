@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\ObjectQuel;
+	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Services\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	
 	/**
 	 * Class AstFinderException

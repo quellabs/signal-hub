@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\ObjectQuel\Visitors;
+	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	use Services\EntityManager\EntityStore;
 	use Services\ObjectQuel\Ast\AstIdentifier;

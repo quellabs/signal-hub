@@ -1,10 +1,10 @@
 <?php
 	
-	namespace Services\Validation\Rules;
+	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class AtLeastOneOf implements \Services\Validation\ValidationInterface {
+	class AtLeastOneOf implements Quellabs\ObjectQuel\Validation\ValidationInterface {
 		
-		protected $conditions;
+		protected array $conditions;
 		
 		/**
 		 * Email constructor

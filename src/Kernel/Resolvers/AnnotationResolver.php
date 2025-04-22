@@ -1,12 +1,12 @@
 <?php
 	
-	namespace Services\Kernel\Resolvers;
+	namespace Quellabs\ObjectQuel\Kernel\Resolvers;
 	
-	use Services\AnnotationsReader\Annotations\Route;
-	use Services\AnnotationsReader\AnnotationsReader;
-	use Services\Kernel\Kernel;
-	use Services\Kernel\ServiceLocator;
-	use Services\Validation\AnnotationsToValidation;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
+	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\ObjectQuel\Kernel\Kernel;
+	use Quellabs\ObjectQuel\Kernel\ServiceLocator;
+	use Quellabs\ObjectQuel\Validation\AnnotationsToValidation;
 	use Symfony\Component\HttpFoundation\Request;
 	
 	class AnnotationResolver {

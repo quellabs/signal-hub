@@ -1,8 +1,8 @@
 <?php
 	
-	namespace Services\Validation\Rules;
+	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class Date implements \Services\Validation\ValidationInterface {
+	class Date implements Quellabs\ObjectQuel\Validation\ValidationInterface {
 		
 		protected $conditions;
 		

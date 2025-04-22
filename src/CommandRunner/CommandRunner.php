@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Services\CommandRunner;
+	namespace Quellabs\ObjectQuel\CommandRunner;
 	
 	use Services\Kernel\Kernel;
 	use Services\Kernel\ServiceInterface;

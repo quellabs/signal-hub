@@ -1,14 +1,14 @@
 <?php
 	
-	namespace Services\Validation;
+	namespace Quellabs\ObjectQuel\Validation;
 	
-	use Services\AnnotationsReader\Annotations\Validation\Date;
-	use Services\AnnotationsReader\Annotations\Validation\Email;
-	use Services\AnnotationsReader\Annotations\Validation\Length;
-	use Services\AnnotationsReader\Annotations\Validation\NotBlank;
-	use Services\AnnotationsReader\Annotations\Validation\RegExp;
-	use Services\AnnotationsReader\Annotations\Validation\Type;
-	use Services\AnnotationsReader\Annotations\Validation\ValueIn;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Date;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Email;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Length;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\NotBlank;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\RegExp;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Type;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\ValueIn;
 	
 	class AnnotationsToValidation {
 		
@@ -23,13 +23,13 @@
 		public function convert(array $annotations): array {
 			// Mapping van annotatieklassen naar validatieregelklassen
 			$annotationMap = [
-				Date::class          => \Services\Validation\Rules\Date::class,
-				Email::class         => \Services\Validation\Rules\Email::class,
-				Length::class        => \Services\Validation\Rules\Length::class,
-				NotBlank::class      => \Services\Validation\Rules\NotBlank::class,
-				RegExp::class        => \Services\Validation\Rules\RegExp::class,
-				Type::class          => \Services\Validation\Rules\Type::class,
-				ValueIn::class       => \Services\Validation\Rules\ValueIn::class,
+				Date::class          => \Quellabs\ObjectQuel\Validation\Rules\Date::class,
+				Email::class         => \Quellabs\ObjectQuel\Validation\Rules\Email::class,
+				Length::class        => \Quellabs\ObjectQuel\Validation\Rules\Length::class,
+				NotBlank::class      => \Quellabs\ObjectQuel\Validation\Rules\NotBlank::class,
+				RegExp::class        => \Quellabs\ObjectQuel\Validation\Rules\RegExp::class,
+				Type::class          => \Quellabs\ObjectQuel\Validation\Rules\Type::class,
+				ValueIn::class       => \Quellabs\ObjectQuel\Validation\Rules\ValueIn::class,
 			];
 			
 			// Loop door alle eigenschappen van het entity

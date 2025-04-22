@@ -1,6 +1,6 @@
 <?php
     
-    namespace Services\AnnotationsReader;
+    namespace Quellabs\ObjectQuel\AnnotationsReader;
 
     use Throwable;
     
@@ -187,7 +187,7 @@
                             continue;
                         }
                         
-                        $tokenName = "\\Services\\AnnotationsReader\\Annotations\\{$value}";
+                        $tokenName = "\\Quellabs\ObjectQuel\\AnnotationsReader\\Annotations\\{$value}";
     
                         if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
                             $parameters = $this->parseParameters();

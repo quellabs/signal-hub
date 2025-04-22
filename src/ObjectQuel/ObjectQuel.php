@@ -1,42 +1,42 @@
 <?php
 	
-	namespace Services\ObjectQuel;
+	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
 	use Services\AnnotationsReader\Annotations\Orm\ManyToOne;
 	use Services\AnnotationsReader\Annotations\Orm\OneToOne;
 	use Services\EntityManager\DatabaseAdapter;
 	use Services\EntityManager\EntityManager;
-	use Services\ObjectQuel\Ast\AstAlias;
-	use Services\ObjectQuel\Ast\AstBinaryOperator;
-	use Services\ObjectQuel\Ast\AstExists;
-	use Services\ObjectQuel\Ast\AstIn;
-	use Services\ObjectQuel\Ast\AstNumber;
-	use Services\ObjectQuel\Ast\AstRange;
-	use Services\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
-    use Services\AnnotationsReader\Annotations\Orm\RequiredRelation;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExists;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
+   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\RequiredRelation;
 	use Services\EntityManager\EntityStore;
-	use Services\ObjectQuel\Ast\AstExpression;
-	use Services\ObjectQuel\Ast\AstIdentifier;
-	use Services\ObjectQuel\Ast\AstRangeDatabase;
-	use Services\ObjectQuel\Ast\AstRetrieve;
-	use Services\ObjectQuel\Visitors\AddNamespacesToEntities;
-	use Services\ObjectQuel\Visitors\AliasPlugAliasPattern;
-	use Services\ObjectQuel\Visitors\ContainsMethodCall;
-	use Services\ObjectQuel\Visitors\ContainsRange;
-	use Services\ObjectQuel\Visitors\EntityExistenceValidator;
-	use Services\ObjectQuel\Visitors\EntityPlugMacros;
-	use Services\ObjectQuel\Visitors\AddRangeToEntityWhenItsMissing;
-	use Services\ObjectQuel\Visitors\EntityProcessMacro;
-	use Services\ObjectQuel\Visitors\EntityProcessRange;
-	use Services\ObjectQuel\Visitors\EntityPropertyValidator;
-	use Services\ObjectQuel\Visitors\FetchMethodCalls;
-	use Services\ObjectQuel\Visitors\GatherReferenceJoinValues;
-	use Services\ObjectQuel\Visitors\GetMainEntityInAst;
-	use Services\ObjectQuel\Visitors\GetMainEntityInAstException;
-	use Services\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;
-	use Services\ObjectQuel\Visitors\RangeOnlyReferencesOtherRanges;
-	use Services\ObjectQuel\Visitors\TransformRelationInViaToPropertyLookup;
-	use Services\ObjectQuel\Visitors\ValidateRelationInViaValid;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AddNamespacesToEntities;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AliasPlugAliasPattern;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsMethodCall;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityExistenceValidator;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityPlugMacros;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AddRangeToEntityWhenItsMissing;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityProcessMacro;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityProcessRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityPropertyValidator;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\FetchMethodCalls;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GatherReferenceJoinValues;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAst;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAstException;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\NoExpressionsAllowedOnEntitiesValidator;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\RangeOnlyReferencesOtherRanges;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\TransformRelationInViaToPropertyLookup;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ValidateRelationInViaValid;
     
     class ObjectQuel {
 		

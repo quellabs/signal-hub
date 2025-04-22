@@ -7,7 +7,7 @@
      * Time: 09:16
      */
     
-    namespace Services\CachePool;
+    namespace Quellabs\ObjectQuel\CachePool;
     
     class Item {
         const cacheNone = 0x00;
@@ -143,9 +143,9 @@
         
         /**
          * CachePool constructor.
-         * @param \Services\EntityManager\databaseAdapter $db
+         * @param \Quellabs\ObjectQuel\EntityManager\databaseAdapter $db
          */
-        public function __construct(\Services\EntityManager\databaseAdapter $db) {
+        public function __construct(\Quellabs\ObjectQuel\EntityManager\databaseAdapter $db) {
             $this->db = $db;
         }
     
