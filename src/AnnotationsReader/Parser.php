@@ -207,6 +207,21 @@
 				if (isset($this->imports[$alias])) {
 					return $this->imports[$alias] . '\\' . $rest;
 				}
+				
+				// Handle the handle case where imported fully qualified class with segments is used with fewer segments
+				// e.g., imported "A\B\C\D" but using "@B\C\D" or "@C\D"
+				foreach ($this->imports as $importAlias => $importClass) {
+					$importParts = explode('\\', $importClass);
+					$matchParts = array_intersect($importParts, explode('\\', $className));
+					
+					if (count($matchParts) > 0) {
+						// Check if segments match and are in the right order
+						$importSegments = implode('\\', array_slice($importParts, -count($matchParts)));
+						if ($importSegments === implode('\\', $matchParts)) {
+							return $importClass;
+						}
+					}
+				}
 			}
 			
 			// Return as is - will be looked up in default namespaces
@@ -235,9 +250,14 @@
 						}
 						
 						// Resolve the annotation class name using imports
-						$resolvedValue = $this->resolveClassName($value);
-						$tokenName = "\\Quellabs\\ObjectQuel\\AnnotationsReader\\Annotations\\{$resolvedValue}";
+						$tokenName = $this->resolveClassName($value);
 						
+						// Check if the class exists
+						if (!class_exists($tokenName)) {
+							throw new ParserException("Annotation class not found: {$tokenName}");
+						}
+						
+						// Parse the parameters and gather the result
 						if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
 							$parameters = $this->parseParameters();
 							$this->lexer->match(Token::ParenthesesClose);

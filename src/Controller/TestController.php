@@ -3,6 +3,8 @@
 	namespace Quellabs\ObjectQuel\Controller;
 	
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
+	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Type;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	class TestController {
