@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class NotBlank implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class NotBlank implements ValidationInterface {
 		
 		protected $conditions;
 		

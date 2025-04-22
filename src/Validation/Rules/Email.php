@@ -2,9 +2,11 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class Email implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class Email implements ValidationInterface {
 		
-		protected $conditions;
+		protected array $conditions;
 		
 		/**
 		 * Email constructor

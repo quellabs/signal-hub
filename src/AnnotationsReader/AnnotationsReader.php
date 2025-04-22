@@ -80,12 +80,9 @@
 		 * Parse annotations for properties or methods and update the result array.
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
-		 * @param \ReflectionClass $reflection The class reflection to get imports from.
+		 * @param array $imports The import list
 		 */
-		protected function parseAnnotations(array $items, array &$result, \ReflectionClass $reflection): void {
-			// Get imports for class
-			$imports = $this->use_statement_parser->getImportsForClass($reflection);
-			
+		protected function parseAnnotations(array $items, array &$result, array $imports): void {
 			// Loop through each Reflection item (either property or method)
 			foreach ($items as $item) {
 				// Get the doc comment for the current item
@@ -134,8 +131,8 @@
 			$result['class'] = $this->getAnnotationsWithImports($reflection->getDocComment(), $imports);
 			
 			// Parse the annotations and return result
-			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $reflection);
-			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $reflection);
+			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports);
+			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $imports);
 			return $result;
 		}
 		

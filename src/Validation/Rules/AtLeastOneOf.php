@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class AtLeastOneOf implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class AtLeastOneOf implements ValidationInterface {
 		
 		protected array $conditions;
 		

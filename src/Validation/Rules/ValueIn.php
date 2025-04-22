@@ -2,13 +2,15 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class ValueIn implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class ValueIn implements ValidationInterface {
 		
-		protected $conditions;
+		protected mixed $conditions;
 		
 		/**
 		 * Email constructor
-		 * @param array $data
+		 * @param array $conditions
 		 */
 		public function __construct(array $conditions = []) {
 			$this->conditions = $conditions["values"] ?? [];

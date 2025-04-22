@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class Date implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class Date implements ValidationInterface {
 		
 		protected $conditions;
 		

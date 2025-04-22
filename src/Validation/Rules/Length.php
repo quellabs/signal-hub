@@ -2,9 +2,11 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class Length implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class Length implements ValidationInterface {
 		
-		protected $conditions;
+		protected array $conditions;
 		protected $error;
 		
 		/**

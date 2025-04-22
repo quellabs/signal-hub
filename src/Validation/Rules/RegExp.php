@@ -2,9 +2,11 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class RegExp implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class RegExp implements ValidationInterface {
 		
-		protected $conditions;
+		protected array $conditions;
 		
 		/**
 		 * Email constructor

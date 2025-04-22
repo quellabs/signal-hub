@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Validation\Rules;
 	
-	class Type implements Quellabs\ObjectQuel\Validation\ValidationInterface {
+	use Quellabs\ObjectQuel\Validation\ValidationInterface;
+	
+	class Type implements ValidationInterface {
 		
 		protected $conditions;
 		protected $error;

@@ -2,10 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\Controller;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
-	use Quellabs\ObjectQuel\Entity\ProductsEntity;
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
-	use Quellabs\ObjectQuel\Kernel\ClassModifier;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	class TestController {
