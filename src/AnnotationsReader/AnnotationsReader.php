@@ -8,6 +8,7 @@
 		
 		protected UseStatementParser $use_statement_parser;
 		protected string|false $current_dir;
+		protected array $configuration;
 		protected array $cached_annotations;
 		protected array $cached_annotations_filemtime;
 		protected array $cached_annotations_filemtime_checked;
@@ -18,6 +19,9 @@
 		public function __construct() {
 			// Instantiate use statement parser
 			$this->use_statement_parser = new UseStatementParser();
+			
+			// Store the configuration array
+			$this->configuration = [];
 			
 			// Store current directory
 			$this->current_dir = realpath(dirname(__FILE__));
@@ -179,7 +183,7 @@
 		protected function getAnnotationsWithImports(string $string, array $imports, ?string &$errorMessage=null): array {
 			try {
 				$lexer = new Lexer($string);
-				$parser = new Parser($lexer, $imports);
+				$parser = new Parser($lexer, $this->configuration, $imports);
 				return $parser->parse();
 			} catch (LexerException | ParserException $e) {
 				if ($errorMessage !== null) {
@@ -192,32 +196,32 @@
 
 		/**
 		 * Takes a class's docComment and parses it
-		 * @param $class
+		 * @param mixed $class
 		 * @return array
 		 */
-		public function getClassAnnotations($class): array {
+		public function getClassAnnotations(mixed $class): array {
 			$annotations = $this->getAllObjectAnnotations($class);
 			return $annotations["class"] ?? [];
 		}
 		
 		/**
 		 * Takes a method's docComment and parses it
-		 * @param $class
-		 * @param $method
+		 * @param mixed $class
+		 * @param string $method
 		 * @return array
 		 */
-		public function getMethodAnnotations($class, $method): array {
+		public function getMethodAnnotations(mixed $class, string $method): array {
 			$annotations = $this->getAllObjectAnnotations($class);
 			return $annotations["methods"][$method] ?? [];
 		}
 		
 		/**
 		 * Takes a property's docComment and parses it
-		 * @param $class
-		 * @param $property
+		 * @param mixed $class
+		 * @param string $property
 		 * @return array
 		 */
-		public function getPropertyAnnotations($class, $property): array {
+		public function getPropertyAnnotations(mixed $class, string $property): array {
 			$annotations = $this->getAllObjectAnnotations($class);
 			return $annotations["properties"][$property] ?? [];
 		}
@@ -231,7 +235,7 @@
 		public function getAnnotations($string, ?string &$errorMessage=null): array {
 			try {
 				$lexer = new Lexer($string);
-				$parser = new Parser($lexer);
+				$parser = new Parser($lexer, $this->configuration);
 				return $parser->parse();
 			} catch (LexerException | ParserException $e) {
 				if ($errorMessage !== null) {

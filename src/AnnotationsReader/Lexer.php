@@ -2,91 +2,6 @@
     
     namespace Quellabs\ObjectQuel\AnnotationsReader;
 
-    use Quellabs\ObjectQuel\Kernel\BasicEnum;
-
-    /**
-     * Class Token
-     * @package Quellabs\\ObjectQuel\AnnotationsReader
-     */
-    class Token extends BasicEnum {
-        const None = 0;
-        const Eof = 1;
-        const Annotation = 2;
-        const Comma = 3;
-        const Dot = 4;
-        const ParenthesesOpen = 5;
-        const ParenthesesClose = 6;
-        const CurlyBraceOpen = 7;
-        const CurlyBraceClose = 8;
-        const Equals = 9;
-        const LargerThan = 10;
-        const SmallerThan = 11;
-        const String = 12;
-        const Number = 13;
-        const Parameter = 14;
-        const True = 15;
-        const False = 16;
-        const BracketOpen = 17;
-        const BracketClose = 18;
-        const Plus = 19;
-        const Minus = 20;
-        const Underscore = 21;
-        const Star = 22;
-        const Variable = 23;
-        const Colon = 24;
-        const Semicolon = 25;
-        const Slash = 26;
-        const Backslash = 27;
-        const Pipe = 28;
-        const Percentage = 29;
-        const Hash = 30;
-        const Ampersand = 31;
-        const Hat = 32;
-        const Copyright = 33;
-        const Pound = 34;
-        const Euro = 35;
-        const Exclamation = 36;
-        const Question = 37;
-        const Equal = 38;
-        const Unequal = 39;
-        const LargerThanOrEqualTo = 40;
-        const SmallerThanOrEqualTo = 41;
-        const LogicalAnd = 42;
-        const LogicalOr = 43;
-        const BinaryShiftLeft = 44;
-        const BinaryShiftRight = 45;
-        const Arrow = 46;
-        
-        protected string|int $type;
-        protected mixed $value;
-    
-        /**
-         * Token constructor.
-         * @param int|string $type
-         * @param null $value
-         */
-        public function __construct(int|string $type=Token::None, $value=null) {
-            $this->type = $type;
-            $this->value = $value;
-        }
-	    
-	    /**
-	     * Returns the Token type
-	     * @return int|string
-	     */
-        public function getType(): int|string {
-            return $this->type;
-        }
-    
-        /**
-         * Returns the (optional) value or null if there none
-         * @return mixed
-         */
-        public function getValue(): mixed {
-            return $this->value;
-        }
-    }
-    
     /**
      * Simple lexer to dissect doc blocks
      * @package Quellabs\\ObjectQuel\AnnotationsReader
@@ -140,6 +55,7 @@
                 Token::Euro             => '€',
                 Token::Exclamation      => '!',
                 Token::Question         => '?',
+                Token::Dollar           => '$',
             ];
     
             $this->two_char_tokens = [
@@ -160,7 +76,7 @@
         /**
          * Advance $this->pos to the start of the next token
          */
-        protected function advance() {
+        protected function advance(): void {
             $checkStar = false;
             
             while ($this->pos < $this->length) {
@@ -198,12 +114,13 @@
                 break;
             }
         }
-    
-        /**
-         * Fetches a number from the datastream and returns it.
-         * Throws an exception when the number is malformed.
-         */
-        protected function fetchNumber() {
+	    
+	    /**
+	     * Fetches a number from the datastream and returns it.
+	     * Throws an exception when the number is malformed.
+	     * @throws LexerException
+	     */
+        protected function fetchNumber(): float|int {
             $string = "";
     
             while (($this->pos < $this->length) && (ctype_digit($this->string[$this->pos]) || $this->string[$this->pos] == '.')) {
@@ -283,18 +200,6 @@
                 }
     
                 return new Token(Token::Annotation, $string);
-            }
-
-            // starts with $, so must be a variable
-            if ($this->string[$this->pos] == '$') {
-                ++$this->pos;
-                $string = "";
-                
-                while (($this->pos < $this->length) && (ctype_alnum($this->string[$this->pos]) || in_array($this->string[$this->pos], ['_', '-']))) {
-                    $string .= $this->string[$this->pos++];
-                }
-    
-                return new Token(Token::Variable, $string);
             }
 
             // starts with letter, so must be a parameter

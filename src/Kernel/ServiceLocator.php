@@ -39,7 +39,6 @@
 		 * - De klasse moet in een eigen directory staan
 		 * - De bestandsnaam moet gelijk zijn aan de directorynaam (bijv. /Service/Service.php)
 		 * - De klasse moet de ServiceInterface implementeren
-		 *
 		 * @param string $baseDirectory Het absolute pad naar de basis directory om te scannen (bijv. __DIR__ . '/../src')
 		 * @return array
 		 */
