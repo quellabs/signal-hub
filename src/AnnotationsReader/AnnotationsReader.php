@@ -2,11 +2,13 @@
 	
 	namespace Quellabs\ObjectQuel\AnnotationsReader;
 	
+	use Quellabs\ObjectQuel\AnnotationsReader\Events\AnnotationSignalManager;
 	use Quellabs\ObjectQuel\AnnotationsReader\Helpers\UseStatementParser;
 	
 	class AnnotationsReader {
 		
 		protected UseStatementParser $use_statement_parser;
+		protected AnnotationSignalManager $signalManager;
 		protected string|false $current_dir;
 		protected array $configuration;
 		protected array $cached_annotations;
@@ -19,6 +21,9 @@
 		public function __construct() {
 			// Instantiate use statement parser
 			$this->use_statement_parser = new UseStatementParser();
+			
+			// Initialize event dispatcher
+			$this->signalManager = new AnnotationSignalManager();
 			
 			// Store the configuration array
 			$this->configuration = [];
@@ -81,10 +86,21 @@
 		}
 		
 		/**
+		 * Gets the short class name from a fully qualified name
+		 * @param string $class
+		 * @return string
+		 */
+		protected function getShortClassName(string $class): string {
+			$parts = explode('\\', $class);
+			return end($parts);
+		}
+		
+		/**
 		 * Parse annotations for properties or methods and update the result array.
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
 		 * @param array $imports The import list
+		 * @return void
 		 */
 		protected function parseAnnotations(array $items, array &$result, array $imports): void {
 			// Loop through each Reflection item (either property or method)
@@ -105,7 +121,7 @@
 					continue;
 				}
 				
-				// Add the annotations to the result array, indexed by the item's name
+				// Add the annotations to the result array
 				$result[$item->getName()] = $annotations;
 			}
 		}
@@ -141,6 +157,44 @@
 		}
 		
 		/**
+		 * Emit signals for annotations loaded from cache
+		 * @param array $annotations
+		 * @param string $className
+		 */
+		protected function emitSignalsForAnnotations(array $annotations, string $className): void {
+			// Emit signals for class annotations
+			if (!empty($annotations['class'])) {
+				foreach ($annotations['class'] as $annotationName => $annotation) {
+					$shortClassName = $this->getShortClassName($annotationName);
+					$this->signalManager->emit('annotation.found', $annotation, 'class', $className, null);
+					$this->signalManager->emit('annotation.found.' . $shortClassName, $annotation, 'class', $className, null);
+				}
+			}
+			
+			// Emit signals for property annotations
+			if (!empty($annotations['properties'])) {
+				foreach ($annotations['properties'] as $propertyName => $propertyAnnotations) {
+					foreach ($propertyAnnotations as $annotationName => $annotation) {
+						$shortClassName = $this->getShortClassName($annotationName);
+						$this->signalManager->emit('annotation.found', $annotation, 'property', $className, $propertyName);
+						$this->signalManager->emit('annotation.found.' . $shortClassName, $annotation, 'property', $className, $propertyName);
+					}
+				}
+			}
+			
+			// Emit signals for method annotations
+			if (!empty($annotations['methods'])) {
+				foreach ($annotations['methods'] as $methodName => $methodAnnotations) {
+					foreach ($methodAnnotations as $annotationName => $annotation) {
+						$shortClassName = $this->getShortClassName($annotationName);
+						$this->signalManager->emit('annotation.found', $annotation, 'method', $className, $methodName);
+						$this->signalManager->emit('annotation.found.' . $shortClassName, $annotation, 'method', $className, $methodName);
+					}
+				}
+			}
+		}
+		
+		/**
 		 * Retrieve all annotations for a given class, caching the results for performance.
 		 * @param mixed $class The fully qualified class name to get annotations for.
 		 * @return array An array containing all annotations for the class, its properties, and its methods.
@@ -149,9 +203,10 @@
 			try {
 				// Create a ReflectionClass object for the given class
 				$reflection = new \ReflectionClass($class);
+				$className = $reflection->getName();
 				
 				// Generate a cache filename based on the class name
-				$cacheFilename = $this->generateCacheFilename($reflection->getName());
+				$cacheFilename = $this->generateCacheFilename($className);
 				
 				// Check if the cache should be updated
 				if ($this->shouldUpdateCache($cacheFilename, $reflection)) {
@@ -160,8 +215,14 @@
 					
 					// Update the cache with the new annotations
 					$this->updateCache($cacheFilename, $annotations);
+				} else {
+					// Use cached annotations but still emit signals
+					$annotations = $this->cached_annotations[$cacheFilename];
 				}
 				
+				// Emit signals for cached annotations
+				$this->emitSignalsForAnnotations($annotations, $className);
+
 				// Mark this cache file as checked for file modification time
 				$this->cached_annotations_filemtime_checked[$cacheFilename] = true;
 				
@@ -193,7 +254,15 @@
 				return [];
 			}
 		}
-
+		
+		/**
+		 * Get the signal manager
+		 * @return AnnotationSignalManager
+		 */
+		public function getSignalManager(): AnnotationSignalManager {
+			return $this->signalManager;
+		}
+		
 		/**
 		 * Takes a class's docComment and parses it
 		 * @param mixed $class
