@@ -15,7 +15,6 @@
 	    protected array $original_entity_data;
 	    protected array $identity_map;
 	    protected array $entity_removal_list;
-	    protected array $normalizers;
 	    protected EntityManager $entity_manager;
 	    protected EntityStore $entity_store;
 	    protected PropertyHandler $property_handler;
@@ -36,16 +35,6 @@
 	        $this->entity_removal_list = [];
 	        $this->identity_map = [];
         }
-		
-		/**
-		 * Controleert of het opgegeven bestand een PHP-bestand is.
-		 * @param string $fileName Naam van het bestand.
-		 * @return bool True als het een PHP-bestand is, anders false.
-		 */
-		private function isPHPFile(string $fileName): bool {
-			$fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
-			return ($fileExtension === 'php');
-		}
 		
 		/**
 		 * Returns true if the entity has no populated primary keys, false if it does.
@@ -624,7 +613,7 @@
 		 * @param object $entity
 		 * @return void
 		 */
-		public function remove(object $entity): void {
+		public function scheduleForDelete(object $entity): void {
 			$this->entity_removal_list[] = spl_object_id($entity);
 		}
 	 

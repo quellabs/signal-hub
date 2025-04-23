@@ -212,7 +212,7 @@
 		 * @return void
 		 */
 		public function remove(object $entity): void {
-			$this->unit_of_work->remove($entity);
+			$this->unit_of_work->scheduleForDelete($entity);
 		}
 		
 		/**
