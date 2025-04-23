@@ -6,9 +6,24 @@
   "authors": [
     {
       "name": "Floris van den Berg",
-      "email": "floris@quellabs.com"
+      "email": "info@quellabs.com"
     }
   ],
+  "keywords": [
+    "ORM",
+    "ObjectQuel",
+    "query language",
+    "custom query language",
+    "entity manager"
+  ],
+  "support": {
+    "email": "support@quellabs.com",
+    "issues": "https://github.com/quellabs/objectquel/issues",
+    "forum": "https://github.com/quellabs/objectquel/discussions",
+    "wiki": "https://github.com/quellabs/objectquel/wiki",
+    "docs": "https://objectquel.quellabs.com/docs",
+    "source": "https://github.com/quellabs/objectquel"
+  },
   "require": {
     "php": ">=8.3",
     "ext-json": "*",
