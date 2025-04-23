@@ -458,22 +458,22 @@
 			// Retourneer het resultaat
 			return $result;
 		}
-
-		/**
-         * Returns the entity's annotations
-         * @param mixed $entity
-         * @return array
-         */
-        public function getAnnotations(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Retourneer de annotation informatie
-			return $this->entity_annotations[$normalizedClass] ?? [];
-        }
+	    
+	    /**
+	     * Returns the entity's annotations
+	     * @param mixed $entity
+	     * @return array
+	     */
+	    public function getAnnotations(mixed $entity): array {
+		    // Determine the class name of the entity
+		    $entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Return the annotation information
+		    return $this->entity_annotations[$normalizedClass] ?? [];
+	    }
 		
 		/**
 		 * Haalt alle OneToOne-afhankelijkheden op voor een bepaalde entiteit.

@@ -215,6 +215,11 @@
 			// Get the entity name from the node
 			$entityName = $node->getEntityName();
 			
+			// Early return if no entity was found
+			if ($entityName === null) {
+				return null;
+			}
+			
 			// Get the property name from the next node in the chain
 			$propertyName = $node->getNext()->getName();
 			
