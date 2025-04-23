@@ -2,13 +2,13 @@
 	
 	namespace Quellabs\ObjectQuel\AnnotationsReader;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\Events\AnnotationSignalManager;
 	use Quellabs\ObjectQuel\AnnotationsReader\Helpers\UseStatementParser;
+	use Quellabs\ObjectQuel\SignalSystem\SignalManager;
 	
 	class AnnotationsReader {
 		
 		protected UseStatementParser $use_statement_parser;
-		protected AnnotationSignalManager $signalManager;
+		protected SignalManager $signalManager;
 		protected string|false $current_dir;
 		protected array $configuration;
 		protected array $cached_annotations;
@@ -23,7 +23,7 @@
 			$this->use_statement_parser = new UseStatementParser();
 			
 			// Initialize event dispatcher
-			$this->signalManager = new AnnotationSignalManager();
+			$this->signalManager = new SignalManager();
 			
 			// Store the configuration array
 			$this->configuration = [];
@@ -257,9 +257,9 @@
 		
 		/**
 		 * Get the signal manager
-		 * @return AnnotationSignalManager
+		 * @return SignalManager
 		 */
-		public function getSignalManager(): AnnotationSignalManager {
+		public function getSignalManager(): SignalManager {
 			return $this->signalManager;
 		}
 		

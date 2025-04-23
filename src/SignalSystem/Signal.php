@@ -1,11 +1,11 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\AnnotationsReader\Events;
+	namespace Quellabs\ObjectQuel\SignalSystem;
 	
 	/**
 	 * Signal class for type-safe event handling in the annotations reader
 	 */
-	class AnnotationSignal {
+	class Signal {
 		
 		/**
 		 * @var array Parameter types expected by this signal

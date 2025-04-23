@@ -1,14 +1,14 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\AnnotationsReader\Events;
+	namespace Quellabs\ObjectQuel\SignalSystem;
 	
 	/**
 	 * Signal manager for annotation events
 	 */
-	class AnnotationSignalManager {
+	class SignalManager {
 		
 		/**
-		 * @var array<string, AnnotationSignal> Map of signal names to Signal objects
+		 * @var array<string, Signal> Map of signal names to Signal objects
 		 */
 		protected array $signals = [];
 		
@@ -16,16 +16,16 @@
 		 * Get or create a signal by name
 		 * @param string $signalName
 		 * @param array $parameterTypes Parameter types for the signal
-		 * @return AnnotationSignal
+		 * @return Signal
 		 */
-		public function signal(string $signalName, array $parameterTypes): AnnotationSignal {
+		public function signal(string $signalName, array $parameterTypes): Signal {
 			// Use existing signal if available
 			if (isset($this->signals[$signalName])) {
 				return $this->signals[$signalName];
 			}
 			
 			// Create new signal with provided parameter types
-			$this->signals[$signalName] = new AnnotationSignal($parameterTypes);
+			$this->signals[$signalName] = new Signal($parameterTypes);
 			return $this->signals[$signalName];
 		}
 		
@@ -48,7 +48,7 @@
 					);
 				}
 				
-				$this->signals[$signalPattern] = new AnnotationSignal($parameterTypes);
+				$this->signals[$signalPattern] = new Signal($parameterTypes);
 			}
 			
 			return $this->signals[$signalPattern]->connect($slot, $method, $priority);
@@ -119,7 +119,7 @@
 		
 		/**
 		 * Get all registered signals
-		 * @return array<string, AnnotationSignal>
+		 * @return array<string, Signal>
 		 */
 		public function getSignals(): array {
 			return $this->signals;
