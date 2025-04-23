@@ -106,7 +106,7 @@
 			
 			// Haal alle data op en stuur dit door naar QuelResult
 			$result = [];
-			while ($row = $rs->fetchRow()) {
+			while ($row = $rs->fetch('assoc')) {
 				$result[] = $row;
 			}
 			

@@ -2,6 +2,10 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
+	use Cake\Database\StatementInterface;
+	use Cake\Datasource\ConnectionInterface;
+	use Cake\Datasource\ConnectionManager;
+	
 	/**
 	 * Default database class voor mysqli handelingen
 	 *
@@ -10,7 +14,7 @@
 	 */
 	class DatabaseAdapter {
 		
-		protected \ADOConnection|false $connection;
+		protected ConnectionInterface $connection;
 		protected array $descriptions;
 		protected array $columns_ex_descriptions;
 		protected int $last_error;
@@ -45,7 +49,7 @@
 		
 		/**
 		 * Database Adapter constructor.
-		 * This file wraps the functions of AdoDB
+		 * This file wraps the functions of CakePHP Database
 		 * @param array $configuration
 		 */
 		public function __construct(array $configuration) {
@@ -57,12 +61,16 @@
 			$this->last_error = 0;
 			$this->last_error_message = '';
 			$this->transaction_depth = 0;
+
+			// Check if connection already exists and drop it if needed
+			if (ConnectionManager::getConfig('default')) {
+				ConnectionManager::drop('default');
+			}
 			
-			// Maak de database connectie
-			$this->connection = NewADOConnection($configuration['DB_DSN']);
+			// Create the database connection
+			ConnectionManager::setConfig('default', ['url' => $configuration['DB_DSN']]);
 			
-			// Zet AdoDB opties
-			$this->connection->setFetchMode(ADODB_FETCH_ASSOC);
+			$this->connection = ConnectionManager::get('default');
 			
 			// Zet de max prepared statements count
 			$this->max_prepared_statement_count = $this->getMaxPreparedStatementCount();
@@ -76,11 +84,9 @@
 				// close all named parameter handles
 				foreach ($this->prepared_statements_handles as $pth) {
 					if (is_object($pth)) {
-						$pth->close();
+						$pth->closeCursor();
 					}
 				}
-				
-				$this->connection->close();
 			}
 		}
 		
@@ -134,10 +140,10 @@
 		}
 		
 		/**
-		 * Returns the AdoDB connection
-		 * @return \ADOConnection|false
+		 * Returns the CakePHP connection
+		 * @return ConnectionInterface
 		 */
-		public function getConnection(): \ADOConnection|false {
+		public function getConnection(): ConnectionInterface {
 			return $this->connection;
 		}
 		
@@ -161,61 +167,12 @@
 		 * Execute a query
 		 * @param string $query
 		 * @param array $parameters Parameters for prepared statements
-		 * @return \ADORecordSet|false
+		 * @return StatementInterface|false
 		 */
-		public function execute(string $query, array $parameters = []): \ADORecordSet|false {
+		public function execute(string $query, array $parameters = []): StatementInterface|false {
 			try {
-				if (!empty($parameters) && str_contains($query, ":")) {
-					// prepared statements; prepare the query if needed and execute
-					$querySimple = trim($query);
-					$prepared = $this->namedParametersToAnonymousParameters($querySimple, $parameters);
-					
-					if (!empty($prepared["parameters"]) && !empty($prepared["parameters"][0])) {
-						// Hash van de query voor identificatie
-						$md5OfQuery = hash("sha256", $prepared["query"]);
-						
-						// Controleer of het prepared statement al bestaat
-						if (!isset($this->prepared_statements_handles[$md5OfQuery])) {
-							// Beheer het aantal opgeslagen prepared statements
-							if (count($this->prepared_statements_handles) >= $this->max_prepared_statement_count) {
-								$firstKey = array_key_first($this->prepared_statements_handles);
-								$this->prepared_statements_handles[$firstKey]->close();
-								unset($this->prepared_statements_handles[$firstKey]);
-							}
-							
-							// Prepare het statement en gooi een uitzondering bij fouten
-							if (($stmt = $this->connection->prepare($prepared["query"])) === false) {
-								$errorId = $this->connection->metaError();
-								throw new \Exception($errorId, $this->connection->metaErrorMsg($errorId));
-							}
-							
-							// Bewaar het prepared statement voor hergebruik
-							$this->prepared_statements_handles[$md5OfQuery] = $stmt;
-						} else {
-							// Hergebruik het bestaande prepared statement
-							$stmt = $this->prepared_statements_handles[$md5OfQuery];
-						}
-						
-						// bind the parameters and execute the query
-						$result = $this->connection->execute($stmt, $prepared["parameters"]);
-						
-						if (!$result) {
-							$errorId = $this->connection->metaError();
-							throw new \Exception($errorId, $this->connection->metaErrorMsg($errorId));
-						}
-						
-						return $result;
-					}
-				}
-				
-				// no prepared statements; just execute the query
-				$result = $this->connection->execute($query);
-				
-				if (!$result) {
-					$errorId = $this->connection->metaError();
-					throw new \Exception($errorId, $this->connection->metaErrorMsg($errorId));
-				}
-				
+				// CakePHP's ConnectionManager handles prepared statements
+				$result = $this->connection->execute($query, $parameters);
 				return $result;
 			} catch (\Exception $exception) {
 				$this->last_error = $exception->getCode();
@@ -234,17 +191,15 @@
                 SELECT
                     AUTO_INCREMENT
                 FROM information_schema.tables
-                WHERE `table_name`=:table_name
-            ", [
-				'table_name' => $table
-			]);
+                WHERE `table_name`=?
+            ", [$table]);
 			
-			if (!$rs || $rs->recordCount() == 0) {
+			if (!$rs) {
 				return null;
 			}
 			
-			$row = $rs->fetchRow();
-			return $row["AUTO_INCREMENT"];
+			$row = $rs->fetch('assoc');
+			return $row["AUTO_INCREMENT"] ?? null;
 		}
 		
 		/**
@@ -258,18 +213,16 @@
                     COUNT(*) as c
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=:table_name
+                      `table_name`=?
                 LIMIT 1
-            ", [
-				'table_name' => $tableName
-			]);
+            ", [$tableName]);
 			
-			if (!$rs || $rs->recordCount() == 0) {
+			if (!$rs) {
 				return 0;
 			}
 			
-			$row = $rs->fetchRow();
-			return $row["c"];
+			$row = $rs->fetch('assoc');
+			return $row["c"] ?? 0;
 		}
 		
 		/**
@@ -283,10 +236,8 @@
                     `row_format`
                 FROM `INFORMATION_SCHEMA`.`TABLES`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=:table_name
-            ", [
-				'table_name' => $tableName
-			]);
+                      `table_name`=?
+            ", [$tableName]);
 		}
 		
 		/**
@@ -295,15 +246,13 @@
 		 * @return array
 		 */
 		public function getColumns(string $tableName): array {
-			return $this->GetCol("
+			return $this->getCol("
                 SELECT
                     COLUMN_NAME
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=:table_name
-            ", [
-				'table_name' => $tableName
-			]);
+                      `table_name`=?
+            ", [$tableName]);
 		}
 		
 		/**
@@ -318,8 +267,7 @@
 			}
 			
 			// Haal de table definitie op
-			$tableNameRes = $this->connection->qStr($tableName);
-			$columns = $this->GetAll("SHOW FULL COLUMNS FROM `{$tableNameRes}`");
+			$columns = $this->getAll("SHOW FULL COLUMNS FROM `{$tableName}`");
 			
 			if (empty($columns)) {
 				return [];
@@ -359,17 +307,14 @@
 		 * @return string
 		 */
 		public function getPrimaryKey(string $tableName): string {
-			return $this->GetOne("
+			return $this->getOne("
                 SELECT
                     `COLUMN_NAME`
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=:table_name AND
-                      `column_key`=:column_key
-            ", [
-				'table_name' => $tableName,
-				'column_key' => "PRI",
-			]);
+                      `table_name`=? AND
+                      `column_key`=?
+            ", [$tableName, "PRI"]);
 		}
 		
 		/**
@@ -377,7 +322,7 @@
 		 * @return array
 		 */
 		public function getTables(): array {
-			return $this->GetCol("
+			return $this->getCol("
                 SELECT
                     `table_name`
                 FROM `INFORMATION_SCHEMA`.`TABLES`
@@ -391,7 +336,7 @@
 		 * @return array
 		 */
 		public function getViews(): array {
-			return $this->GetCol("
+			return $this->getCol("
                 SELECT
                     `table_name`
                 FROM INFORMATION_SCHEMA.TABLES
@@ -406,17 +351,15 @@
 		 * @return mixed
 		 */
 		public function getTableCharacterSet(string $tableName): mixed {
-			return $this->GetOne("
+			return $this->getOne("
                 SELECT
                     `CCSA`.`character_set_name`
                 FROM `information_schema`.`TABLES` `T`,
                      `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` `CCSA`
                 WHERE `CCSA`.`collation_name` = `T`.`table_collation`
                   AND `T`.`table_schema` IN(SELECT DATABASE())
-                  AND `T`.`table_name` = :table_name
-            ", [
-				'table_name' => $tableName,
-			]);
+                  AND `T`.`table_name` = ?
+            ", [$tableName]);
 		}
 		
 		/**
@@ -425,15 +368,13 @@
 		 * @return mixed
 		 */
 		public function getTableCollation(string $tableName): mixed {
-			return $this->GetOne("
+			return $this->getOne("
                 SELECT
                     `TABLE_COLLATION`
                 FROM `INFORMATION_SCHEMA`.`TABLES`
                 WHERE `TABLE_SCHEMA` IN(SELECT DATABASE()) AND
-                      `TABLE_NAME` = :table_name
-            ", [
-				'table_name' => $tableName,
-			]);
+                      `TABLE_NAME` = ?
+            ", [$tableName]);
 		}
 		
 		/**
@@ -443,11 +384,11 @@
 		 */
 		public function getMaxPackageSize(): int {
 			// Voer de query uit om de max_allowed_packet waarde op te halen
-			$rs = $this->Execute("SHOW VARIABLES LIKE 'max_allowed_packet'");
+			$rs = $this->execute("SHOW VARIABLES LIKE 'max_allowed_packet'");
 			
 			// Als de query succesvol is en er is ten minste één record
-			if ($rs && $rs->recordCount($rs) > 0) {
-				$row = $rs->FetchRow($rs);
+			if ($rs) {
+				$row = $rs->fetch('assoc');
 				
 				// Als de "Value" kolom bestaat, retourneer de waarde
 				if (isset($row["Value"])) {
@@ -465,9 +406,8 @@
 		 * @return array|bool
 		 */
 		public function getTableDescription(string $table): bool|array {
-			if (!in_array($table, $this->descriptions)) {
-				$tableNameRes = $this->connection->qStr($table);
-				$this->descriptions[$table] = $this->GetAll("DESCRIBE `{$tableNameRes}`");
+			if (!isset($this->descriptions[$table])) {
+				$this->descriptions[$table] = $this->getAll("DESCRIBE `{$table}`");
 			}
 			
 			return $this->descriptions[$table];
@@ -477,10 +417,16 @@
 		 * Returns the type and size of the given table column
 		 * @param string $table
 		 * @param string $column
+		 * @return array
 		 */
 		public function getColumnType(string $table, string $column): array {
 			$description = $this->getTableDescription($table);
 			$index = array_search($column, array_column($description, "Field"));
+			
+			if ($index === false) {
+				return ['type' => null, 'size' => null];
+			}
+			
 			preg_match('/([a-zA-Z\s]*)\((.*)\)$/', $description[$index]["Type"], $matches);
 			
 			if (isset($matches[1])) {
@@ -498,14 +444,11 @@
 		public function getIndexes(string $tableName): array {
 			// Controleer of de indexinformatie al eerder opgehaald en opgeslagen is
 			if (!isset($this->indexes[$tableName])) {
-				// Veilige verwerking van de tabelnaam om SQL-injectie te voorkomen
-				$tableNameRes = $this->connection->qStr($tableName);
-				
 				// Voer de SQL-query uit om indexinformatie van de tabel te krijgen
-				$rs = $this->Execute("SHOW INDEXES FROM `{$tableNameRes}`");
+				$rs = $this->execute("SHOW INDEXES FROM `{$tableName}`");
 				
 				// Controleer of de query succesvol was en of er resultaten zijn
-				if (!$rs || $rs->recordCount() == 0) {
+				if (!$rs) {
 					// Geen resultaten, retourneer een lege array
 					return [];
 				}
@@ -514,7 +457,7 @@
 				$this->indexes[$tableName] = [];
 				
 				// Verwerk elk resultaat en sla de indexgegevens op in de array
-				while ($row = $rs->fetchRow()) {
+				while ($row = $rs->fetch('assoc')) {
 					$this->indexes[$tableName][] = [
 						'key'           => $row["Key_name"],        // Naam van de key
 						'column'        => $row["Column_name"],     // Naam van de kolom
@@ -560,7 +503,7 @@
 		 */
 		public function beginTrans(): void {
 			if ($this->transaction_depth == 0) {
-				$this->connection->beginTrans();
+				$this->connection->begin();
 			}
 			
 			$this->transaction_depth++;
@@ -574,7 +517,7 @@
 			$this->transaction_depth--;
 			
 			if ($this->transaction_depth == 0) {
-				$this->connection->commitTrans();
+				$this->connection->commit();
 			}
 		}
 		
@@ -586,13 +529,40 @@
 			$this->transaction_depth--;
 			
 			if ($this->transaction_depth == 0) {
-				$this->connection->rollbackTrans();
+				$this->connection->rollback();
 			}
 		}
 		
 		/**
+		 * Fetches a single value from the database using the provided query and parameters
+		 * @param string $query      The SQL query to execute
+		 * @param array $parameters  Optional array of parameters to bind to the query
+		 * @return mixed            Returns the first column of the first row if found, false if no results
+		 */
+		public function getOne(string $query, array $parameters=[]): mixed {
+			// Execute the query with provided parameters
+			$rs = $this->execute($query, $parameters);
+			
+			// Return false if no recordset returned
+			if (!$rs) {
+				return false;
+			}
+			
+			// Fetch the first row
+			$row = $rs->fetch('assoc');
+			
+			// Return false if no row found
+			if (empty($row)) {
+				return false;
+			}
+			
+			// Return the first column value from the row
+			return reset($row);
+		}
+		
+		/**
 		 * Fetches a single row from the database using the provided query and parameters
-		 * @param string $query      The SQL query to execute. Can contain named parameters (:param)
+		 * @param string $query      The SQL query to execute
 		 * @param array $parameters  Optional array of parameters to bind to the query
 		 * @return array             Returns the first row as an associative array if found, empty array if no results
 		 */
@@ -600,64 +570,64 @@
 			// Execute the query with provided parameters
 			$rs = $this->execute($query, $parameters);
 			
-			// Return an empty array if no recordset returned or no rows found
-			if (!$rs || $rs->recordCount() == 0) {
+			// Return an empty array if no recordset returned
+			if (!$rs) {
 				return [];
 			}
 			
 			// Return first row from recordset as an array
-			return $rs->fetchRow();
+			$row = $rs->fetch('assoc');
+			return $row ?: [];
 		}
 		
 		/**
 		 * Fetches a column from the database using the provided query and parameters
-		 * @param string $query      The SQL query to execute. Can contain named parameters (:param)
+		 * @param string $query      The SQL query to execute
 		 * @param array $parameters  Optional array of parameters to bind to the query
-		 * @return array             Returns the first row as an associative array if found, empty array if no results
+		 * @return array             Returns the values from the first column as an array
 		 */
 		public function getCol(string $query, array $parameters=[]): array {
 			// Execute the query with provided parameters
 			$rs = $this->execute($query, $parameters);
 			
-			// Return an empty array if no recordset returned or no rows found
-			if (!$rs || $rs->recordCount() == 0) {
+			// Return an empty array if no recordset returned
+			if (!$rs) {
 				return [];
 			}
 			
-			// Return first row from recordset as an array
+			// Fetch all rows and extract the first column
 			$result = [];
-			$keys = null;
+			$firstCol = null;
 			
-			while ($row = $rs->fetchRow()) {
-				if ($keys === null) {
+			while ($row = $rs->fetch('assoc')) {
+				if ($firstCol === null) {
 					$keys = array_keys($row);
+					$firstCol = $keys[0];
 				}
-				
-				$result[] = $row[$keys[0]];
+				$result[] = $row[$firstCol];
 			}
 			
 			return $result;
 		}
 		
 		/**
-		 * Fetches a single row from the database using the provided query and parameters
-		 * @param string $query      The SQL query to execute. Can contain named parameters (:param)
+		 * Fetches all rows from the database using the provided query and parameters
+		 * @param string $query      The SQL query to execute
 		 * @param array $parameters  Optional array of parameters to bind to the query
-		 * @return array             Returns the first row as an associative array if found, empty array if no results
+		 * @return array             Returns all rows as an array of associative arrays
 		 */
 		public function getAll(string $query, array $parameters=[]): array {
 			// Execute the query with provided parameters
 			$rs = $this->execute($query, $parameters);
 			
-			// Return an empty array if no recordset returned or no rows found
-			if (!$rs || $rs->recordCount() == 0) {
+			// Return an empty array if no recordset returned
+			if (!$rs) {
 				return [];
 			}
 			
-			// Return first row from recordset as an array
+			// Fetch all rows
 			$result = [];
-			
-			while ($row = $rs->fetchRow()) {
+			while ($row = $rs->fetch('assoc')) {
 				$result[] = $row;
 			}
 			
@@ -666,9 +636,6 @@
 		
 		/**
 		 * Haalt de maximale waarde van prepared statements op die toegestaan zijn in de MySQL-database.
-		 * Deze functie voert een query uit om de waarde van 'max_prepared_stmt_count' op te halen,
-		 * wat aangeeft hoeveel prepared statements maximaal tegelijkertijd kunnen worden gebruikt.
-		 * Als de query niet succesvol is, wordt een standaardwaarde teruggegeven.
 		 * @return int De maximale hoeveelheid prepared statements die toegestaan zijn.
 		 */
 		public function getMaxPreparedStatementCount(): int {
@@ -681,10 +648,10 @@
 			}
 			
 			// Ophalen van het resultaat van de query
-			$row = $rs->fetchRow();
+			$row = $rs->fetch('assoc');
 			
 			// De opgehaalde waarde retourneren als een integer
-			return (int)$row['Value'];
+			return isset($row['Value']) ? (int)$row['Value'] : 16382;
 		}
 		
 		/**
@@ -699,12 +666,12 @@
 				FROM `{$tableName}`
 			");
 			
-			if (!$rs || $rs->recordCount() == 0) {
+			if (!$rs) {
 				return false;
 			}
 			
-			$row = $rs->fetchRow();
-			return $row['c'] > 0;
+			$row = $rs->fetch('assoc');
+			return isset($row['c']) && $row['c'] > 0;
 		}
 		
 		/**
@@ -723,18 +690,16 @@
 					INFORMATION_SCHEMA.KEY_COLUMN_USAGE
 				WHERE
 				    TABLE_SCHEMA = DATABASE() AND
-					TABLE_NAME = :tableName AND
+					TABLE_NAME = ? AND
 					REFERENCED_TABLE_NAME IS NOT NULL;
-			", [
-				'tableName' => $tableName,
-			]);
+			", [$tableName]);
 		}
 		
 		/**
 		 * Returns the insert id
-		 * @return bool|int
+		 * @return int|string|false
 		 */
-		public function getInsertId(): bool|int {
-			return $this->connection->insert_ID();
+		public function getInsertId(): int|string|false {
+			return $this->connection->getDriver()->lastInsertId();
 		}
 	}

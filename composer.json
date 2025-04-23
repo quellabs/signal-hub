@@ -17,7 +17,6 @@
     "ext-curl": "*",
     "ext-gd": "*",
     "ext-fileinfo": "*",
-    "adodb/adodb-php": "*",
     "robmorgan/phinx": "^0.13.4",
     "smarty/smarty": "^4.3",
     "symfony/http-foundation": "*",
