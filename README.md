@@ -14,7 +14,7 @@ SignalHub is a Qt-inspired signal-slot implementation for PHP with strong type c
 ## Installation
 
 ```bash
-composer require quellabs/signalhub
+composer require quellabs/signal-hub
 ```
 
 ## Basic Usage
