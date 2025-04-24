@@ -54,8 +54,8 @@ class Button {
         $this->label = $label;
         
         // Define signals for this object
-        $this->defineSignal('clicked', ['string']);    // Passes button label
-        $this->defineSignal('pressed', ['string']);    // Passes button label
+        $this->createSignal('clicked', ['string']);    // Passes button label
+        $this->createSignal('pressed', ['string']);    // Passes button label
         
         // Register with the hub (optional)
         if ($hub !== null) {
@@ -150,7 +150,7 @@ $signal->connect($normalHandler, null, 0);   // Will be called second (normal pr
 The system enforces strict type checking:
 
 ```php
-// Define a signal with specific parameter types
+// Create a signal with specific parameter types
 $signal = $hub->createSignal('user.login', ['string', 'int']);
 
 // This will work - types match
@@ -198,10 +198,10 @@ The system consists of three main components:
     - `disconnect()` - Remove connections
 
 3. **HasSignals trait**: Makes any class capable of having signals
-    - `defineSignal()` - Create signals owned by the object
+    - `createSignal()` - Create signals owned by the object
     - `emit()` - Emit object signals
     - `signal()` - Get a specific signal
-    - `registerWithHub()` - Register with a SignalHub
+    - `registerWithHub()` - Register with the SignalHub
 
 ## Differences from Qt
 
@@ -224,8 +224,8 @@ class Form {
     public function __construct(string $name, SignalHub $hub = null) {
         $this->name = $name;
         
-        $this->defineSignal('submitted', ['string', 'array']); // form name, form data
-        $this->defineSignal('validated', ['string', 'bool']);  // form name, is valid
+        $this->createSignal('submitted', ['string', 'array']); // form name, form data
+        $this->createSignal('validated', ['string', 'bool']);  // form name, is valid
         
         if ($hub !== null) {
             $this->registerWithHub($hub);

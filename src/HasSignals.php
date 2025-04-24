@@ -22,11 +22,11 @@
 		 * @param array $parameterTypes Parameter types for the signal
 		 * @return Signal The created signal
 		 */
-		protected function defineSignal(string $name, array $parameterTypes): Signal {
+		protected function createSignal(string $name, array $parameterTypes): Signal {
 			$signal = new Signal($parameterTypes, $name, $this);
 			$this->signals[$name] = $signal;
 			
-			// Register with hub if available
+			// Register signals with hub if available
 			if ($this->signalHub !== null) {
 				$this->signalHub->registerSignal($this, $name, $signal);
 			}
