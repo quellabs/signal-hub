@@ -56,17 +56,16 @@
 			
 			// Verzamel de benodigde informatie voor de insert
 			$tableName = $this->entity_store->getOwningTable($entity);
-			$serializedEntity = $this->unit_of_work->serializeEntity($entity);
-			$dehydratedEntity = $this->unit_of_work->convertToSQL($entity, $serializedEntity);
+			$serializedEntity = $this->unit_of_work->getSerializer()->serialize($entity);
 			$primaryKeys = $this->entity_store->getIdentifierKeys($entity);
 			$primaryKeyColumnNames = $this->entity_store->getIdentifierColumnNames($entity);
-			$primaryKeyValues = array_intersect_key($dehydratedEntity, array_flip($primaryKeyColumnNames));
+			$primaryKeyValues = array_intersect_key($serializedEntity, array_flip($primaryKeyColumnNames));
 			
 			// Maak de SQL-query
-			$sql = implode(",", array_map(fn($key) => "`{$key}`=:{$key}", array_keys($dehydratedEntity)));
+			$sql = implode(",", array_map(fn($key) => "`{$key}`=:{$key}", array_keys($serializedEntity)));
 			
 			// Voer de insert-query uit
-			$rs = $this->connection->Execute("INSERT INTO `{$tableName}` SET {$sql}", $dehydratedEntity);
+			$rs = $this->connection->Execute("INSERT INTO `{$tableName}` SET {$sql}", $serializedEntity);
 			
 			// Als de query mislukt, gooi een uitzondering op
 			if (!$rs) {

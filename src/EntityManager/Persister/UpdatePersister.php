@@ -76,24 +76,22 @@
 			
 			// Basisinformatie ophalen
 			$tableName = $this->entity_store->getOwningTable($entity);
-			$serializedEntity = $this->unit_of_work->serializeEntity($entity);
-			$dehydratedEntity = $this->unit_of_work->convertToSQL($entity, $serializedEntity);
+			$serializedEntity = $this->unit_of_work->getSerializer()->serialize($entity);
 			$originalData = $this->unit_of_work->getOriginalEntityData($entity);
-			$originalDataSQL = $this->unit_of_work->convertToSQL($entity, $originalData);
 			$primaryKeyColumnNames = $this->entity_store->getIdentifierColumnNames($entity);
 			
 			// Primaire sleutelwaarden filteren
-			$primaryKeyValues = array_intersect_key($originalDataSQL, array_flip($primaryKeyColumnNames));
+			$primaryKeyValues = array_intersect_key($originalData, array_flip($primaryKeyColumnNames));
 			
 			// Lijst van veranderde items maken
-			$extractedEntityChanges = array_filter($dehydratedEntity, function ($value, $key) use ($originalDataSQL, $primaryKeyColumnNames) {
-				return (in_array($key, $primaryKeyColumnNames) || ($value != $originalDataSQL[$key]));
+			$extractedEntityChanges = array_filter($serializedEntity, function ($value, $key) use ($originalData, $primaryKeyColumnNames) {
+				return (in_array($key, $primaryKeyColumnNames) || ($value != $originalData[$key]));
 			}, ARRAY_FILTER_USE_BOTH);
 			
 			// Query uitvoeren
 			$sql = implode(",", array_map(fn($key) => "`{$key}`=:{$key}", array_keys($extractedEntityChanges)));
 			$sqlWhere = implode(" AND ", array_map(fn($key) => "`{$key}`=:primary_key_{$key}", $primaryKeyColumnNames));
-			$mergedParams = array_merge($dehydratedEntity, $this->prefixKeys($primaryKeyValues, "primary_key_"));
+			$mergedParams = array_merge($extractedEntityChanges, $this->prefixKeys($primaryKeyValues, "primary_key_"));
 			
 			$rs = $this->connection->Execute("
 				UPDATE `{$tableName}` SET
