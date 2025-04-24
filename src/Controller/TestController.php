@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\Controller;
 	
+	use Quellabs\ObjectQuel\Entity\ProductsEntity;
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
 	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
 	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Type;
@@ -26,20 +27,11 @@
 		 * @return Response
 		 */
 		public function index(string $name): Response {
-			$result = $this->entityManager->executeQuery("
-				range of x is ProductsEntity
-				range of y is ProductsDescriptionEntity
-				range of z is JSON_SOURCE('F:\\test.json', '$.rows.*')
-				retrieve(x.guid, z.guid) where x.guid='8ed51c45-e34c-4d5f-b29b-83a5ee0ecbe2' and x.productsId=y.productsId and x.guid=z.guid
-			");
+			$entity = $this->entityManager->find(ProductsEntity::class, 1498);
 			
-			/*
-			$result = $this->entityManager->executeQuery("
-				range of y is JSON_SOURCE('F:\\test.json', '$.rows.*')
-				retrieve (y.suppliers_id) where y.suppliers_id = 6
-			");
-			*/
-
+			$this->entityManager->remove($entity);
+			$this->entityManager->flush();
+			
 			return new Response('Hello');
 		}
 	}

@@ -2,6 +2,7 @@
     
     namespace Quellabs\ObjectQuel\EntityManager;
 
+    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Cascade;
     use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
     use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
     use Quellabs\ObjectQuel\EntityManager\Persister\DeletePersister;
@@ -67,6 +68,35 @@
 
 			return false;
 		}
+	    
+	    /**
+	     * Checks if an entity is already scheduled for deletion
+	     * @param int $entityId The entity's object ID
+	     * @return bool
+	     */
+	    private function isEntityScheduledForDeletion(int $entityId): bool {
+		    return in_array($entityId, $this->entity_removal_list);
+	    }
+		
+	    /**
+	     * Retrieves a property value from an entity object using getter method or property handler.
+	     * @param mixed $entity    The object to extract the value from
+	     * @param string $property The property name to retrieve
+	     * @return mixed           The value of the requested property
+	     */
+	    private function getValueFromEntity(mixed $entity, string $property): mixed {
+		    // Generate the getter method name by capitalizing the first letter of the property
+		    $getterMethod = 'get' . ucfirst($property);
+		    
+		    // Check if the entity has the getter method and call it if exists
+		    if (method_exists($entity, $getterMethod)) {
+			    return $entity->$getterMethod();
+		    }
+		    
+		    // Fallback to using the property handler if no getter method exists
+		    // This likely accesses properties through alternative means (e.g., reflection)
+		    return $this->property_handler->get(get_class($entity), $property);
+	    }
 		
 		/**
 		 * Maakt de identity map plat terwijl de unieke sleutels behouden blijven.
@@ -294,6 +324,121 @@
 			// Return the array of primary key names and their corresponding values
 			return $result;
 		}
+		
+	    /**
+	     * Process cascading deletions for dependent entities
+	     * @param object $entity The parent entity
+	     * @return void
+	     */
+	    private function processCascadingDeletions(object $entity): void {
+		    $entityClass = get_class($entity);
+		    $normalizedClass = $this->entity_store->normalizeEntityName($entityClass);
+		    $dependentEntityClasses = $this->entity_store->getDependentEntities($entity);
+		    
+		    foreach ($dependentEntityClasses as $dependentEntityClass) {
+			    $this->processDependentEntityClass($dependentEntityClass, $normalizedClass, $entity);
+		    }
+	    }
+	    
+	    /**
+	     * Process a specific dependent entity class for cascading deletion
+	     * @param string $dependentEntityClass Class name of the dependent entity
+	     * @param string $normalizedClass Normalized class name of the parent entity
+	     * @param object $entity The parent entity object
+	     * @return void
+	     */
+	    private function processDependentEntityClass(string $dependentEntityClass, string $normalizedClass, object $entity): void {
+		    // Get relationships using existing methods in entity_store
+		    $manyToOneDependencies = $this->entity_store->getManyToOneDependencies($dependentEntityClass);
+		    $oneToOneDependencies = $this->entity_store->getOneToOneDependencies($dependentEntityClass);
+		    $oneToOneDependencies = array_filter($oneToOneDependencies, function ($e) {
+			    return !empty($e->getInversedBy());
+		    });
+		    
+		    // Process both relationship types
+		    foreach (array_merge($manyToOneDependencies, $oneToOneDependencies) as $property => $annotation) {
+			    // Skip if annotation doesn't target our entity
+			    if ($annotation->getTargetEntity() !== $normalizedClass) {
+				    continue;
+			    }
+			    
+				// Fetch cascade annotation information
+			    $cascadeInfo = $this->getCascadeInfo($dependentEntityClass, $property);
+			    
+			    // Skip if no cascade configuration found or if cascade remove not enabled
+			    if (!$cascadeInfo || !$this->shouldCascadeRemove($cascadeInfo)) {
+				    continue;
+			    }
+			    
+			    $this->cascadeDeleteDependentObjects($dependentEntityClass, $annotation->getRelationColumn(), $entity);
+		    }
+	    }
+	    
+	    /**
+	     * Get cascade configuration for a property
+	     * @param string $entityClass Entity class name
+	     * @param string $property Property name
+	     * @return object|null The cascade annotation if found, null otherwise
+	     */
+	    private function getCascadeInfo(string $entityClass, string $property): ?object {
+		    $entityAnnotations = $this->entity_store->getAnnotations($entityClass);
+		    
+		    if (!isset($entityAnnotations[$property])) {
+			    return null;
+		    }
+		    
+		    $cascadeAnnotations = array_filter($entityAnnotations[$property], function ($a) {
+			    return $a instanceof Cascade;
+		    });
+		    
+		    if (empty($cascadeAnnotations)) {
+			    return null;
+		    }
+		    
+		    return reset($cascadeAnnotations);
+	    }
+	    
+	    /**
+	     * Determines if cascading removal should be performed
+	     * @param object $cascadeAnnotation The cascade annotation object
+	     * @return bool True if cascading removal should be performed
+	     */
+	    private function shouldCascadeRemove(object $cascadeAnnotation): bool {
+		    // Skip if 'remove' operation not present in the cascade operations list
+		    if (!in_array('remove', $cascadeAnnotation->getOperations())) {
+			    return false;
+		    }
+		    
+		    // Skip database-level cascades (handled by DB itself)
+		    if ($cascadeAnnotation->getStrategy() === 'database') {
+			    return false;
+		    }
+		    
+		    // Yes, cascading removal should be performed
+		    return true;
+	    }
+	    
+	    /**
+	     * Find and schedule deletion of dependent objects
+	     * @param string $dependentEntityClass Class name of dependent entity
+	     * @param string $property Property name with the relationship
+	     * @param object $parentEntity The parent entity object
+	     * @return void
+	     */
+	    private function cascadeDeleteDependentObjects(string $dependentEntityClass, string $property, object $parentEntity): void {
+		    // Get the relationship value from the parent entity
+		    $propertyValue = $this->getValueFromEntity($parentEntity, $property);
+		    
+		    // Find dependent objects using the property value
+		    $dependentObjects = $this->entity_manager->findBy($dependentEntityClass, [
+			    $property => $propertyValue
+		    ]);
+		    
+		    // Schedule each dependent object for deletion
+		    foreach ($dependentObjects as $dependentObject) {
+			    $this->scheduleForDelete($dependentObject);
+		    }
+	    }
 
 		/**
 		 * Find an entity based on its class and primary keys.
@@ -607,14 +752,24 @@
 			// Remove stored original data for the entity, stopping any tracking of changes
 			unset($this->original_entity_data[$hash]);
 		}
-		
-		/**
-		 * Adds an entity to the removal list
-		 * @param object $entity
-		 * @return void
-		 */
-		public function scheduleForDelete(object $entity): void {
-			$this->entity_removal_list[] = spl_object_id($entity);
-		}
-	 
+	    
+	    /**
+	     * Adds an entity to the removal list and handles cascading delete operations
+	     * @param object $entity The entity to schedule for deletion
+	     * @return void
+	     */
+	    public function scheduleForDelete(object $entity): void {
+		    $entityId = spl_object_id($entity);
+		    
+		    // Skip if already scheduled for deletion to prevent duplicate processing
+		    if ($this->isEntityScheduledForDeletion($entityId)) {
+			    return;
+		    }
+		    
+		    // Mark entity for deletion first (prevents infinite recursion with circular references)
+		    $this->entity_removal_list[] = $entityId;
+		    
+		    // Process dependent entities that should be cascade deleted
+		    $this->processCascadingDeletions($entity);
+	    }
 	}

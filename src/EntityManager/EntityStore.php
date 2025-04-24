@@ -506,7 +506,7 @@
 		}
         
         /**
-         * Interner helper functies voor het ophalen van properties met een bepaalde annotatie
+         * Interne helper functie voor het ophalen van properties met een bepaalde annotatie
          * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
          * @return array
          */

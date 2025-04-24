@@ -30,6 +30,7 @@
             $this->connection = new DatabaseAdapter($kernel->getConfiguration());
 	        $this->entity_store = new EntityStore();
             $this->unit_of_work = new UnitOfWork($this);
+			$this->query_builder = new QueryBuilder($this->entity_store);
 			$this->query_executor = new QueryExecutor($this);
 			$this->property_handler = new PropertyHandler();
         }
