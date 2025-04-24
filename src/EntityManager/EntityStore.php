@@ -31,7 +31,7 @@
 	     * EntityStore constructor.
 	     */
 		public function __construct(Configuration $configuration) {
-			$this->annotation_reader = new AnnotationsReader();
+			$this->annotation_reader = new AnnotationsReader($configuration);
 			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 			$this->entity_properties = [];
@@ -51,7 +51,7 @@
 			$this->initializeEntities();
 			
 			// Deze functie initialiseert de proxies
-			$this->proxy_generator = new ProxyGenerator($this);
+			$this->proxy_generator = new ProxyGenerator($this, $configuration);
 		}
 	    
 	    /**
@@ -109,25 +109,6 @@
 			return $this->dependencies;
 		}
 		
-		/**
-		 * Constructs the full entity name
-		 * @param string $fileName
-		 * @return string
-		 */
-		private function constructEntityName(string $fileName): string {
-			return "Quellabs\\ObjectQuel\\Entity\\" . substr($fileName, 0, strpos($fileName, ".php"));
-		}
-		
-		/**
-		 * Checks if the entity is an ORM table
-		 * @param string $entityName
-		 * @return bool
-		 */
-		private function isEntity(string $entityName): bool {
-			$annotations = $this->annotation_reader->getClassAnnotations($entityName);
-			return array_key_exists("Orm\\Table", $annotations);
-		}
-
 		/**
 		 * Interner helper functies voor het ophalen van properties met een bepaalde annotatie
 		 * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
@@ -277,31 +258,6 @@
 			return $this->entity_table_name[$normalizedClass] ?? null;
         }
 	    
-	    /**
-	     * Returns true if the identifier is nullable, false if not
-	     * @param mixed $entity
-	     * @param string $identifierName
-	     * @return bool
-	     */
-		public function isNullable(mixed $entity, string $identifierName): bool {
-			// Get all annotations for the entity
-			$annotationList = $this->getAnnotations($entity);
-			
-			// Check if identifier has annotations
-			if (!isset($annotationList[$identifierName])) {
-				return false;
-			}
-			
-			// Search for Column annotation to get type
-			foreach ($annotationList[$identifierName] as $annotation) {
-				if ($annotation instanceof Column) {
-					return $annotation->isNullable();
-				}
-			}
-			
-			return false;
-		}
-    
 		/**
 		 * Deze functie haalt de primaire sleutels van een gegeven entiteit op.
 		 * @param mixed $entity De entiteit waarvan de primaire sleutels worden opgehaald.

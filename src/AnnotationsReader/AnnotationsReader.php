@@ -3,13 +3,14 @@
 	namespace Quellabs\ObjectQuel\AnnotationsReader;
 	
 	use Quellabs\ObjectQuel\AnnotationsReader\Helpers\UseStatementParser;
+	use Quellabs\ObjectQuel\EntityManager\Configuration;
 	use Quellabs\ObjectQuel\SignalSystem\SignalManager;
 	
 	class AnnotationsReader {
 		
 		protected UseStatementParser $use_statement_parser;
 		protected SignalManager $signalManager;
-		protected string|false $current_dir;
+		protected string $annotationCachePath;
 		protected array $configuration;
 		protected array $cached_annotations;
 		protected array $cached_annotations_filemtime;
@@ -18,7 +19,10 @@
 		/**
 		 * AnnotationReader constructor
 		 */
-		public function __construct() {
+		public function __construct(Configuration $configuration) {
+			// Store the path to the annotation cache
+			$this->annotationCachePath = $configuration->getAnnotationCachePath();
+			
 			// Instantiate use statement parser
 			$this->use_statement_parser = new UseStatementParser();
 			
@@ -28,19 +32,15 @@
 			// Store the configuration array
 			$this->configuration = [];
 			
-			// Store current directory
-			$this->current_dir = realpath(dirname(__FILE__));
-			
 			// read cached data
 			$this->cached_annotations = [];
 			$this->cached_annotations_filemtime = [];
 			$this->cached_annotations_filemtime_checked = [];
-			$files = scandir("{$this->current_dir}/Cache");
 			
-			foreach($files as $file) {
+			foreach(scandir($configuration->getAnnotationCachePath()) as $file) {
 				if (str_ends_with($file, '.cache')) {
-					$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->current_dir}/Cache/{$file}"));
-					$this->cached_annotations_filemtime[$file] = filemtime("{$this->current_dir}/Cache/{$file}");
+					$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->annotationCachePath}/{$file}"));
+					$this->cached_annotations_filemtime[$file] = filemtime("{$this->annotationCachePath}/{$file}");
 					$this->cached_annotations_filemtime_checked[$file] = false;
 				}
 			}
@@ -79,7 +79,7 @@
 		 * @return void
 		 */
 		protected function updateCache(string $cacheFilename, array $annotations): void {
-			$cachePath = "{$this->current_dir}/Cache/{$cacheFilename}";
+			$cachePath = "{$this->annotationCachePath}/{$cacheFilename}";
 			file_put_contents($cachePath, serialize($annotations));
 			$this->cached_annotations[$cacheFilename] = $annotations;
 			$this->cached_annotations_filemtime[$cacheFilename] = filemtime($cachePath);

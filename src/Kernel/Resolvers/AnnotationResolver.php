@@ -4,23 +4,19 @@
 	
 	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
 	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
-	use Quellabs\ObjectQuel\Kernel\Kernel;
-	use Quellabs\ObjectQuel\Kernel\ServiceLocator;
 	use Quellabs\ObjectQuel\Validation\AnnotationsToValidation;
 	use Symfony\Component\HttpFoundation\Request;
 	
 	class AnnotationResolver {
 		
-		protected Kernel $kernel;
-		protected ServiceLocator $serviceLocator;
+		private AnnotationsReader $annotationsReader;
 		
 		/**
-		 * FetchAnnotations constructor.
-		 * @param Kernel $kernel
+		 * AnnotationResolver constructor.
+		 * @param AnnotationsReader $annotationsReader
 		 */
-		public function __construct(Kernel $kernel) {
-			$this->kernel = $kernel;
-			$this->serviceLocator = $kernel->getServiceLocator();
+		public function __construct(AnnotationsReader $annotationsReader) {
+			$this->annotationsReader = $annotationsReader;
 		}
 		
 		/**
@@ -81,12 +77,11 @@
 		 */
 		protected function getMethodRouteAnnotations($controller): array {
 			$result = [];
-			$annotationReader = $this->kernel->getService(AnnotationsReader::class);
 			$reflectionClass = new \ReflectionClass($controller);
 			$methods = $reflectionClass->getMethods();
 			
 			foreach ($methods as $method) {
-				$annotations = $annotationReader->getMethodAnnotations($controller, $method->getName());
+				$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method->getName());
 				
 				foreach ($annotations as $annotation) {
 					if ($annotation instanceof Route) {
@@ -107,8 +102,7 @@
 		 */
 		protected function getMethodValidationAnnotations(string $controller, string $method): array {
 			$result = [];
-			$annotationReader = $this->kernel->getService(AnnotationsReader::class);
-			$annotations = $annotationReader->getMethodAnnotations($controller, $method);
+			$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method);
 			
 			foreach ($annotations as $annotation) {
 				$className = get_class($annotation);
@@ -131,7 +125,7 @@
 		 */
 		public function resolve(Request $request): array {
 			// Initialize required services and paths
-			$annotationsToValidation = $this->kernel->getService(AnnotationsToValidation::class);
+			$annotationsToValidation = new AnnotationsToValidation();
 			$controllerDir = realpath(dirname(__FILE__) . '/../../Controller');
 			$controllers = $this->dirToArray($controllerDir);
 			

@@ -11,17 +11,22 @@
 		protected ReflectionHandler $reflectionHandler;
 		protected AnnotationsReader $annotationReader;
 		protected string|bool $servicesPath;
+		protected string|false $proxyPath;
+		protected string|false $proxyNamespace;
 		protected array $types;
 		
 		/**
-		 * ProxyHandler constructor
+		 * ProxyGenerator constructor
 		 * @param EntityStore $entityStore
+		 * @param Configuration $configuration
 		 */
-		public function __construct(EntityStore $entityStore) {
+		public function __construct(EntityStore $entityStore, Configuration $configuration) {
 			$this->entityStore = $entityStore;
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
 			$this->annotationReader = $entityStore->getAnnotationReader();
-			$this->servicesPath = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
+			$this->servicesPath = realpath($configuration->getEntityPath());
+			$this->proxyPath = realpath($configuration->getProxyDir());
+			$this->proxyNamespace = realpath($configuration->getProxyNamespace());
 			$this->types = ["int", "float", "bool", "string", "array", "object", "resource", "null", "callable", "iterable", "mixed", "false", "void", "static"];
 			
 			$this->initializeProxies();
@@ -32,9 +37,7 @@
 		 * @return void
 		 */
 		private function initializeProxies(): void {
-			$proxyDirectory = __DIR__ . DIRECTORY_SEPARATOR . "Proxies";
-			$entityDirectory = $this->servicesPath . DIRECTORY_SEPARATOR . "Entity";
-			$entityFiles = scandir($entityDirectory);
+			$entityFiles = scandir($this->servicesPath);
 			
 			foreach ($entityFiles as $fileName) {
 				// Controleer of het bestand een php bestand is. Zoniet, ga naar volgende bestand
@@ -52,7 +55,7 @@
 				// Check of we moeten updaten
 				if ($this->isOutdated($fileName)) {
 					// Maak een lock file aan om race conditions te voorkomen
-					$lockFile = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName . '.lock';
+					$lockFile = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName . '.lock';
 					$lockHandle = fopen($lockFile, 'c+');
 					
 					if ($lockHandle === false) {
@@ -64,7 +67,7 @@
 						if (flock($lockHandle, LOCK_EX)) {
 							// Double-check of een ander proces het inmiddels niet al heeft gedaan
 							if ($this->isOutdated($fileName)) {
-								$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
+								$proxyFilePath = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName;
 								$proxyContents = $this->makeProxy($entityName);
 								file_put_contents($proxyFilePath, $proxyContents);
 							}
@@ -105,10 +108,8 @@
 		 * @return bool
 		 */
 		private function isOutdated(string $fileName): bool {
-			$proxyDirectory = __DIR__ . DIRECTORY_SEPARATOR . "Proxies";
-			$entityDirectory = $this->servicesPath . DIRECTORY_SEPARATOR . "Entity";
-			$proxyFilePath = $proxyDirectory . DIRECTORY_SEPARATOR . $fileName;
-			$entityFilePath = $entityDirectory . DIRECTORY_SEPARATOR . $fileName;
+			$proxyFilePath = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName;
+			$entityFilePath = $this->servicesPath . DIRECTORY_SEPARATOR . $fileName;
 			return !file_exists($proxyFilePath) || filemtime($entityFilePath) > filemtime($proxyFilePath);
 		}
 		
@@ -122,22 +123,13 @@
 		}
 		
 		/**
-		 * Constructs the full proxy entity name
-		 * @param string $fileName
-		 * @return string
-		 */
-		private function constructProxyName(string $fileName): string {
-			return "Quellabs\\ObjectQuel\\EntityManager\\Proxies\\" . substr($fileName, 0, strpos($fileName, ".php"));
-		}
-		
-		/**
 		 * Returns the proxy template
 		 * @return string
 		 */
 		protected function getTemplate(): string {
 			return "
 <?php
-	namespace Quellabs\ObjectQuel\EntityManager\Proxies;
+	namespace {$this->proxyNamespace};
 	
 	include_once('%s');
 	
@@ -155,33 +147,6 @@
 		 */
 		protected function getClassNameWithoutNamespace(mixed $classNameWithNamespace): string {
 			return ltrim(strrchr($classNameWithNamespace, '\\'), '\\');
-		}
-		
-		/**
-		 * Maakt een stringrepresentatie van de eigenschappen van een gegeven entiteit,
-		 * inclusief hun types, zichtbaarheid en documentatiecommentaar.
-		 * @param mixed $entity De entiteit waarvan de eigenschappen worden opgehaald.
-		 * @return string Een samengevoegde string die de eigenschappen van de entiteit beschrijft.
-		 */
-		protected function makeProxyProperties(mixed $entity): string {
-			$result = [];
-			
-			// Loop door alle eigenschappen van de entiteit.
-			foreach ($this->reflectionHandler->getProperties($entity) as $property) {
-				// Haal het type, de zichtbaarheid en het documentatiecommentaar van elke eigenschap op.
-				$type = $this->reflectionHandler->getPropertyType($entity, $property);
-				$visibility = $this->reflectionHandler->getPropertyVisibility($entity, $property);
-				$docComment = $this->reflectionHandler->getPropertyDocComment($entity, $property);
-				
-				// Voeg de informatie toe aan het resultaat.
-				$result[] = "
-					{$docComment}
-					{$visibility} {$type} \${$property}
-		        ";
-			}
-			
-			// Voeg alle regels samen en retourneer als één string.
-			return implode("\n", $result);
 		}
 		
 		/**

@@ -46,12 +46,17 @@
 		/**
 		 * @var string Cache directory for metadata
 		 */
-		private string $cacheDir = '';
+		private string $cachePath = '';
 		
 		/**
 		 * @var bool Whether to use metadata cache
 		 */
 		private bool $useMetadataCache = true;
+		
+		/**
+		 * @var string Annotation cache directory
+		 */
+		private string $annotationCachePath = '';
 		
 		/**
 		 * Constructor - optionally initialize with connection parameters
@@ -264,9 +269,8 @@
 		 * @param string $cacheDir
 		 * @return self
 		 */
-		public function setCacheDir(string $cacheDir): self {
-			$this->cacheDir = $cacheDir;
-			
+		public function setCachePath(string $cacheDir): self {
+			$this->cachePath = $cacheDir;
 			return $this;
 		}
 		
@@ -274,8 +278,8 @@
 		 * Get cache directory
 		 * @return string
 		 */
-		public function getCacheDir(): string {
-			return $this->cacheDir;
+		public function getCachePath(): string {
+			return $this->cachePath;
 		}
 		
 		/**
@@ -296,6 +300,23 @@
 			return $this->useMetadataCache;
 		}
 		
+		/**
+		 * Returns the annotation cache directory
+		 * @return string
+		 */
+		public function getAnnotationCachePath(): string {
+			return $this->annotationCachePath;
+		}
+		
+		/**
+		 * Sets the annotation cache directory
+		 * @param string $annotationCacheDir
+		 * @return void
+		 */
+		public function setAnnotationCachePath(string $annotationCacheDir): void {
+			$this->annotationCachePath = $annotationCacheDir;
+		}
+
 		/**
 		 * ArrayAccess implementation - Check if offset exists
 		 * @param mixed $offset

@@ -8,6 +8,7 @@
    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\AfterFilter;
    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\BeforeFilter;
    use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+    use Quellabs\ObjectQuel\EntityManager\Configuration;
     use Quellabs\ObjectQuel\Kernel\Resolvers\AnnotationResolver;
     use Symfony\Component\HttpFoundation\Request;
     use Symfony\Component\HttpFoundation\Response;
@@ -20,11 +21,12 @@
 		private ServiceLocator $serviceLocator;
 	    private Autowire $autowire;
 	    private AnnotationResolver $urlResolver;
+	    private AnnotationsReader $annotationReader;
 	    
 	    /**
 	     * Kernel constructor
 	     */
-		public function __construct() {
+		public function __construct(Configuration $configuration) {
 			// Zet een custom exception handler voor wat mooiere exceptie meldingen
 			set_exception_handler([$this, 'customExceptionHandler']);
 			
@@ -50,7 +52,8 @@
 			// Registreer alle services
 			$this->serviceLocator = new ServiceLocator($this);
 			$this->autowire = new Autowire($this);
-			$this->urlResolver = new AnnotationResolver($this);
+			$this->annotationReader = new AnnotationsReader($configuration);
+			$this->urlResolver = new AnnotationResolver($this->annotationReader);
 		}
 	    
 	    /**
@@ -160,8 +163,7 @@
 			try {
 				// handle before filter
 				$controller = $this->getService($urlData["controller"]);
-				$annotationReader = $this->getService(AnnotationsReader::class);
-				$annotations = $annotationReader->getClassAnnotations($controller);
+				$annotations = $this->annotationReader->getClassAnnotations($controller);
 				
 				foreach ($annotations as $controllerAnnotation) {
 					if ($controllerAnnotation instanceof BeforeFilter) {
