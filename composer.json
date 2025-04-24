@@ -1,0 +1,13 @@
+{
+  "name": "quellabs/signal-hub",
+  "description": "Type-safe signal/slot event system",
+  "type": "library",
+  "require": {
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\SignalHub\\": "src/"
+    }
+  }
+}
