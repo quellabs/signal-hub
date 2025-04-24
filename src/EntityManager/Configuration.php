@@ -54,6 +54,11 @@
 		private bool $useMetadataCache = true;
 		
 		/**
+		 * @var bool True if cache should be used, false if not
+		 */
+		private bool $useAnnotationCache = false;
+		
+		/**
 		 * @var string Annotation cache directory
 		 */
 		private string $annotationCachePath = '';
@@ -298,6 +303,23 @@
 		 */
 		public function getUseMetadataCache(): bool {
 			return $this->useMetadataCache;
+		}
+		
+		/**
+		 * Returns true if the annotationreader should use cache, false if not
+		 * @return bool
+		 */
+		public function useAnnotationCache(): bool {
+			return $this->useAnnotationCache;
+		}
+		
+		/**
+		 * Sets the annotation reader cache option
+		 * @param bool $useAnnotationCache
+		 * @return void
+		 */
+		public function setUseAnnotationCache(bool $useAnnotationCache): void {
+			$this->useAnnotationCache = $useAnnotationCache;
 		}
 		
 		/**

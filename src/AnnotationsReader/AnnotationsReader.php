@@ -11,6 +11,7 @@
 		protected UseStatementParser $use_statement_parser;
 		protected SignalManager $signalManager;
 		protected string $annotationCachePath;
+		protected bool $useCache;
 		protected array $configuration;
 		protected array $cached_annotations;
 		protected array $cached_annotations_filemtime;
@@ -20,7 +21,8 @@
 		 * AnnotationReader constructor
 		 */
 		public function __construct(Configuration $configuration) {
-			// Store the path to the annotation cache
+			// Store annotation cache information
+			$this->useCache = $configuration->useAnnotationCache();
 			$this->annotationCachePath = $configuration->getAnnotationCachePath();
 			
 			// Instantiate use statement parser
@@ -37,11 +39,13 @@
 			$this->cached_annotations_filemtime = [];
 			$this->cached_annotations_filemtime_checked = [];
 			
-			foreach(scandir($configuration->getAnnotationCachePath()) as $file) {
-				if (str_ends_with($file, '.cache')) {
-					$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->annotationCachePath}/{$file}"));
-					$this->cached_annotations_filemtime[$file] = filemtime("{$this->annotationCachePath}/{$file}");
-					$this->cached_annotations_filemtime_checked[$file] = false;
+			if ($this->useCache) {
+				foreach (scandir($configuration->getAnnotationCachePath()) as $file) {
+					if (str_ends_with($file, '.cache')) {
+						$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->annotationCachePath}/{$file}"));
+						$this->cached_annotations_filemtime[$file] = filemtime("{$this->annotationCachePath}/{$file}");
+						$this->cached_annotations_filemtime_checked[$file] = false;
+					}
 				}
 			}
 		}
@@ -208,15 +212,16 @@
 				// Generate a cache filename based on the class name
 				$cacheFilename = $this->generateCacheFilename($className);
 				
-				// Check if the cache should be updated
-				if ($this->shouldUpdateCache($cacheFilename, $reflection)) {
+				// Read all annotations for the class or fetch it from the cache if possible
+				if (!$this->useCache) {
+					$annotations = $this->readAllObjectAnnotations($class);
+				} elseif ($this->shouldUpdateCache($cacheFilename, $reflection)) {
 					// Read all annotations for the class
 					$annotations = $this->readAllObjectAnnotations($class);
 					
 					// Update the cache with the new annotations
 					$this->updateCache($cacheFilename, $annotations);
 				} else {
-					// Use cached annotations but still emit signals
 					$annotations = $this->cached_annotations[$cacheFilename];
 				}
 				
@@ -226,8 +231,8 @@
 				// Mark this cache file as checked for file modification time
 				$this->cached_annotations_filemtime_checked[$cacheFilename] = true;
 				
-				// Return the cached annotations
-				return $this->cached_annotations[$cacheFilename];
+				// Return the annotations
+				return $annotations;
 			} catch (\ReflectionException $e) {
 				// Return an empty array if a ReflectionException occurs
 				return [];

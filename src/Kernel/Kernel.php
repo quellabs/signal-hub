@@ -17,7 +17,7 @@
 	
     class Kernel {
 	   
-		private array $configuration;
+		private Configuration $configuration;
 		private ServiceLocator $serviceLocator;
 	    private Autowire $autowire;
 	    private AnnotationResolver $urlResolver;
@@ -30,8 +30,8 @@
 			// Zet een custom exception handler voor wat mooiere exceptie meldingen
 			set_exception_handler([$this, 'customExceptionHandler']);
 			
-			// Lees de .env file in
-			$this->configuration = $this->readEnvironmentFile();
+			// Bewaar de configuratie
+			$this->configuration = $configuration;
 			
 			// Registreert een autoloader functie om klassen automatisch te laden vanuit een gespecificeerde root directory.
 			spl_autoload_register(function ($className) {
@@ -99,10 +99,10 @@
 	    }
 	    
 	    /**
-	     * Returns the parsed contents of the .env file
-	     * @return array
+	     * Returns the configuration
+	     * @return Configuration
 	     */
-		public function getConfiguration(): array {
+		public function getConfiguration(): Configuration {
 			return $this->configuration;
 		}
 	    

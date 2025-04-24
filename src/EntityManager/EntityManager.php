@@ -2,6 +2,7 @@
 	
     namespace Quellabs\ObjectQuel\EntityManager;
 	
+	use Quellabs\ObjectQuel\Kernel\Kernel;
 	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
@@ -11,20 +12,22 @@
 	 * Represents an Entity Manager.
 	 */
 	class EntityManager {
+		protected Kernel $kernel;
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
 		protected EntityStore $entity_store;
 		protected QueryBuilder $query_builder;
 		protected PropertyHandler $property_handler;
-		private QueryExecutor $query_executor;
+		protected QueryExecutor $query_executor;
 		
 		/**
 		 * EntityManager constructor
-		 * @param Configuration $configuration
+		 * @param Kernel $kernel
 		 */
-        public function __construct(Configuration $configuration) {
-            $this->connection = new DatabaseAdapter($configuration);
-	        $this->entity_store = new EntityStore($configuration);
+        public function __construct(Kernel $kernel) {
+            $this->kernel = $kernel;
+            $this->connection = new DatabaseAdapter($kernel->getConfiguration());
+	        $this->entity_store = new EntityStore($kernel->getConfiguration());
             $this->unit_of_work = new UnitOfWork($this);
 			$this->query_builder = new QueryBuilder($this->entity_store);
 			$this->query_executor = new QueryExecutor($this);
@@ -64,12 +67,11 @@
 		}
 		
 		/**
-		 * Returns true if the entity exists, false if not
-		 * @param string $entityName
-		 * @return bool
+		 * Returns the kernel object
+		 * @return Kernel
 		 */
-		public function entityExists(string $entityName): bool {
-			return $this->entity_store->exists($entityName);
+		public function getKernel(): Kernel {
+			return $this->kernel;
 		}
 		
         /**
