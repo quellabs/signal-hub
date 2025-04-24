@@ -2,6 +2,7 @@
   "name": "quellabs/signal-hub",
   "description": "Type-safe signal/slot event system",
   "type": "library",
+  "license": "MIT",
   "require": {
     "php": ">=8.2"
   },
