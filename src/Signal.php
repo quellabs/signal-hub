@@ -118,7 +118,6 @@
 		/**
 		 * Connect an object's method or a callable to this signal
 		 * This method now supports both direct connections and pattern-based connections
-		 *
 		 * @param callable|object $receiver Object or callable to receive the signal
 		 * @param string|null $slotOrPattern Method name (if receiver is an object) or pattern string
 		 * @param int $priority Connection priority (higher executes first)
@@ -126,23 +125,31 @@
 		 * @throws \Exception If types mismatch or slot doesn't exist
 		 */
 		public function connect(callable|object $receiver, ?string $slotOrPattern = null, int $priority = 0): bool {
-			// Check if it's a pattern connection (contains wildcard)
-			if ($slotOrPattern !== null && str_contains($slotOrPattern, '*')) {
-				// This is a pattern connection
+			// If the receiver is a closure/callable and the second param is provided,
+			// it should always be treated as a pattern, not a slot method name
+			if (is_callable($receiver) && !is_object($receiver) && $slotOrPattern !== null) {
 				return $this->connectPattern($slotOrPattern, $receiver, $priority);
 			}
 			
-			// Handle object receivers with slot methods
-			if (is_object($receiver) && !is_callable($receiver)) {
-				if ($slotOrPattern === null) {
-					throw new \Exception("Missing slot method name.");
-				}
-				
+			// If the receiver is a callable object (not implementing __invoke)
+			// and the second param is a string, it's a slot method name
+			if (is_object($receiver) && !is_callable($receiver) && $slotOrPattern !== null) {
 				return $this->connectObject($receiver, $slotOrPattern, $priority);
 			}
 			
-			// Handle callable receivers
-			return $this->connectCallable($receiver, $priority);
+			// If the receiver is a callable object (implementing __invoke)
+			// and the second param is provided, treat it as a pattern
+			if (is_object($receiver) && is_callable($receiver) && $slotOrPattern !== null) {
+				return $this->connectPattern($slotOrPattern, $receiver, $priority);
+			}
+			
+			// For callable with no second param, connect directly
+			if (is_callable($receiver) && $slotOrPattern === null) {
+				return $this->connectCallable($receiver, $priority);
+			}
+			
+			// If we reach here, something is wrong
+			throw new \Exception("Invalid connection parameters.");
 		}
 		
 		/**
