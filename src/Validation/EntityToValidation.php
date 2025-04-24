@@ -20,11 +20,10 @@
 		
 		/**
 		 * EntityToValidation constructor
-		 * @param Kernel $kernel
 		 */
-		public function __construct(Kernel $kernel) {
-			$this->reflectionHandler = $kernel->getService(ReflectionHandler::class);
-			$this->annotationReader = $kernel->getService(AnnotationsReader::class);
+		public function __construct() {
+			$this->reflectionHandler = new ReflectionHandler();
+			$this->annotationReader = new AnnotationsReader();
 		}
 		
 		/**

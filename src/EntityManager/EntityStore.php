@@ -11,7 +11,9 @@
    use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     
     class EntityStore {
-        protected AnnotationsReader $annotation_reader;
+	    protected Configuration $configuration;
+	    protected EntityLocator $entity_locator;
+		protected AnnotationsReader $annotation_reader;
         protected ReflectionHandler $reflection_handler;
 		protected ProxyGenerator $proxy_generator;
         protected array $entity_properties;
@@ -28,7 +30,7 @@
 	    /**
 	     * EntityStore constructor.
 	     */
-		public function __construct() {
+		public function __construct(Configuration $configuration) {
 			$this->annotation_reader = new AnnotationsReader();
 			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
@@ -41,6 +43,9 @@
 			$this->dependencies = null;
 			$this->dependencies_cache = [];
 			$this->completed_entity_name_cache = [];
+
+			// Create the EntityLocator
+			$this->entity_locator = new EntityLocator($configuration, $this->annotation_reader);
 			
 			// Deze functie initialiseert alle entiteiten in de "Entity"-directory.
 			$this->initializeEntities();
@@ -50,58 +55,35 @@
 		}
 	    
 	    /**
-	     * Initialize entity classes from the Entity directory.
-	     * This method scans for entity class files, validates them,
+	     * Initialize entity classes using the EntityLocator.
+	     * This method discovers entity classes, validates them,
 	     * and loads their properties and annotations into memory.
 	     * @return void
 	     */
 	    private function initializeEntities(): void {
-		    // Path to the "Entity" directory
-		    $entityDirectory = $this->services_path . DIRECTORY_SEPARATOR . "Entity";
-		    
-		    // Validate that the directory exists and is accessible
-		    if (!is_dir($entityDirectory) || !is_readable($entityDirectory)) {
-			    // Throw exception if directory validation fails
-			    throw new \RuntimeException("Entity directory does not exist or is not readable: " . $entityDirectory);
-		    }
-		    
-		    // Resolve the actual physical path, eliminating any symbolic links
-		    $entityDirectory = realpath($entityDirectory);
-		    
-		    // Security check: ensure the directory is within our expected path structure
-		    if (!str_starts_with($entityDirectory, realpath($this->services_path))) {
-			    throw new \RuntimeException("Entity directory is outside of the services path");
-		    }
-		    
-		    // Get all PHP files in the Entity directory using glob pattern matching
-		    $entityFiles = glob($entityDirectory . DIRECTORY_SEPARATOR . "*.php");
-		    
-		    // Process each entity file
-		    foreach ($entityFiles as $filePath) {
-			    // Extract just the filename without the path
-			    $fileName = basename($filePath);
+		    try {
+			    // Discover all entities using the EntityLocator
+			    $entityClasses = $this->entity_locator->discoverEntities();
 			    
-			    // Derive the entity class name from the filename
-			    $entityName = $this->constructEntityName($fileName);
-			    
-			    // Skip if the file does not represent a valid entity
-			    if (!$this->isEntity($entityName)) {
-				    continue;
-			    }
-			    
-			    // Initialize data structures for this entity
-			    $this->entity_annotations[$entityName] = [];
-			    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
-			    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
-			    
-			    // Process each property of the entity
-			    foreach ($this->entity_properties[$entityName] as $property) {
-				    // Get annotations for the current property
-				    $annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
+			    // Process each discovered entity
+			    foreach ($entityClasses as $entityName) {
+				    // Initialize data structures for this entity
+				    $this->entity_annotations[$entityName] = [];
+				    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
+				    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
 				    
-				    // Store property annotations in the entity_annotations array
-				    $this->entity_annotations[$entityName][$property] = $annotations;
+				    // Process each property of the entity
+				    foreach ($this->entity_properties[$entityName] as $property) {
+					    // Get annotations for the current property
+					    $annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
+					    
+					    // Store property annotations in the entity_annotations array
+					    $this->entity_annotations[$entityName][$property] = $annotations;
+				    }
 			    }
+		    } catch (\Exception $e) {
+			    // Log or handle initialization errors
+			    throw new \RuntimeException("Error initializing entities: " . $e->getMessage(), 0, $e);
 		    }
 	    }
 		

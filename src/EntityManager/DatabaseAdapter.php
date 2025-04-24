@@ -7,30 +7,18 @@
 	use Cake\Datasource\ConnectionManager;
 	
 	/**
-	 * Default database class voor mysqli handelingen
-	 *
-	 * Gemaakt door: Matthijs Bon
-	 * Datum: 10-12-2014
+	 * Database adapter that ties ObjectQuel and Cakephp/Database together
 	 */
 	class DatabaseAdapter {
 		
+		protected Configuration|array $configuration;
 		protected ConnectionInterface $connection;
 		protected array $descriptions;
 		protected array $columns_ex_descriptions;
 		protected int $last_error;
 		protected string $last_error_message;
-		protected array $prepared_statements_handles;
 		protected int $transaction_depth;
-		protected int $max_prepared_statement_count;
 		protected array $indexes;
-		
-		protected static array $type_checks = [
-			'is_int'    => 'i',
-			'is_bool'   => 'i',
-			'is_double' => 'd',
-			'is_string' => 's',
-			'is_object' => 'b'
-		];
 		
 		protected static array $int_types = [
 			"int",
@@ -50,14 +38,16 @@
 		/**
 		 * Database Adapter constructor.
 		 * This file wraps the functions of CakePHP Database
-		 * @param array $configuration
+		 * @param Configuration $configuration
 		 */
-		public function __construct(array $configuration) {
+		public function __construct(Configuration $configuration) {
+			// Store configuration object
+			$this->configuration = $configuration;
+
 			// setup ORM
 			$this->descriptions = [];
 			$this->columns_ex_descriptions = [];
 			$this->indexes = [];
-			$this->prepared_statements_handles = [];
 			$this->last_error = 0;
 			$this->last_error_message = '';
 			$this->transaction_depth = 0;
@@ -68,26 +58,8 @@
 			}
 			
 			// Create the database connection
-			ConnectionManager::setConfig('default', ['url' => $configuration['DB_DSN']]);
-			
+			ConnectionManager::setConfig('default', ['url' => $configuration->getDsn()]);
 			$this->connection = ConnectionManager::get('default');
-			
-			// Zet de max prepared statements count
-			$this->max_prepared_statement_count = $this->getMaxPreparedStatementCount();
-		}
-		
-		/**
-		 * Destructor
-		 */
-		public function __destruct() {
-			if (isset($this->connection)) {
-				// close all named parameter handles
-				foreach ($this->prepared_statements_handles as $pth) {
-					if (is_object($pth)) {
-						$pth->closeCursor();
-					}
-				}
-			}
 		}
 		
 		/**
@@ -171,7 +143,6 @@
 		 */
 		public function execute(string $query, array $parameters = []): StatementInterface|false {
 			try {
-				// CakePHP's ConnectionManager handles prepared statements
 				return $this->connection->execute($query, $parameters);
 			} catch (\Exception $exception) {
 				$this->last_error = $exception->getCode();
@@ -212,9 +183,11 @@
                     COUNT(*) as c
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=?
+                      `table_name`= :tableName
                 LIMIT 1
-            ", [$tableName]);
+            ", [
+				'tableName' => $tableName
+			]);
 			
 			if (!$rs) {
 				return 0;
@@ -235,8 +208,10 @@
                     `row_format`
                 FROM `INFORMATION_SCHEMA`.`TABLES`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=?
-            ", [$tableName]);
+                      `table_name`= :tableName
+            ", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**
@@ -250,8 +225,10 @@
                     COLUMN_NAME
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=?
-            ", [$tableName]);
+                      `table_name`=:tableName
+            ", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**
@@ -311,9 +288,11 @@
                     `COLUMN_NAME`
                 FROM `INFORMATION_SCHEMA`.`COLUMNS`
                 WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=? AND
-                      `column_key`=?
-            ", [$tableName, "PRI"]);
+                      `table_name`=:tableName AND
+                      `column_key`='PRI'
+            ", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**
@@ -357,8 +336,10 @@
                      `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` `CCSA`
                 WHERE `CCSA`.`collation_name` = `T`.`table_collation`
                   AND `T`.`table_schema` IN(SELECT DATABASE())
-                  AND `T`.`table_name` = ?
-            ", [$tableName]);
+                  AND `T`.`table_name` = :tableName
+            ", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**
@@ -372,8 +353,10 @@
                     `TABLE_COLLATION`
                 FROM `INFORMATION_SCHEMA`.`TABLES`
                 WHERE `TABLE_SCHEMA` IN(SELECT DATABASE()) AND
-                      `TABLE_NAME` = ?
-            ", [$tableName]);
+                      `TABLE_NAME` = :tableName
+            ", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**
@@ -689,9 +672,11 @@
 					INFORMATION_SCHEMA.KEY_COLUMN_USAGE
 				WHERE
 				    TABLE_SCHEMA = DATABASE() AND
-					TABLE_NAME = ? AND
+					TABLE_NAME = :tableName AND
 					REFERENCED_TABLE_NAME IS NOT NULL;
-			", [$tableName]);
+			", [
+				'tableName' => $tableName
+			]);
 		}
 		
 		/**

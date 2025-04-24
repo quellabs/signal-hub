@@ -2,9 +2,7 @@
 	
     namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Quellabs\ObjectQuel\Kernel\Kernel;
 	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
-	use Quellabs\ObjectQuel\Kernel\ServiceInterface;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
 	use Quellabs\ObjectQuel\Validation\EntityToValidation;
@@ -12,8 +10,7 @@
 	/**
 	 * Represents an Entity Manager.
 	 */
-	class EntityManager implements ServiceInterface {
-		protected Kernel $kernel;
+	class EntityManager {
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
 		protected EntityStore $entity_store;
@@ -22,27 +19,18 @@
 		private QueryExecutor $query_executor;
 		
 		/**
-		 * @param Kernel $kernel
-		 * @throws \Exception
+		 * EntityManager constructor
+		 * @param Configuration $configuration
 		 */
-        public function __construct(Kernel $kernel) {
-            $this->kernel = $kernel;
-            $this->connection = new DatabaseAdapter($kernel->getConfiguration());
-	        $this->entity_store = new EntityStore();
+        public function __construct(Configuration $configuration) {
+            $this->connection = new DatabaseAdapter($configuration);
+	        $this->entity_store = new EntityStore($configuration);
             $this->unit_of_work = new UnitOfWork($this);
 			$this->query_builder = new QueryBuilder($this->entity_store);
 			$this->query_executor = new QueryExecutor($this);
 			$this->property_handler = new PropertyHandler();
         }
 
-		/**
-		 * Returns the Kernel
-		 * @return Kernel
-		 */
-		public function getKernel(): Kernel {
-			return $this->kernel;
-		}
-		
 		/**
 		 * Returns the DatabaseAdapter
 		 * @return DatabaseAdapter
@@ -222,7 +210,7 @@
 		 * @return array
 		 */
 		public function getValidationRules(object $entity): array {
-			$validate = new EntityToValidation($this->kernel);
+			$validate = new EntityToValidation();
 			return $validate->convert($entity);
 		}
 		
