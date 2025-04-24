@@ -20,6 +20,115 @@ ObjectQuel consists of an EntityManager with several helper classes:
 - **AnnotationReader**: Processes annotations for entity configuration
 - **ObjectQuel**: Handles reading and parsing of the query language
 
+## Configuration System
+
+The configuration system centralizes all settings related to your ORM, including:
+
+- Database connection parameters
+- Entity class locations and namespace
+- Proxy configuration for lazy loading
+- Metadata caching options
+
+### Creating a Configuration Object
+
+```php
+use Quellabs\ObjectQuel\Configuration\Configuration;
+
+// Create a new configuration object
+$config = new Configuration();
+```
+
+### Setting Database Connection
+
+You have multiple options for configuring the database connection:
+
+**Option 1: Using individual parameters**
+
+```php
+$config->setDatabaseParams(
+    'mysql',              // Database driver
+    'localhost',          // Host
+    'my_database',        // Database name
+    'db_user',            // Username
+    'db_password',        // Password
+    3306,                 // Port (optional, default: 3306)
+    'utf8mb4'             // Character set (optional, default: utf8mb4)
+);
+```
+
+**Option 2: Using a DSN string**
+
+```php
+$config->setDsn('mysql://db_user:db_password@localhost:3306/my_database?encoding=utf8mb4');
+```
+
+**Option 3: Using an array**
+
+```php
+$config->setConnectionParams([
+    'driver'   => 'mysql',
+    'host'     => 'localhost',
+    'database' => 'my_database',
+    'username' => 'db_user',
+    'password' => 'db_password',
+    'port'     => 3306,
+    'encoding' => 'utf8mb4'
+]);
+```
+
+### Setting Entity Information
+
+Configure where your entities are located:
+
+```php
+// Set the base namespace for entities
+$config->setEntityNamespace('Quellabs\\ObjectQuel\\Entity');
+
+// Set the entity path (directory where entities reside)
+$config->setEntityPath(__DIR__ . '/src');
+```
+
+### Configuring Proxies for Lazy Loading
+
+ObjectQuel uses proxy classes to implement lazy loading. Configure how these proxies are managed:
+
+```php
+// Enable proxy generation (required for lazy loading)
+$config->setUseProxies(true);
+
+// Set where proxy classes will be stored
+$config->setProxyDir(__DIR__ . '/var/cache/proxies');
+
+// Set the namespace for proxy classes
+$config->setProxyNamespace('Quellabs\\ObjectQuel\\Proxies');
+
+// Enable automatic generation of proxy classes
+$config->setAutoGenerateProxyClasses(true);
+```
+
+### Configuring Metadata Caching
+
+For better performance, ObjectQuel can cache entity metadata:
+
+```php
+// Enable metadata caching
+$config->setUseMetadataCache(true);
+
+// Set where metadata cache will be stored
+$config->setCacheDir(__DIR__ . '/var/cache/metadata');
+```
+
+### Creating the EntityManager
+
+Once you've configured all settings, create the EntityManager:
+
+```php
+use Quellabs\ObjectQuel\EntityManager\EntityManager;
+
+// Create the EntityManager with your configuration
+$entityManager = new EntityManager($config);
+```
+
 ## Entity Retrieval
 
 ObjectQuel provides three ways to retrieve entities:
@@ -108,6 +217,26 @@ range of x is ProductsEntity
 range of y is ProductsDescriptionEntity via y.productsId=x.productsId
 retrieve (x.productsId) sort by y.productsName
 window 1 using page_size 10
+```
+
+### Using ObjectQuel Query Language
+
+You can use the powerful ObjectQuel query language:
+
+```php
+$query = "
+    range of p is Quellabs\\ObjectQuel\\Entity\\ProductEntity;
+    range of c is Quellabs\\ObjectQuel\\Entity\\CategoryEntity via p.categories;
+    retrieve (p, c) where p.price > :minPrice AND c.name = :categoryName;
+";
+
+$parameters = [
+    'minPrice' => 50.00,
+    'categoryName' => 'Electronics'
+];
+
+$result = $entityManager->executeQuery($query, $parameters);
+$products = $result->fetchResults();
 ```
 
 ## Entity Creation and Management
@@ -211,6 +340,12 @@ Generated entities include all properties and getter/setter methods based on the
 ObjectQuel supports query flags for optimization, starting with the '@' symbol:
 
 - `@InValuesAreFinal`: Optimizes IN() functions for primary keys by eliminating additional verification queries
+
+## Important Notes
+
+- Proxy cache directories must be writable by the application
+- Proxy generation is required for lazy loading features to work
+- For best performance in production, enable metadata caching
 
 ## Contributing
 
