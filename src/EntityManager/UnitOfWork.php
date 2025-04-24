@@ -75,7 +75,7 @@
 	     * @return bool
 	     */
 	    private function isEntityScheduledForDeletion(int $entityId): bool {
-		    return in_array($entityId, $this->entity_removal_list);
+		    return isset($this->entity_removal_list[$entityId]);
 	    }
 		
 	    /**
@@ -351,9 +351,7 @@
 		    // Get relationships using existing methods in entity_store
 		    $manyToOneDependencies = $this->entity_store->getManyToOneDependencies($dependentEntityClass);
 		    $oneToOneDependencies = $this->entity_store->getOneToOneDependencies($dependentEntityClass);
-		    $oneToOneDependencies = array_filter($oneToOneDependencies, function ($e) {
-			    return !empty($e->getInversedBy());
-		    });
+		    $oneToOneDependencies = array_filter($oneToOneDependencies, function ($e) { return !empty($e->getInversedBy()); });
 		    
 		    // Process both relationship types
 		    foreach (array_merge($manyToOneDependencies, $oneToOneDependencies) as $property => $annotation) {
@@ -479,7 +477,7 @@
 			$entityHash = spl_object_id($entity);
 			
 			// Controleert of de entiteit voorkomt in de deleted list, zo ja, dan is de state Deleted
-			if (in_array($entityHash, $this->entity_removal_list)) {
+			if ($this->isEntityScheduledForDeletion($entityHash)) {
 				return DirtyState::Deleted;
 			}
 			
@@ -508,19 +506,19 @@
 		}
 
         /**
-         * Returns the database link
-         * @return \clsDB
-         */
-        public function getDB(): \clsDB {
-            return $this->db;
-        }
-    
-        /**
          * Returns the property handler object
          * @return PropertyHandler
          */
         public function getPropertyHandler(): PropertyHandler {
             return $this->property_handler;
+        }
+    
+        /**
+         * Returns the entity manager object
+         * @return EntityManager
+         */
+        public function getEntityManager(): EntityManager {
+            return $this->entity_manager;
         }
     
         /**
@@ -664,7 +662,6 @@
 				
 				if (!empty($sortedEntities)) {
 					// Instantieer hulp classes
-					$serializer = $this->getSerializer();
 					$insertPersister = new InsertPersister($this);
 					$updatePersister = new UpdatePersister($this);
 					$deletePersister = new DeletePersister($this);
@@ -689,14 +686,14 @@
 						// Voer de overeenkomstige database-operatie uit op basis van de staat van de entiteit.
                         if ($entityState === DirtyState::Deleted) {
                             $deleted[] = $entity; // Voeg entity toe aan de deleted lijst
-                            $deletePersister->persist($serializer, $entity); // Verwijderen als de entiteit gemarkeerd is voor verwijdering.
+                            $deletePersister->persist($entity); // Verwijderen als de entiteit gemarkeerd is voor verwijdering.
                         } elseif (($entityState === DirtyState::New) || ($entityState === DirtyState::Dirty)) {
                             $changed[] = $entity; // Voeg entity toe aan de changed lijst
                             
                             if ($entityState === DirtyState::New) {
-                                $insertPersister->persist($serializer, $entity); // Invoegen als de entiteit nieuw is.
+                                $insertPersister->persist($entity); // Invoegen als de entiteit nieuw is.
                             } else {
-                                $updatePersister->persist($serializer, $entity); // Bijwerken als de entiteit gewijzigd is.
+                                $updatePersister->persist($entity); // Bijwerken als de entiteit gewijzigd is.
                             }
 						}
 					}
@@ -751,6 +748,9 @@
 			
 			// Remove stored original data for the entity, stopping any tracking of changes
 			unset($this->original_entity_data[$hash]);
+			
+			// Remove deleted items
+			unset($this->entity_removal_list[$hash]);
 		}
 	    
 	    /**
@@ -767,7 +767,7 @@
 		    }
 		    
 		    // Mark entity for deletion first (prevents infinite recursion with circular references)
-		    $this->entity_removal_list[] = $entityId;
+		    $this->entity_removal_list[$entityId] = true;
 		    
 		    // Process dependent entities that should be cascade deleted
 		    $this->processCascadingDeletions($entity);

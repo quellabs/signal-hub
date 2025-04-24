@@ -172,8 +172,7 @@
 		public function execute(string $query, array $parameters = []): StatementInterface|false {
 			try {
 				// CakePHP's ConnectionManager handles prepared statements
-				$result = $this->connection->execute($query, $parameters);
-				return $result;
+				return $this->connection->execute($query, $parameters);
 			} catch (\Exception $exception) {
 				$this->last_error = $exception->getCode();
 				$this->last_error_message = $exception->getMessage();
