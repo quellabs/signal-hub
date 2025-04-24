@@ -3,30 +3,48 @@
 	namespace Quellabs\SignalHub;
 	
 	/**
-	 * Signal class for type-safe event handling in the annotations reader
+	 * Signal class for Qt-like event handling in PHP
 	 */
 	class Signal {
-		
 		/**
-		 * @var array Parameter types expected by this signal
+		 * @var array Expected parameter types for this signal
 		 */
 		private array $parameterTypes;
 		
 		/**
-		 * @var array Connections (receivers and their slots)
+		 * @var array Direct connections (receivers and their slots)
 		 */
 		private array $connections = [];
 		
 		/**
+		 * @var array Pattern connections (patterns and their handlers)
+		 */
+		private array $patternConnections = [];
+		
+		/**
+		 * @var string|null Name of this signal (for debugging)
+		 */
+		private ?string $name = null;
+		
+		/**
+		 * @var object|null Object that owns this signal
+		 */
+		private ?object $owner = null;
+		
+		/**
 		 * Constructor to initialize the signal with parameter types
 		 * @param array $parameterTypes Expected parameter types for this signal
+		 * @param string|null $name Optional name for this signal
+		 * @param object|null $owner Optional owner object
 		 */
-		public function __construct(array $parameterTypes) {
+		public function __construct(array $parameterTypes, ?string $name = null, ?object $owner = null) {
 			$this->parameterTypes = $parameterTypes;
+			$this->name = $name;
+			$this->owner = $owner;
 		}
 		
 		/**
-		 * Normalizes the type string to a consistent notation
+		 * Normalizes type strings to consistent notation
 		 * @param string $type Raw type string
 		 * @return string Normalized type string
 		 */
@@ -46,7 +64,7 @@
 		 * @param string $slotType Slot parameter type
 		 * @return bool True if types are compatible
 		 */
-		public function isTypeCompatible(string $signalType, string $slotType): bool {
+		private function isTypeCompatible(string $signalType, string $slotType): bool {
 			$primitiveTypes = ['int', 'float', 'string', 'bool', 'array'];
 			
 			// Normalize types
@@ -75,21 +93,95 @@
 		}
 		
 		/**
-		 * Connects an object and its slot method to this signal
-		 * @param object $receiver Object that will receive the signal
-		 * @param string|null $slot Method name to be called
-		 * @return string Connection ID for later disconnection
-		 * @throws \Exception If types mismatch or slot doesn't exist
+		 * Check if a pattern matches this signal's name
+		 * @param string $pattern Pattern with wildcards
+		 * @return bool True if matches
 		 */
-		private function connectObject(object $receiver, ?string $slot): string {
-			// Check if slot method is provided
-			if ($slot === null) {
-				throw new \Exception("Missing slot method name.");
+		private function matchesPattern(string $pattern): bool {
+			if ($this->name === null) {
+				return false;
 			}
 			
+			// If there's no wildcard, it's only a match if exact
+			if (!str_contains($pattern, '*')) {
+				return $pattern === $this->name;
+			}
+			
+			// Convert the pattern to a regex
+			// Escape dots in the pattern and replace * with .*
+			$regex = '/^' . str_replace(['.', '*'], ['\.', '.*'], $pattern) . '$/';
+			
+			// Check if the signal name matches the pattern
+			return (bool) preg_match($regex, $this->name);
+		}
+		
+		/**
+		 * Connect an object's method or a callable to this signal
+		 * This method now supports both direct connections and pattern-based connections
+		 *
+		 * @param callable|object $receiver Object or callable to receive the signal
+		 * @param string|null $slotOrPattern Method name (if receiver is an object) or pattern string
+		 * @param int $priority Connection priority (higher executes first)
+		 * @return bool Whether connection was successful
+		 * @throws \Exception If types mismatch or slot doesn't exist
+		 */
+		public function connect(callable|object $receiver, ?string $slotOrPattern = null, int $priority = 0): bool {
+			// Check if it's a pattern connection (contains wildcard)
+			if ($slotOrPattern !== null && str_contains($slotOrPattern, '*')) {
+				// This is a pattern connection
+				return $this->connectPattern($slotOrPattern, $receiver, $priority);
+			}
+			
+			// Handle object receivers with slot methods
+			if (is_object($receiver) && !is_callable($receiver)) {
+				if ($slotOrPattern === null) {
+					throw new \Exception("Missing slot method name.");
+				}
+				
+				return $this->connectObject($receiver, $slotOrPattern, $priority);
+			}
+			
+			// Handle callable receivers
+			return $this->connectCallable($receiver, $priority);
+		}
+		
+		/**
+		 * Connect using a pattern
+		 * @param string $pattern Pattern to match
+		 * @param callable|object $receiver Receiver
+		 * @param int $priority Priority
+		 * @return bool Always true (success)
+		 */
+		private function connectPattern(string $pattern, callable|object $receiver, int $priority = 0): bool {
+			// Add to pattern connections
+			$this->patternConnections[] = [
+				'pattern' => $pattern,
+				'receiver' => $receiver,
+				'priority' => $priority
+			];
+			
+			return true;
+		}
+		
+		/**
+		 * Connect an object and its slot method to this signal
+		 * @param object $receiver Object that will receive the signal
+		 * @param string $slot Method name to be called
+		 * @param int $priority Connection priority
+		 * @return bool Whether connection was successful
+		 * @throws \Exception If types mismatch or slot doesn't exist
+		 */
+		private function connectObject(object $receiver, string $slot, int $priority = 0): bool {
 			// Check if slot method exists on receiver
 			if (!method_exists($receiver, $slot)) {
-				throw new \Exception("Slot {$slot} does not exist on receiver.");
+				throw new \Exception("Slot '{$slot}' does not exist on receiver.");
+			}
+			
+			// Check if this connection already exists
+			foreach ($this->connections as $connection) {
+				if ($connection['receiver'] === $receiver && $connection['slot'] === $slot) {
+					return false; // Connection already exists
+				}
 			}
 			
 			// Get reflection of slot method
@@ -117,27 +209,34 @@
 				}
 			}
 			
-			// Generate a unique connection ID
-			$connectionId = uniqid('connection_', true);
-			
 			// Add connection
-			$this->connections[$connectionId] = [
+			$this->connections[] = [
 				'receiver' => $receiver,
 				'slot' => $slot,
-				'priority' => 0  // Default priority
+				'priority' => $priority
 			];
 			
-			return $connectionId;
+			// Sort connections by priority (higher first)
+			$this->sortConnectionsByPriority();
+			
+			return true;
 		}
 		
 		/**
-		 * Connects a callable to this signal
+		 * Connect a callable to this signal
 		 * @param callable $receiver Callable function to receive the signal
-		 * @param int $priority Execution priority (higher executes first)
-		 * @return string Connection ID
+		 * @param int $priority Connection priority
+		 * @return bool Whether connection was successful
 		 * @throws \Exception If types mismatch
 		 */
-		private function connectCallable(callable $receiver, int $priority = 0): string {
+		private function connectCallable(callable $receiver, int $priority = 0): bool {
+			// Check if this connection already exists
+			foreach ($this->connections as $connection) {
+				if ($connection['receiver'] === $receiver && $connection['slot'] === null) {
+					return false; // Connection already exists
+				}
+			}
+			
 			// Get reflection of callable
 			$slotReflection = new \ReflectionFunction($receiver);
 			$slotParams = $slotReflection->getParameters();
@@ -163,99 +262,59 @@
 				}
 			}
 			
-			// Generate a unique connection ID
-			$connectionId = uniqid('connection_', true);
-			
 			// Add connection
-			$this->connections[$connectionId] = [
+			$this->connections[] = [
 				'receiver' => $receiver,
 				'slot' => null,
 				'priority' => $priority
 			];
 			
-			return $connectionId;
-		}
-		
-		/**
-		 * Connects a receiver to this signal
-		 * @param callable|object $receiver Object or callable to receive the signal
-		 * @param string|null $slot Method name (if object)
-		 * @param int $priority Execution priority (higher executes first)
-		 * @return string Connection ID for later disconnection
-		 * @throws \Exception If types mismatch or slot doesn't exist
-		 */
-		public function connect(callable|object $receiver, ?string $slot = null, int $priority = 0): string {
-			// For objects with slot methods
-			if (is_object($receiver) && !is_callable($receiver)) {
-				$connectionId = $this->connectObject($receiver, $slot);
-				$this->connections[$connectionId]['priority'] = $priority;
-				
-				// Sort connections by priority
-				$this->sortConnectionsByPriority();
-				
-				return $connectionId;
-			}
-			
-			// For callables
-			$connectionId = $this->connectCallable($receiver, $priority);
-			
 			// Sort connections by priority
 			$this->sortConnectionsByPriority();
 			
-			return $connectionId;
+			return true;
 		}
 		
 		/**
 		 * Sort connections by priority (higher first)
 		 */
 		private function sortConnectionsByPriority(): void {
-			uasort($this->connections, function($a, $b) {
+			usort($this->connections, function($a, $b) {
 				return $b['priority'] <=> $a['priority'];
 			});
 		}
 		
 		/**
-		 * Disconnects a receiver by connection ID
-		 * @param string $connectionId ID returned from connect
-		 * @return bool Whether disconnection was successful
+		 * Disconnect a specific receiver or slot
+		 * @param callable|object $receiver Object or callable to disconnect
+		 * @param string|null $slot Method name (if receiver is an object)
+		 * @return bool Whether any connections were removed
 		 */
-		public function disconnect(string $connectionId): bool {
-			if (!isset($this->connections[$connectionId])) {
-				return false;
-			}
+		public function disconnect(callable|object $receiver, ?string $slot = null): bool {
+			$originalCount = count($this->connections);
 			
-			unset($this->connections[$connectionId]);
-			return true;
-		}
-		
-		/**
-		 * Disconnects all connections for a receiver
-		 * @param object|callable $receiver
-		 * @param string|null $slot Method name (if object)
-		 * @return int Number of disconnected connections
-		 */
-		public function disconnectReceiver(object|callable $receiver, ?string $slot = null): int {
-			$disconnectedCount = 0;
-			$connectionsToRemove = [];
-			
-			foreach ($this->connections as $id => $connection) {
-				if ($connection['receiver'] === $receiver) {
-					if ($slot === null || $connection['slot'] === $slot) {
-						$connectionsToRemove[] = $id;
-						$disconnectedCount++;
-					}
+			// Filter out matching connections
+			$this->connections = array_filter($this->connections, function ($connection) use ($receiver, $slot) {
+				// If receiver doesn't match, keep the connection
+				if ($connection['receiver'] !== $receiver) {
+					return true;
 				}
-			}
+				
+				// If slot is specified, only disconnect that slot
+				if ($slot !== null && $connection['slot'] !== $slot) {
+					return true;
+				}
+				
+				// Disconnect
+				return false;
+			});
 			
-			foreach ($connectionsToRemove as $id) {
-				unset($this->connections[$id]);
-			}
-			
-			return $disconnectedCount;
+			// Return true if any connections were removed
+			return count($this->connections) < $originalCount;
 		}
 		
 		/**
-		 * Emits the signal to all connected receivers
+		 * Emit the signal to all connected receivers
 		 * @param mixed ...$args Arguments to pass to slots
 		 * @throws \Exception If argument types or count mismatch
 		 */
@@ -271,11 +330,11 @@
 				$actualType = is_object($arg) ? get_class($arg) : gettype($arg);
 				
 				if (!$this->isTypeCompatible($actualType, $expectedType)) {
-					throw new \Exception("Type mismatch for argument {$index} of signal emission.");
+					throw new \Exception("Type mismatch for argument {$index} of signal emission: expected {$expectedType}, got {$actualType}.");
 				}
 			}
 			
-			// Call the slots
+			// Call the direct connections
 			foreach ($this->connections as $connection) {
 				$receiver = $connection['receiver'];
 				$slot = $connection['slot'];
@@ -284,6 +343,26 @@
 					$receiver(...$args);
 				} else {
 					$receiver->$slot(...$args);
+				}
+			}
+			
+			// Process pattern connections if this signal has a name
+			if ($this->name !== null) {
+				foreach ($this->patternConnections as $patternConnection) {
+					$pattern = $patternConnection['pattern'];
+					
+					// If this signal's name matches the pattern
+					if ($this->matchesPattern($pattern)) {
+						$receiver = $patternConnection['receiver'];
+						
+						// Call the pattern receiver
+						if (is_callable($receiver)) {
+							$receiver(...$args);
+						} elseif (is_object($receiver) && method_exists($receiver, 'handle')) {
+							// Default handler method if none specified
+							$receiver->handle(...$args);
+						}
+					}
 				}
 			}
 		}
@@ -297,18 +376,46 @@
 		}
 		
 		/**
-		 * Get all connections
-		 * @return array
-		 */
-		public function getConnections(): array {
-			return $this->connections;
-		}
-		
-		/**
-		 * Get the number of connections
+		 * Get number of connections
 		 * @return int
 		 */
 		public function countConnections(): int {
-			return count($this->connections);
+			return count($this->connections) + count($this->patternConnections);
+		}
+		
+		/**
+		 * Get the name of this signal
+		 * @return string|null
+		 */
+		public function getName(): ?string {
+			return $this->name;
+		}
+		
+		/**
+		 * Get the owner of this signal
+		 * @return object|null
+		 */
+		public function getOwner(): ?object {
+			return $this->owner;
+		}
+		
+		/**
+		 * Set the name of this signal
+		 * @param string $name
+		 * @return self
+		 */
+		public function setName(string $name): self {
+			$this->name = $name;
+			return $this;
+		}
+		
+		/**
+		 * Set the owner of this signal
+		 * @param object $owner
+		 * @return self
+		 */
+		public function setOwner(object $owner): self {
+			$this->owner = $owner;
+			return $this;
 		}
 	}

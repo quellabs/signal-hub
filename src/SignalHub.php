@@ -3,125 +3,164 @@
 	namespace Quellabs\SignalHub;
 	
 	/**
-	 * Signal manager for annotation events
+	 * Central hub for managing signals - focused on registry and discovery
 	 */
 	class SignalHub {
-		
 		/**
-		 * @var array<string, Signal> Map of signal names to Signal objects
+		 * @var array Map of registered signals by object and name
 		 */
-		protected array $signals = [];
+		private array $registry = [];
 		
 		/**
-		 * Get or create a signal by name
-		 * @param string $signalName
-		 * @param array $parameterTypes Parameter types for the signal
-		 * @return Signal
+		 * @var array Map of standalone signals (not owned by objects)
 		 */
-		public function signal(string $signalName, array $parameterTypes): Signal {
-			// Use existing signal if available
-			if (isset($this->signals[$signalName])) {
-				return $this->signals[$signalName];
-			}
-			
-			// Create new signal with provided parameter types
-			$this->signals[$signalName] = new Signal($parameterTypes);
-			return $this->signals[$signalName];
-		}
+		private array $standaloneSignals = [];
 		
 		/**
-		 * Connect a slot to a signal
-		 * @param string $signalPattern Signal name or pattern with wildcards
-		 * @param callable|object $slot Slot to call
-		 * @param string|null $method Method name if $slot is an object
-		 * @param array|null $parameterTypes Required for new signals
-		 * @param int $priority Higher priority slots execute first
-		 * @return string Connection ID
-		 * @throws \Exception
-		 */
-		public function connect(string $signalPattern, callable|object $slot, ?string $method = null, array $parameterTypes = null, int $priority = 0): string {
-			// Create signal if it doesn't exist
-			if (!isset($this->signals[$signalPattern])) {
-				if ($parameterTypes === null) {
-					throw new \InvalidArgumentException(
-						"Cannot connect to non-existent signal '{$signalPattern}'. Provide parameter types."
-					);
-				}
-				
-				$this->signals[$signalPattern] = new Signal($parameterTypes);
-			}
-			
-			return $this->signals[$signalPattern]->connect($slot, $method, $priority);
-		}
-		
-		/**
-		 * Disconnect a slot by connection ID
-		 * @param string $signalPattern
-		 * @param string $connectionId
+		 * Check if a name matches a pattern with wildcards
+		 * @param string $pattern Pattern with wildcards
+		 * @param string $name Name to check
 		 * @return bool
 		 */
-		public function disconnect(string $signalPattern, string $connectionId): bool {
-			if (!isset($this->signals[$signalPattern])) {
-				return false;
-			}
-			
-			return $this->signals[$signalPattern]->disconnect($connectionId);
-		}
-		
-		/**
-		 * Disconnect all connections for a receiver
-		 * @param string $signalPattern
-		 * @param object|callable $receiver
-		 * @param string|null $slot
-		 * @return int Number of disconnected connections
-		 */
-		public function disconnectReceiver(string $signalPattern, object|callable $receiver, ?string $slot = null): int {
-			if (!isset($this->signals[$signalPattern])) {
-				return 0;
-			}
-			
-			return $this->signals[$signalPattern]->disconnectReceiver($receiver, $slot);
-		}
-		
-		/**
-		 * Check if a signal name matches a pattern with wildcards
-		 * @param string $pattern The pattern with potential wildcards
-		 * @param string $signalName The actual signal name to check
-		 * @return bool
-		 */
-		private function matchesWildcard(string $pattern, string $signalName): bool {
+		private function matchesPattern(string $pattern, string $name): bool {
 			// If there's no wildcard, it's only a match if exact
 			if (!str_contains($pattern, '*')) {
-				return $pattern === $signalName;
+				return $pattern === $name;
 			}
 			
 			// Convert the pattern to a regex
-			$regex = '/^' . str_replace(['*', '.'], ['.*', '\.'], $pattern) . '$/';
+			$regex = '/^' . str_replace(['.', '*'], ['\.', '.*'], $pattern) . '$/';
 			
-			// Check if the signal name matches the pattern
-			return (bool) preg_match($regex, $signalName);
+			// Check if the name matches the pattern
+			return (bool) preg_match($regex, $name);
 		}
 		
 		/**
-		 * Emit a signal with support for wildcard listeners
-		 * @param string $signalName
-		 * @param mixed ...$args
+		 * Create a new standalone signal
+		 * @param string $signalName Signal name/identifier
+		 * @param array $parameterTypes Expected parameter types
+		 * @return Signal The created signal
+		 */
+		public function createSignal(string $signalName, array $parameterTypes): Signal {
+			$signal = new Signal($parameterTypes, $signalName);
+			$this->standaloneSignals[$signalName] = $signal;
+			return $signal;
+		}
+		
+		/**
+		 * Register a signal with the hub
+		 * @param object|null $owner Owner object (can be null for standalone signals)
+		 * @param string $name Signal name
+		 * @param Signal $signal Signal object
 		 * @return void
 		 */
-		public function emit(string $signalName, ...$args): void {
-			// Find all matching signals (exact or wildcard)
-			foreach ($this->signals as $registeredPattern => $signal) {
-				if ($this->matchesWildcard($registeredPattern, $signalName)) {
-					$signal->emit(...$args);
+		public function registerSignal(?object $owner, string $name, Signal $signal): void {
+			// Store as a standalone signal
+			if ($owner === null) {
+				$this->standaloneSignals[$name] = $signal;
+				return;
+			}
+			
+			// Store as an object-owned signal
+			$ownerId = spl_object_id($owner);
+			
+			if (!isset($this->registry[$ownerId])) {
+				$this->registry[$ownerId] = [
+					'object' => $owner,
+					'signals' => []
+				];
+			}
+			
+			$this->registry[$ownerId]['signals'][$name] = $signal;
+		}
+		
+		/**
+		 * Find signals matching a pattern
+		 * @param string $pattern Signal name pattern with optional wildcards
+		 * @return array<Signal> Array of matching signals
+		 */
+		public function findSignals(string $pattern): array {
+			// Check standalone signals
+			$result = array_filter($this->standaloneSignals, function ($name) use ($pattern) {
+				return $this->matchesPattern($pattern, $name);
+			}, ARRAY_FILTER_USE_KEY);
+			
+			// Check object signals
+			foreach ($this->registry as $ownerId => $ownerData) {
+				$ownerClass = get_class($ownerData['object']);
+				
+				foreach ($ownerData['signals'] as $signalName => $signal) {
+					$qualifiedName = $ownerClass . '::' . $signalName;
+					
+					if ($this->matchesPattern($pattern, $qualifiedName)) {
+						$result[$qualifiedName] = $signal;
+					}
 				}
 			}
+			
+			return $result;
+		}
+		
+		/**
+		 * Get a standalone signal by name
+		 * @param string $signalName
+		 * @return Signal|null
+		 */
+		public function getStandaloneSignal(string $signalName): ?Signal {
+			return $this->standaloneSignals[$signalName] ?? null;
+		}
+		
+		/**
+		 * Get a signal by owner and name
+		 * @param object $owner Owner object
+		 * @param string $name Signal name
+		 * @return Signal|null
+		 */
+		public function getObjectSignal(object $owner, string $name): ?Signal {
+			$ownerId = spl_object_id($owner);
+			
+			if (!isset($this->registry[$ownerId]) || !isset($this->registry[$ownerId]['signals'][$name])) {
+				return null;
+			}
+			
+			return $this->registry[$ownerId]['signals'][$name];
 		}
 		
 		/**
 		 * Get all registered signals
-		 * @return array<string, Signal>
+		 * @return array
 		 */
-		public function getSignals(): array {
-			return $this->signals;
+		public function getAllSignals(): array {
+			$result = [];
+			
+			// Add standalone signals
+			foreach ($this->standaloneSignals as $name => $signal) {
+				$result[] = [
+					'name' => $name,
+					'signal' => $signal,
+					'paramTypes' => $signal->getParameterTypes(),
+					'connections' => $signal->countConnections(),
+					'standalone' => true
+				];
+			}
+			
+			// Add object signals
+			foreach ($this->registry as $ownerId => $ownerData) {
+				$ownerClass = get_class($ownerData['object']);
+				
+				foreach ($ownerData['signals'] as $signalName => $signal) {
+					$result[] = [
+						'owner' => $ownerData['object'],
+						'class' => $ownerClass,
+						'name' => $signalName,
+						'signal' => $signal,
+						'paramTypes' => $signal->getParameterTypes(),
+						'connections' => $signal->countConnections(),
+						'standalone' => false
+					];
+				}
+			}
+			
+			return $result;
 		}
 	}
