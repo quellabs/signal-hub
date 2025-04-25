@@ -25,10 +25,10 @@
 	    }
 	    
 	    /**
-         * Returns the serialize groups
-         * @return string
-         */
-        public function getGroups(): string {
+	     * Returns the serialize groups
+	     * @return array
+	     */
+        public function getGroups(): array {
             return $this->parameters["groups"];
         }
 	}
