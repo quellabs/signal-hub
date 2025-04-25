@@ -22,12 +22,11 @@
 		
 		/**
 		 * EntityManager constructor
-		 * @param Kernel $kernel
+		 * @param Configuration $configuration
 		 */
-        public function __construct(Kernel $kernel) {
-            $this->kernel = $kernel;
-            $this->connection = new DatabaseAdapter($kernel->getConfiguration());
-	        $this->entity_store = new EntityStore($kernel->getConfiguration());
+        public function __construct(Configuration $configuration) {
+            $this->connection = new DatabaseAdapter($configuration);
+	        $this->entity_store = new EntityStore($configuration);
             $this->unit_of_work = new UnitOfWork($this);
 			$this->query_builder = new QueryBuilder($this->entity_store);
 			$this->query_executor = new QueryExecutor($this);
