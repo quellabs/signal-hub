@@ -2,14 +2,14 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
 	
 	class ProxyGenerator {
 		
 		protected EntityStore $entityStore;
 		protected ReflectionHandler $reflectionHandler;
-		protected AnnotationsReader $annotationReader;
+		protected AnnotationReader $annotationReader;
 		protected string|bool $servicesPath;
 		protected string|false $proxyPath;
 		protected string|false $proxyNamespace;

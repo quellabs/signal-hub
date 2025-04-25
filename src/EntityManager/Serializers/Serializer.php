@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Serializers;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\SerializationGroups;
+	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\ObjectQuel\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\Annotations\SerializationGroups;
 	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
 	use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
@@ -21,7 +21,7 @@
 		protected EntityStore $entityStore;
 		protected PropertyHandler $propertyHandler;
 		protected ReflectionHandler $reflectionHandler;
-		protected AnnotationsReader $annotationReader;
+		protected AnnotationReader $annotationReader;
 		
 		/**
 		 * Serializer constructor
