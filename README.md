@@ -1,10 +1,10 @@
-# PHP Annotations Reader
+# PHP Annotation Reader
 
-A powerful PHP annotations reader for parsing, processing, and caching docblock annotations in PHP classes.
+A powerful PHP annotation reader for parsing, processing, and caching docblock annotations in PHP classes.
 
 ## Overview
 
-The AnnotationsReader component provides robust parsing and caching of PHP docblock annotations, allowing you to define metadata directly within your class docblocks. This approach makes your code more self-documenting and reduces the need for separate configuration files.
+The AnnotationReader component provides robust parsing and caching of PHP docblock annotations, allowing you to define metadata directly within your class docblocks. This approach makes your code more self-documenting and reduces the need for separate configuration files.
 
 ## Features
 
@@ -17,14 +17,14 @@ The AnnotationsReader component provides robust parsing and caching of PHP docbl
 ## Installation
 
 ```bash
-composer require quellabs/annotations-reader
+composer require quellabs/annotation-reader
 ```
 
 ## Usage
 
 ```php
-use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
-use Quellabs\ObjectQuel\EntityManager\Configuration;
+use Quellabs\AnnotationReader\AnnotationsReader;
+use Quellabs\AnnotationReader\Configuration;
 
 // Create configuration
 $config = new Configuration();
@@ -68,7 +68,7 @@ class Product {
 
 ## Configuration
 
-The AnnotationsReader requires a Configuration object that specifies:
+The AnnotationReader requires a Configuration object that specifies:
 
 - Whether to use annotation caching
 - The path to store annotation cache files
