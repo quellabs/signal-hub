@@ -4,7 +4,7 @@
 	
 	/**
 	 * Class LexerException
-	 * @package Quellabs\\ObjectQuel\AnnotationsReader
+	 * @package Quellabs\AnnotationsReader
 	 */
 	class LexerException extends \Exception {
 		/**

@@ -4,7 +4,7 @@
 
     /**
      * Simple lexer to dissect doc blocks
-     * @package Quellabs\\ObjectQuel\AnnotationsReader
+     * @package Quellabs\AnnotationsReader
      */
     class Lexer {
         protected string $string;

@@ -4,7 +4,7 @@
 	
 	/**
 	 * Class Token
-	 * @package Quellabs\\ObjectQuel\AnnotationsReader
+	 * @package Quellabs\AnnotationsReader
 	 */
 	class Token extends BasicEnum {
 		const int None = 0;
