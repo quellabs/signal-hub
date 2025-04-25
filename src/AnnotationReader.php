@@ -84,16 +84,6 @@
 		}
 		
 		/**
-		 * Gets the short class name from a fully qualified name
-		 * @param string $class
-		 * @return string
-		 */
-		protected function getShortClassName(string $class): string {
-			$parts = explode('\\', $class);
-			return end($parts);
-		}
-		
-		/**
 		 * Parse annotations for properties or methods and update the result array.
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
