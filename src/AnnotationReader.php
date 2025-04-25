@@ -4,7 +4,7 @@
 	
 	use Quellabs\AnnotationReader\config\Configuration;
 	
-	class AnnotationsReader {
+	class AnnotationReader {
 		
 		protected UseStatementParser $use_statement_parser;
 		protected string $annotationCachePath;
