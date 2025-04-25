@@ -50,7 +50,7 @@
 			});
 			
 			// AnnotationReader settings
-			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\config\Configuration();
+			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
 			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
 			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
 			

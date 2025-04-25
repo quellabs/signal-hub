@@ -31,7 +31,11 @@
 	     * EntityStore constructor.
 	     */
 		public function __construct(Configuration $configuration) {
-			$this->annotation_reader = new \Quellabs\AnnotationReader\AnnotationReader($configuration);
+			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
+			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
+
+			$this->annotation_reader = new \Quellabs\AnnotationReader\AnnotationReader($annotationReaderConfiguration);
 			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 			$this->entity_properties = [];
@@ -157,9 +161,9 @@
 		
 		/**
          * Returns the annotationReader object
-         * @return AnnotationsReader
+         * @return AnnotationReader
          */
-        public function getAnnotationReader(): AnnotationsReader {
+        public function getAnnotationReader(): AnnotationReader {
             return $this->annotation_reader;
         }
     
