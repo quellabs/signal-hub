@@ -36,15 +36,15 @@
 		
 		/**
 		 * Register this object with a SignalHub
-		 * @param SignalHub $hub
+		 * @param SignalHub|null $hub
 		 * @return void
 		 */
-		public function registerWithHub(SignalHub $hub): void {
-			$this->signalHub = $hub;
+		protected function registerWithHub(?SignalHub $hub = null): void {
+			$this->signalHub = $hub ?? SignalHubLocator::getInstance();
 			
-			// Register all existing signals
+			// Register signals as before
 			foreach ($this->signals as $name => $signal) {
-				$hub->registerSignal($this, $name, $signal);
+				$this->signalHub->registerSignal($this, $name, $signal);
 			}
 		}
 		
