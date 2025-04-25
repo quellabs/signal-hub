@@ -2,8 +2,6 @@
 	
 	namespace Quellabs\AnnotationReader;
 	
-	use Quellabs\AnnotationReader\config\Configuration;
-	
 	class AnnotationReader {
 		
 		protected UseStatementParser $use_statement_parser;

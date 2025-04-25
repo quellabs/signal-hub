@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\AnnotationReader\config;
+	namespace Quellabs\AnnotationReader;
 	
 	/**
 	 * Configuration class for AnnotationReader
