@@ -27,7 +27,6 @@
 				$reflectionClass = new \ReflectionClass($entity);
 				$methods = $reflectionClass->getMethods();
 				$entityStore = $this->unitOfWork->getEntityStore();
-				$kernel = $this->unitOfWork->getEntityManager()->getKernel();
 				
 				foreach ($methods as $method) {
 					$methodName = $method->getName();
@@ -39,7 +38,7 @@
 					
 					foreach ($annotations as $annotation) {
 						if ($annotation instanceof $annotationClass) {
-							$entity->$methodName(... $kernel->autowireClass(get_class($entity), $methodName));
+							$entity->$methodName();
 						}
 					}
 				}

@@ -31,6 +31,7 @@
     "ext-curl": "*",
     "ext-gd": "*",
     "ext-fileinfo": "*",
+    "quellabs/signal-hub": "*",
     "robmorgan/phinx": "^0.13.4",
     "smarty/smarty": "^4.3",
     "symfony/http-foundation": "*",
