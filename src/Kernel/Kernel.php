@@ -5,9 +5,9 @@
     use Dotenv\Dotenv;
     use Dotenv\Exception\InvalidFileException;
     use Dotenv\Exception\InvalidPathException;
-   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\AfterFilter;
-   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\BeforeFilter;
-   use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+    use Quellabs\ObjectQuel\Annotations\AfterFilter;
+    use Quellabs\ObjectQuel\Annotations\BeforeFilter;
+    use Quellabs\AnnotationReader\AnnotationReader;
     use Quellabs\ObjectQuel\EntityManager\Configuration;
     use Quellabs\ObjectQuel\Kernel\Resolvers\AnnotationResolver;
     use Symfony\Component\HttpFoundation\Request;
@@ -21,7 +21,7 @@
 		private ServiceLocator $serviceLocator;
 	    private Autowire $autowire;
 	    private AnnotationResolver $urlResolver;
-	    private AnnotationsReader $annotationReader;
+	    private AnnotationReader $annotationReader;
 	    
 	    /**
 	     * Kernel constructor
@@ -49,10 +49,15 @@
 				return null;
 			});
 			
+			// AnnotationReader settings
+			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\config\Configuration();
+			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
+			
 			// Registreer alle services
 			$this->serviceLocator = new ServiceLocator($this);
 			$this->autowire = new Autowire($this);
-			$this->annotationReader = new AnnotationsReader($configuration);
+			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
 			$this->urlResolver = new AnnotationResolver($this->annotationReader);
 		}
 	    

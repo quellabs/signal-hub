@@ -2,20 +2,20 @@
 	
 	namespace Quellabs\ObjectQuel\Kernel\Resolvers;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
-	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\ObjectQuel\Annotations\Route;
+	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\ObjectQuel\Validation\AnnotationsToValidation;
 	use Symfony\Component\HttpFoundation\Request;
 	
 	class AnnotationResolver {
 		
-		private AnnotationsReader $annotationsReader;
+		private AnnotationReader $annotationsReader;
 		
 		/**
 		 * AnnotationResolver constructor.
-		 * @param AnnotationsReader $annotationsReader
+		 * @param AnnotationReader $annotationsReader
 		 */
-		public function __construct(AnnotationsReader $annotationsReader) {
+		public function __construct(AnnotationReader $annotationsReader) {
 			$this->annotationsReader = $annotationsReader;
 		}
 		

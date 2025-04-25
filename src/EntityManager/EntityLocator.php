@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
+	use Quellabs\AnnotationReader\AnnotationReader;
 	
 	/**
 	 * Responsible for locating and loading entity classes
@@ -15,9 +15,9 @@
 		private Configuration $configuration;
 		
 		/**
-		 * @var AnnotationsReader
+		 * @var AnnotationReader
 		 */
-		private AnnotationsReader $annotationReader;
+		private AnnotationReader $annotationReader;
 		
 		/**
 		 * @var array Discovered entity classes
@@ -27,11 +27,16 @@
 		/**
 		 * Constructor
 		 * @param Configuration $configuration
-		 * @param AnnotationsReader|null $annotationReader
+		 * @param AnnotationReader|null $annotationReader
 		 */
-		public function __construct(Configuration $configuration, ?AnnotationsReader $annotationReader = null) {
+		public function __construct(Configuration $configuration, ?AnnotationReader $annotationReader = null) {
 			$this->configuration = $configuration;
-			$this->annotationReader = $annotationReader ?? new AnnotationsReader();
+			
+			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\config\Configuration();
+			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
+			
+			$this->annotationReader = $annotationReader ?? new AnnotationReader($annotationReaderConfiguration);
 		}
 		
 		/**
@@ -91,7 +96,8 @@
 			if (preg_match('/namespace\s+([^;]+);/s', $contents, $namespaceMatches)) {
 				$namespace = $namespaceMatches[1];
 			} else {
-				$namespace = $this->configuration->getEntityNamespace();
+				//$namespace = $this->configuration->getEntityNamespace();
+				$namespace = '';
 			}
 			
 			// Extract the class name

@@ -2,18 +2,18 @@
     
     namespace Quellabs\ObjectQuel\EntityManager;
     
-    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
-    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
-    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToMany;
-    use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
-    use Quellabs\ObjectQuel\AnnotationsReader\AnnotationsReader;
-   use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
+    use Quellabs\AnnotationReader\AnnotationReader;
+    use Quellabs\ObjectQuel\Annotations\Orm\Column;
+    use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
+    use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
+    use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\Kernel\ReflectionHandler;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     
     class EntityStore {
 	    protected Configuration $configuration;
 	    protected EntityLocator $entity_locator;
-		protected AnnotationsReader $annotation_reader;
+		protected AnnotationReader $annotation_reader;
         protected ReflectionHandler $reflection_handler;
 		protected ProxyGenerator $proxy_generator;
         protected array $entity_properties;
@@ -31,7 +31,7 @@
 	     * EntityStore constructor.
 	     */
 		public function __construct(Configuration $configuration) {
-			$this->annotation_reader = new AnnotationsReader($configuration);
+			$this->annotation_reader = new \Quellabs\AnnotationReader\AnnotationReader($configuration);
 			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
 			$this->entity_properties = [];

@@ -4,21 +4,13 @@
 	
 	use Quellabs\ObjectQuel\Entity\ProductsEntity;
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Route;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Validation\Type;
+	use Quellabs\ObjectQuel\Kernel\Kernel;
 	use Symfony\Component\HttpFoundation\Response;
 	
+	use Quellabs\ObjectQuel\Annotations\Route;
+	use Quellabs\ObjectQuel\Annotations\Validation\Type;
+	
 	class TestController {
-		
-		private EntityManager $entityManager;
-		
-		/**
-		 * TestController controller
-		 * @param EntityManager $entityManager
-		 */
-		public function __construct(EntityManager $entityManager) {
-			$this->entityManager = $entityManager;
-		}
 		
 		/**
 		 * @Route("/hallo/{name}")
@@ -26,11 +18,13 @@
 		 * @param string $name
 		 * @return Response
 		 */
-		public function index(string $name): Response {
-			$entity = $this->entityManager->find(ProductsEntity::class, 1498);
+		public function index(Kernel $kernel, string $name): Response {
+			$entityManager = new EntityManager($kernel->getConfiguration());
 			
-			$this->entityManager->remove($entity);
-			$this->entityManager->flush();
+			$entity = $entityManager->find(ProductsEntity::class, 1469);
+			
+			$entity->setGuid('hoi');
+			$entityManager->flush();
 			
 			return new Response('Hello');
 		}
