@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Validation;
 	
-	class Type {
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
+	class Type implements AnnotationInterface {
 		
 		protected array $parameters;
 		

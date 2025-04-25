@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Validation;
 	
-	class NotBlank {
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
+	class NotBlank implements AnnotationInterface {
 		
 		protected array $parameters;
 		

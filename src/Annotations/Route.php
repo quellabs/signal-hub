@@ -2,10 +2,12 @@
     
     namespace Quellabs\ObjectQuel\Annotations;
     
+    use Quellabs\AnnotationReader\AnnotationInterface;
+    
     /**
      * @Annotation
      */
-    final class Route {
+    final class Route implements AnnotationInterface {
         private mixed $route;
         private array $methods;
         
@@ -24,8 +26,16 @@
                 $this->methods = [$values["methods"]];
             }
         }
-        
-        /**
+	    
+	    /**
+	     * Returns the parameters for this annotation
+	     * @return array
+	     */
+	    public function getParameters(): array {
+		    return [];
+	    }
+	    
+	    /**
          * Fetches the rout
          * @return string
          */

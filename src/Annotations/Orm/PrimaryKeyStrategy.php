@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Orm;
 	
-	class PrimaryKeyStrategy {
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
+	class PrimaryKeyStrategy implements AnnotationInterface {
 		
 		protected array $parameters;
 		
@@ -14,6 +16,14 @@
 			$this->parameters = $parameters;
 		}
 		
+		/**
+		 * Returns the parameters for this annotation
+		 * @return array
+		 */
+		public function getParameters(): array {
+			return $this->parameters;
+		}
+
 		/**
 		 * Returns the chosen strategy.
 		 * @return mixed

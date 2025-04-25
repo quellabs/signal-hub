@@ -2,9 +2,11 @@
     
     namespace Quellabs\ObjectQuel\Annotations\Orm;
     
-    class Table {
+    use Quellabs\AnnotationReader\AnnotationInterface;
+    
+    class Table implements AnnotationInterface {
         
-        protected $parameters;
+        protected array $parameters;
     
         /**
          * Table constructor.
@@ -13,7 +15,15 @@
         public function __construct(array $parameters) {
             $this->parameters = $parameters;
         }
-    
+	    
+	    /**
+	     * Returns the parameters for this annotation
+	     * @return array
+	     */
+	    public function getParameters(): array {
+		    return $this->parameters;
+	    }
+
         /**
          * Returns the table name
          * @return string

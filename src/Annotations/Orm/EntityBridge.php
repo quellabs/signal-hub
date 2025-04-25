@@ -2,9 +2,11 @@
     
     namespace Quellabs\ObjectQuel\Annotations\Orm;
     
-    class EntityBridge {
+    use Quellabs\AnnotationReader\AnnotationInterface;
+    
+    class EntityBridge implements AnnotationInterface {
         
-        protected $parameters;
+        protected array $parameters;
     
         /**
          * EntityBridge constructor.
@@ -13,4 +15,12 @@
         public function __construct(array $parameters) {
             $this->parameters = $parameters;
         }
+	    
+	    /**
+	     * Returns the parameters for this annotation
+	     * @return array
+	     */
+	    public function getParameters(): array {
+		    return $this->parameters;
+	    }
     }

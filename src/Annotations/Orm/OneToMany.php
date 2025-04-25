@@ -2,12 +2,14 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Orm;
 	
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
 	/**
 	 * Class OneToMany
 	 * Deze klasse representeert een OneToMany-relatie in de ORM en bevat verschillende methodes
 	 * om informatie over de relatie te verkrijgen.
 	 */
-	class OneToMany {
+	class OneToMany implements AnnotationInterface {
 		
 		/**
 		 * @var array De parameters die zijn doorgegeven bij de annotatie.
@@ -20,6 +22,14 @@
 		 */
 		public function __construct(array $parameters) {
 			$this->parameters = $parameters;
+		}
+		
+		/**
+		 * Returns the parameters for this annotation
+		 * @return array
+		 */
+		public function getParameters(): array {
+			return $this->parameters;
 		}
 		
 		/**

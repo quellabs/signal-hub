@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Validation;
 	
-	class ValueIn {
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
+	class ValueIn implements AnnotationInterface {
 		
 		protected array $parameters;
 		

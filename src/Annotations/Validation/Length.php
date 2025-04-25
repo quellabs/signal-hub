@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Validation;
 	
-	class Length {
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
+	class Length implements AnnotationInterface {
 		
 		protected array $parameters;
 		

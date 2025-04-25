@@ -2,7 +2,9 @@
     
     namespace Quellabs\ObjectQuel\Annotations\Orm;
     
-    class Column {
+    use Quellabs\AnnotationReader\AnnotationInterface;
+    
+    class Column  implements AnnotationInterface {
         
         protected $parameters;
     
@@ -13,8 +15,16 @@
         public function __construct(array $parameters) {
             $this->parameters = $parameters;
         }
-        
-        public function getName() {
+	    
+	    /**
+	     * Returns the parameters for this annotation
+	     * @return array
+	     */
+	    public function getParameters(): array {
+		    return $this->parameters;
+	    }
+		
+	    public function getName() {
             return $this->parameters["name"];
         }
 

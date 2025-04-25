@@ -2,10 +2,12 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Orm;
 	
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
 	/**
 	 * Definieert de OneToOne klasse die de relatie tussen entiteiten beschrijft
 	 */
-	class OneToOne {
+	class OneToOne implements AnnotationInterface {
 		
 		// Bevat parameters die extra informatie over de relatie geven
 		protected array $parameters;
@@ -16,6 +18,14 @@
 		 */
 		public function __construct(array $parameters) {
 			$this->parameters = $parameters;
+		}
+		
+		/**
+		 * Returns the parameters for this annotation
+		 * @return array
+		 */
+		public function getParameters(): array {
+			return $this->parameters;
 		}
 		
 		/**

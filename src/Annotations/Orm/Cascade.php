@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\Annotations\Orm;
 	
+	use Quellabs\AnnotationReader\AnnotationInterface;
+	
 	/**
 	 * Class Cascade
 	 *
@@ -10,7 +12,7 @@
 	 *
 	 * @package Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm
 	 */
-	class Cascade {
+	class Cascade implements AnnotationInterface {
 		
 		/**
 		 * Contains all parameters defined in the annotation
@@ -26,6 +28,14 @@
 			$this->parameters = $parameters;
 		}
 		
+		/**
+		 * Returns the parameters for this annotation
+		 * @return array
+		 */
+		public function getParameters(): array {
+			return $this->parameters;
+		}
+
 		/**
 		 * Get the operations that should cascade
 		 *
