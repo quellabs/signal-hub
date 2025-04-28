@@ -264,6 +264,81 @@
 		}
 		
 		/**
+		 * Resolves a partially qualified class name against imported namespaces.
+		 * Caches results for faster repeated lookups.
+		 * @param string $className The class name to resolve (e.g., "Validation\Type")
+		 * @return string Fully qualified class name if resolved, otherwise original class name.
+		 */
+		private function resolveClassReference(string $className): string {
+			static $cache = [];
+			
+			if (isset($cache[$className])) {
+				return $cache[$className];
+			}
+			
+			// If the class name does not contain a namespace separator, no resolution needed
+			if (!str_contains($className, '\\')) {
+				return $cache[$className] = $className;
+			}
+			
+			$parts = explode('\\', $className);
+			$firstPart = $parts[0];
+			$lastPart = end($parts);
+			
+			// Preprocess imports once: explode all into segments
+			$importSegments = array_map(function ($importedClass) {
+				return explode('\\', $importedClass);
+			}, $this->imports);
+			
+			// 1. Look for an import that contains the first part
+			foreach ($importSegments as $alias => $segments) {
+				$position = array_search($firstPart, $segments, true);
+				
+				if ($position !== false) {
+					$baseNamespace = implode('\\', array_slice($segments, 0, $position));
+					$candidateClass = $baseNamespace . '\\' . $className;
+					
+					if (class_exists($candidateClass) || interface_exists($candidateClass)) {
+						return $cache[$className] = $candidateClass;
+					}
+				}
+			}
+			
+			// 2. Try to match the last part with imported classes that contain the first part
+			foreach ($this->imports as $importedClass) {
+				if (str_ends_with($importedClass, '\\' . $lastPart) && str_contains($importedClass, '\\' . $firstPart . '\\')) {
+					return $cache[$className] = $importedClass;
+				}
+			}
+			
+			// 3. Build a list of parent namespaces
+			$potentialNamespaces = [];
+			
+			foreach ($importSegments as $segments) {
+				array_pop($segments); // Remove the class name
+				$currentNamespace = '';
+				
+				foreach ($segments as $segment) {
+					$currentNamespace .= ($currentNamespace ? '\\' : '') . $segment;
+					$potentialNamespaces[] = $currentNamespace;
+				}
+			}
+			
+			// Sort by length descending so deeper namespaces are tried first
+			usort($potentialNamespaces, fn($a, $b) => strlen($b) <=> strlen($a));
+			
+			foreach ($potentialNamespaces as $namespace) {
+				$candidateClass = $namespace . '\\' . $className;
+				
+				if (class_exists($candidateClass) || interface_exists($candidateClass)) {
+					return $cache[$className] = $candidateClass;
+				}
+			}
+			
+			return $cache[$className] = $className;
+		}
+		
+		/**
 		 * Resolve a class name using the imports
 		 * @param string $className Name or alias of the class
 		 * @return string Fully qualified class name
@@ -285,17 +360,20 @@
 				$alias = $parts[0];
 				$rest = $parts[1];
 				
+				// Direct match for the first part
 				if (isset($this->imports[$alias])) {
 					return $this->imports[$alias] . '\\' . $rest;
 				}
 				
-				// If it contains namespace separators but doesn't match any import,
-				// assume it's a fully qualified class name relative to the global namespace
-				return $className;
+				// Try our generic partial namespace resolver
+				$resolved = $this->resolveClassReference($className);
+				
+				if ($resolved !== $className) {
+					return $resolved;
+				}
 			}
 			
-			// If we reach here, it's a simple class name with no namespace
-			// Return as is - will be looked up in default namespaces
+			// Return as is if nothing matched
 			return $className;
 		}
 		
