@@ -69,7 +69,11 @@
 			
 			// Determine if sorting should be done in application logic
 			// This happens when sort contains method calls and InValuesAreFinal directive is not set
-			$this->sortInApplicationLogic = $retrieve->getSortInApplicationLogic() && empty($retrieve->getDirective('InValuesAreFinal'));
+			$this->sortInApplicationLogic =
+				$retrieve->sortContainsJsonIdentifier() || (
+					$retrieve->getSortInApplicationLogic() &&
+					empty($retrieve->getDirective('InValuesAreFinal'))
+				);
 			
 			// Initialize iterator position
 			$this->index = 0;

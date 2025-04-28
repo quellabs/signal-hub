@@ -4,6 +4,7 @@
 	
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsJsonIdentifier;
 	
 	/**
 	 * Class AstRetrieve
@@ -328,6 +329,36 @@
 		 */
 		public function getSortInApplicationLogic(): bool {
 			return $this->sort_in_application_logic;
+		}
+		
+		/**
+		 * Checks if the sort criteria contains a JSON identifier.
+		 * @return bool True if sort contains a JSON identifier or if an exception is thrown during processing, false if sort is empty
+		 */
+		public function sortContainsJsonIdentifier(): bool {
+			// Return false if the sort array is empty
+			if (empty($this->sort)) {
+				return false;
+			}
+			
+			// Create a visitor object that will check for JSON identifiers
+			$visitor = new ContainsJsonIdentifier();
+			
+			try {
+				// Iterate through each value in the sort array
+				// and apply the visitor pattern by calling accept() on each value
+				foreach ($this->sort as $value) {
+					$value["ast"]->accept($visitor);
+				}
+			} catch (\Exception $e) {
+				// If an exception occurs during processing,
+				// assume there is a JSON identifier and return true
+				return true;
+			}
+			
+			// If no exception was thrown and the sort was not empty,
+			// return false (indicating it contains no JSON identifier)
+			return false;
 		}
 
 		/**
