@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\AnnotationReader\Annotation;
+	namespace Quellabs\AnnotationReader;
 	
 	interface AnnotationInterface {
 		

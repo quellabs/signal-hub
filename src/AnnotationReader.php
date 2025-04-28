@@ -156,6 +156,7 @@
 		 * Retrieve all annotations for a given class, caching the results for performance.
 		 * @param mixed $class The fully qualified class name to get annotations for.
 		 * @return array An array containing all annotations for the class, its properties, and its methods.
+		 * @throws ParserException
 		 */
 		protected function getAllObjectAnnotations(mixed $class): array {
 			try {
@@ -200,10 +201,8 @@
 				
 				// Return the annotations to the caller
 				return $annotations;
-			} catch (\ReflectionException $e) {
-				// If reflection fails (e.g., class doesn't exist), return an empty array
-				// This provides graceful error handling rather than throwing exceptions
-				return [];
+			} catch (LexerException | \ReflectionException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
 		}
 		
@@ -211,20 +210,16 @@
 		 * Parses a string and returns the found annotations, with import resolution
 		 * @param string $string The docblock to parse
 		 * @param array $imports Map of aliases to fully qualified class names
-		 * @param string|null &$errorMessage Optional error message reference
 		 * @return array
+		 * @throws ParserException
 		 */
-		protected function getAnnotationsWithImports(string $string, array $imports, ?string &$errorMessage=null): array {
+		protected function getAnnotationsWithImports(string $string, array $imports): array {
 			try {
 				$lexer = new Lexer($string);
 				$parser = new Parser($lexer, $this->configuration, $imports);
 				return $parser->parse();
-			} catch (LexerException | ParserException $e) {
-				if ($errorMessage !== null) {
-					$errorMessage = $e->getMessage();
-				}
-				
-				return [];
+			} catch (LexerException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
 		}
 		
@@ -232,6 +227,7 @@
 		 * Takes a class's docComment and parses it
 		 * @param mixed $class
 		 * @return array
+		 * @throws ParserException
 		 */
 		public function getClassAnnotations(mixed $class): array {
 			$annotations = $this->getAllObjectAnnotations($class);
@@ -243,6 +239,7 @@
 		 * @param mixed $class
 		 * @param string $method
 		 * @return array
+		 * @throws ParserException
 		 */
 		public function getMethodAnnotations(mixed $class, string $method): array {
 			$annotations = $this->getAllObjectAnnotations($class);
@@ -254,6 +251,7 @@
 		 * @param mixed $class
 		 * @param string $property
 		 * @return array
+		 * @throws ParserException
 		 */
 		public function getPropertyAnnotations(mixed $class, string $property): array {
 			$annotations = $this->getAllObjectAnnotations($class);
@@ -263,20 +261,16 @@
 		/**
 		 * Parses a string and returns the found annotations
 		 * @param $string
-		 * @param string|null &$errorMessage Optional error message reference
 		 * @return array
+		 * @throws ParserException
 		 */
-		public function getAnnotations($string, ?string &$errorMessage=null): array {
+		public function getAnnotations($string): array {
 			try {
 				$lexer = new Lexer($string);
 				$parser = new Parser($lexer, $this->configuration);
 				return $parser->parse();
-			} catch (LexerException | ParserException $e) {
-				if ($errorMessage !== null) {
-					$errorMessage = $e->getMessage();
-				}
-				
-				return [];
+			} catch (LexerException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
 		}
 	}

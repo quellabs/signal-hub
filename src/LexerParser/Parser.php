@@ -271,7 +271,7 @@
 		protected function resolveClassName(string $className): string {
 			// Already fully qualified
 			if (str_starts_with($className, '\\')) {
-				return $className;
+				return substr($className, 1); // Remove the leading backslash
 			}
 			
 			// Check if it's an imported alias
@@ -289,23 +289,12 @@
 					return $this->imports[$alias] . '\\' . $rest;
 				}
 				
-				// Handle the handle case where imported fully qualified class with segments is used with fewer segments.
-				// E.g., imported "A\B\C\D" but using "@B\C\D" or "@C\D"
-				foreach ($this->imports as $importAlias => $importClass) {
-					$importParts = explode('\\', $importClass);
-					$matchParts = array_intersect($importParts, explode('\\', $className));
-					
-					if (count($matchParts) > 0) {
-						// Check if segments match and are in the right order
-						$importSegments = implode('\\', array_slice($importParts, -count($matchParts)));
-						
-						if ($importSegments === implode('\\', $matchParts)) {
-							return $importClass;
-						}
-					}
-				}
+				// If it contains namespace separators but doesn't match any import,
+				// assume it's a fully qualified class name relative to the global namespace
+				return $className;
 			}
 			
+			// If we reach here, it's a simple class name with no namespace
 			// Return as is - will be looked up in default namespaces
 			return $className;
 		}
