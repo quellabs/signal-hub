@@ -2,13 +2,9 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
-	use Quellabs\ObjectQuel\Kernel\Kernel;
-	use Quellabs\ObjectQuel\Kernel\ServiceInterface;
-	
-	class CommandRunner implements ServiceInterface {
+	class CommandRunner {
 
 		protected array $commands;
-		protected Kernel $kernel;
 		protected ConsoleOutput $consoleOutput;
 		protected ConsoleInput $consoleInput;
 		
@@ -23,11 +19,9 @@
 		
 		/**
 		 * CommandRunner constructor
-		 * @param Kernel $kernel
 		 */
-		public function __construct(Kernel $kernel) {
+		public function __construct() {
 			$this->commands = [];
-			$this->kernel = $kernel;
 			$this->consoleOutput = new ConsoleOutput();
 			$this->consoleInput = new ConsoleInput($this->consoleOutput);
 			
@@ -75,7 +69,7 @@
 			// Check if the command exists. If so, execute it.
 			if (isset($this->commands[$commandName])) {
 				$className = $this->commands[$commandName];
-				$object = new $className(... $this->kernel->autowireClass($className));
+				$object = new $className();
 				$object->execute($args);
 				return;
 			}
@@ -160,23 +154,5 @@
 		 */
 		public function supports(string $class): bool {
 			return in_array($class, self::SUPPORTED_CLASSES, true);
-		}
-		
-		/**
-		 * Returns an instance of the requested class
-		 * @param class-string $class
-		 * @param array<string, mixed> $parameters Currently unused, but kept for interface compatibility
-		 * @return object|null The requested instance or null if class is not supported
-		 */
-		public function getInstance(string $class, array $parameters = []): ?object {
-			if (php_sapi_name() !== 'cli') {
-				return null;
-			}
-			
-			return match ($class) {
-				ConsoleOutput::class => $this->consoleOutput,
-				ConsoleInput::class => $this->consoleInput,
-				default => null
-			};
 		}
 	}

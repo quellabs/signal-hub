@@ -3,9 +3,9 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToMany;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
+	use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
+	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;

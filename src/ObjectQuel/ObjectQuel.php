@@ -2,34 +2,31 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\ManyToOne;
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\OneToOne;
-	use Quellabs\ObjectQuel\EntityManager\DatabaseAdapter;
+	use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
+	use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\Annotations\Orm\RequiredRelation;
+	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
 	use Quellabs\ObjectQuel\EntityManager\EntityManager;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExists;
-	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
-	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
-	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
-	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
-   use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\RequiredRelation;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AddNamespacesToEntities;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AddRangeToEntityWhenItsMissing;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AliasPlugAliasPattern;
-	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsMethodCall;
+	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsCheckIsNullForRange;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ContainsRange;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityExistenceValidator;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityPlugMacros;
-	use Quellabs\ObjectQuel\ObjectQuel\Visitors\AddRangeToEntityWhenItsMissing;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityProcessMacro;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityProcessRange;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\EntityPropertyValidator;
-	use Quellabs\ObjectQuel\ObjectQuel\Visitors\FetchMethodCalls;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GatherReferenceJoinValues;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAst;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\GetMainEntityInAstException;
@@ -37,8 +34,8 @@
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\RangeOnlyReferencesOtherRanges;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\TransformRelationInViaToPropertyLookup;
 	use Quellabs\ObjectQuel\ObjectQuel\Visitors\ValidateRelationInViaValid;
-    
-    class ObjectQuel {
+	
+	class ObjectQuel {
 		
 		private EntityStore $entityStore;
 		private EntityManager $entityManager;
@@ -713,7 +710,7 @@
 			$e->setValues([new AstAlias("primary", $astIdentifier)]);
 			
 			// Converteer de aangepaste AstRetrieve naar SQL en voer uit.
-			$sql = $this->convertToSQL($e);
+			$sql = $this->convertToSQL($e, $parameters);
 			$primaryKeys = $this->connection->GetCol($sql, $parameters);
 			$this->fullQueryResultCount = count($primaryKeys);
 			

@@ -34,12 +34,7 @@
     "quellabs/signal-hub": "dev-main",
     "quellabs/annotation-reader": "dev-main",
     "robmorgan/phinx": "^0.13.4",
-    "smarty/smarty": "^4.3",
-    "symfony/http-foundation": "*",
-    "symfony/finder": "*",
-    "symfony/http-client": "*",
     "cakephp/database": "^4.4",
-    "vlucas/phpdotenv": "*",
     "softcreatr/jsonpath": "*"
   },
   "autoload": {

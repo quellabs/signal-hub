@@ -4,15 +4,16 @@
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	// Importeer de vereiste klassen en interfaces
-	use Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm\Column;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBool;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNotNull;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstConcat;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCount;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstFactor;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIn;
@@ -33,9 +34,8 @@
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstUCount;
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNotNull;
-    
-    /**
+	
+	/**
 	 * Class QuelToSQLConvertToString
 	 * Implementeert AstVisitor om entiteiten uit een AST te verzamelen.
 	 */

@@ -2,8 +2,14 @@
 	
     namespace Quellabs\ObjectQuel\EntityManager;
 	
-	use Quellabs\ObjectQuel\Kernel\Kernel;
-	use Quellabs\ObjectQuel\Kernel\PropertyHandler;
+	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\Core\OrmException;
+	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
+	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
+	use Quellabs\ObjectQuel\EntityManager\Query\QueryBuilder;
+	use Quellabs\ObjectQuel\EntityManager\Query\QueryExecutor;
+	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
 	use Quellabs\ObjectQuel\Validation\EntityToValidation;
@@ -12,7 +18,6 @@
 	 * Represents an Entity Manager.
 	 */
 	class EntityManager {
-		protected Kernel $kernel;
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
 		protected EntityStore $entity_store;
@@ -63,14 +68,6 @@
 		 */
 		public function getPropertyHandler(): PropertyHandler {
 			return $this->property_handler;
-		}
-		
-		/**
-		 * Returns the kernel object
-		 * @return Kernel
-		 */
-		public function getKernel(): Kernel {
-			return $this->kernel;
 		}
 		
         /**
@@ -222,15 +219,5 @@
 		 */
 		public function supports(string $class): bool {
 			return false;
-		}
-		
-		/**
-		 * Returns an instance of the requested class
-		 * @param class-string $class
-		 * @param array<string, mixed> $parameters Currently unused, but kept for interface compatibility
-		 * @return object|null The requested instance or null if class is not supported
-		 */
-		public function getInstance(string $class, array $parameters = []): ?object {
-			return null;
 		}
 	}
