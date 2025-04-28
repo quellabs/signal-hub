@@ -25,5 +25,13 @@
     "psr-4": {
       "Quellabs\\AnnotationReader\\": "src/"
     }
+  },
+  "require-dev": {
+    "pestphp/pest": "^3.8"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
   }
 }
