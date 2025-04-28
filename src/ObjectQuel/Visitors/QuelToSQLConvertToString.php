@@ -452,10 +452,10 @@
 
 		/**
 		 * Verwerkt een entity
-		 * @param AstIdentifier $ast
+		 * @param AstInterface $ast
 		 * @return void
 		 */
-		protected function handleEntity(AstIdentifier $ast): void {
+		protected function handleEntity(AstInterface $ast): void {
 			$result = [];
 			$range = $ast->getRange();
 			$rangeName = $range->getName();

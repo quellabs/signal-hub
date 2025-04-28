@@ -3,6 +3,8 @@
 	namespace Quellabs\ObjectQuel\EntityManager\Execution;
 	
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRange;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	
@@ -51,9 +53,9 @@
 		
 		/**
 		 * The attached range
-		 * @var AstRange|null
+		 * @var AstRangeDatabase|AstRangeJsonSource|null
 		 */
-		private ?AstRange $range;
+		private AstRangeDatabase|AstRangeJsonSource|null $range;
 		
 		/**
 		 * Create a new execution stage
@@ -142,9 +144,9 @@
 		
 		/**
 		 * Gets the query type
-		 * @return AstRange|null
+		 * @return AstRangeDatabase|AstRangeJsonSource|null
 		 */
-		public function getRange(): ?AstRange {
+		public function getRange(): AstRangeDatabase|AstRangeJsonSource|null {
 			return $this->range;
 		}
 		

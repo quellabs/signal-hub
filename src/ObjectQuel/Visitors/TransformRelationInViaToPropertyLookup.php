@@ -57,8 +57,12 @@
 		 * @return AstExpression
 		 */
 		public function createPropertyLookupAst(string $propertyA, AstRange $rangeB, string $propertyB): AstInterface {
-			$identifierA = new AstIdentifier(clone $this->range->getEntity(), $propertyA);
-			$identifierB = new AstIdentifier(clone $rangeB->getEntity(), $propertyB);
+			$identifierA = new AstIdentifier($this->range->getEntityName());
+			$identifierA->setNext(new AstIdentifier($propertyA));
+			
+			$identifierB = new AstIdentifier($rangeB->getEntityName());
+			$identifierB->setNext(new AstIdentifier($propertyB));
+			
 			return new AstExpression($identifierA, $identifierB, '=');
 		}
 		
@@ -70,7 +74,7 @@
 		 */
 		public function createPropertyLookupAstUsingRelation(AstIdentifier $joinProperty, mixed $relation): AstInterface {
 			// Haal de entiteit en range op van de join property
-			$entity = $joinProperty->getParentIdentifier();
+			$entity = $joinProperty->getParent();
 			$range = $entity->getRange();
 			$relationColumn = $relation->getRelationColumn();
 			

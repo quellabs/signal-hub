@@ -7,6 +7,7 @@
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstExpression;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstNumber;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstParameter;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstString;
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
@@ -35,9 +36,12 @@
 				case AstString::class:
 				case AstBool::class:
 					return $ast->getValue();
-				
+					
 				case AstIdentifier::class:
 					return $row[$ast->getCompleteName()];
+				
+				case AstParameter::class:
+					return $initialParams[$ast->getName()];
 				
 				case AstExpression::class:
 					$left = $this->evaluate($ast->getLeft(), $row, $initialParams);
