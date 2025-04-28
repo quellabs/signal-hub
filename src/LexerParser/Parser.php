@@ -14,6 +14,11 @@
 		 * @var array<string, string> Map of aliases to fully qualified class names
 		 */
 		protected array $imports = [];
+
+		/**
+		 * @var array Cache property
+		 */
+		private array $classReferenceCache = [];
 		
 		/**
 		 * @var array<string, mixed> Configuration array
@@ -270,15 +275,14 @@
 		 * @return string Fully qualified class name if resolved, otherwise original class name.
 		 */
 		private function resolveClassReference(string $className): string {
-			static $cache = [];
-			
-			if (isset($cache[$className])) {
-				return $cache[$className];
+			// Return cached data if available
+			if (isset($this->classReferenceCache[$className])) {
+				return $this->classReferenceCache[$className];
 			}
 			
 			// If the class name does not contain a namespace separator, no resolution needed
 			if (!str_contains($className, '\\')) {
-				return $cache[$className] = $className;
+				return $this->classReferenceCache[$className] = $className;
 			}
 			
 			$parts = explode('\\', $className);
@@ -299,7 +303,7 @@
 					$candidateClass = $baseNamespace . '\\' . $className;
 					
 					if (class_exists($candidateClass) || interface_exists($candidateClass)) {
-						return $cache[$className] = $candidateClass;
+						return $this->classReferenceCache[$className] = $candidateClass;
 					}
 				}
 			}
@@ -307,7 +311,7 @@
 			// 2. Try to match the last part with imported classes that contain the first part
 			foreach ($this->imports as $importedClass) {
 				if (str_ends_with($importedClass, '\\' . $lastPart) && str_contains($importedClass, '\\' . $firstPart . '\\')) {
-					return $cache[$className] = $importedClass;
+					return $this->classReferenceCache[$className] = $importedClass;
 				}
 			}
 			
@@ -331,11 +335,11 @@
 				$candidateClass = $namespace . '\\' . $className;
 				
 				if (class_exists($candidateClass) || interface_exists($candidateClass)) {
-					return $cache[$className] = $candidateClass;
+					return $this->classReferenceCache[$className] = $candidateClass;
 				}
 			}
 			
-			return $cache[$className] = $className;
+			return $this->classReferenceCache[$className] = $className;
 		}
 		
 		/**
