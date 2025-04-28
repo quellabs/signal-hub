@@ -211,13 +211,4 @@
 			$validate = new EntityToValidation();
 			return $validate->convert($entity);
 		}
-		
-		/**
-		 * Checks if the Service supports the given class
-		 * @param class-string $class
-		 * @return bool
-		 */
-		public function supports(string $class): bool {
-			return false;
-		}
 	}
