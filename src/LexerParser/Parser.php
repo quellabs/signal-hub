@@ -1,6 +1,9 @@
 <?php
 	
-	namespace Quellabs\AnnotationReader;
+	namespace Quellabs\AnnotationReader\LexerParser;
+	
+	use Quellabs\AnnotationReader\Exception\LexerException;
+	use Quellabs\AnnotationReader\Exception\ParserException;
 	
 	class Parser {
 		

@@ -2,6 +2,12 @@
 	
 	namespace Quellabs\AnnotationReader;
 	
+	use Quellabs\AnnotationReader\Exception\LexerException;
+	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\AnnotationReader\LexerParser\Lexer;
+	use Quellabs\AnnotationReader\LexerParser\Parser;
+	use Quellabs\AnnotationReader\LexerParser\UseStatementParser;
+	
 	class AnnotationReader {
 		
 		protected UseStatementParser $use_statement_parser;
@@ -9,8 +15,6 @@
 		protected bool $useCache;
 		protected array $configuration;
 		protected array $cached_annotations;
-		protected array $cached_annotations_filemtime;
-		protected array $cached_annotations_filemtime_checked;
 		
 		/**
 		 * AnnotationReader constructor
@@ -28,18 +32,6 @@
 			
 			// read cached data
 			$this->cached_annotations = [];
-			$this->cached_annotations_filemtime = [];
-			$this->cached_annotations_filemtime_checked = [];
-			
-			if ($this->useCache) {
-				foreach (scandir($configuration->getAnnotationCachePath()) as $file) {
-					if (str_ends_with($file, '.cache')) {
-						$this->cached_annotations[$file] = unserialize(file_get_contents("{$this->annotationCachePath}/{$file}"));
-						$this->cached_annotations_filemtime[$file] = filemtime("{$this->annotationCachePath}/{$file}");
-						$this->cached_annotations_filemtime_checked[$file] = false;
-					}
-				}
-			}
 		}
 		
 		/**
@@ -52,20 +44,13 @@
 		}
 		
 		/**
-		 * Returns true if the cache should be updated, false if not
+		 * Reads from cache
 		 * @param string $cacheFilename
-		 * @param \ReflectionClass $reflection
-		 * @return bool
+		 * @return array
 		 */
-		protected function shouldUpdateCache(string $cacheFilename, \ReflectionClass $reflection): bool {
-			return (
-				!isset($this->cached_annotations[$cacheFilename]) ||
-				!is_array($this->cached_annotations[$cacheFilename]) ||
-				(
-					!$this->cached_annotations_filemtime_checked[$cacheFilename] &&
-					(filemtime($reflection->getFileName()) >= $this->cached_annotations_filemtime[$cacheFilename])
-				)
-			);
+		protected function readCacheFromFile(string $cacheFilename): array {
+			$cachePath = "{$this->annotationCachePath}/{$cacheFilename}";
+			return unserialize(file_get_contents($cachePath));
 		}
 		
 		/**
@@ -74,11 +59,36 @@
 		 * @param array $annotations
 		 * @return void
 		 */
-		protected function updateCache(string $cacheFilename, array $annotations): void {
+		protected function writeCacheToFile(string $cacheFilename, array $annotations): void {
 			$cachePath = "{$this->annotationCachePath}/{$cacheFilename}";
 			file_put_contents($cachePath, serialize($annotations));
-			$this->cached_annotations[$cacheFilename] = $annotations;
-			$this->cached_annotations_filemtime[$cacheFilename] = filemtime($cachePath);
+		}
+		
+		/**
+		 * Validates whether the annotation cache for a class is still valid.
+		 * @param string $cacheFilename The name of the cache file to check
+		 * @param \ReflectionClass $reflection Reflection object for the class being cached
+		 * @return bool Returns true if the cache is valid, false if it needs to be regenerated
+		 */
+		protected function cacheValid(string $cacheFilename, \ReflectionClass $reflection): bool {
+			// Check if the cache file exists at all
+			// If it doesn't exist, we need to generate the cache so return false
+			if (!file_exists("{$this->annotationCachePath}/{$cacheFilename}")) {
+				return false;
+			}
+			
+			// Get the last modification time of the class file
+			// This helps us determine if the class has been changed since cache creation
+			$classCreateDate = filemtime($reflection->getFileName());
+			
+			// Get the last modification time of the cache file
+			// This tells us when the cache was last generated
+			$cacheCreateDate = filemtime("{$this->annotationCachePath}/{$cacheFilename}");
+			
+			// Compare timestamps to determine cache validity
+			// Return true if the cache was created after the class was last modified
+			// Return false if the class has been modified since the cache was created
+			return $classCreateDate <= $cacheCreateDate;
 		}
 		
 		/**
@@ -150,32 +160,49 @@
 		protected function getAllObjectAnnotations(mixed $class): array {
 			try {
 				// Create a ReflectionClass object for the given class
+				// This provides metadata about the class structure and properties
 				$reflection = new \ReflectionClass($class);
 				$className = $reflection->getName();
 				
 				// Generate a cache filename based on the class name
+				// This provides a unique identifier for storing and retrieving cached annotations
 				$cacheFilename = $this->generateCacheFilename($className);
 				
-				// Read all annotations for the class or fetch it from the cache if possible
-				if (!$this->useCache) {
-					$annotations = $this->readAllObjectAnnotations($class);
-				} elseif ($this->shouldUpdateCache($cacheFilename, $reflection)) {
-					// Read all annotations for the class
-					$annotations = $this->readAllObjectAnnotations($class);
-					
-					// Update the cache with the new annotations
-					$this->updateCache($cacheFilename, $annotations);
-				} else {
-					$annotations = $this->cached_annotations[$cacheFilename];
+				// Check if annotations for this class are already cached in memory
+				// If so, return them immediately to avoid redundant processing
+				if (isset($this->cached_annotations[$cacheFilename])) {
+					return $this->cached_annotations[$cacheFilename];
 				}
 				
-				// Mark this cache file as checked for file modification time
-				$this->cached_annotations_filemtime_checked[$cacheFilename] = true;
+				// If caching is disabled or no cache path is set, process annotations directly
+				// We still store in memory cache to avoid redundant processing within the same request
+				if (!$this->useCache || empty($this->annotationCachePath)) {
+					$this->cached_annotations[$cacheFilename] = $this->readAllObjectAnnotations($class);
+					return $this->cached_annotations[$cacheFilename];
+				}
 				
-				// Return the annotations
+				// Check if a valid cache file exists and is up to date
+				// This compares file modification times to determine if cache is stale
+				if ($this->cacheValid($className, $reflection)) {
+					$this->cached_annotations[$cacheFilename] = $this->readCacheFromFile($cacheFilename);
+					return $this->cached_annotations[$cacheFilename];
+				}
+				
+				// If no valid cache exists, parse the annotations directly from the class
+				$annotations = $this->readAllObjectAnnotations($class);
+				
+				// Write the newly parsed annotations to the cache file
+				// This will speed up future requests for this class's annotations
+				$this->writeCacheToFile($cacheFilename, $annotations);
+				
+				// Also store the annotations in memory cache for this request lifecycle
+				$this->cached_annotations[$cacheFilename] = $annotations;
+				
+				// Return the annotations to the caller
 				return $annotations;
 			} catch (\ReflectionException $e) {
-				// Return an empty array if a ReflectionException occurs
+				// If reflection fails (e.g., class doesn't exist), return an empty array
+				// This provides graceful error handling rather than throwing exceptions
 				return [];
 			}
 		}

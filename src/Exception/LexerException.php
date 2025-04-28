@@ -1,12 +1,12 @@
 <?php
 	
-	namespace Quellabs\AnnotationReader;
+	namespace Quellabs\AnnotationReader\Exception;
 	
 	/**
-	 * Class ParserException
+	 * Class LexerException
 	 * @package Quellabs\AnnotationsReader
 	 */
-	class ParserException extends \Exception {
+	class LexerException extends \Exception {
 		/**
 		 * Redefine the exception so message isn't optional
 		 * @param string $message

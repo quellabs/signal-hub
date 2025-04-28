@@ -1,7 +1,9 @@
 <?php
 	
-	namespace Quellabs\AnnotationReader;
+	namespace Quellabs\AnnotationReader\LexerParser;
 
+    use Quellabs\AnnotationReader\Exception\LexerException;
+    
     /**
      * Simple lexer to dissect doc blocks
      * @package Quellabs\AnnotationsReader
