@@ -51,9 +51,9 @@
 		private ?int $window;
 		
 		/**
-		 * Number of items per page (for pagination functionality)
+		 * Number of items per window (for pagination functionality)
 		 */
-		private ?int $pageSize;
+		private ?int $windowSize;
 		
 		/**
 		 * Constructor initializes helpers and processes the raw data into structured results
@@ -76,7 +76,7 @@
 			
 			// Set pagination parameters
 			$this->window = $retrieve->getWindow();
-			$this->pageSize = $retrieve->getPageSize();
+			$this->windowSize = $retrieve->getWindowSize();
 			
 			// Get values from the AST (Abstract Syntax Tree)
 			$ast = $retrieve->getValues();
@@ -170,8 +170,8 @@
 		 * Part of the pagination mechanism
 		 * @return int|null Current page size or null if pagination is not active
 		 */
-		public function getPageSize(): ?int {
-			return $this->pageSize;
+		public function getWindowSize(): ?int {
+			return $this->windowSize;
 		}
 		
 		/**

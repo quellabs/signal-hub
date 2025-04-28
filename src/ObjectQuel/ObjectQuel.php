@@ -705,8 +705,8 @@
 			$e->setUnique(true);
 			
 			// Maak een nieuw AST-element voor de primaire sleutel.
-			$astEntity = new AstEntity($primaryKeyInfo['entityName'], clone $primaryKeyInfo['range']);
-			$astIdentifier = new AstIdentifier($astEntity, $primaryKeyInfo['primaryKey']);
+			$astIdentifier = new AstIdentifier($primaryKeyInfo['entityName']);
+			$astIdentifier->setNext(new AstIdentifier($primaryKeyInfo['primaryKey']));
 			$e->setValues([new AstAlias("primary", $astIdentifier)]);
 			
 			// Converteer de aangepaste AstRetrieve naar SQL en voer uit.
@@ -715,7 +715,7 @@
 			$this->fullQueryResultCount = count($primaryKeys);
 			
 			// Filter de primaire sleutels voor de specifieke paginatie window.
-			$primaryKeysFiltered = array_slice($primaryKeys, $e->getWindow() * $e->getPageSize(), $e->getPageSize());
+			$primaryKeysFiltered = array_slice($primaryKeys, $e->getWindow() * $e->getWindowSize(), $e->getWindowSize());
 			$newParameters = array_map(function($item) { return new AstNumber($item); }, $primaryKeysFiltered);
 			
 			// Herstel de originele query waarden.
@@ -752,8 +752,8 @@
 		private function addPaginationDataToQuerySkipInValidation(AstRetrieve &$e, array $parameters, array $primaryKeyInfo): void {
 			try {
 				// Maak een AstIdentifier waarmee we kunnen zoeken naar een IN()
-				$astEntity = new AstEntity($primaryKeyInfo['entityName'], clone $primaryKeyInfo['range']);
-				$astIdentifier = new AstIdentifier($astEntity, $primaryKeyInfo['primaryKey']);
+				$astIdentifier = new AstIdentifier($primaryKeyInfo['entityName']);
+				$astIdentifier->setNext(new AstIdentifier($primaryKeyInfo['primaryKey']));
 				
 				// Zoek de IN() op in de query. An exception thrown here means it's found and is not an error
 				$visitor = new GetMainEntityInAst($astIdentifier);
@@ -768,7 +768,7 @@
 				$this->fullQueryResultCount = count($astObject->getParameters());
 				
 				// Pas de IN() lijst aan
-				$primaryKeysFiltered = array_slice($astObject->getParameters(), $e->getWindow() * $e->getPageSize(), $e->getPageSize());
+				$primaryKeysFiltered = array_slice($astObject->getParameters(), $e->getWindow() * $e->getWindowSize(), $e->getWindowSize());
 				$astObject->setParameters($primaryKeysFiltered);
 			}
 		}

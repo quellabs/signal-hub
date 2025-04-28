@@ -16,23 +16,9 @@
 					$entity = $ast->getParentIdentifier();
 					$range = $entity->getRange()->getName();
 					
-					/*
-					if ($ast instanceof AstMethodCall) {
-						$methodName = $ast->getName();
-						$aValue = $a[$range]->{$methodName}();
-						$bValue = $b[$range]->{$methodName}();
-					} else {
-						$aValue = $a[$range];
-						$bValue = $b[$range];
-					}
-					*/
-					
-					$aValue = $a[$range];
-					$bValue = $b[$range];
-
-					if ($aValue < $bValue) {
+					if ($a[$range] < $b[$range]) {
 						return $order === 'desc' ? 1 : -1;
-					} elseif ($aValue > $bValue) {
+					} elseif ($a[$range] > $b[$range]) {
 						return $order === 'desc' ? -1 : 1;
 					}
 				}

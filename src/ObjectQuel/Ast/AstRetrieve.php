@@ -21,7 +21,7 @@
 		protected bool $sort_in_application_logic;
 		protected bool $unique;
 		protected ?int $window;
-		protected ?int $page_size;
+		protected ?int $window_size;
 		
 		/**
 		 * AstRetrieve constructor.
@@ -39,7 +39,7 @@
 			$this->sort = [];
 			$this->sort_in_application_logic = false;
 			$this->window = null;
-			$this->page_size = null;
+			$this->window_size = null;
 		}
 		
 		/**
@@ -272,19 +272,19 @@
 		
 		/**
 		 * Sets limit clause
-		 * @param int $pageSize
+		 * @param int $windowSize
 		 * @return void
 		 */
-		public function setPageSize(int $pageSize): void {
-			$this->page_size = $pageSize;
+		public function setWindowSize(int $windowSize): void {
+			$this->window_size = $windowSize;
 		}
 		
 		/**
 		 * Returns the limit clause
 		 * @return int|null
 		 */
-		public function getPageSize(): ?int {
-			return $this->page_size;
+		public function getWindowSize(): ?int {
+			return $this->window_size;
 		}
 		
 		/**

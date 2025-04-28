@@ -136,11 +136,12 @@
 			if ($this->lexer->optionalMatch(Token::Window)) {
 				$window = $this->lexer->match(Token::Number);
 				$this->lexer->match(Token::Using);
-				$this->lexer->match(Token::Pagesize);
-				$pageSize = $this->lexer->match(Token::Number);
+				$this->lexer->match(Token::WindowSize);
+				
+				$windowSize = $this->lexer->match(Token::Number);
 				
 				$retrieve->setWindow($window->getValue());
-				$retrieve->setPageSize($pageSize->getValue());
+				$retrieve->setWindowSize($windowSize->getValue());
 			}
 
 			// Optionele puntkomma
