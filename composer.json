@@ -18,7 +18,8 @@
     "source": "https://github.com/quellabs/annotation-reader"
   },
   "require": {
-    "php": ">=8.3"
+    "php": ">=8.3",
+    "ext-ctype": "*"
   },
   "autoload": {
     "psr-4": {
