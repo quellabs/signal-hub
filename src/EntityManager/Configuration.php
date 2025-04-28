@@ -39,6 +39,11 @@
 		private string $proxyNamespace = 'Quellabs\\ObjectQuel\\Proxies';
 		
 		/**
+		 * @var string Namespace for entities
+		 */
+		private string $entityNameSpace = 'Quellabs\\ObjectQuel\\Entity';
+		
+		/**
 		 * @var bool Whether to auto-generate proxy classes
 		 */
 		private bool $autoGenerateProxyClasses = true;
@@ -231,6 +236,14 @@
 		 */
 		public function getProxyDir(): string {
 			return $this->proxyDir;
+		}
+		
+		public function getEntityNameSpace(): string {
+			return $this->entityNameSpace;
+		}
+		
+		public function setEntityNameSpace(string $entityNameSpace): void {
+			$this->entityNameSpace = $entityNameSpace;
 		}
 		
 		/**

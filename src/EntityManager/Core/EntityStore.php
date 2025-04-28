@@ -26,6 +26,7 @@
         protected array $identifier_keys_cache;
         protected array $identifier_columns_cache;
         protected string|bool $services_path;
+	    protected string $entity_namespace;
         protected array|null $dependencies;
         protected array $dependencies_cache;
         protected array $completed_entity_name_cache;
@@ -38,9 +39,10 @@
 			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
 			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
 
-			$this->annotation_reader = new \Quellabs\AnnotationReader\AnnotationReader($annotationReaderConfiguration);
+			$this->annotation_reader = new AnnotationReader($annotationReaderConfiguration);
 			$this->reflection_handler = new ReflectionHandler();
 			$this->services_path = realpath(__DIR__ . DIRECTORY_SEPARATOR . "..");
+			$this->entity_namespace = $configuration->getEntityNameSpace();
 			$this->entity_properties = [];
 			$this->entity_table_name = [];
 			$this->entity_annotations = [];
@@ -200,7 +202,7 @@
 				} elseif (str_contains($class, "\\")) {
 					$this->completed_entity_name_cache[$class] = $class;
 				} else {
-					$this->completed_entity_name_cache[$class] = "Quellabs\\ObjectQuel\\Entity\\{$class}";
+					$this->completed_entity_name_cache[$class] = "{$this->entity_namespace}\\{$class}";
 				}
 			}
 			
