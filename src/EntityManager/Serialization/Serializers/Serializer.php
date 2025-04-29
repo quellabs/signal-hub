@@ -14,7 +14,6 @@
 		protected array $normalizers;
 		protected array $int_types;
 		protected array $float_types;
-		protected array $char_types;
 		protected array $methodExistsCache;
 		protected array $normalizerInstances;
 		protected string $serialization_group_name;
@@ -41,7 +40,6 @@
 			$this->normalizerInstances = [];
 			$this->int_types = array_flip(["int", "integer", "smallint", "tinyint", "mediumint", "bigint", "bit"]);
 			$this->float_types = array_flip(["decimal", "numeric", "float", "double", "real"]);
-			$this->char_types = array_flip(['text', 'varchar','char']);
 
 			$this->initializeNormalizers();
 		}
@@ -92,15 +90,6 @@
 		 */
 		private function isFloatColumnType(string $columnType): bool {
 			return isset($this->float_types[$columnType]);
-		}
-		
-		/**
-		 * Controleert of een gegeven kolomtype een char-type is.
-		 * @param string $columnType Het kolomtype om te controleren.
-		 * @return bool True als het kolomtype een char-type is, anders false.
-		 */
-		private function isCharColumnType(string $columnType): bool {
-			return isset($this->char_types[$columnType]);
 		}
 		
 		/**

@@ -216,11 +216,24 @@
 			$content .= "\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Table;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Column;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\PrimaryKeyStrategy;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
 			
 			// Class definitions
 			$tableName = $this->snakeCase($entityName);
 			$content .= "/**\n * @Orm\Table(name=\"{$tableName}\")\n */\n";
 			$content .= "class {$entityName}Entity {\n";
+			
+			// Add primary key property
+			$content .= "
+				/**
+				 * @Orm\Column(type=\"integer\" unsigned=true primary_key=true)
+				 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
+				 */
+				protected int \$id;
+			";
 			
 			// Add properties
 			foreach ($properties as $property) {
@@ -229,6 +242,9 @@
 				
 				$content .= "\n\t" . $docComment . "\n\t" . $propertyDefinition . "\n";
 			}
+			
+			// Add getter for primary id
+			$content .= $this->generateGetter(['name' => 'id', 'type' => 'int']);
 			
 			// Add getters and setters
 			foreach ($properties as $property) {
@@ -253,8 +269,12 @@
 			
 			$comment = "/**\n\t * @Orm\Column(type=\"{$docType}\"";
 			
-			if (isset($property['length']) && $property['length']) {
+			if (isset($property['length']) && is_numeric($property['length'])) {
 				$comment .= " length={$property['length']}";
+			}
+			
+			if (isset($property['unsigned'])) {
+				$comment .= " unsigned=" . $property['unsigned'] ? "true" : "false";
 			}
 			
 			$comment .= ")\n\t */";
@@ -270,16 +290,25 @@
 		protected function generatePropertyDefinition(array $property): string {
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
-			$phpType = $type;
-			
-			// For PHP type declarations - adjust as needed for your requirements
-			if ($type === 'datetime') {
-				$phpType = '\\DateTime';
-			}
-			
+			$phpType = $this->typeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return "protected {$nullableIndicator}{$phpType} \${$property['name']};";
+		}
+		
+		/**
+		 * Transforms an entered type in a php type
+		 * @param string $type
+		 * @return string
+		 */
+		protected function typeToPhpType(string $type): string {
+			return match ($type) {
+				'integer', 'smallint' => 'int',
+				'date' => '\\Date',
+				'datetime' => '\\DateTime',
+				'float' => 'float',
+				default => 'string',
+			};
 		}
 		
 		/**
@@ -292,13 +321,7 @@
 			$methodName = 'get' . ucfirst($propertyName);
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
-			$phpType = $type;
-			
-			// For PHP type declarations - adjust as needed
-			if ($type === 'datetime') {
-				$phpType = '\\DateTime';
-			}
-			
+			$phpType = $this->typeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return "\n\t/**\n\t * Get {$propertyName}\n\t * @return {$nullableIndicator}{$phpType}\n\t */\n\tpublic function {$methodName}(): {$nullableIndicator}{$phpType} {\n\t\treturn \$this->{$propertyName};\n\t}\n";
@@ -314,13 +337,7 @@
 			$methodName = 'set' . ucfirst($propertyName);
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
-			$phpType = $type;
-			
-			// For PHP type declarations - adjust as needed
-			if ($type === 'datetime') {
-				$phpType = '\\DateTime';
-			}
-			
+			$phpType = $this->typeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return "\n\t/**\n\t * Set {$propertyName}\n\t * @param {$nullableIndicator}{$phpType} \${$propertyName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$nullableIndicator}{$phpType} \${$propertyName}): self {\n\t\t\$this->{$propertyName} = \${$propertyName};\n\t\treturn \$this;\n\t}\n";
