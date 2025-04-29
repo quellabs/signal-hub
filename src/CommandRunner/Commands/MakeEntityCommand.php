@@ -53,7 +53,12 @@
 					break;
 				}
 				
-				$propertyType = $this->input->ask("\nField type", "string");
+				$propertyType = $this->input->choice("\nField type", [
+					'string' => 'string',
+					'int' => 'int',
+					'float' => 'float',
+					
+				]);
 				$propertyLength = $this->input->ask("\nField length", "255");
 				$propertyNullable = $this->input->confirm("\nCan this field be null in the database (nullable)?", false);
 				
