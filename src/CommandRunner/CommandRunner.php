@@ -2,17 +2,20 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
+	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	
 	class CommandRunner {
 
-		protected array $commands;
+		protected Configuration $configuration;
 		protected ConsoleOutput $consoleOutput;
 		protected ConsoleInput $consoleInput;
+		protected array $commands = [];
 		
 		/**
 		 * List of supported classes
 		 * @var array<class-string>
 		 */
-		private const array SUPPORTED_CLASSES = [
+		protected const array SUPPORTED_CLASSES = [
 			ConsoleOutput::class,
 			ConsoleInput::class
 		];
@@ -20,8 +23,8 @@
 		/**
 		 * CommandRunner constructor
 		 */
-		public function __construct() {
-			$this->commands = [];
+		public function __construct(Configuration $configuration) {
+			$this->configuration = $configuration;
 			$this->consoleOutput = new ConsoleOutput();
 			$this->consoleInput = new ConsoleInput($this->consoleOutput);
 			
@@ -69,7 +72,7 @@
 			// Check if the command exists. If so, execute it.
 			if (isset($this->commands[$commandName])) {
 				$className = $this->commands[$commandName];
-				$object = new $className();
+				$object = new $className($this->consoleInput, $this->consoleOutput, $this->configuration);
 				$object->execute($args);
 				return;
 			}

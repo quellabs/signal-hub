@@ -1,0 +1,328 @@
+<?php
+	
+	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
+	
+	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	use Quellabs\ObjectQuel\EntityManager\Database\TypeMapper;
+	
+	class EntityModifier {
+		
+		private Configuration $configuration;
+		private TypeMapper $typeMapper;
+		
+		/**
+		 * Constructor for EntityModifier
+		 * @param Configuration $configuration
+		 */
+		public function __construct(Configuration $configuration) {
+			$this->configuration = $configuration;
+			$this->typeMapper = new TypeMapper();
+		}
+		
+		/**
+		 * Checks if an entity exists
+		 * @param string $entityName Name of the entity
+		 * @return bool True if entity exists
+		 */
+		public function entityExists(string $entityName): bool {
+			return file_exists($this->getEntityPath($entityName));
+		}
+		
+		/**
+		 * Gets the file path for an entity
+		 * @param string $entityName Name of the entity
+		 * @return string Path to the entity file
+		 */
+		public function getEntityPath(string $entityName): string {
+			return $this->configuration->getEntityPath() . '/' . $entityName . 'Entity.php';
+		}
+		
+		/**
+		 * Creates a new entity or updates an existing one
+		 * @param string $entityName Name of the entity
+		 * @param array $properties List of properties to add
+		 * @return bool True if successful
+		 */
+		public function createOrUpdateEntity(string $entityName, array $properties): bool {
+			if ($this->entityExists($entityName)) {
+				return $this->updateEntity($entityName, $properties);
+			} else {
+				return $this->createNewEntity($entityName, $properties);
+			}
+		}
+		
+		/**
+		 * Creates a new entity with properties and getters/setters
+		 * @param string $entityName Name of the entity
+		 * @param array $properties List of properties to add
+		 * @return bool True if successful
+		 */
+		public function createNewEntity(string $entityName, array $properties): bool {
+			// Create directory if it doesn't exist
+			if (!is_dir($this->configuration->getEntityPath())) {
+				mkdir($this->configuration->getEntityPath(), 0755, true);
+			}
+			
+			$content = $this->generateEntityContent($entityName, $properties);
+			
+			return file_put_contents($this->getEntityPath($entityName), $content) !== false;
+		}
+		
+		/**
+		 * Updates an existing entity with new properties and getters/setters
+		 * @param string $entityName Name of the entity
+		 * @param array $properties List of properties to add
+		 * @return bool True if successful
+		 */
+		public function updateEntity(string $entityName, array $properties): bool {
+			$filePath = $this->getEntityPath($entityName);
+			$content = file_get_contents($filePath);
+			
+			if ($content === false) {
+				return false;
+			}
+			
+			// Find the position to insert new properties (after existing properties, before methods)
+			$classContent = $this->parseClassContent($content);
+			
+			if (!$classContent) {
+				return false;
+			}
+			
+			// Add new properties and getters/setters
+			$updatedContent = $this->insertProperties($classContent, $properties);
+			$updatedContent = $this->insertGettersAndSetters($updatedContent, $properties);
+			
+			return file_put_contents($filePath, $updatedContent) !== false;
+		}
+		
+		/**
+		 * Convert a string to snake case
+		 * @url https://stackoverflow.com/questions/40514051/using-preg-replace-to-convert-camelcase-to-snake-case
+		 * @param string $string
+		 * @return string
+		 */
+		protected function snakeCase(string $string): string {
+			return strtolower(preg_replace(['/([a-z\d])([A-Z])/', '/([^_])([A-Z][a-z])/'], '$1_$2', $string));
+		}
+		
+		/**
+		 * Parses the class content to identify sections
+		 * @param string $content Entity file content
+		 * @return array|false Class content sections or false on error
+		 */
+		protected function parseClassContent(string $content): false|array {
+			// Find the class definition
+			if (!preg_match('/class\s+(\w+)(?:\s+extends\s+\w+)?(?:\s+implements\s+[\w\s,]+)?\s*\{/s', $content, $classMatch, PREG_OFFSET_CAPTURE)) {
+				return false;
+			}
+			
+			// Find the last closing brace
+			$classStartPos = (int)$classMatch[0][1] + strlen($classMatch[0][0]);
+			$lastBracePos = strrpos($content, '}');
+
+			if ($lastBracePos === false) {
+				return false;
+			}
+			
+			// Extract sections
+			$classBody = substr($content, $classStartPos, $lastBracePos - $classStartPos);
+			
+			// Split into properties and methods sections
+			$methodPattern = '/\s*(public|protected|private)\s+function\s+\w+/';
+			$firstMethodPos = preg_match($methodPattern, $classBody, $methodMatch, PREG_OFFSET_CAPTURE) ? $methodMatch[0][1] : strlen($classBody);
+			$propertiesSection = trim(substr($classBody, 0, $firstMethodPos));
+			$methodsSection = trim(substr($classBody, $firstMethodPos));
+			
+			return [
+				'header'     => substr($content, 0, $classStartPos),
+				'properties' => $propertiesSection,
+				'methods'    => $methodsSection,
+				'footer'     => substr($content, $lastBracePos)
+			];
+		}
+		
+		/**
+		 * Insert properties into the class content
+		 * @param array $classContent Parsed class content
+		 * @param array $properties List of properties to add
+		 * @return string Updated class content
+		 */
+		protected function insertProperties(array $classContent, array $properties): string {
+			$propertyCode = $classContent['properties'];
+			
+			// Add each new property
+			foreach ($properties as $property) {
+				// Skip if property already exists
+				if (preg_match('/\s*(protected|private|public)\s+' . $property['type'] . '\s+\$' . $property['name'] . '\s*;/i', $propertyCode)) {
+					continue;
+				}
+				
+				$docComment = $this->generatePropertyDocComment($property);
+				$propertyDefinition = $this->generatePropertyDefinition($property);
+				
+				$propertyCode .= "\n\n\t" . $docComment . "\n\t" . $propertyDefinition;
+			}
+			
+			return $classContent['header'] . $propertyCode . "\n\n\t" . $classContent['methods'] . $classContent['footer'];
+		}
+		
+		/**
+		 * Insert getters and setters into the class content
+		 * @param string $content Class content
+		 * @param array $properties List of properties to add
+		 * @return string Updated class content
+		 */
+		protected function insertGettersAndSetters(string $content, array $properties): string {
+			// Find the position of the last closing brace
+			$lastBracePos = strrpos($content, '}');
+			if ($lastBracePos === false) {
+				return $content;
+			}
+			
+			$methodsToAdd = '';
+			
+			// Generate getter and setter for each property
+			foreach ($properties as $property) {
+				// Skip if getter/setter already exists
+				$getterName = 'get' . ucfirst($property['name']);
+				$setterName = 'set' . ucfirst($property['name']);
+				
+				if (!preg_match('/function\s+' . $getterName . '\s*\(/i', $content)) {
+					$methodsToAdd .= $this->generateGetter($property);
+				}
+				
+				if (!preg_match('/function\s+' . $setterName . '\s*\(/i', $content)) {
+					$methodsToAdd .= $this->generateSetter($property);
+				}
+			}
+			
+			// Insert methods before the last brace
+			return substr($content, 0, $lastBracePos) . $methodsToAdd . "\n}" . substr($content, $lastBracePos + 1);
+		}
+		
+		/**
+		 * Generate the content for a new entity
+		 * @param string $entityName Name of the entity
+		 * @param array $properties List of properties for the entity
+		 * @return string Entity file content
+		 */
+		protected function generateEntityContent(string $entityName, array $properties): string {
+			// Namespace
+			$namespace = $this->configuration->getEntityNameSpace();
+			$content = "<?php\n\nnamespace $namespace;\n";
+			
+			// Use statements
+			$content .= "\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Table;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Column;\n";
+			
+			// Class definitions
+			$tableName = $this->snakeCase($entityName);
+			$content .= "/**\n * @Orm\Table(name=\"{$tableName}\")\n */\n";
+			$content .= "class {$entityName}Entity {\n";
+			
+			// Add properties
+			foreach ($properties as $property) {
+				$docComment = $this->generatePropertyDocComment($property);
+				$propertyDefinition = $this->generatePropertyDefinition($property);
+				
+				$content .= "\n\t" . $docComment . "\n\t" . $propertyDefinition . "\n";
+			}
+			
+			// Add getters and setters
+			foreach ($properties as $property) {
+				$content .= $this->generateGetter($property);
+				$content .= $this->generateSetter($property);
+			}
+			
+			$content .= "}\n";
+			
+			return $content;
+		}
+		
+		/**
+		 * Generate a property's PHPDoc comment
+		 * @param array $property Property information
+		 * @return string PHPDoc comment
+		 */
+		protected function generatePropertyDocComment(array $property): string {
+			$nullable = $property['nullable'] ?? false;
+			$type = $property['type'] ?? 'string';
+			$docType = $nullable ? "$type|null" : $type;
+			
+			$comment = "/**\n\t * @Orm\Column(type=\"{$docType}\"";
+			
+			if (isset($property['length']) && $property['length']) {
+				$comment .= " length={$property['length']}";
+			}
+			
+			$comment .= ")\n\t */";
+			
+			return $comment;
+		}
+		
+		/**
+		 * Generate a property definition
+		 * @param array $property Property information
+		 * @return string Property definition
+		 */
+		protected function generatePropertyDefinition(array $property): string {
+			$nullable = $property['nullable'] ?? false;
+			$type = $property['type'] ?? 'string';
+			$phpType = $type;
+			
+			// For PHP type declarations - adjust as needed for your requirements
+			if ($type === 'datetime') {
+				$phpType = '\\DateTime';
+			}
+			
+			$nullableIndicator = $nullable ? '?' : '';
+			
+			return "protected {$nullableIndicator}{$phpType} \${$property['name']};";
+		}
+		
+		/**
+		 * Generate a getter method for a property
+		 * @param array $property Property information
+		 * @return string Getter method code
+		 */
+		protected function generateGetter(array $property): string {
+			$propertyName = $property['name'];
+			$methodName = 'get' . ucfirst($propertyName);
+			$nullable = $property['nullable'] ?? false;
+			$type = $property['type'] ?? 'string';
+			$phpType = $type;
+			
+			// For PHP type declarations - adjust as needed
+			if ($type === 'datetime') {
+				$phpType = '\\DateTime';
+			}
+			
+			$nullableIndicator = $nullable ? '?' : '';
+			
+			return "\n\t/**\n\t * Get {$propertyName}\n\t * @return {$nullableIndicator}{$phpType}\n\t */\n\tpublic function {$methodName}(): {$nullableIndicator}{$phpType} {\n\t\treturn \$this->{$propertyName};\n\t}\n";
+		}
+		
+		/**
+		 * Generate a setter method for a property
+		 * @param array $property Property information
+		 * @return string Setter method code
+		 */
+		protected function generateSetter(array $property): string {
+			$propertyName = $property['name'];
+			$methodName = 'set' . ucfirst($propertyName);
+			$nullable = $property['nullable'] ?? false;
+			$type = $property['type'] ?? 'string';
+			$phpType = $type;
+			
+			// For PHP type declarations - adjust as needed
+			if ($type === 'datetime') {
+				$phpType = '\\DateTime';
+			}
+			
+			$nullableIndicator = $nullable ? '?' : '';
+			
+			return "\n\t/**\n\t * Set {$propertyName}\n\t * @param {$nullableIndicator}{$phpType} \${$propertyName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$nullableIndicator}{$phpType} \${$propertyName}): self {\n\t\t\$this->{$propertyName} = \${$propertyName};\n\t\treturn \$this;\n\t}\n";
+		}
+	}

@@ -2,17 +2,21 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
+	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	
 	abstract class Command {
 		
 		protected ConsoleInput $input;
 		protected ConsoleOutput $output;
+		protected Configuration $configuration;
 		
 		/**
 		 * Command constructor
 		 * @param ConsoleInput $input
 		 * @param ConsoleOutput $output
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output) {
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, Configuration $configuration) {
+			$this->configuration = $configuration;
 			$this->input = $input;
 			$this->output = $output;
 		}
