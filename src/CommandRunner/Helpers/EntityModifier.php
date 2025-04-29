@@ -266,15 +266,16 @@
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
 			$docType = $nullable ? "$type|null" : $type;
+			$snakeCaseName = $this->snakeCase($property['name']);
 			
-			$comment = "/**\n\t * @Orm\Column(type=\"{$docType}\"";
+			$comment = "/**\n\t * @Orm\Column(name=\"{$snakeCaseName}\" type=\"{$docType}\"";
 			
 			if (isset($property['length']) && is_numeric($property['length'])) {
 				$comment .= " length={$property['length']}";
 			}
 			
 			if (isset($property['unsigned'])) {
-				$comment .= " unsigned=" . $property['unsigned'] ? "true" : "false";
+				$comment .= " unsigned=" . ($property['unsigned'] ? "true" : "false");
 			}
 			
 			$comment .= ")\n\t */";
@@ -304,7 +305,7 @@
 		protected function typeToPhpType(string $type): string {
 			return match ($type) {
 				'integer', 'smallint' => 'int',
-				'date' => '\\Date',
+				'date' => '\\DateTime',
 				'datetime' => '\\DateTime',
 				'float' => 'float',
 				default => 'string',
