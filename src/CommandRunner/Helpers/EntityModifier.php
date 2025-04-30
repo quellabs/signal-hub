@@ -34,7 +34,7 @@
 		 * @return string Path to the entity file
 		 */
 		public function getEntityPath(string $entityName): string {
-			return $this->configuration->getEntityPath() . '/' . $entityName . 'Entity.php';
+			return $this->configuration->getEntityPath() . '/' . $entityName . '.php';
 		}
 		
 		/**
@@ -44,7 +44,7 @@
 		 * @return bool True if successful
 		 */
 		public function createOrUpdateEntity(string $entityName, array $properties): bool {
-			if ($this->entityExists($entityName)) {
+			if ($this->entityExists($entityName . "Entity")) {
 				return $this->updateEntity($entityName, $properties);
 			} else {
 				return $this->createNewEntity($entityName, $properties);
@@ -65,7 +65,7 @@
 			
 			$content = $this->generateEntityContent($entityName, $properties);
 			
-			return file_put_contents($this->getEntityPath($entityName), $content) !== false;
+			return file_put_contents($this->getEntityPath($entityName . "Entity"), $content) !== false;
 		}
 		
 		/**
@@ -75,7 +75,7 @@
 		 * @return bool True if successful
 		 */
 		public function updateEntity(string $entityName, array $properties): bool {
-			$filePath = $this->getEntityPath($entityName);
+			$filePath = $this->getEntityPath($entityName . "Entity");
 			$content = file_get_contents($filePath);
 			
 			if ($content === false) {
@@ -120,7 +120,7 @@
 			// Find the last closing brace
 			$classStartPos = (int)$classMatch[0][1] + strlen($classMatch[0][0]);
 			$lastBracePos = strrpos($content, '}');
-
+			
 			if ($lastBracePos === false) {
 				return false;
 			}
@@ -154,11 +154,15 @@
 			// Add each new property
 			foreach ($properties as $property) {
 				// Skip if property already exists
-				if (preg_match('/\s*(protected|private|public)\s+' . $property['type'] . '\s+\$' . $property['name'] . '\s*;/i', $propertyCode)) {
+				$propertyName = $property['name'];
+				if (preg_match('/\s*(protected|private|public)\s+.*\$' . $propertyName . '\s*;/i', $propertyCode)) {
 					continue;
 				}
 				
-				$docComment = $this->generatePropertyDocComment($property);
+				$docComment = isset($property['relationshipType'])
+					? $this->generateRelationshipDocComment($property)
+					: $this->generatePropertyDocComment($property);
+				
 				$propertyDefinition = $this->generatePropertyDefinition($property);
 				
 				$propertyCode .= "\n\n\t" . $docComment . "\n\t" . $propertyDefinition;
@@ -195,10 +199,40 @@
 				if (!preg_match('/function\s+' . $setterName . '\s*\(/i', $content)) {
 					$methodsToAdd .= $this->generateSetter($property);
 				}
+				
+				// For OneToMany relationships, add additional methods for collection management
+				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+					$singularName = $this->getSingularName($property['name']);
+					$addMethodName = 'add' . ucfirst($singularName);
+					$removeMethodName = 'remove' . ucfirst($singularName);
+					
+					if (!preg_match('/function\s+' . $addMethodName . '\s*\(/i', $content)) {
+						$methodsToAdd .= $this->generateCollectionAdder($property);
+					}
+					
+					if (!preg_match('/function\s+' . $removeMethodName . '\s*\(/i', $content)) {
+						$methodsToAdd .= $this->generateCollectionRemover($property);
+					}
+				}
 			}
 			
 			// Insert methods before the last brace
 			return substr($content, 0, $lastBracePos) . $methodsToAdd . "\n}" . substr($content, $lastBracePos + 1);
+		}
+		
+		/**
+		 * Attempts to get the singular form of a collection name
+		 * @param string $pluralName The plural name to make singular
+		 * @return string The singular form
+		 */
+		protected function getSingularName(string $pluralName): string {
+			// Basic English pluralization rules - not comprehensive
+			if (substr($pluralName, -3) === 'ies') {
+				return substr($pluralName, 0, -3) . 'y';
+			} elseif (substr($pluralName, -1) === 's' && substr($pluralName, -2) !== 'ss') {
+				return substr($pluralName, 0, -1);
+			}
+			return $pluralName; // Return as-is if no rule matches
 		}
 		
 		/**
@@ -217,9 +251,11 @@
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Table;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Column;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\PrimaryKeyStrategy;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToMany;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\ManyToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\Collection;\n";
+			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\CollectionInterface;\n";
 			
 			// Class definitions
 			$tableName = $this->snakeCase($entityName);
@@ -228,16 +264,44 @@
 			
 			// Add primary key property
 			$content .= "
-				/**
-				 * @Orm\Column(type=\"integer\" unsigned=true primary_key=true)
-				 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
-				 */
-				protected int \$id;
-			";
+			/**
+			 * @Orm\Column(type=\"integer\" unsigned=true primary_key=true)
+			 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
+			 */
+			protected int \$id;
+		";
+			
+			// Add constructor for OneToMany relationships initialization
+			$hasOneToMany = false;
+			foreach ($properties as $property) {
+				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+					$hasOneToMany = true;
+					break;
+				}
+			}
+			
+			// If we have OneToMany relationships, add a constructor to initialize collections
+			if ($hasOneToMany) {
+				$content .= "\n\t/**\n\t * Constructor to initialize collections\n\t */\n";
+				$content .= "\tpublic function __construct() {\n";
+				
+				foreach ($properties as $property) {
+					if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+						$content .= "\t\t\$this->{$property['name']} = new Collection();\n";
+					}
+				}
+				
+				$content .= "\t}\n";
+			}
 			
 			// Add properties
 			foreach ($properties as $property) {
-				$docComment = $this->generatePropertyDocComment($property);
+				if (isset($property['relationshipType'])) {
+					$docComment = $this->generateRelationshipDocComment($property);
+				} else {
+					$docComment = $this->generatePropertyDocComment($property);
+				}
+				
 				$propertyDefinition = $this->generatePropertyDefinition($property);
 				
 				$content .= "\n\t" . $docComment . "\n\t" . $propertyDefinition . "\n";
@@ -250,6 +314,12 @@
 			foreach ($properties as $property) {
 				$content .= $this->generateGetter($property);
 				$content .= $this->generateSetter($property);
+				
+				// For OneToMany relationships, add additional methods
+				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+					$content .= $this->generateCollectionAdder($property);
+					$content .= $this->generateCollectionRemover($property);
+				}
 			}
 			
 			$content .= "}\n";
@@ -268,7 +338,7 @@
 			$docType = $nullable ? "$type|null" : $type;
 			$snakeCaseName = $this->snakeCase($property['name']);
 			
-			$comment = "/**\n\t * @Orm\Column(name=\"{$snakeCaseName}\" type=\"{$docType}\"";
+			$comment = "/**\n\t * @Orm\Column(name=\"{$snakeCaseName}\" type=\"{$type}\"";
 			
 			if (isset($property['length']) && is_numeric($property['length'])) {
 				$comment .= " length={$property['length']}";
@@ -278,7 +348,55 @@
 				$comment .= " unsigned=" . ($property['unsigned'] ? "true" : "false");
 			}
 			
+			if ($nullable) {
+				$comment .= " nullable=true";
+			}
+			
 			$comment .= ")\n\t */";
+			
+			return $comment;
+		}
+		
+		/**
+		 * Generate a relationship PHPDoc comment
+		 * @param array $property Relationship property information
+		 * @return string PHPDoc comment
+		 */
+		protected function generateRelationshipDocComment(array $property): string {
+			$relationshipType = $property['relationshipType'];
+			$targetEntity = $property['targetEntity'];
+			$nullable = $property['nullable'] ?? false;
+			
+			$comment = "/**\n\t * @Orm\\{$relationshipType}(targetEntity=\"{$targetEntity}Entity\"";
+			
+			// Add mappedBy attribute for OneToMany or bidirectional OneToOne
+			if (!empty($property['mappedBy'])) {
+				$comment .= " mappedBy=\"{$property['mappedBy']}\"";
+			}
+			
+			// Add inversedBy attribute for ManyToOne
+			if (!empty($property['inversedBy'])) {
+				$comment .= " inversedBy=\"{$property['inversedBy']}\"";
+			}
+			
+			// Add fetch="LAZY" for OneToMany relationships
+			if ($relationshipType === 'OneToMany') {
+				$comment .= " fetch=\"LAZY\"";
+			}
+			
+			// Add nullable attribute if specified
+			if ($nullable) {
+				$comment .= " nullable=true";
+			}
+			
+			$comment .= ")";
+			
+			// Add PHPDoc var type for collections
+			if ($relationshipType === 'OneToMany') {
+				$comment .= "\n\t * @var \$" . $property['name'] . " CollectionInterface<" . $targetEntity . "Entity>";
+			}
+			
+			$comment .= "\n\t */";
 			
 			return $comment;
 		}
@@ -290,6 +408,16 @@
 		 */
 		protected function generatePropertyDefinition(array $property): string {
 			$nullable = $property['nullable'] ?? false;
+			
+			// Handle relationship types
+			if (isset($property['relationshipType'])) {
+				$type = $property['type'];
+				$nullableIndicator = $nullable ? '?' : '';
+				
+				return "protected {$nullableIndicator}{$type} \${$property['name']};";
+			}
+			
+			// Handle regular properties
 			$type = $property['type'] ?? 'string';
 			$phpType = $this->typeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
@@ -320,6 +448,23 @@
 		protected function generateGetter(array $property): string {
 			$propertyName = $property['name'];
 			$methodName = 'get' . ucfirst($propertyName);
+			
+			// Handle relationship getter
+			if (isset($property['relationshipType'])) {
+				$type = $property['type'];
+				$nullable = $property['nullable'] ?? false;
+				$nullableIndicator = $nullable ? '?' : '';
+				
+				// Specially handle OneToMany collection getters
+				if ($property['relationshipType'] === 'OneToMany') {
+					$targetEntity = $property['targetEntity'] . 'Entity';
+					return "\n\t/**\n\t * @return CollectionInterface<{$targetEntity}>\n\t */\n\tpublic function {$methodName}(): CollectionInterface {\n\t\treturn \$this->{$propertyName};\n\t}\n";
+				}
+				
+				return "\n\t/**\n\t * Get {$propertyName}\n\t * @return {$nullableIndicator}{$type}\n\t */\n\tpublic function {$methodName}(): {$nullableIndicator}{$type} {\n\t\treturn \$this->{$propertyName};\n\t}\n";
+			}
+			
+			// Handle regular property getter
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
 			$phpType = $this->typeToPhpType($type);
@@ -336,11 +481,71 @@
 		protected function generateSetter(array $property): string {
 			$propertyName = $property['name'];
 			$methodName = 'set' . ucfirst($propertyName);
+			
+			// Handle relationship setter
+			if (isset($property['relationshipType'])) {
+				$type = $property['type'];
+				$nullable = $property['nullable'] ?? false;
+				$nullableIndicator = $nullable ? '?' : '';
+				
+				return "\n\t/**\n\t * Set {$propertyName}\n\t * @param {$nullableIndicator}{$type} \${$propertyName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$nullableIndicator}{$type} \${$propertyName}): self {\n\t\t\$this->{$propertyName} = \${$propertyName};\n\t\treturn \$this;\n\t}\n";
+			}
+			
+			// Handle regular property setter
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
 			$phpType = $this->typeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return "\n\t/**\n\t * Set {$propertyName}\n\t * @param {$nullableIndicator}{$phpType} \${$propertyName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$nullableIndicator}{$phpType} \${$propertyName}): self {\n\t\t\$this->{$propertyName} = \${$propertyName};\n\t\treturn \$this;\n\t}\n";
+		}
+		
+		/**
+		 * Generate a method to add an item to a collection (for OneToMany)
+		 * @param array $property Collection property information
+		 * @return string Method code
+		 */
+		protected function generateCollectionAdder(array $property): string {
+			$collectionName = $property['name'];
+			$singularName = $this->getSingularName($collectionName);
+			$methodName = 'add' . ucfirst($singularName);
+			$targetEntity = $property['targetEntity'] . 'Entity';
+			
+			$inverseSetter = '';
+			// If this is part of a bidirectional relationship
+			if (!empty($property['mappedBy'])) {
+				$mappedBy = $property['mappedBy'];
+				$inverseSetter = "\n\t\t// Set the owning side of the relationship\n";
+				$inverseSetter .= "\t\t\${$singularName}->set" . ucfirst($mappedBy) . "(\$this);";
+			}
+			
+			return "\n\t/**\n\t * Adds a relation between {$targetEntity} and " . substr($targetEntity, 0, -6) . "\n\t * @param {$targetEntity} \${$singularName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$targetEntity} \${$singularName}): self {\n\t\tif (!\$this->{$collectionName}->contains(\${$singularName})) {" .
+				"\n\t\t\t\$this->{$collectionName}[] = \${$singularName};" .
+				$inverseSetter .
+				"\n\t\t}\n\t\treturn \$this;\n\t}\n";
+		}
+		
+		/**
+		 * Generate a method to remove an item from a collection (for OneToMany)
+		 * @param array $property Collection property information
+		 * @return string Method code
+		 */
+		protected function generateCollectionRemover(array $property): string {
+			$collectionName = $property['name'];
+			$singularName = $this->getSingularName($collectionName);
+			$methodName = 'remove' . ucfirst($singularName);
+			$targetEntity = $property['targetEntity'] . 'Entity';
+			
+			$inverseRemover = '';
+			// If this is part of a bidirectional relationship
+			if (!empty($property['mappedBy'])) {
+				$mappedBy = $property['mappedBy'];
+				$inverseRemover = "\n\t\t// Unset the owning side of the relationship\n";
+				$inverseRemover .= "\t\t\${$singularName}->set" . ucfirst($mappedBy) . "(null);";
+			}
+			
+			return "\n\t/**\n\t * Removes a relation between {$targetEntity} and " . substr($targetEntity, 0, -6) . "\n\t * @param {$targetEntity} \${$singularName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$targetEntity} \${$singularName}): self {\n\t\tif (\$this->{$collectionName}->remove(\${$singularName})) {" .
+				$inverseRemover .
+				"\n\t\t}\n\t\treturn \$this;\n\t}\n";
 		}
 	}

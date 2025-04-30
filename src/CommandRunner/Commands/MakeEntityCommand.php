@@ -16,7 +16,7 @@
 	 *
 	 * This command allows users to interactively create or update entity classes
 	 * through a command-line interface, collecting properties with their types
-	 * and constraints.
+	 * and constraints, including relationship definitions.
 	 */
 	class MakeEntityCommand extends Command {
 		
@@ -76,8 +76,56 @@
 				
 				// Prompt user to select property data type from available options
 				$propertyType = $this->input->choice("\nField type", [
-					'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', 'datetime'
+					'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', 'datetime', 'relationship'
 				]);
+				
+				// If the type is relationship, collect relationship details
+				if ($propertyType === 'relationship') {
+					// Collect relationship information
+					$relationshipType = $this->input->choice("\nRelationship type", [
+						'OneToOne', 'OneToMany', 'ManyToOne'
+					]);
+					
+					// Ask for target entity name
+					$targetEntity = $this->input->ask("\nTarget entity name (without 'Entity' suffix)");
+					
+					// For OneToMany and ManyToOne, ask for mappedBy/inversedBy
+					$mappedBy = null;
+					$inversedBy = null;
+					
+					if ($relationshipType === 'OneToMany') {
+						$mappedBy = $this->input->ask("\nMappedBy field name in the related entity");
+					} elseif ($relationshipType === 'ManyToOne') {
+						$inversedBy = $this->input->ask("\nInversedBy field name in the related entity (empty if not bidirectional)");
+					} elseif ($relationshipType === 'OneToOne') {
+						$bidirectional = $this->input->confirm("\nIs this a bidirectional relationship?", false);
+						
+						if ($bidirectional) {
+							$mappedBy = $this->input->ask("\nMappedBy field name in the related entity");
+						}
+					}
+					
+					// For OneToMany, the property will be an array collection
+					if ($relationshipType === 'OneToMany') {
+						$propertyPhpType = "array";
+					} else {
+						$propertyPhpType = $targetEntity . "Entity";
+					}
+					
+					// Add the relationship property
+					$properties[] = [
+						"name"             => $propertyName,
+						"type"             => $propertyPhpType,
+						"relationshipType" => $relationshipType,
+						"targetEntity"     => $targetEntity,
+						"mappedBy"         => $mappedBy,
+						"inversedBy"       => $inversedBy,
+						"nullable"         => $this->input->confirm("\nAllow this relationship to be null?", false),
+					];
+					
+					// Continue to next property
+					continue;
+				}
 				
 				// For string type, ask for length; otherwise set to null
 				if ($propertyType == 'string') {
@@ -129,7 +177,7 @@
 		 * @return string Command description
 		 */
 		public static function getDescription(): string {
-			return "test description";
+			return "Create or update an entity class with properties and relationships";
 		}
 		
 		/**
@@ -137,6 +185,7 @@
 		 * @return string Command help text
 		 */
 		public static function getHelp(): string {
-			return "test help";
+			return "Creates or updates an entity class with standard properties and ORM relationship mappings.\n" .
+				"Supported relationship types: OneToOne, OneToMany, ManyToOne.";
 		}
 	}
