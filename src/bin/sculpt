@@ -5,11 +5,11 @@
 	use Quellabs\ObjectQuel\EntityManager\Configuration;
 
 	$config = new Configuration();
-	$config->setEntityPath(__DIR__ . '/../../src/Entity');
-	$config->setProxyDir(__DIR__ . '/../../src/Proxies');
-	$config->setCachePath(__DIR__ . '/../../src/Cache');
+	$config->setEntityPath(__DIR__ . '/../Entity');
+	$config->setProxyDir(__DIR__ . '/../Proxies');
+	$config->setCachePath(__DIR__ . '/../Cache');
 	$config->setUseAnnotationCache(true);
-	$config->setAnnotationCachePath(__DIR__ . '/../src/AnnotationCache');
+	$config->setAnnotationCachePath(__DIR__ . '/../AnnotationCache');
 
 	$config->setDatabaseParams(
 		'mysql',                         // Driver

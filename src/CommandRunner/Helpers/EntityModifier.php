@@ -8,7 +8,6 @@
 	class EntityModifier {
 		
 		private Configuration $configuration;
-		private TypeMapper $typeMapper;
 		
 		/**
 		 * Constructor for EntityModifier
@@ -16,7 +15,6 @@
 		 */
 		public function __construct(Configuration $configuration) {
 			$this->configuration = $configuration;
-			$this->typeMapper = new TypeMapper();
 		}
 		
 		/**
@@ -91,7 +89,7 @@
 			
 			// Add new properties and getters/setters
 			$updatedContent = $this->insertProperties($classContent, $properties);
-			$updatedContent = $this->insertGettersAndSetters($updatedContent, $properties);
+			$updatedContent = $this->insertGettersAndSetters($updatedContent, $properties, $entityName);
 			
 			return file_put_contents($filePath, $updatedContent) !== false;
 		}
@@ -175,9 +173,10 @@
 		 * Insert getters and setters into the class content
 		 * @param string $content Class content
 		 * @param array $properties List of properties to add
+		 * @param string $entityName Name of the entity
 		 * @return string Updated class content
 		 */
-		protected function insertGettersAndSetters(string $content, array $properties): string {
+		protected function insertGettersAndSetters(string $content, array $properties, string $entityName): string {
 			// Find the position of the last closing brace
 			$lastBracePos = strrpos($content, '}');
 			if ($lastBracePos === false) {
@@ -207,11 +206,11 @@
 					$removeMethodName = 'remove' . ucfirst($singularName);
 					
 					if (!preg_match('/function\s+' . $addMethodName . '\s*\(/i', $content)) {
-						$methodsToAdd .= $this->generateCollectionAdder($property);
+						$methodsToAdd .= $this->generateCollectionAdder($property, $entityName);
 					}
 					
 					if (!preg_match('/function\s+' . $removeMethodName . '\s*\(/i', $content)) {
-						$methodsToAdd .= $this->generateCollectionRemover($property);
+						$methodsToAdd .= $this->generateCollectionRemover($property, $entityName);
 					}
 				}
 			}
@@ -226,13 +225,13 @@
 		 * @return string The singular form
 		 */
 		protected function getSingularName(string $pluralName): string {
-			// Basic English pluralization rules - not comprehensive
-			if (substr($pluralName, -3) === 'ies') {
+			if (str_ends_with($pluralName, 'ies')) {
 				return substr($pluralName, 0, -3) . 'y';
-			} elseif (substr($pluralName, -1) === 's' && substr($pluralName, -2) !== 'ss') {
+			} elseif (str_ends_with($pluralName, 's') && !str_ends_with($pluralName, 'ss')) {
 				return substr($pluralName, 0, -1);
+			} else {
+				return $pluralName;
 			}
-			return $pluralName; // Return as-is if no rule matches
 		}
 		
 		/**
@@ -251,11 +250,11 @@
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Table;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Column;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\PrimaryKeyStrategy;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToMany;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\\Orm\\ManyToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\Collection;\n";
-			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\CollectionInterface;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Collection\\Collection;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Collection\\CollectionInterface;\n";
 			
 			// Class definitions
 			$tableName = $this->snakeCase($entityName);
@@ -317,8 +316,8 @@
 				
 				// For OneToMany relationships, add additional methods
 				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
-					$content .= $this->generateCollectionAdder($property);
-					$content .= $this->generateCollectionRemover($property);
+					$content .= $this->generateCollectionAdder($property, $entityName);
+					$content .= $this->generateCollectionRemover($property, $entityName);
 				}
 			}
 			
@@ -335,7 +334,6 @@
 		protected function generatePropertyDocComment(array $property): string {
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
-			$docType = $nullable ? "$type|null" : $type;
 			$snakeCaseName = $this->snakeCase($property['name']);
 			
 			$comment = "/**\n\t * @Orm\Column(name=\"{$snakeCaseName}\" type=\"{$type}\"";
@@ -387,6 +385,17 @@
 			// Add nullable attribute if specified
 			if ($nullable) {
 				$comment .= " nullable=true";
+			}
+			
+			// If we have a referenced column name that's not the default 'id',
+			// we can store it as a custom attribute in the annotation
+			if (isset($property['referencedColumnName']) && $property['referencedColumnName'] !== 'id') {
+				$comment .= " referencedColumnName=\"{$property['referencedColumnName']}\"";
+			}
+			
+			// Add a join column name if provided
+			if (!empty($property['joinColumnName'])) {
+				$comment .= " joinColumnName=\"{$property['joinColumnName']}\"";
 			}
 			
 			$comment .= ")";
@@ -503,9 +512,10 @@
 		/**
 		 * Generate a method to add an item to a collection (for OneToMany)
 		 * @param array $property Collection property information
+		 * @param string $entityName Current entity name (without suffix)
 		 * @return string Method code
 		 */
-		protected function generateCollectionAdder(array $property): string {
+		protected function generateCollectionAdder(array $property, string $entityName): string {
 			$collectionName = $property['name'];
 			$singularName = $this->getSingularName($collectionName);
 			$methodName = 'add' . ucfirst($singularName);
@@ -515,8 +525,12 @@
 			// If this is part of a bidirectional relationship
 			if (!empty($property['mappedBy'])) {
 				$mappedBy = $property['mappedBy'];
+				
+				// Use a setter method named after this entity
+				$setterMethod = 'set' . ucfirst($entityName);
+				
 				$inverseSetter = "\n\t\t// Set the owning side of the relationship\n";
-				$inverseSetter .= "\t\t\${$singularName}->set" . ucfirst($mappedBy) . "(\$this);";
+				$inverseSetter .= "\t\t\${$singularName}->{$setterMethod}(\$this);";
 			}
 			
 			return "\n\t/**\n\t * Adds a relation between {$targetEntity} and " . substr($targetEntity, 0, -6) . "\n\t * @param {$targetEntity} \${$singularName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$targetEntity} \${$singularName}): self {\n\t\tif (!\$this->{$collectionName}->contains(\${$singularName})) {" .
@@ -528,9 +542,10 @@
 		/**
 		 * Generate a method to remove an item from a collection (for OneToMany)
 		 * @param array $property Collection property information
+		 * @param string $entityName Current entity name (without suffix)
 		 * @return string Method code
 		 */
-		protected function generateCollectionRemover(array $property): string {
+		protected function generateCollectionRemover(array $property, string $entityName): string {
 			$collectionName = $property['name'];
 			$singularName = $this->getSingularName($collectionName);
 			$methodName = 'remove' . ucfirst($singularName);
@@ -539,9 +554,12 @@
 			$inverseRemover = '';
 			// If this is part of a bidirectional relationship
 			if (!empty($property['mappedBy'])) {
-				$mappedBy = $property['mappedBy'];
+				// Use a setter method named after this entity
+				$setterMethod = 'set' . ucfirst($entityName);
+				
+				// Add remover code
 				$inverseRemover = "\n\t\t// Unset the owning side of the relationship\n";
-				$inverseRemover .= "\t\t\${$singularName}->set" . ucfirst($mappedBy) . "(null);";
+				$inverseRemover .= "\t\t\${$singularName}->{$setterMethod}(null);";
 			}
 			
 			return "\n\t/**\n\t * Removes a relation between {$targetEntity} and " . substr($targetEntity, 0, -6) . "\n\t * @param {$targetEntity} \${$singularName}\n\t * @return \$this\n\t */\n\tpublic function {$methodName}({$targetEntity} \${$singularName}): self {\n\t\tif (\$this->{$collectionName}->remove(\${$singularName})) {" .
