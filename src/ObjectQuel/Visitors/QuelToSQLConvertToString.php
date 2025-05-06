@@ -5,7 +5,7 @@
 	
 	// Importeer de vereiste klassen en interfaces
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBool;
@@ -263,7 +263,7 @@
 						// Vervang wildcard karakters door SQL LIKE syntax equivalenten.
 						$stringValue = str_replace(["%", "_", "*", "?"], ["\\%", "\\_", "%", "_"], $stringValue);
 						
-						// Bepaal de LIKE operator op basis van de oorspronkelijke operator.
+						// Bepaal de LIKE-operator op basis van de oorspronkelijke operator.
 						$regexpOperator = $operator == "=" ? " LIKE " : " NOT LIKE ";
 						
 						// Voeg het resultaat toe met de aangepaste operator en waarde.

@@ -11,8 +11,8 @@
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityModifier;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\Configuration;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	
 	/**
 	 * MakeEntityCommand - CLI command for creating or updating entity classes

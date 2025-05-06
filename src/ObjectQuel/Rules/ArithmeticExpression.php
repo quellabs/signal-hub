@@ -84,6 +84,16 @@
 		}
 		
 		/**
+		 * Parses a regular expression
+		 * @return AstRegExp
+		 * @throws LexerException
+		 */
+		protected function parseRegExp(): AstRegExp {
+			$regexp = $this->lexer->fetchRegExp();
+			return new AstRegExp($regexp['pattern'], $regexp['flags']);
+		}
+		
+		/**
 		 * Returns the lexer instance
 		 * @return Lexer
 		 */
@@ -165,7 +175,12 @@
 				case Token::Parameter :
 					$this->lexer->match($tokenType);
 					return new AstParameter($tokenValue);
-					
+				
+				case Token::Slash :
+					// In a primary expression context, a slash is always the start of a regex
+					// This is because division is handled at a higher level in parseFactor
+					return $this->parseRegExp();
+				
 				case Token::Identifier :
 					$node = $this->parsePropertyChain();
 					
@@ -177,10 +192,6 @@
 					
 					// Anders, retourneer de property keten
 					return $node;
-				
-				case Token::RegExp :
-					$this->lexer->match($tokenType);
-					return new AstRegExp($tokenValue);
 				
 				case Token::ParenthesesOpen:
 					// Handle parenthesized expressions
@@ -197,12 +208,11 @@
 		
 		/**
 		 * Parse unary expressions (-, +, *, &, etc.)
-		 * @param bool $isJumpTarget Whether this is used as a jump target
 		 * @return AstInterface
 		 * @throws LexerException
 		 * @throws ParserException
 		 */
-		protected function parseUnaryExpression(bool $isJumpTarget = false): AstInterface {
+		protected function parseUnaryExpression(): AstInterface {
 			$token = $this->lexer->peek();
 			$tokenType = $token->getType();
 			$tokenValue = $token->getValue();

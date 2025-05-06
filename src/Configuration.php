@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\EntityManager;
+	namespace Quellabs\ObjectQuel;
 	
 	/**
 	 * Configuration class for ObjectQuel ORM

@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Proxy;
 	
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager;
 	
 	interface ProxyInterface {
 	

@@ -5,13 +5,13 @@
 	use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
 	use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
 	use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\EntityManager;
 	use Quellabs\ObjectQuel\EntityManager\Collections\Collection;
 	use Quellabs\ObjectQuel\EntityManager\Collections\EntityCollection;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;

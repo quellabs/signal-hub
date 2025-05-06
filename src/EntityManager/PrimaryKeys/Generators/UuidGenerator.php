@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\PrimaryKeys\Generators;
 	
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager;
 	use Quellabs\ObjectQuel\EntityManager\PrimaryKeys\PrimaryKeyGeneratorInterface;
 	
 	/**

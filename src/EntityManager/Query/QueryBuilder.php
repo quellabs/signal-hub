@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Query;
 	
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	
 	class QueryBuilder {
 		

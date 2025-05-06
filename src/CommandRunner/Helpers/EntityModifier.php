@@ -2,8 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
 	
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\Database\TypeMapper;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	class EntityModifier {
 		

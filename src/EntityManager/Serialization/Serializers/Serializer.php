@@ -5,7 +5,7 @@
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
 	use Quellabs\ObjectQuel\Annotations\SerializationGroups;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\ReflectionHandler;
 	

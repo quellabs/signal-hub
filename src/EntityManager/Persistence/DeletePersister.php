@@ -3,11 +3,11 @@
     namespace Quellabs\ObjectQuel\EntityManager\Persistence;
     
 	use Quellabs\ObjectQuel\Annotations\Orm\PostDelete;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Core\OrmException;
-	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
 	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\OrmException;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	
 	class DeletePersister extends PersisterBase {
     

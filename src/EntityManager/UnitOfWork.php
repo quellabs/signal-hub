@@ -1,12 +1,12 @@
 <?php
     
-    namespace Quellabs\ObjectQuel\EntityManager\Core;
+    namespace Quellabs\ObjectQuel\EntityManager;
 
     use Quellabs\ObjectQuel\Annotations\Orm\Cascade;
     use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+    use Quellabs\ObjectQuel\EntityManager;
     use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
-    use Quellabs\ObjectQuel\EntityManager\EntityManager;
     use Quellabs\ObjectQuel\EntityManager\Persistence\DeletePersister;
     use Quellabs\ObjectQuel\EntityManager\Persistence\InsertPersister;
     use Quellabs\ObjectQuel\EntityManager\Persistence\UpdatePersister;

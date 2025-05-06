@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\EntityManager\entityManager;
+	use Quellabs\ObjectQuel\entityManager;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
 	use Quellabs\ObjectQuel\ObjectQuel\Helpers\EntityHydrator;
 	use Quellabs\ObjectQuel\ObjectQuel\Helpers\RelationshipLoader;

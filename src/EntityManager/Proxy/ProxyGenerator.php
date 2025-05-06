@@ -3,8 +3,8 @@
 	namespace Quellabs\ObjectQuel\EntityManager\Proxy;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
+	use Quellabs\ObjectQuel\Configuration;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\ReflectionHandler;
 	
 	class ProxyGenerator {

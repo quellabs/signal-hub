@@ -5,7 +5,7 @@
 	use Cake\Database\StatementInterface;
 	use Cake\Datasource\ConnectionInterface;
 	use Cake\Datasource\ConnectionManager;
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
 	 * Database adapter that ties ObjectQuel and Cakephp/Database together

@@ -3,11 +3,11 @@
 	namespace Quellabs\ObjectQuel\ObjectQuel\Helpers;
 	
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
 	use Quellabs\ObjectQuel\EntityManager\Serialization\Serializers\Serializer;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;

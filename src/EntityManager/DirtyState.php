@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\EntityManager\Core;
+	namespace Quellabs\ObjectQuel\EntityManager;
 	
 	use Quellabs\ObjectQuel\EntityManager\Reflection\BasicEnum;
 	

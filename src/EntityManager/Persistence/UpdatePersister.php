@@ -4,11 +4,11 @@
     
    use Quellabs\ObjectQuel\Annotations\Orm\PostUpdate;
    use Quellabs\ObjectQuel\Annotations\Orm\PreUpdate;
-   use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-   use Quellabs\ObjectQuel\EntityManager\Core\OrmException;
-   use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
    use Quellabs\ObjectQuel\EntityManager\Database\databaseAdapter;
+   use Quellabs\ObjectQuel\EntityManager\EntityStore;
+   use Quellabs\ObjectQuel\EntityManager\OrmException;
    use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
+   use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
    
    class UpdatePersister extends PersisterBase {
     

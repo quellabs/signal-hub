@@ -2,9 +2,9 @@
 	
 	require('../vendor/autoload.php');
 	
+	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\Entity\ProductsEntity;
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager;
 	
 	$config = new Configuration();
 	$config->setEntityPath(__DIR__ . '/../src/Entity');

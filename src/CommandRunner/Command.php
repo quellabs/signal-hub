@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner;
 	
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	abstract class Command {
 		

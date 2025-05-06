@@ -3,8 +3,8 @@
 	namespace Quellabs\ObjectQuel\EntityManager\Query;
 	
 	use Flow\JSONPath\JSONPathException;
+	use Quellabs\ObjectQuel\EntityManager;
 	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
 	use Quellabs\ObjectQuel\EntityManager\Execution\ExecutionStage;
 	use Quellabs\ObjectQuel\EntityManager\Execution\PlanExecutor;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;

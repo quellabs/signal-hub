@@ -247,30 +247,7 @@
                 ++$this->pos;
                 return new Token(Token::String, $string, $this->lineNumber, ['char' => $firstChar]);
             }
-			
-            // backtick string means regular expression
-            if ($this->string[$this->pos] === '`') {
-                $string = "";
-    
-                while ($this->string[++$this->pos] !== '`') {
-					// Controleer op een niet afgesloten string op basis van end-of-stream
-                    if ($this->pos == $this->length) {
-                        throw new LexerException("Unexpected end of data");
-                    }
-					
-					// Behandel een niet afgesloten string op basis van een enter
-					if ($this->string[$this->pos] == "\n") {
-						throw new LexerException("Unterminated string");
-					}
-					
-					// Voeg het karakter toe
-                    $string .= $this->string[$this->pos];
-                }
-    
-                ++$this->pos;
-                return new Token(Token::RegExp, $string, $this->lineNumber);
-            }
-			
+
 			// compiler directive
 			if ($this->string[$this->pos] == "@") {
 				++$this->pos;
@@ -432,4 +409,65 @@
 		public function getLineNumber(): int {
 			return $this->lineNumber;
 		}
+	    
+	    /**
+	     * Fetches a regular expression from the source
+	     * @return array An array containing the pattern and flags of the regex
+	     * @throws LexerException If the regular expression is malformed
+	     */
+	    public function fetchRegExp(): array {
+		    // Skip the opening slash
+		    ++$this->pos;
+		    
+		    $pattern = "";
+		    
+		    // Read the pattern until closing slash
+		    while ($this->pos < $this->length) {
+			    // Check for newline in regex (not allowed)
+			    if ($this->string[$this->pos] === "\n") {
+				    throw new LexerException("Unterminated regular expression");
+			    }
+			    
+			    // Handle escape sequences
+			    if ($this->string[$this->pos] === "\\") {
+				    // Make sure there's a character after the backslash
+				    if ($this->pos + 1 >= $this->length) {
+					    throw new LexerException("Unterminated regular expression escape");
+				    }
+				    
+				    // Add both the backslash and the escaped character
+				    $pattern .= $this->string[$this->pos] . $this->string[$this->pos + 1];
+				    $this->pos += 2; // Skip both characters
+				    continue;
+			    }
+			    
+			    // Check for closing slash
+			    if ($this->string[$this->pos] === "/") {
+				    // Found the end of the pattern
+				    break;
+			    }
+			    
+			    // Add current character to pattern
+			    $pattern .= $this->string[$this->pos];
+			    ++$this->pos;
+		    }
+		    
+		    // Check if we reached the end without finding a closing slash
+		    if ($this->pos >= $this->length) {
+			    throw new LexerException("Unterminated regular expression");
+		    }
+			
+			// Skip the closing slash
+		    ++$this->pos;
+		    
+		    // Read flags (letters following the closing slash)
+		    $flags = "";
+		    
+		    while ($this->pos < $this->length && ctype_alpha($this->string[$this->pos])) {
+			    $flags .= $this->string[$this->pos];
+			    ++$this->pos;
+		    }
+		    
+		    return ['pattern' => $pattern, 'flags' => $flags];
+	    }
 	}

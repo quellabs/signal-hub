@@ -123,7 +123,7 @@ $config->setCacheDir(__DIR__ . '/var/cache/metadata');
 Once you've configured all settings, create the EntityManager:
 
 ```php
-use Quellabs\ObjectQuel\EntityManager\EntityManager;
+use Quellabs\ObjectQuel\EntityManager;
 
 // Create the EntityManager with your configuration
 $entityManager = new EntityManager($config);
@@ -190,7 +190,7 @@ ObjectQuel provides powerful search operations:
 
 ```php
 // Exact match
-retrieve (main.productsName) where main.productsName = 'xyz'
+retrieve (main.productsName) where main.productsName = "xyz"
 
 // Pattern matching (starts with xyz)
 retrieve (main.productsName) where main.productsName = "xyz*"
@@ -202,7 +202,7 @@ retrieve (main.productsName) where main.productsName = "abc*xyz"
 retrieve (main.productsName) where main.productsName = "h?nk"
 
 // Regular expression support
-retrieve (main.productsName) where main.productsName = `^a`
+retrieve (main.productsName) where main.productsName = /^a/
 
 // Full text search
 retrieve(main) where search(main.productsName, "banana cherry +pear -apple")
@@ -216,7 +216,7 @@ ObjectQuel supports pagination with the WINDOW operator:
 range of x is ProductsEntity
 range of y is ProductsDescriptionEntity via y.productsId=x.productsId
 retrieve (x.productsId) sort by y.productsName
-window 1 using page_size 10
+window 1 using window_size 10
 ```
 
 ### Using ObjectQuel Query Language

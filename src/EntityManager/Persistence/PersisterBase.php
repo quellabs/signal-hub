@@ -2,7 +2,7 @@
     
     namespace Quellabs\ObjectQuel\EntityManager\Persistence;
     
-	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	
 	class PersisterBase {
 		

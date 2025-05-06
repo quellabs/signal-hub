@@ -3,7 +3,7 @@
 	namespace Quellabs\ObjectQuel\EntityManager\Reflection;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\ObjectQuel\EntityManager\Configuration;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
 	 * Responsible for locating and loading entity classes

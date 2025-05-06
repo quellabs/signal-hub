@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\EntityManager\Collections;
 	
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
 	
 	/**

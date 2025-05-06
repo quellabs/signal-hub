@@ -1,15 +1,15 @@
 <?php
 	
-    namespace Quellabs\ObjectQuel\EntityManager;
+    namespace Quellabs\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\EntityManager\Core\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Core\OrmException;
-	use Quellabs\ObjectQuel\EntityManager\Core\UnitOfWork;
 	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityManager\OrmException;
 	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
 	use Quellabs\ObjectQuel\EntityManager\Query\QueryBuilder;
 	use Quellabs\ObjectQuel\EntityManager\Query\QueryExecutor;
 	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
+	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
 	use Quellabs\ObjectQuel\Validation\EntityToValidation;

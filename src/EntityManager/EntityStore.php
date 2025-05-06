@@ -1,13 +1,13 @@
 <?php
     
-    namespace Quellabs\ObjectQuel\EntityManager\Core;
+    namespace Quellabs\ObjectQuel\EntityManager;
     
     use Quellabs\AnnotationReader\AnnotationReader;
     use Quellabs\ObjectQuel\Annotations\Orm\Column;
     use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
-    use Quellabs\ObjectQuel\EntityManager\Configuration;
+    use Quellabs\ObjectQuel\Configuration;
     use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyGenerator;
     use Quellabs\ObjectQuel\EntityManager\Reflection\EntityLocator;
     use Quellabs\ObjectQuel\EntityManager\Reflection\ReflectionHandler;
