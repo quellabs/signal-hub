@@ -119,7 +119,7 @@
 		}
 		
 		/**
-		 * Interner helper functies voor het ophalen van properties met een bepaalde annotatie
+		 * Interne helper functies voor het ophalen van properties met een bepaalde annotatie
 		 * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
 		 * @param string $desiredAnnotationType Het type van de afhankelijkheid
 		 * @return array
@@ -179,93 +179,85 @@
         public function getReflectionHandler(): ReflectionHandler {
             return $this->reflection_handler;
         }
-    
-        /**
-         * Returns the ProxyGenerator object
-         * @return ProxyGenerator
-         */
-        public function getProxyGenerator(): ProxyGenerator {
-            return $this->proxy_generator;
-        }
-    
-		/**
-		 * Normaliseert de entiteitsnaam om de basisentiteitsklasse terug te geven als de input een proxy-klasse is.
-		 * @param string $class De volledige naam van de klasse die genormaliseerd moet worden.
-		 * @return string De genormaliseerde naam van de klasse.
-		 */
-		public function normalizeEntityName(string $class): string {
-			if (!isset($this->completed_entity_name_cache[$class])) {
-				// Controleer of de klassenaam het "\\Proxies\\" subpad bevat, wat duidt op een proxy-klasse
-				// Als het een proxy-klasse is, haal dan de naam van de ouderklasse (de echte entiteitsklasse) op
-				if (str_contains($class, "\\Proxies\\")) {
-					$this->completed_entity_name_cache[$class] = $this->reflection_handler->getParent($class);
-				} elseif (str_contains($class, "\\")) {
-					$this->completed_entity_name_cache[$class] = $class;
-				} else {
-					$this->completed_entity_name_cache[$class] = "{$this->entity_namespace}\\{$class}";
-				}
-			}
-			
-			// Als het geen proxy-klasse is, retourneer dan gewoon de gegeven klassenaam
-			return $this->completed_entity_name_cache[$class];
-		}
-		
-		/**
-		 * Checks if the entity or its parent exists in the entity_table_name array.
-		 * @param mixed $entity The entity to check, either as an object or as a string class name.
-		 * @return bool True if the entity or its parent class exists in the entity_table_name array, false otherwise.
-		 */
-		public function exists(mixed $entity): bool {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Check if the entity class exists in the entity_table_name array.
-			if (isset($this->entity_table_name[$normalizedClass])) {
-				return true;
-			}
-			
-			// Get the parent class name using the ReflectionHandler.
-			$parentClass = $this->getReflectionHandler()->getParent($normalizedClass);
-			
-			// Check if the parent class exists in the entity_table_name array.
-			if ($parentClass !== null && isset($this->entity_table_name[$parentClass])) {
-				return true;
-			}
-			
-			// Return false if neither the entity nor its parent class exists in the entity_table_name array.
-			return false;
-		}
-        
-        /**
-         * Returns the table name attached to the entity
-         * @param mixed $entity
-         * @return string|null
-         */
-        public function getOwningTable(mixed $entity): ?string {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Haal de table naam op
-			return $this->entity_table_name[$normalizedClass] ?? null;
-        }
+	    
+	    /**
+	     * Normalizes the entity name to return the base entity class if the input is a proxy class.
+	     * @param string $class The fully qualified class name to be normalized.
+	     * @return string The normalized class name.
+	     */
+	    public function normalizeEntityName(string $class): string {
+		    if (!isset($this->completed_entity_name_cache[$class])) {
+			    // Check if the class name contains the proxy namespace, which indicates a proxy class.
+			    // If it's a proxy class, get the name of the parent class (the real entity class).
+			    if (str_contains($class, $this->configuration->getProxyNamespace())) {
+				    $this->completed_entity_name_cache[$class] = $this->reflection_handler->getParent($class);
+			    } elseif (str_contains($class, "\\")) {
+				    $this->completed_entity_name_cache[$class] = $class;
+			    } else {
+				    $this->completed_entity_name_cache[$class] = "{$this->entity_namespace}\\{$class}";
+			    }
+		    }
+		    
+		    // Return the cached class name, which will be the normalized version
+		    return $this->completed_entity_name_cache[$class];
+	    }
+	    
+	    /**
+	     * Checks if the entity or its parent exists in the entity_table_name array.
+	     * @param mixed $entity The entity to check, either as an object or as a string class name.
+	     * @return bool True if the entity or its parent class exists in the entity_table_name array, false otherwise.
+	     */
+	    public function exists(mixed $entity): bool {
+		    // Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+		    
+		    // If the class name is a proxy, get the parent class name
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Check if the entity class exists in the entity_table_name array
+		    if (isset($this->entity_table_name[$normalizedClass])) {
+			    return true;
+		    }
+		    
+		    // Get the parent class name using the ReflectionHandler
+		    $parentClass = $this->getReflectionHandler()->getParent($normalizedClass);
+		    
+		    // Check if the parent class exists in the entity_table_name array
+		    if ($parentClass !== null && isset($this->entity_table_name[$parentClass])) {
+			    return true;
+		    }
+		    
+		    // Return false if neither the entity nor its parent class exists in the entity_table_name array
+		    return false;
+	    }
+	    
+	    /**
+	     * Returns the table name attached to the entity
+	     * @param mixed $entity
+	     * @return string|null
+	     */
+	    public function getOwningTable(mixed $entity): ?string {
+			// Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+
+			// If the class name is a proxy, get the parent class name
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+
+			// Get the table name
+		    return $this->entity_table_name[$normalizedClass] ?? null;
+	    }
 	    
 		/**
 		 * Deze functie haalt de primaire sleutels van een gegeven entiteit op.
@@ -490,87 +482,87 @@
             $this->dependencies_cache[$md5OfQuery] = $result;
             return $result;
         }
-        
-        /**
-		 * Retourneert alle entiteiten die afhankelijk zijn van de opgegeven entiteit.
-		 * @param mixed $entity De naam van de entiteit waarvan je de afhankelijke entiteiten wilt vinden.
-		 * @return array Een lijst van afhankelijke entiteiten.
-		 */
-		public function getDependentEntities(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Haal alle bekende entiteitsafhankelijkheden op.
-			$dependencies = $this->getAllEntityDependencies();
-			
-			// Loop door elke entiteit en diens afhankelijkheden om te controleren op de opgegeven klasse.
-			$result = [];
-			
-			foreach ($dependencies as $entity => $entityDependencies) {
-				// Gebruik array_flip voor snellere zoekopdrachten.
-				$flippedDependencies = array_flip($entityDependencies);
-				
-				// Als de opgegeven klasse in de omgekeerde lijst met afhankelijkheden staat,
-				// voeg deze dan toe aan het resultaat.
-				if (isset($flippedDependencies[$normalizedClass])) {
-					$result[] = $entity;
-				}
-			}
-			
-			// Retourneer de lijst met afhankelijke entiteiten.
-			return $result;
-		}
-		
-		/**
-		 * Haalt de primaire sleutel van de hoofdbereik (range) van een AstRetrieve object.
-		 * Deze functie doorzoekt de ranges binnen het AstRetrieve object en retourneert de primaire sleutel
-		 * van de eerste range die geen join eigenschap heeft. Dit is de hoofdentity waarop de query betrekking heeft.
-		 * @param AstRetrieve $e Een verwijzing naar het AstRetrieve object dat de query representeert.
-		 * @return ?array Een array met informatie over de range en de primaire sleutel, of null als er geen geschikte range gevonden is.
-		 */
-		public function fetchPrimaryKeyOfMainRange(AstRetrieve $e): ?array {
-			foreach ($e->getRanges() as $range) {
-				// Continueert of de range een join eigenschap bevat
-				if ($range->getJoinProperty() !== null) {
-					continue;
-				}
-				
-				// Haalt de naam van de entiteit en de bijbehorende primaire sleutel op als de range geen join eigenschap heeft.
-				$entityName = $range->getEntity()->getName();
-				$entityNameIdentifierKeys = $this->getIdentifierKeys($entityName);
-				
-				// Retourneert de naam van de range, de entiteitnaam en de primaire sleutel van de entiteit.
-				return [
-					'range'      => $range,
-					'entityName' => $entityName,
-					'primaryKey' => $entityNameIdentifierKeys[0]
-				];
-			}
-			
-			// Retourneert null als er geen range zonder join eigenschap gevonden is.
-			// Dit komt in de praktijk nooit voor, omdat een dergelijke query niet gemaakt kan worden.
-			return null;
-		}
 	    
 	    /**
-	     * Normaliseert de primaire sleutel tot een array.
-	     * Deze functie controleert of de gegeven primaire sleutel al een array is.
-	     * Zo niet, dan wordt de primaire sleutel omgezet naar een array met de juiste sleutel
-	     * op basis van de entiteitstype.
-	     * @param mixed $primaryKey De primaire sleutel die moet worden genormaliseerd.
-	     * @param string $entityType Het type van de entiteit waarvoor de primaire sleutel nodig is.
-	     * @return array Een genormaliseerde weergave van de primaire sleutel als een array.
+	     * Returns all entities that depend on the specified entity.
+	     * @param mixed $entity The name of the entity for which you want to find dependent entities.
+	     * @return array A list of dependent entities.
 	     */
-	    public function normalizePrimaryKey(mixed $primaryKey, string $entityType): array {
-		    // Als de primaire sleutel al een array is, retourneer deze direct.
+	    public function getDependentEntities(mixed $entity): array {
+		    // Determine the class name of the entity
+		    $entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
+		    
+		    // If the class name is a proxy, get the parent class
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Get all known entity dependencies
+		    $dependencies = $this->getAllEntityDependencies();
+		    
+		    // Loop through each entity and its dependencies to check for the specified class
+		    $result = [];
+		    
+		    foreach ($dependencies as $entity => $entityDependencies) {
+			    // Use array_flip for faster lookups
+			    $flippedDependencies = array_flip($entityDependencies);
+			    
+			    // If the specified class exists in the flipped dependencies list,
+			    // add it to the result
+			    if (isset($flippedDependencies[$normalizedClass])) {
+				    $result[] = $entity;
+			    }
+		    }
+		    
+		    // Return the list of dependent entities
+		    return $result;
+	    }
+	    
+	    /**
+	     * Retrieves the primary key of the main range from an AstRetrieve object.
+	     * This function searches through the ranges within the AstRetrieve object and returns the primary key
+	     * of the first range that doesn't have a join property. This represents the main entity the query relates to.
+	     * @param AstRetrieve $e A reference to the AstRetrieve object representing the query.
+	     * @return ?array An array with information about the range and primary key, or null if no suitable range is found.
+	     */
+	    public function fetchPrimaryKeyOfMainRange(AstRetrieve $e): ?array {
+		    foreach ($e->getRanges() as $range) {
+			    // Continue if the range contains a join property
+			    if ($range->getJoinProperty() !== null) {
+				    continue;
+			    }
+			    
+			    // Get the entity name and its associated primary key if the range doesn't have a join property
+			    $entityName = $range->getEntity()->getName();
+			    $entityNameIdentifierKeys = $this->getIdentifierKeys($entityName);
+			    
+			    // Return the range name, entity name, and the primary key of the entity
+			    return [
+				    'range'      => $range,
+				    'entityName' => $entityName,
+				    'primaryKey' => $entityNameIdentifierKeys[0]
+			    ];
+		    }
+		    
+		    // Return null if no range without a join property is found
+		    // This should never happen in practice, as such a query cannot be created
+		    return null;
+	    }
+	    
+	    /**
+	     * Normalizes the primary key into an array.
+	     * This function checks if the given primary key is already an array.
+	     * If not, it converts the primary key into an array with the proper key
+	     * based on the entity type.
+	     * @param mixed $primaryKey The primary key to be normalized.
+	     * @param string $entityType The type of entity for which the primary key is needed.
+	     * @return array A normalized representation of the primary key as an array.
+	     */
+	    public function formatPrimaryKeyAsArray(mixed $primaryKey, string $entityType): array {
+		    // If the primary key is already an array, return it directly.
 		    if (is_array($primaryKey)) {
 			    return $primaryKey;
 		    }
 		    
-		    // Zo niet, haal de identifier keys op en maak een array met de juiste sleutel en waarde.
+		    // Otherwise, get the identifier keys and create an array with the proper key and value.
 		    $identifierKeys = $this->getIdentifierKeys($entityType);
 		    return [$identifierKeys[0] => $primaryKey];
 	    }

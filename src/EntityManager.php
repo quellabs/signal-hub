@@ -143,7 +143,7 @@
 		}
 		
 		/**
-		 * Haalt alle resultaten van een uitgevoerde ObjectQuel-query op.
+		 * Retrieves all results from an executed ObjectQuel query.
 		 * @param string $query
 		 * @param array $parameters
 		 * @return array
@@ -154,75 +154,75 @@
 		}
 		
 		/**
-		 * Voert een ObjectQuel-query uit en retourneert een array met objecten uit de
-		 * eerste kolom van elk resultaat, waarbij duplicaten verwijderd zijn.
-		 * @param string $query De ObjectQuel-query om uit te voeren.
-		 * @param array $parameters Optionele parameters voor de query.
-		 * @return array Een array met unieke objecten uit de eerste kolom van de queryresultaten.
+		 * Executes an ObjectQuel query and returns an array of objects from the
+		 * first column of each result, with duplicates removed.
+		 * @param string $query The ObjectQuel query to execute.
+		 * @param array $parameters Optional parameters for the query.
+		 * @return array An array of unique objects from the first column of query results.
 		 */
 		public function getCol(string $query, array $parameters=[]): array {
 			return $this->query_executor->getCol($query, $parameters);
 		}
 		
 		/**
-		 * Zoekt entiteiten op basis van het gegeven entiteitstype en de primaire sleutel.
+		 * Searches for entities based on the given entity type and primary key.
 		 * @template T
-		 * @param class-string<T> $entityType De fully qualified class name van de container
-		 * @param mixed $primaryKey De primaire sleutel van de entiteit
-		 * @return T[] De gevonden entiteiten
+		 * @param class-string<T> $entityType The fully qualified class name of the container
+		 * @param mixed $primaryKey The primary key of the entity
+		 * @return T[] The found entities
 		 * @throws QuelException
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
-			// Normaliseer de primaire sleutel.
-			$primaryKeys = $this->entity_store->normalizePrimaryKey($primaryKey, $entityType);
+			// Normalize the primary key
+			$primaryKeys = $this->entity_store->formatPrimaryKeyAsArray($primaryKey, $entityType);
 			
-			// Bereid een query voor als de entiteit niet gevonden is.
+			// Prepare a query in case the entity is not found
 			$query = $this->query_builder->prepareQuery($entityType, $primaryKeys);
 			
-			// Voer query uit en haal resultaat op
+			// Execute query and retrieve result
 			$result = $this->query_executor->getAll($query, $primaryKeys);
 			
-			// Haal de main column uit het resultaat
+			// Extract the main column from the result
 			$filteredResult = array_column($result, "main");
 			
-			// Retourneer ontdubbelde resultaten
+			// Return deduplicated results
 			return $this->query_executor->deDuplicateObjects($filteredResult);
 		}
 		
 		/**
-		 * Zoekt een entiteit op basis van het gegeven entiteitstype en primaire sleutel.
+		 * Searches for a single entity based on the given entity type and primary key.
 		 * @template T
-		 * @param class-string<T> $entityType De fully qualified class name van de container
-		 * @param mixed $primaryKey De primaire sleutel van de entiteit
-		 * @return T|null De gevonden entiteit of null als deze niet gevonden wordt
+		 * @param class-string<T> $entityType The fully qualified class name of the container
+		 * @param mixed $primaryKey The primary key of the entity
+		 * @return T|null The found entity or null if not found
 		 * @throws QuelException
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
-			// Normaliseer de primaire sleutel.
-			$primaryKeys = $this->entity_store->normalizePrimaryKey($primaryKey, $entityType);
+			// Normalize the primary key
+			$primaryKeys = $this->entity_store->formatPrimaryKeyAsArray($primaryKey, $entityType);
 			
-			// Probeer de entiteit te vinden in de huidige unit of work.
+			// Try to find the entity in the current unit of work
 			$existingEntity = $this->unit_of_work->findEntity($entityType, $primaryKeys);
 			
-			// Als de entiteit bestaat en geïnitialiseerd is, retourneer deze.
+			// If the entity exists and is initialized, return it
 			if (!empty($existingEntity) && !($existingEntity instanceof ProxyInterface && !$existingEntity->isInitialized())) {
 				return $existingEntity;
 			}
 			
-			// Haal resultaat op
+			// Retrieve results
 			$result = $this->findBy($entityType, $primaryKey);
 			
-			// Als de query geen resultaat geeft, retourneer null.
+			// If the query returns no results, return null
 			if (empty($result)) {
 				return null;
 			}
 			
-			// Haal de resultaten op van de query en retourneer de hoofdentiteit.
-			return $result[0] ?? null; // Gebruik null-coalescing voor veilige toegang.
+			// Get the results from the query and return the main entity
+			return $result[0] ?? null; // Use null-coalescing operator for safe access
 		}
 		
 		/**
-		 * Verwijdert een entiteit
+		 * Schedules an entity for removal
 		 * @param object $entity
 		 * @return void
 		 */
