@@ -79,7 +79,7 @@
 				    // Initialize data structures for this entity
 				    $this->entity_annotations[$entityName] = [];
 				    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
-				    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Orm\\Table"]->getName();
+				    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Quellabs\\ObjectQuel\\Annotations\\Orm\\Table"]->getName();
 				    
 				    // Process each property of the entity
 				    foreach ($this->entity_properties[$entityName] as $property) {
