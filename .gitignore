@@ -1,7 +1,4 @@
 composer.lock
-.env
 /vendor/
-/src/AnnotationsReader/Cache
-!/src/AnnotationsReader/Cache/.htaccess
 /src/EntityManager/Proxies
 !/src/EntityManager/Proxies/.htaccess
