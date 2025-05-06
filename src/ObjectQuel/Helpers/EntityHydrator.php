@@ -4,13 +4,13 @@
 	
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
 	use Quellabs\ObjectQuel\EntityManager;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
-	use Quellabs\ObjectQuel\EntityManager\Serialization\Serializers\Serializer;
-	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\EntityStore;
+	use Quellabs\ObjectQuel\UnitOfWork;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeJsonSource;
+	use Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface;
+	use Quellabs\ObjectQuel\Serialization\Serializers\Serializer;
 	
 	class EntityHydrator {
 		
@@ -18,6 +18,10 @@
 		private EntityStore $entityStore;
 		private Serializer $serializer;
 		
+		/**
+		 * EntityHydrator constructor
+		 * @param EntityManager $entityManager
+		 */
 		public function __construct(EntityManager $entityManager) {
 			$this->unitOfWork = $entityManager->getUnitOfWork();
 			$this->entityStore = $entityManager->getEntityStore();

@@ -5,17 +5,17 @@
 	use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
 	use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
 	use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+	use Quellabs\ObjectQuel\Collections\Collection;
+	use Quellabs\ObjectQuel\Collections\EntityCollection;
+	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\EntityManager;
-	use Quellabs\ObjectQuel\EntityManager\Collections\Collection;
-	use Quellabs\ObjectQuel\EntityManager\Collections\EntityCollection;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
-	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
-	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\UnitOfWork;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
+	use Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface;
+	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	
 	class RelationshipLoader {
 		

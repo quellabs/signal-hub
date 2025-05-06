@@ -3,7 +3,7 @@
 	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
 	
 	use Quellabs\ObjectQuel\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityStore;
 	
 	/**
 	 * EntityScanner

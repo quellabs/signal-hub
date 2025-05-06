@@ -252,8 +252,8 @@
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\Collection;\n";
-			$content .= "use Quellabs\\ObjectQuel\\EntityManager\\Collections\\CollectionInterface;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Collections\\Collection;\n";
+			$content .= "use Quellabs\\ObjectQuel\\Collections\\CollectionInterface;\n";
 			
 			// Class definitions
 			$tableName = $this->snakeCase($entityName);

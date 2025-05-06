@@ -123,7 +123,7 @@ $config->setCacheDir(__DIR__ . '/var/cache/metadata');
 Once you've configured all settings, create the EntityManager:
 
 ```php
-use Quellabs\ObjectQuel\EntityManager;
+use Quellabs\ObjectQuel\Core;
 
 // Create the EntityManager with your configuration
 $entityManager = new EntityManager($config);

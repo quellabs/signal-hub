@@ -17,17 +17,14 @@
 	
     namespace Quellabs\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\EntityManager\Database\DatabaseAdapter;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
-	use Quellabs\ObjectQuel\EntityManager\OrmException;
-	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyGenerator;
-	use Quellabs\ObjectQuel\EntityManager\Proxy\ProxyInterface;
-	use Quellabs\ObjectQuel\EntityManager\Query\QueryBuilder;
-	use Quellabs\ObjectQuel\EntityManager\Query\QueryExecutor;
-	use Quellabs\ObjectQuel\EntityManager\Reflection\PropertyHandler;
-	use Quellabs\ObjectQuel\EntityManager\UnitOfWork;
+	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
+	use Quellabs\ObjectQuel\ProxyGenerator\ProxyGenerator;
+	use Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface;
+	use Quellabs\ObjectQuel\QueryManagement\QueryBuilder;
+	use Quellabs\ObjectQuel\QueryManagement\QueryExecutor;
+	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\Validation\EntityToValidation;
 	
 	/**

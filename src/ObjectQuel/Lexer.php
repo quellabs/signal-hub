@@ -2,8 +2,6 @@
     
     namespace Quellabs\ObjectQuel\ObjectQuel;
 
-    use Quellabs\ObjectQuel\EntityManager\Reflection\BasicEnum;
-    
     /**
      * Simple lexer to dissect doc blocks
      * @package Quellabs\ObjectQuel\AnnotationsReader

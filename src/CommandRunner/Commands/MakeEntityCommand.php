@@ -12,7 +12,7 @@
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityModifier;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
 	use Quellabs\ObjectQuel\Configuration;
-	use Quellabs\ObjectQuel\EntityManager\EntityStore;
+	use Quellabs\ObjectQuel\EntityStore;
 	
 	/**
 	 * MakeEntityCommand - CLI command for creating or updating entity classes

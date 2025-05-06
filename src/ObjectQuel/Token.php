@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\EntityManager\Reflection\BasicEnum;
+	use Quellabs\ObjectQuel\ReflectionManagement\BasicEnum;
 	
 	/**
 	 * Class Token
