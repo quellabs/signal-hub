@@ -17,7 +17,6 @@ ObjectQuel consists of an EntityManager with several helper classes:
 - **EntityManager**: Central wrapper around the various helper classes
 - **EntityStore**: Manages entity classes and their relationships
 - **UnitOfWork**: Tracks individual entities and their changes
-- **AnnotationReader**: Processes annotations for entity configuration
 - **ObjectQuel**: Handles reading and parsing of the query language
 
 ## Configuration System
@@ -32,7 +31,7 @@ The configuration system centralizes all settings related to your ORM, including
 ### Creating a Configuration Object
 
 ```php
-use Quellabs\ObjectQuel\Configuration\Configuration;
+use Quellabs\ObjectQuel\Configuration;
 
 // Create a new configuration object
 $config = new Configuration();
@@ -82,6 +81,7 @@ Configure where your entities are located:
 
 ```php
 // Set the base namespace for entities
+// This is used when generating new entities through sculpt
 $config->setEntityNamespace('Quellabs\\ObjectQuel\\Entity');
 
 // Set the entity path (directory where entities reside)
@@ -151,16 +151,18 @@ $entityManager = $stApp->getContainer(\Services\EntityManager\EntityManager::cla
 $entities = $entityManager->findBy(\Services\Entity\CustomersInfoEntity::class, ['firstName' => 'Henk']);
 ```
 
-### 3. Writing Custom ObjectQuel Queries
+### 3. Writing a query
 
 For more complex queries, use the ObjectQuel language:
 
 ```php
 $rs = $entityManager->executeQuery("
-    range of main is Services\Entity\ProductsEntity;
-    retrieve (main) where main.productsId=:productsId", [
+    range of main is Services\Entity\ProductsEntity
+    retrieve (main) where main.productsId=:productsId
+", [
     'productsId' => 1525
 ]);
+
 $results = $rs->fetchResults();
 ```
 
@@ -176,10 +178,11 @@ ObjectQuel is a variant of the Oracle/Ingres language Quel, adapted for handling
 Example:
 ```php
 $rs = $entityManager->executeQuery("
-    range of main is Services\Entity\ProductsEntity;
+    range of main is Services\Entity\ProductsEntity
     range of x is Services\Entity\ProductsDescriptionEntity via main.productsDescriptions
     retrieve (x.productsName) where main.productsId=:productsId
-    sort by x.productsName asc, x.ietsAnders desc", [
+    sort by x.productsName asc, x.ietsAnders desc
+", [
     'productsId' => 1525
 ]);
 ```
@@ -204,7 +207,7 @@ retrieve (main.productsName) where main.productsName = "h?nk"
 // Regular expression support
 retrieve (main.productsName) where main.productsName = /^a/
 
-// Full text search
+// Full-text search
 retrieve(main) where search(main.productsName, "banana cherry +pear -apple")
 ```
 
@@ -225,13 +228,13 @@ You can use the powerful ObjectQuel query language:
 
 ```php
 $query = "
-    range of p is Quellabs\\ObjectQuel\\Entity\\ProductEntity;
-    range of c is Quellabs\\ObjectQuel\\Entity\\CategoryEntity via p.categories;
-    retrieve (p, c) where p.price > :minPrice AND c.name = :categoryName;
+    range of p is Quellabs\\ObjectQuel\\Entity\\ProductEntity
+    range of c is Quellabs\\ObjectQuel\\Entity\\CategoryEntity via p.categories
+    retrieve (p, c) where p.price > :minPrice AND c.name = :categoryName
 ";
 
 $parameters = [
-    'minPrice' => 50.00,
+    'minPrice'     => 50.00,
     'categoryName' => 'Electronics'
 ];
 
@@ -243,7 +246,7 @@ $products = $result->fetchResults();
 
 ### Creating Entities
 
-Entities are placed in the `stApp/Services/Entity` folder and recognized by the `@Orm\Table` annotation:
+Entities are recognized by the `@Orm\Table` annotation:
 
 ```php
 /**
@@ -263,13 +266,14 @@ class CustomersInfoEntity {
 
 ### Entity Relationships
 
-ObjectQuel supports three types of relationships:
+ObjectQuel supports four types of relationships:
 
-1. **OneToOne**: Direct relation between two entities
-2. **OneToMany**: One entity linked to multiple entities
-3. **ManyToOne**: Multiple entities linked to a single entity
+1. **OneToOne**: Direct relation between two entities where each entity can be associated with only one instance of the other entity.
+2. **OneToMany**: One entity linked to multiple entities, where the "one" side can have multiple references to entities on the "many" side.
+3. **ManyToOne**: Multiple entities linked to a single entity, effectively the inverse perspective of OneToMany.
+4. **ManyToMany**: Multiple entities linked to multiple entities, implemented through combination of OneToMany/ManyToOne patterns with a join table.
 
-Examples:
+#### OneToOne example:
 
 ```php
 // OneToOne (owning-side)
@@ -277,13 +281,21 @@ Examples:
  * @Orm\OneToOne(targetEntity="CustomersEntity", inversedBy="customersId", relationColumn="customersInfoId", fetch="EAGER")
  */
 private ?CustomersEntity $parent;
+```
 
+#### OneToMany example:
+
+```php
 // OneToMany (not owning side)
 /**
  * @Orm\OneToMany(targetEntity="AddressBookEntity", mappedBy="customersId", fetch="EAGER")
  * @var $addressBooks EntityCollection
  */
 public $addressBooks;
+```
+
+#### ManyToOne example:
+```php
 
 // ManyToOne (owning-side)
 /**
@@ -292,6 +304,23 @@ public $addressBooks;
  */
 private ?CustomersEntity $customer;
 ```
+
+### ManyToMany
+
+ManyToMany relationships are implemented as a specialized extension of OneToMany/ManyToOne relationships. To establish an effective ManyToMany relation:
+
+1. Apply the `@EntityBridge` annotation to your entity class that will serve as the junction table.
+2. This annotation instructs the query processor to treat the entity as an intermediary linking table.
+3. When queries execute, the processor automatically traverses and loads the related ManyToOne associations defined within this bridge entity.
+
+This architecture leverages the existing OneToMany/ManyToOne infrastructure while providing transparent access to related entities through the bridge, significantly simplifying complex relationship management.
+
+The `@EntityBridge` pattern extends beyond basic relationship mapping by offering several advanced capabilities:
+- Store supplementary data within the junction table (relationship metadata, timestamps, or configuration parameters)
+- Access and manipulate this contextual data alongside the primary relationship information
+- Maintain comprehensive audit trails and relationship history between associated entities
+
+This approach combines the performance benefits of traditional relational database design with the flexibility and expressiveness needed for complex domain modeling.
 
 ### Saving and Persisting Data
 
@@ -325,13 +354,23 @@ $entityManager->flush();
 
 ### Automatic Entity Generation
 
-ObjectQuel provides a utility script to automatically generate entities from existing database tables:
+ObjectQuel provides a powerful utility tool called `sculpt` that streamlines
+the creation of entities in your application. This interactive CLI tool guides you
+through a structured process, automatically generating properly formatted entity classes
+with all the necessary components.
 
-```bash
-php create_entity.php <tablename>
+To create a new entity, run the following command in your terminal:
+
+```php
+php bin/sculpt make:entity
 ```
 
-Generated entities include all properties and getter/setter methods based on the table columns. Note that relationships must be manually added.
+When you execute this command, the `sculpt` tool will:
+
+1. **Prompt for entity name** - Enter a descriptive name for your entity (e.g., "User", "Product", "Order")
+2. **Define properties** - Add fields with their respective data types (string, integer, boolean, etc.)
+3. **Establish relationships** - Define connections to other entities (One-to-One, One-to-Many, etc.)
+4. **Generate accessors** - Create getters and setters for your properties
 
 ## Query Optimization
 
@@ -345,7 +384,7 @@ ObjectQuel supports query flags for optimization, starting with the '@' symbol:
 
 - Proxy cache directories must be writable by the application
 - Proxy generation is required for lazy loading features to work
-- For best performance in production, enable metadata caching
+- For the best performance in production, enable metadata caching
 
 ## Contributing
 
@@ -358,7 +397,7 @@ ObjectQuel is released under the MIT License.
 ```
 MIT License
 
-Copyright (c) 2025 ObjectQuel
+Copyright (c) 2024-2025 ObjectQuel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

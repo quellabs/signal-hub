@@ -44,11 +44,6 @@
 		private string $entityNameSpace = 'Quellabs\\ObjectQuel\\Entity';
 		
 		/**
-		 * @var bool Whether to auto-generate proxy classes
-		 */
-		private bool $autoGenerateProxyClasses = true;
-		
-		/**
 		 * @var string Cache directory for metadata
 		 */
 		private string $cachePath = '';
@@ -267,24 +262,6 @@
 		 */
 		public function getProxyNamespace(): string {
 			return $this->proxyNamespace;
-		}
-		
-		/**
-		 * Set whether to auto-generate proxy classes
-		 * @param bool $autoGenerate
-		 * @return self
-		 */
-		public function setAutoGenerateProxyClasses(bool $autoGenerate): self {
-			$this->autoGenerateProxyClasses = $autoGenerate;
-			return $this;
-		}
-		
-		/**
-		 * Get whether to auto-generate proxy classes
-		 * @return bool
-		 */
-		public function getAutoGenerateProxyClasses(): bool {
-			return $this->autoGenerateProxyClasses;
 		}
 		
 		/**
