@@ -31,7 +31,7 @@
 	
 	$result = $entityManager->executeQuery("
 		range of x is ProductsEntity
-		retrieve (x) where x.guid = '8ed51c45-e34c-4d5f-b29b-83a5ee0ecbe2'
+		retrieve (x) where x.guid = /^8ed51c45/
 		sort by x.guid
 	");
 	

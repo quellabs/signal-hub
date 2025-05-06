@@ -86,11 +86,65 @@
 		/**
 		 * Parses a regular expression
 		 * @return AstRegExp
-		 * @throws LexerException
+		 * @throws LexerException|ParserException
 		 */
 		protected function parseRegExp(): AstRegExp {
-			$regexp = $this->lexer->fetchRegExp();
-			return new AstRegExp($regexp['pattern'], $regexp['flags']);
+			// Match the slash to ensure proper lexer advancement
+			$this->lexer->match(Token::Slash);
+			
+			// Get the current position in the source string
+			$startPos = $this->lexer->getPos();
+			
+			// Now we need to read the regex pattern directly from the source string
+			// First, we get the source string
+			$source = $this->lexer->getSource();
+			
+			// We'll read from the current position until we find the closing slash
+			$currentPos = $startPos; // Skip the opening slash
+			$pattern = "";
+			$flags = "";
+			
+			// Read until we find the closing slash
+			while ($currentPos < strlen($source) && $source[$currentPos] !== '/') {
+				// Handle escape sequences
+				if ($source[$currentPos] === '\\') {
+					if ($currentPos + 1 >= strlen($source)) {
+						throw new ParserException("Unterminated regular expression escape");
+					}
+					
+					$pattern .= $source[$currentPos] . $source[$currentPos + 1];
+					$currentPos += 2;
+					continue;
+				}
+				
+				// Add the current character to the pattern
+				$pattern .= $source[$currentPos];
+				$currentPos++;
+			}
+			
+			// Make sure we found the closing slash
+			if ($currentPos >= strlen($source)) {
+				throw new ParserException("Unterminated regular expression");
+			}
+			
+			// Skip the closing slash
+			++$currentPos;
+			
+			// Read any flags that follow
+			while ($currentPos < strlen($source) && ctype_alpha($source[$currentPos])) {
+				$flags .= $source[$currentPos];
+				++$currentPos;
+			}
+			
+			// Now we need to update the lexer's position to match where we've read to
+			// We might need to add a method to the Lexer class for this
+			$this->lexer->setPos($currentPos);
+			
+			// And reset the token stream
+			$this->lexer->resetTokenStream();
+			
+			// Return the regular expression
+			return new AstRegExp($pattern, $flags);
 		}
 		
 		/**

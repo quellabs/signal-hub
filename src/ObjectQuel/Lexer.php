@@ -359,6 +359,14 @@
 		public function getPos(): int {
 			return $this->previousPreviousPos;
 		}
+	    
+	    /**
+	     * Sets the current position in the source string
+	     * @param int $pos The new position
+	     */
+	    public function setPos(int $pos): void {
+		    $this->pos = $pos;
+	    }
         
         /**
          * Returns the next token without advancing the token counter
@@ -411,63 +419,39 @@
 		}
 	    
 	    /**
-	     * Fetches a regular expression from the source
-	     * @return array An array containing the pattern and flags of the regex
-	     * @throws LexerException If the regular expression is malformed
+	     * Save the state of the lexer
+	     * @return LexerState
 	     */
-	    public function fetchRegExp(): array {
-		    // Skip the opening slash
-		    ++$this->pos;
-		    
-		    $pattern = "";
-		    
-		    // Read the pattern until closing slash
-		    while ($this->pos < $this->length) {
-			    // Check for newline in regex (not allowed)
-			    if ($this->string[$this->pos] === "\n") {
-				    throw new LexerException("Unterminated regular expression");
-			    }
-			    
-			    // Handle escape sequences
-			    if ($this->string[$this->pos] === "\\") {
-				    // Make sure there's a character after the backslash
-				    if ($this->pos + 1 >= $this->length) {
-					    throw new LexerException("Unterminated regular expression escape");
-				    }
-				    
-				    // Add both the backslash and the escaped character
-				    $pattern .= $this->string[$this->pos] . $this->string[$this->pos + 1];
-				    $this->pos += 2; // Skip both characters
-				    continue;
-			    }
-			    
-			    // Check for closing slash
-			    if ($this->string[$this->pos] === "/") {
-				    // Found the end of the pattern
-				    break;
-			    }
-			    
-			    // Add current character to pattern
-			    $pattern .= $this->string[$this->pos];
-			    ++$this->pos;
-		    }
-		    
-		    // Check if we reached the end without finding a closing slash
-		    if ($this->pos >= $this->length) {
-			    throw new LexerException("Unterminated regular expression");
-		    }
-			
-			// Skip the closing slash
-		    ++$this->pos;
-		    
-		    // Read flags (letters following the closing slash)
-		    $flags = "";
-		    
-		    while ($this->pos < $this->length && ctype_alpha($this->string[$this->pos])) {
-			    $flags .= $this->string[$this->pos];
-			    ++$this->pos;
-		    }
-		    
-		    return ['pattern' => $pattern, 'flags' => $flags];
+	    public function saveState(): LexerState {
+		    return new LexerState(
+			    $this->pos,
+			    $this->previousPos,
+			    $this->previousPreviousPos,
+			    $this->lineNumber,
+			    $this->next_token,
+			    $this->lookahead,
+		    );
 	    }
-	}
+	    
+	    /**
+	     * Restore the state of the lexer
+	     * @param LexerState $state
+	     * @return void
+	     */
+	    public function restoreState(LexerState $state): void {
+		    $this->pos = $state->getPos();
+		    $this->previousPos = $state->getPreviousPos();
+		    $this->previousPreviousPos = $state->getPreviousPreviousPos();
+		    $this->lineNumber = $state->getLineNumber();
+		    $this->next_token = $state->getNextToken();
+		    $this->lookahead = $state->getLookahead();
+	    }
+	    
+	    /**
+	     * Resets the token stream after manual position changes
+	     */
+	    public function resetTokenStream(): void {
+		    $this->next_token = $this->nextToken();
+		    $this->lookahead = $this->nextToken();
+	    }
+    }
