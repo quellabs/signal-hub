@@ -24,29 +24,18 @@
 		private EntityManager $entityManager;
 		private EntityStore $entityStore;
 		private PropertyHandler $propertyHandler;
-		private array $proxyEntityCache;
 		
+		/**
+		 * Constructor
+		 * @param EntityManager $entityManager
+		 * @param AstRetrieve $retrieve
+		 */
 		public function __construct(EntityManager $entityManager, AstRetrieve $retrieve) {
 			$this->retrieve = $retrieve;
 			$this->entityManager = $entityManager;
 			$this->unitOfWork = $entityManager->getUnitOfWork();
 			$this->entityStore = $entityManager->getEntityStore();
 			$this->propertyHandler = $entityManager->getPropertyHandler();
-			$this->proxyEntityCache = [];
-		}
-		
-		/**
-		 * Haalt de gecachete proxy-entiteitnaam op of genereert deze indien niet bestaand.
-		 * @param string $targetEntityName De naam van de doelentiteit.
-		 * @return string De volledige naam van de proxy-entiteit.
-		 */
-		private function getProxyEntityName(string $targetEntityName): string {
-			if (!isset($this->proxyEntityCache[$targetEntityName])) {
-				$baseEntityName = substr($targetEntityName, strrpos($targetEntityName, "\\") + 1);
-				$this->proxyEntityCache[$targetEntityName] = "\\Quellabs\ObjectQuel\\EntityManager\\Proxies\\{$baseEntityName}";
-			}
-			
-			return $this->proxyEntityCache[$targetEntityName];
 		}
 		
 		/**
@@ -110,32 +99,36 @@
 		}
 		
 		/**
-		 * Bepaalt de juiste eigenschapnaam voor de inverse relatie op basis van het type afhankelijkheid.
-		 * @param object $dependency De afhankelijkheid (OneToOne of ManyToOne).
-		 * @return string De naam van de inverse relatie eigenschap.
+		 * Determines the appropriate property name for the inverse relationship based on the dependency type.
+		 * This method extracts the correct property name that should be used when navigating
+		 * from the target entity back to the source entity.
+		 * @param object $dependency The relationship dependency (OneToOne or ManyToOne).
+		 * @return string The name of the inverse relationship property.
 		 */
 		private function getInversedPropertyName(object $dependency): string {
-			// Controleer het type afhankelijkheid en bepaal de juiste eigenschap.
+			// Check the dependency type and determine the appropriate property
 			if ($dependency instanceof OneToOne) {
 				return $dependency->getInversedBy() ?: $dependency->getMappedBy();
 			} elseif ($dependency instanceof ManyToOne) {
-				return $dependency->getInversedBy(); // ManyToOne heeft typisch alleen getInversedBy.
+				return $dependency->getInversedBy(); // ManyToOne typically only has getInversedBy
 			} else {
 				return '';
 			}
 		}
 		
 		/**
-		 * Maakt een proxy-object aan voor een gegeven dependency en stelt deze in op de entiteit.
-		 * @param object $entity De entiteit waarop de proxy wordt ingesteld
-		 * @param string $property De naam van de eigenschap waar de proxy wordt ingesteld
-		 * @param object $dependency Het dependency-object dat de relatie beschrijft
+		 * Creates a proxy object for a given dependency and sets it on the entity.
+		 * This method handles lazy loading of relationships by creating proxy instances
+		 * that will load their data only when accessed.
+		 * @param object $entity The entity on which to set the proxy
+		 * @param string $property The name of the property where the proxy will be set
+		 * @param object $dependency The dependency object that describes the relationship
 		 */
 		private function createAndSetProxy(object $entity, string $property, object $dependency): void {
-			// Bepaal de relation column
+			// Determine the relation column (the column containing the foreign key)
 			$relationColumn = $this->getRelationColumn($entity, $dependency);
 			
-			// Haal de primary key waarde op. Als deze leeg is, clear dan de relatie
+			// Get the primary key value. If it's empty, clear the relationship
 			$relationColumnValue = $this->propertyHandler->get($entity, $relationColumn);
 			
 			if (empty($relationColumnValue)) {
@@ -143,29 +136,29 @@
 				return;
 			}
 			
-			// Verzamel informatie om de proxy te kunnen maken
+			// Gather information needed to create the proxy
 			$targetEntityName = $dependency->getTargetEntity();
-			$proxyName = $this->getProxyEntityName($targetEntityName);
+			$proxyClassName = $this->entityManager->getProxyGenerator()->getProxyClass($targetEntityName);
 			
-			if (($dependency instanceof ManyToOne)) {
+			if ($dependency instanceof ManyToOne) {
 				$relationPropertyName = $dependency->getInversedBy();
 			} else {
 				$relationPropertyName = $this->determineRelationPropertyName($dependency);
 			}
 			
-			// Zoek bestaande entity
+			// Check if the entity already exists in the UnitOfWork
 			$proxyEntity = $this->unitOfWork->findEntity($targetEntityName, [
 				$relationPropertyName => $relationColumnValue
 			]);
 			
-			// Maak een nieuwe proxy aan als er geen bestaande is gevonden
+			// Create a new proxy if no existing entity was found
 			if ($proxyEntity === null) {
-				$proxyEntity = new $proxyName($this->entityManager);
+				$proxyEntity = new $proxyClassName($this->entityManager);
 				$this->propertyHandler->set($proxyEntity, $relationPropertyName, $relationColumnValue);
 				$this->entityManager->persist($proxyEntity);
 			}
 			
-			// Stel de proxy in op de originele entiteit
+			// Set the proxy on the original entity
 			$this->propertyHandler->set($entity, $property, $proxyEntity);
 		}
 		
@@ -242,10 +235,13 @@
 		}
 		
 		/**
-		 * Bepaalt de relationColumn voor een gegeven entiteit en dependency.
-		 * @param object $entity De entiteit waarvoor de relationColumn wordt bepaald
-		 * @param object $dependency Het dependency object
-		 * @return string De naam van de relationColumn
+		 * Determines the relation column for a given entity and dependency.
+		 * This method finds the appropriate column that stores the foreign key value
+		 * for the relationship, either using the explicitly defined relation column
+		 * or falling back to the primary key of the entity.
+		 * @param object $entity The entity for which the relation column is determined
+		 * @param object $dependency The dependency object describing the relationship
+		 * @return string The name of the relation column
 		 */
 		private function getRelationColumn(object $entity, object $dependency): string {
 			$relationColumn = $dependency->getRelationColumn();
@@ -328,26 +324,28 @@
 		
 		
 		/**
-		 * Promoot lege relaties naar proxy-objecten voor de gegeven gefilterde rijen.
-		 * @param array $filteredRows De rijen die verwerkt moeten worden
+		 * Promotes empty relationships to proxy objects for the given filtered entities.
+		 * This method identifies entity properties that have OneToOne or ManyToOne relationships
+		 * which are currently null, and creates appropriate proxy objects for lazy loading
+		 * those relationships when they are accessed.
+		 * @param array $filteredRows The entities that need to be processed
 		 * @return void
 		 */
 		private function setupProxyRelations(array $filteredRows): void {
-			// Loop door alle gefilterde rijen
+			// Loop through all filtered entities
 			foreach ($filteredRows as $value) {
-				// Haal de genormaliseerde naam van de entity klasse
+				// Get the normalized name of the entity class
 				$objectClass = $this->entityStore->normalizeEntityName(get_class($value));
 				
-				// Verkrijg alle afhankelijkheden van de entity klasse
+				// Get all dependencies of the entity class
 				$entityDependencies = $this->entityStore->getAllDependencies($objectClass);
 				
-				// Loop door alle eigenschappen en hun afhankelijkheden
+				// Loop through all properties and their dependencies
 				foreach ($entityDependencies as $property => $dependencies) {
-					// Filter de geldige afhankelijkheden voor de huidige waarde en eigenschap
-					$validDependencies = $this->filterValidDependencies($value, $property, $dependencies);
-					
-					// Maak en stel een proxy in voor elke geldige afhankelijkheid
-					foreach ($validDependencies as $dependency) {
+					// Filter for valid dependencies for the current entity and property.
+					// Valid dependencies are those where the property is currently null.
+					// Create and set a proxy for each valid dependency.
+					foreach ($this->filterValidDependencies($value, $property, $dependencies) as $dependency) {
 						$this->createAndSetProxy($value, $property, $dependency);
 					}
 				}

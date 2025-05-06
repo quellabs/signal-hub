@@ -139,8 +139,8 @@
 		 */
 		private function scheduleEntities(): array {
 			// Initialiseer de datastructuren voor de topologische sortering.
-			$graph = [];       // Adjacency list representatie van de entiteitengrafiek.
-			$inDegree = [];    // Aantal inkomende edges per entiteit, voor detectie van 'roots'.
+			$graph = []; // Adjacency list representatie van de entiteitengrafiek.
+			$inDegree = []; // Aantal inkomende edges per entiteit, voor detectie van 'roots'.
 			$flattenedIdentityMap = $this->getFlattenedIdentityMap(); // Platte map van alle entiteiten.
 			
 			// Voorbereiden van de grafiek en inDegree tellers voor elke entiteit.
@@ -163,7 +163,7 @@
 						continue;
 					}
 					
-					// Als de parent entiteit een ongeinitialiseerde proxy is, sla dan de iteratie over.
+					// Als de parent entiteit een niet geïnitialiseerde proxy is, sla dan de iteratie over.
 					if (($parentEntity instanceof ProxyInterface) && !$parentEntity->isInitialized()) {
 						continue;
 					}

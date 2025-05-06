@@ -16,6 +16,7 @@
 		protected string|false $proxyPath;
 		protected string|false $proxyNamespace;
 		protected array $types;
+		protected array $runtimeProxies = [];
 		
 		/**
 		 * ProxyGenerator constructor
@@ -27,11 +28,14 @@
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
 			$this->annotationReader = $entityStore->getAnnotationReader();
 			$this->servicesPath = realpath($configuration->getEntityPath());
-			$this->proxyPath = realpath($configuration->getProxyDir());
-			$this->proxyNamespace = realpath($configuration->getProxyNamespace());
+			$this->proxyPath =  $configuration->getProxyDir() ? realpath($configuration->getProxyDir()) : false;
+			$this->proxyNamespace = $configuration->getProxyNamespace() ?: 'Quellabs\\ObjectQuel\\Proxy\\Runtime';
 			$this->types = ["int", "float", "bool", "string", "array", "object", "resource", "null", "callable", "iterable", "mixed", "false", "void", "static"];
 			
-			$this->initializeProxies();
+			// Only initialize proxies if a proxy path is set
+			if ($this->proxyPath !== false) {
+				$this->initializeProxies();
+			}
 		}
 		
 		/**
@@ -305,5 +309,63 @@
 				$class,
 				$this->makeProxyMethods($class),
 			));
+		}
+		
+		/**
+		 * Generate or retrieve a proxy class for the given entity
+		 * @param string $entityClass The fully qualified class name of the entity
+		 * @return string The fully qualified class name of the proxy
+		 */
+		public function getProxyClass(string $entityClass): string {
+			// If a proxy path is set, return the path-based proxy class name
+			if ($this->proxyPath !== false) {
+				$className = $this->getClassNameWithoutNamespace($entityClass);
+				return $this->proxyNamespace . '\\' . $className;
+			}
+			
+			// If we've already generated this proxy at runtime, return its class name
+			if (isset($this->runtimeProxies[$entityClass])) {
+				return $this->runtimeProxies[$entityClass];
+			}
+			
+			// Generate proxy class at runtime
+			return $this->generateRuntimeProxy($entityClass);
+		}
+		
+		/**
+		 * Generates a runtime proxy class for the given entity and returns its class name
+		 * @param string $entityClass
+		 * @return string The fully qualified class name of the generated proxy
+		 */
+		protected function generateRuntimeProxy(string $entityClass): string {
+			// Generate a unique class name for the runtime proxy
+			$className = $this->getClassNameWithoutNamespace($entityClass);
+			$uniqueId = uniqid();
+			$proxyClassName = $this->proxyNamespace . '\\' . $className . '_' . $uniqueId;
+			
+			// Generate the proxy class code
+			$proxyContents = $this->makeProxy($entityClass);
+			
+			// Modify the namespace in the proxy content to match the runtime namespace
+			$proxyContents = preg_replace(
+				'/namespace\s+([^;]+);/',
+				'namespace ' . $this->proxyNamespace . ';',
+				$proxyContents
+			);
+			
+			// Modify the class name to include the unique identifier
+			$proxyContents = preg_replace(
+				'/class\s+' . $className . '\s+extends/',
+				'class ' . $className . '_' . $uniqueId . ' extends',
+				$proxyContents
+			);
+			
+			// Use eval to define the proxy class at runtime
+			eval('?>' . $proxyContents);
+			
+			// Store the generated proxy class name
+			$this->runtimeProxies[$entityClass] = $proxyClassName;
+			
+			return $proxyClassName;
 		}
 	}
