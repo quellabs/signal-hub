@@ -116,7 +116,7 @@
 			expect($annotations)->toBeArray()->toHaveCount(2);
 			
 			// Check the first annotation (imported with alias)
-			$annotationClass1 = 'TestAnnotation';
+			$annotationClass1 = 'Quellabs\\AnnotationReader\\AnnotationTest\\Test';
 			expect($annotations)->toHaveKey($annotationClass1);
 			expect($annotations[$annotationClass1])
 				->toBeInstanceOf(Quellabs\AnnotationReader\AnnotationTest\Test::class)
@@ -124,7 +124,7 @@
 				->and($annotations[$annotationClass1]->getParameters()['name'])->toBe('imported via alias');
 			
 			// Check the second annotation (imported without alias)
-			$annotationClass2 = 'AnotherTest';
+			$annotationClass2 = 'Quellabs\\AnnotationReader\\AnnotationTest\\AnotherTest';
 			expect($annotations)->toHaveKey($annotationClass2);
 			expect($annotations[$annotationClass2])
 				->toBeInstanceOf(Quellabs\AnnotationReader\AnnotationTest\AnotherTest::class)

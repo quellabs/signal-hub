@@ -370,7 +370,7 @@
 				}
 				
 				// Try our generic partial namespace resolver
-				$resolved = $this->resolveClassReference($className);
+				$resolved = substr($this->resolveClassReference($className), 1);
 				
 				if ($resolved !== $className) {
 					return $resolved;
@@ -414,9 +414,9 @@
 							if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
 								$parameters = $this->parseParameters();
 								$this->lexer->match(Token::ParenthesesClose);
-								$result[$value] = new $tokenName($parameters);
+								$result[$tokenName] = new $tokenName($parameters);
 							} else {
-								$result[$value] = new $tokenName([]);
+								$result[$tokenName] = new $tokenName([]);
 							}
 						}
 					}
