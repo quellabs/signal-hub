@@ -370,8 +370,14 @@
 				}
 				
 				// Try our generic partial namespace resolver
-				$resolved = substr($this->resolveClassReference($className), 1);
+				$resolved = $this->resolveClassReference($className);
 				
+				// Remove trailing slash if present
+				if (str_starts_with($resolved, '\\')) {
+					$resolved = substr($resolved, 1);
+				}
+				
+				// Return the fully resolved path
 				if ($resolved !== $className) {
 					return $resolved;
 				}
