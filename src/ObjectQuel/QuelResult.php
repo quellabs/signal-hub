@@ -80,7 +80,7 @@
 			
 			// Set pagination parameters
 			$this->window = $retrieve->getWindow();
-			$this->windowSize = $retrieve->getWindowSize();
+			$this->windowSize = $retrieve->getWindowSize() ?? $entityManager->getDefaultWindowSize();
 			
 			// Get values from the AST (Abstract Syntax Tree)
 			$ast = $retrieve->getValues();

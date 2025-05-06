@@ -18,6 +18,7 @@
 	 * Represents an Entity Manager.
 	 */
 	class EntityManager {
+		protected Configuration $configuration;
         protected DatabaseAdapter $connection;
         protected UnitOfWork $unit_of_work;
 		protected EntityStore $entity_store;
@@ -30,6 +31,7 @@
 		 * @param Configuration $configuration
 		 */
         public function __construct(Configuration $configuration) {
+            $this->configuration = $configuration;
             $this->connection = new DatabaseAdapter($configuration);
 	        $this->entity_store = new EntityStore($configuration);
             $this->unit_of_work = new UnitOfWork($this);
@@ -210,5 +212,13 @@
 		public function getValidationRules(object $entity): array {
 			$validate = new EntityToValidation();
 			return $validate->convert($entity);
+		}
+		
+		/**
+		 * Returns the default window size (for pagination)
+		 * @return int|null
+		 */
+		public function getDefaultWindowSize(): ?int {
+			return $this->configuration->getDefaultWindowSize();
 		}
 	}

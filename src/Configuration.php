@@ -69,6 +69,11 @@
 		private string $annotationCachePath = '';
 		
 		/**
+		 * @var int|null Window size to use for pagination, or null if none
+		 */
+		private ?int $defaultWindowSize = null;
+		
+		/**
 		 * Constructor - optionally initialize with connection parameters
 		 * @param array $connectionParams Database connection parameters
 		 */
@@ -319,7 +324,7 @@
 		}
 		
 		/**
-		 * Returns true if the annotationreader should use cache, false if not
+		 * Returns true if the AnnotationReader should use cache, false if not
 		 * @return bool
 		 */
 		public function useAnnotationCache(): bool {
@@ -351,7 +356,24 @@
 		public function setAnnotationCachePath(string $annotationCacheDir): void {
 			$this->annotationCachePath = $annotationCacheDir;
 		}
-
+		
+		/**
+		 * Returns the standard window size for pagination
+		 * @return int|null
+		 */
+		public function getDefaultWindowSize(): ?int {
+			return $this->defaultWindowSize;
+		}
+		
+		/**
+		 * Sets the standard window size for pagination
+		 * @param int|null $standardWindowSize
+		 * @return void
+		 */
+		public function setDefaultWindowSize(?int $standardWindowSize): void {
+			$this->defaultWindowSize = $standardWindowSize;
+		}
+		
 		/**
 		 * ArrayAccess implementation - Check if offset exists
 		 * @param mixed $offset
