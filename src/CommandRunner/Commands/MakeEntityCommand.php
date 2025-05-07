@@ -10,7 +10,6 @@
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityModifier;
-	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityStore;
 	
@@ -28,12 +27,6 @@
 		 * @var EntityModifier
 		 */
 		private EntityModifier $entityModifier;
-		
-		/**
-		 * Entity scanner for finding available entities and their properties
-		 * @var EntityScanner
-		 */
-		private EntityScanner $entityScanner;
 		
 		/**
 		 * Entity store for handling entity metadata
@@ -55,7 +48,6 @@
 			parent::__construct($input, $output, $configuration);
 			$this->entityStore = new EntityStore($configuration);
 			$this->entityModifier = new EntityModifier($configuration);
-			$this->entityScanner = new EntityScanner($configuration, $this->entityStore);
 		}
 		
 		/**
@@ -108,13 +100,30 @@
 		}
 		
 		/**
+		 * Get primary key properties for an entity using EntityStore
+		 * @param string $entityName Entity name without "Entity" suffix
+		 * @return array Array of primary key property names
+		 */
+		public function getEntityPrimaryKeys(string $entityName): array {
+			$fullEntityName = $this->configuration->getEntityNameSpace() . '\\' . $entityName . 'Entity';
+			
+			// Use the EntityStore to get primary keys if possible
+			if ($this->entityStore->exists($fullEntityName)) {
+				return $this->entityStore->getIdentifierKeys($fullEntityName);
+			}
+			
+			// Fallback to looking for 'id' property if EntityStore doesn't have the entity
+			return ['id'];
+		}
+		
+		/**
 		 * Gets the reference field and column information for a target entity
 		 * @param string $targetEntity Name of the target entity
 		 * @return array Associative array with field and column names
 		 */
 		private function getTargetEntityReferenceField(string $targetEntity): array {
 			// Get primary keys from the target entity
-			$primaryKeys = $this->entityScanner->getEntityPrimaryKeys($targetEntity);
+			$primaryKeys = $this->getEntityPrimaryKeys($targetEntity);
 			
 			// Default values
 			$result = [
