@@ -118,7 +118,7 @@
 			
 			// Default values
 			$result = [
-				'field' => 'id',
+				'field'  => 'id',
 				'column' => 'id'
 			];
 			

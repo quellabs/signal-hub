@@ -263,7 +263,7 @@
 			// Add primary key property
 			$content .= "
 			/**
-			 * @Orm\Column(type=\"integer\", unsigned=true, primary_key=true)
+			 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
 			 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
 			 */
 			protected int \$id;

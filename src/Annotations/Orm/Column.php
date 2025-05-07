@@ -51,10 +51,18 @@
 		
 		/**
 		 * Gets the column length/size
-		 * @return int|string The length/size of the column
+		 * @return int|null The length/size of the column
 		 */
-		public function getLength(): int|string {
-			return $this->parameters["length"] ?? 0;
+		public function getLength(): ?int {
+			if (empty($this->parameters["length"])) {
+				return null;
+			}
+			
+			if (!is_numeric($this->parameters["length"])) {
+				return null;
+			}
+			
+			return (int)$this->parameters["length"];
 		}
 		
 		/**

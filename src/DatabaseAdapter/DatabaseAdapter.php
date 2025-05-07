@@ -238,43 +238,74 @@
 		 * @return array
 		 */
 		public function getColumnsEx(string $tableName): array {
-			// Haal de column information uit cache
+			// Check if column information for this table is already cached
 			if (isset($this->columns_ex_descriptions[$tableName])) {
 				return $this->columns_ex_descriptions[$tableName];
 			}
 			
-			// Haal de table definitie op
+			// Retrieve the table definition using SHOW FULL COLUMNS for complete metadata
 			$columns = $this->getAll("SHOW FULL COLUMNS FROM `{$tableName}`");
 			
+			// Return an empty array if no columns found
 			if (empty($columns)) {
 				return [];
 			}
 			
-			// Modify the information for easier access
+			// Initialize the result array to store the enhanced column information
 			$result = [];
 			
 			foreach ($columns as $column) {
-				// Extraheer het kolomtype en de grootte
-				preg_match('/([a-zA-Z\s]*)\((.*)\)$/', $column["Type"], $matches);
+				// Parse the column type string to extract type name, size, and additional properties
+				// Example: "int(10) unsigned" -> type="int", size="10", properties=" unsigned"
+				preg_match('/([a-zA-Z\s]*)\((.*)\)(.*)/', $column["Type"], $matches);
 				
-				// Bouw de informatie op
+				// Initialize property flags with default values
+				$unsigned = false;       // Whether the column allows only non-negative values
+				$zerofill = false;       // Whether values should be zero-padded to display width
+				$auto_increment = false; // Whether column auto-increments on NULL/0 insertions
+				$not_null = false;       // Redundant with nullable, kept for backward compatibility
+				$default_value = null;   // Extracted default value from properties
+				
+				// Process additional properties if they exist
+				if (!empty($matches[3])) {
+					$properties = trim($matches[3]);
+					$unsigned = stripos($properties, 'unsigned') !== false;
+					$zerofill = stripos($properties, 'zerofill') !== false;
+					$auto_increment = stripos($properties, 'auto_increment') !== false;
+					$not_null = stripos($properties, 'not null') !== false;
+					
+					// Extract default value using regex if present
+					// Matches formats like: default 'value', default "value", or default value
+					if (preg_match('/default\s+([\'"]?)(.+?)\1(\s|$)/i', $properties, $defaultMatches)) {
+						$default_value = $defaultMatches[2];
+					}
+				}
+				
+				// Build the comprehensive column information array
 				$result[$column["Field"]] = [
-					'type'       => $matches[1] ?? $column["Type"],
-					'size'       => $matches[2] ?? null,
-					'collation'  => $column["Collation"],
-					'nullable'   => $column["Null"] == "YES",
-					'key'        => $column["Key"],
-					'default'    => $column["Default"],
-					'extra'      => $column["Extra"],
-					'privileges' => $column["Privileges"],
-					'comment'    => $column["Comment"]
+					'type'       => $matches[1] ?? $column["Type"], // Column data type (int, varchar, etc.)
+					'size'       => $matches[2] ?? null,            // Size/length parameter if applicable
+					'collation'  => $column["Collation"],           // Character set collation for text types
+					'nullable'   => $column["Null"] == "YES",       // Whether NULL values are allowed
+					'key'        => $column["Key"],                 // Key type (PRI, UNI, MUL, etc.)
+					'default'    => $column["Default"],             // Default value from SHOW COLUMNS
+					'extra'      => $column["Extra"],               // Extra information (auto_increment, etc.)
+					'privileges' => $column["Privileges"],          // Access privileges for the column
+					'comment'    => $column["Comment"],             // User-defined column comment
+					'attributes' => [
+						'unsigned'       => $unsigned,               // Flag for unsigned numeric types
+						'auto_increment' => $auto_increment,         // Flag for auto-incrementing columns
+						'not_null'       => $not_null,               // Flag for NOT NULL constraint
+						'default_value'  => $default_value,          // Extracted default value from properties
+						'zerofill'       => $zerofill,               // Flag for zero-filled display
+					]
 				];
 			}
 			
-			// Plaats het resultaat in cache
+			// Cache the processed column information for future calls
 			$this->columns_ex_descriptions[$tableName] = $result;
 			
-			// Retourneer het resultaat
+			// Return the enhanced column metadata
 			return $result;
 		}
 		
