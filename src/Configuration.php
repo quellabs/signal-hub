@@ -79,6 +79,11 @@
 		private string $annotationCachePath = '';
 		
 		/**
+		 * @var string Migration path
+		 */
+		private string $migrationsPath = '';
+		
+		/**
 		 * @var int|null Window size to use for pagination, or null if none
 		 */
 		private ?int $defaultWindowSize = null;
@@ -347,6 +352,23 @@
 		 */
 		public function setAnnotationCachePath(string $annotationCacheDir): void {
 			$this->annotationCachePath = $annotationCacheDir;
+		}
+		
+		/**
+		 * Returns the path of migrations
+		 * @return string
+		 */
+		public function getMigrationsPath(): string {
+			return $this->migrationsPath;
+		}
+		
+		/**
+		 * Sets the path for migrations
+		 * @param string $migrationPath
+		 * @return void
+		 */
+		public function setMigrationsPath(string $migrationPath): void {
+			$this->migrationsPath = $migrationPath;
 		}
 		
 		/**
