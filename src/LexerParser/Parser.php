@@ -221,25 +221,34 @@
 				$parameterKey = new Token();
 				$parameterValue = new Token();
 				
+				// Handle named parameter case
 				if ($this->lexer->optionalMatch(Token::Parameter, $parameterKey)) {
+					// Skip if no equals sign follows the parameter name
 					if (!$this->lexer->optionalMatch(Token::Equals)) {
 						continue;
 					}
 					
 					$value = $this->parseValue($parameterValue);
 					
+					// Early failure if value parsing failed
 					if ($value === null) {
 						throw new ParserException("Expected number or string, got " . $parameterValue->toString($parameterValue->getType()));
 					}
 					
 					$parameters[$parameterKey->getValue()] = $value;
-				} else {
-					$value = $this->parseValue($parameterKey);
-					
-					if ($value !== null) {
-						$parameters["value"] = $value;
-					}
+					continue;
 				}
+				
+				// Handle unnamed parameter case
+				$value = $this->parseValue($parameterKey);
+				
+				// Skip if value parsing failed
+				if ($value === null) {
+					continue;
+				}
+				
+				$parameters["value"] = $value;
+				
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			return $parameters;
@@ -285,11 +294,11 @@
 				return $this->classReferenceCache[$className] = $className;
 			}
 			
+			// Preprocess imports once: explode all into segments
 			$parts = explode('\\', $className);
 			$firstPart = $parts[0];
 			$lastPart = end($parts);
 			
-			// Preprocess imports once: explode all into segments
 			$importSegments = array_map(function ($importedClass) {
 				return explode('\\', $importedClass);
 			}, $this->imports);
@@ -398,35 +407,42 @@
 				$token = $this->lexer->get();
 				
 				while ($token->getType() !== Token::Eof) {
-					if ($token->getType() == Token::Annotation) {
-						$value = $token->getValue();
-						
-						if (!in_array($value, $this->ignore_annotations)) {
-							// skip swagger docs
-							if (str_starts_with($value, "OA\\")) {
-								$token = $this->lexer->get();
-								continue;
-							}
-							
-							// Resolve the annotation class name using imports
-							$tokenName = $this->resolveClassName($value);
-							
-							// Check if the class exists
-							if (!class_exists($tokenName)) {
-								throw new ParserException("Annotation class not found: {$tokenName}");
-							}
-							
-							// Parse the parameters and gather the result
-							if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
-								$parameters = $this->parseParameters();
-								$this->lexer->match(Token::ParenthesesClose);
-								$result[$tokenName] = new $tokenName($parameters);
-							} else {
-								$result[$tokenName] = new $tokenName([]);
-							}
-						}
+					// Skip non-annotation tokens
+					if ($token->getType() != Token::Annotation) {
+						$token = $this->lexer->get();
+						continue;
 					}
 					
+					// Skip ignored annotations
+					$value = $token->getValue();
+					
+					if (in_array($value, $this->ignore_annotations)) {
+						$token = $this->lexer->get();
+						continue;
+					}
+					
+					// Skip swagger docs
+					if (str_starts_with($value, "OA\\")) {
+						$token = $this->lexer->get();
+						continue;
+					}
+					
+					// Resolve the annotation class name using imports
+					$tokenName = $this->resolveClassName($value);
+					
+					// Check if the class exists
+					if (!class_exists($tokenName)) {
+						throw new ParserException("Annotation class not found: {$tokenName}");
+					}
+					
+					// Parse the parameters or use an empty array
+					$parameters = [];
+					if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
+						$parameters = $this->parseParameters();
+						$this->lexer->match(Token::ParenthesesClose);
+					}
+					
+					$result[$tokenName] = new $tokenName($parameters);
 					$token = $this->lexer->get();
 				}
 				
