@@ -63,22 +63,11 @@
 		}
 		
 		/**
-		 * Convert a string to snake case
-		 * @url https://stackoverflow.com/questions/40514051/using-preg-replace-to-convert-camelcase-to-snake-case
-		 * @param string $string
-		 * @return string
-		 */
-		private function snakeCase(string $string): string {
-			return strtolower(preg_replace(['/([a-z\d])([A-Z])/', '/([^_])([A-Z][a-z])/'], '$1_$2', $string));
-		}
-		
-		/**
-		 * Normalize column type for consistent comparison
-		 * Can handle both SQL and PHP types
+		 * Normalize a column type for consistent comparison
 		 * @param string $type Column or PHP type
 		 * @return string Normalized type
 		 */
-		private function normalizeColumnType(string $type): string {
+		private function standardizeDataType(string $type): string {
 			// Convert to lowercase and trim
 			$type = strtolower(trim($type));
 			
@@ -202,7 +191,7 @@
 		 * @param string $className Entity class name
 		 * @return array Array of property definitions
 		 */
-		private function getEntityProperties(string $className): array {
+		private function extractEntityColumnDefinitions(string $className): array {
 			$reflection = new \ReflectionClass($className);
 			$properties = [];
 			
@@ -250,7 +239,7 @@
 		 * @param string $tableName Table name
 		 * @return array Array of column definitions
 		 */
-		private function getTableDefinition(string $tableName): array {
+		private function fetchDatabaseTableSchema(string $tableName): array {
 			if (!isset($this->tableDefinitions[$tableName])) {
 				$columns = $this->connection->getColumnsEx($tableName);
 				
@@ -368,8 +357,8 @@
 			$columnType = is_string($columnDef['type']) ? strtolower(trim($columnDef['type'])) : '';
 			
 			// Normalize types for proper comparison
-			$propertyType = $this->normalizeColumnType($propertyType);
-			$columnType = $this->normalizeColumnType($columnType);
+			$propertyType = $this->standardizeDataType($propertyType);
+			$columnType = $this->standardizeDataType($columnType);
 			
 			if ($propertyType !== $columnType && !$this->isTypeEquivalent($propertyType, $columnType, $columnDef)) {
 				$differences['type'] = [
@@ -406,7 +395,7 @@
 			}
 			
 			// Get normalized column type for comparison
-			$propertyType = $this->normalizeColumnType($propertyDef['type']);
+			$propertyType = $this->standardizeDataType($propertyDef['type']);
 			
 			// Handle decimal/numeric types separately with precision and scale comparison
 			if ($this->isDecimalType($propertyType)) {
@@ -501,7 +490,7 @@
 			
 			// Get the property type for special case handling
 			// Use null coalescing to handle potentially undefined 'type' key
-			$propertyType = $this->normalizeColumnType($propertyDef['type'] ?? '');
+			$propertyType = $this->standardizeDataType($propertyDef['type'] ?? '');
 			
 			// Special case: For datetime/timestamp fields, CURRENT_TIMESTAMP and NULL
 			// are often treated equivalently by database systems, so we don't report
@@ -914,7 +903,7 @@ PHP;
 			
 			// Process each entity
 			foreach ($this->entityClasses as $className => $tableName) {
-				$entityProperties = $this->getEntityProperties($className);
+				$entityProperties = $this->extractEntityColumnDefinitions($className);
 				
 				// Check if table exists
 				if (!in_array($tableName, $existingTables)) {
@@ -929,7 +918,7 @@ PHP;
 				}
 				
 				// Get table definition from database
-				$tableColumns = $this->getTableDefinition($tableName);
+				$tableColumns = $this->fetchDatabaseTableSchema($tableName);
 				
 				// Compare entity properties with table columns
 				$changes = $this->compareColumns($entityProperties, $tableColumns);
