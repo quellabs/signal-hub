@@ -12,6 +12,7 @@
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\DatabaseSchemaLoader;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
+	use Quellabs\ObjectQuel\CommandRunner\Helpers\PhinxTypeMapper;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\SchemaComparator;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
@@ -35,6 +36,7 @@
 		private EntityScanner $entityScanner;
 		private DatabaseSchemaLoader $databaseSchemaLoader;
 		private SchemaComparator $schemaComparator;
+		private PhinxTypeMapper $phinxTypeMapper;
 		
 		/**
 		 * Constructor
@@ -61,6 +63,7 @@
 			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
 			$this->databaseSchemaLoader = new DatabaseSchemaLoader($this->connection);
 			$this->schemaComparator = new SchemaComparator();
+			$this->phinxTypeMapper = new PhinxTypeMapper();
 		}
 		
 		/**
@@ -246,11 +249,11 @@ PHP;
 			
 			foreach ($columns as $columnName => $columnDef) {
 				// Map the entity type to a valid Phinx type
-				$type = $this->mapToPhinxType($columnDef['type']);
+				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['length'])) {
-					$options[] = "'limit' => " . $this->formatValue($columnDef['length']);
+					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['length']);
 				}
 				
 				if (isset($columnDef['nullable'])) {
@@ -258,7 +261,7 @@ PHP;
 				}
 				
 				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
-					$options[] = "'default' => " . $this->formatValue($columnDef['default']);
+					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
 				}
 				
 				if (!empty($columnDef['primary_key'])) {
@@ -287,11 +290,11 @@ PHP;
 			$columnDefs = [];
 			
 			foreach ($columns as $columnName => $columnDef) {
-				$type = $this->mapToPhinxType($columnDef['type']);
+				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['length'])) {
-					$options[] = "'limit' => " . $this->formatValue($columnDef['length']);
+					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['length']);
 				}
 				
 				if (isset($columnDef['nullable'])) {
@@ -299,7 +302,7 @@ PHP;
 				}
 				
 				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
-					$options[] = "'default' => " . $this->formatValue($columnDef['default']);
+					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
 				}
 				
 				if (!empty($columnDef['primary_key'])) {
@@ -344,11 +347,11 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$propertyDef = $changes['property'];
-				$type = $this->mapToPhinxType($propertyDef['type']);
+				$type = $this->phinxTypeMapper->mapToPhinxType($propertyDef['type']);
 				$options = [];
 				
 				if (!empty($propertyDef['length'])) {
-					$options[] = "'limit' => " . $this->formatValue($propertyDef['length']);
+					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($propertyDef['length']);
 				}
 				
 				if (isset($propertyDef['nullable'])) {
@@ -356,7 +359,7 @@ PHP;
 				}
 				
 				if (isset($propertyDef['default']) && $propertyDef['default'] !== null) {
-					$options[] = "'default' => " . $this->formatValue($propertyDef['default']);
+					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($propertyDef['default']);
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
@@ -377,11 +380,11 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$columnDef = $changes['column'];
-				$type = $this->mapToPhinxType($columnDef['type']);
+				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['size'])) {
-					$options[] = "'limit' => " . $this->formatValue($columnDef['size']);
+					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['size']);
 				}
 				
 				if (isset($columnDef['nullable'])) {
@@ -389,7 +392,7 @@ PHP;
 				}
 				
 				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
-					$options[] = "'default' => " . $this->formatValue($columnDef['default']);
+					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
@@ -397,54 +400,6 @@ PHP;
 			}
 			
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
-		}
-		
-		/**
-		 * Format a value for inclusion in PHP code
-		 * @param mixed $value The value to format
-		 * @return string Formatted value
-		 */
-		private function formatValue($value): string {
-			if (is_null($value)) {
-				return 'null';
-			} elseif (is_bool($value)) {
-				return $value ? 'true' : 'false';
-			} elseif (is_int($value) || is_float($value)) {
-				return (string)$value;
-			} else {
-				return "'" . addslashes($value) . "'";
-			}
-		}
-		
-		/**
-		 * Map entity data type to Phinx data type
-		 * @param string $type Entity data type
-		 * @return string Phinx data type
-		 */
-		private function mapToPhinxType(string $type): string {
-			$map = [
-				'int'        => 'integer',
-				'integer'    => 'integer',
-				'tinyint'    => 'boolean',
-				'smallint'   => 'integer',
-				'mediumint'  => 'integer',
-				'bigint'     => 'biginteger',
-				'float'      => 'float',
-				'double'     => 'double',
-				'decimal'    => 'decimal',
-				'char'       => 'char',
-				'varchar'    => 'string',
-				'text'       => 'text',
-				'mediumtext' => 'text',
-				'longtext'   => 'text',
-				'date'       => 'date',
-				'datetime'   => 'datetime',
-				'timestamp'  => 'timestamp',
-				'time'       => 'time',
-				'enum'       => 'enum'
-			];
-			
-			return $map[strtolower($type)] ?? 'string';
 		}
 		
 		/**
