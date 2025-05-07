@@ -114,8 +114,10 @@
 			if ($this->lexer->peek()->getType() == Token::Minus) {
 				// Consume the minus token
 				$this->lexer->match(Token::Minus);
+				
 				// Get the number token that follows the minus
 				$token = $this->lexer->match(Token::Number);
+				
 				// Return the negative value
 				return 0 - $token->getValue();
 			}
