@@ -23,7 +23,7 @@
 	class MakeEntityFromTableCommand extends Command {
 		private DatabaseAdapter $connection;
 		private TableInfo $tableInfo;
-		private string $entityNamespace = "Services\\Entity";
+		private string $entityNamespace;
 		
 		/**
 		 * Constructor
@@ -39,6 +39,7 @@
 			parent::__construct($input, $output, $configuration);
 			$this->connection = new DatabaseAdapter($configuration);
 			$this->tableInfo = new TableInfo($this->connection);
+			$this->entityNamespace = $configuration->getEntityNameSpace();
 		}
 		
 		/**
