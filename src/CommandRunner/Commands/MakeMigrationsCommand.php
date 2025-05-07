@@ -18,6 +18,8 @@
 	use RecursiveDirectoryIterator;
 	use RecursiveIteratorIterator;
 	use ReflectionClass;
+	use ReflectionProperty;
+	use DateTime;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -71,12 +73,22 @@
 		}
 		
 		/**
+		 * Convert a string to camelcase
+		 * @param string $input
+		 * @param string $separator
+		 * @return string
+		 */
+		private function camelCase(string $input, string $separator = '_'): string {
+			$array = explode($separator, $input);
+			$parts = array_map('ucfirst', $array);
+			return implode('', $parts);
+		}
+		
+		/**
 		 * Finds and loads all entity classes from the entity path
 		 * @return array Array of entity class names with their table names
 		 */
 		private function loadEntityClasses(): array {
-			$this->output->writeLn("Scanning for entity classes in: {$this->entityPath}");
-			
 			$entityClasses = [];
 			$directory = new RecursiveDirectoryIterator($this->entityPath);
 			$iterator = new RecursiveIteratorIterator($directory);
@@ -95,22 +107,19 @@
 						
 						// Check if class has Table annotation
 						$classAnnotations = $this->annotationReader->getClassAnnotations($className);
-						$tableAnnotation = null;
+						$tableName = null;
 						
 						// Look for Table annotation
 						foreach ($classAnnotations as $annotation) {
 							if ($annotation instanceof Table) {
-								$tableAnnotation = $annotation;
+								$tableName = $annotation->getName();
 								break;
 							}
 						}
 						
-						if ($tableAnnotation) {
-							$tableName = $tableAnnotation->name ?? $this->snakeCase($reflection->getShortName());
-							
+						// Only consider classes with a Table annotation as entities
+						if ($tableName) {
 							$entityClasses[$className] = $tableName;
-							
-							$this->output->writeLn("Found entity: $className -> $tableName");
 						}
 					}
 				}
@@ -148,7 +157,7 @@
 		 * @return array Array of property definitions
 		 */
 		private function getEntityProperties(string $className): array {
-			$reflection = new \ReflectionClass($className);
+			$reflection = new ReflectionClass($className);
 			$properties = [];
 			
 			foreach ($reflection->getProperties() as $property) {
@@ -164,14 +173,38 @@
 				}
 				
 				if ($columnAnnotation) {
-					$properties[$property->getName()] = [
-						'name'           => $columnAnnotation->name ?? $property->getName(),
-						'type'           => $columnAnnotation->type ?? 'varchar',
-						'length'         => $columnAnnotation->length ?? null,
-						'nullable'       => $columnAnnotation->nullable ?? false,
-						'default'        => $columnAnnotation->default ?? null,
-						'primary_key'    => $columnAnnotation->primary_key ?? false,
-						'auto_increment' => $columnAnnotation->auto_increment ?? false,
+					// Extract property type from PHP property type hint if available
+					$phpTypeHint = null;
+					if ($property->hasType()) {
+						$phpType = $property->getType();
+						if (!$phpType->isBuiltin()) {
+							// For non-builtin types (like DateTime), use the class name
+							$phpTypeHint = $phpType->getName();
+							$parts = explode('\\', $phpTypeHint);
+							$phpTypeHint = end($parts);
+						} else {
+							$phpTypeHint = $phpType->getName();
+						}
+					}
+					
+					// IMPORTANT: Use the column name from the annotation, not the property name
+					$columnName = $columnAnnotation->getName();
+					
+					if (empty($columnName)) {
+						// Fallback only if name is explicitly empty
+						$columnName = $this->snakeCase($property->getName());
+					}
+					
+					$properties[$columnName] = [
+						'property_name'  => $property->getName(),
+						'name'           => $columnName,
+						'type'           => $columnAnnotation->getType(),
+						'length'         => $columnAnnotation->getLength() ?? null,
+						'nullable'       => $columnAnnotation->isNullable() ?? false,
+						'default'        => $columnAnnotation->getDefault() ?? null,
+						'primary_key'    => $columnAnnotation->isPrimaryKey() ?? false,
+						'auto_increment' => $columnAnnotation->isAutoIncrement() ?? false,
+						'php_type'       => $phpTypeHint,
 					];
 				}
 			}
@@ -212,38 +245,27 @@
 			];
 			
 			// Check for added or modified columns
-			foreach ($entityProperties as $propertyName => $propertyDef) {
-				$columnName = $propertyDef['name'];
-				
+			foreach ($entityProperties as $columnName => $propertyDef) {
+				// Use the actual column name from the annotation
 				if (!isset($tableColumns[$columnName])) {
 					$changes['added'][$columnName] = $propertyDef;
-					continue;
-				}
-				
-				$columnDef = $tableColumns[$columnName];
-				$modifications = $this->compareColumnDefinitions($propertyDef, $columnDef);
-				
-				if (!empty($modifications)) {
-					$changes['modified'][$columnName] = [
-						'property'      => $propertyDef,
-						'column'        => $columnDef,
-						'modifications' => $modifications
-					];
+				} else {
+					$columnDef = $tableColumns[$columnName];
+					$modifications = $this->compareColumnDefinitions($propertyDef, $columnDef);
+					
+					if (!empty($modifications)) {
+						$changes['modified'][$columnName] = [
+							'property'      => $propertyDef,
+							'column'        => $columnDef,
+							'modifications' => $modifications
+						];
+					}
 				}
 			}
 			
 			// Check for deleted columns
 			foreach ($tableColumns as $columnName => $columnDef) {
-				$found = false;
-				
-				foreach ($entityProperties as $propertyName => $propertyDef) {
-					if ($propertyDef['name'] === $columnName) {
-						$found = true;
-						break;
-					}
-				}
-				
-				if (!$found) {
+				if (!isset($entityProperties[$columnName])) {
 					$changes['deleted'][$columnName] = $columnDef;
 				}
 			}
@@ -260,44 +282,147 @@
 		private function compareColumnDefinitions(array $propertyDef, array $columnDef): array {
 			$differences = [];
 			
-			// Compare type
-			$propertyType = strtolower($propertyDef['type']);
-			$columnType = strtolower($columnDef['type']);
+			// Skip comparison if the column exists in a schema level but not an entity level
+			if (!isset($propertyDef['type']) || !isset($columnDef['type'])) {
+				return $differences;
+			}
+			
+			// Compare type - both values must be string
+			$propertyType = is_string($propertyDef['type']) ? strtolower(trim($propertyDef['type'])) : '';
+			$columnType = is_string($columnDef['type']) ? strtolower(trim($columnDef['type'])) : '';
+			
+			// Normalize types for proper comparison
+			$propertyType = $this->normalizeColumnType($propertyType);
+			$columnType = $this->normalizeColumnType($columnType);
 			
 			if ($propertyType !== $columnType) {
-				$differences['type'] = [
-					'from' => $columnType,
-					'to' => $propertyType
-				];
+				// Special case for tinyint(1) which is often used as boolean
+				if ($columnType === 'tinyint' && $columnDef['size'] === '1' && $propertyType === 'boolean') {
+					// This is fine, don't mark as different
+				} else {
+					$differences['type'] = [
+						'from' => $columnType,
+						'to' => $propertyType
+					];
+				}
 			}
 			
-			// Compare length
-			if ($propertyDef['length'] !== $columnDef['size']) {
-				$differences['length'] = [
-					'from' => $columnDef['size'],
-					'to' => $propertyDef['length']
-				];
+			// Compare length - only if types are compatible
+			if (empty($differences['type']) && $propertyDef['length'] !== null && $columnDef['size'] !== null) {
+				// Handle special case for decimal/numeric types with precision and scale
+				if (in_array($propertyType, ['decimal', 'numeric']) && strpos($propertyDef['length'], ',') !== false && strpos($columnDef['size'], ',') !== false) {
+					list($propertyPrecision, $propertyScale) = explode(',', $propertyDef['length']);
+					list($columnPrecision, $columnScale) = explode(',', $columnDef['size']);
+					
+					if (trim($propertyPrecision) != trim($columnPrecision) || trim($propertyScale) != trim($columnScale)) {
+						$differences['length'] = [
+							'from' => $columnDef['size'],
+							'to' => $propertyDef['length']
+						];
+					}
+				}
+				// For standard length types
+				elseif ($propertyDef['length'] != $columnDef['size']) {
+					// Exclude unimportant differences (like int(11) vs int(10))
+					$lengthMatters = in_array($propertyType, ['varchar', 'char', 'binary', 'varbinary']);
+					if ($lengthMatters) {
+						$differences['length'] = [
+							'from' => $columnDef['size'],
+							'to' => $propertyDef['length']
+						];
+					}
+				}
 			}
 			
-			// Compare nullability
-			$columnNullable = $columnDef['nullable'];
-			
-			if ($propertyDef['nullable'] !== $columnNullable) {
+			// Compare nullability - only if we have values to compare
+			if (isset($propertyDef['nullable']) && isset($columnDef['nullable']) &&
+				$propertyDef['nullable'] !== $columnDef['nullable']) {
 				$differences['nullable'] = [
-					'from' => $columnNullable,
+					'from' => $columnDef['nullable'],
 					'to' => $propertyDef['nullable']
 				];
 			}
 			
 			// Compare default value
-			if ($propertyDef['default'] !== $columnDef['default']) {
-				$differences['default'] = [
-					'from' => $columnDef['default'],
-					'to' => $propertyDef['default']
-				];
+			$propDefault = isset($propertyDef['default']) ? $this->normalizeDefaultValue($propertyDef['default']) : null;
+			$colDefault = isset($columnDef['default']) ? $this->normalizeDefaultValue($columnDef['default']) : null;
+			
+			if ($propDefault !== $colDefault) {
+				// Handle special cases for default values
+				// For datetime/timestamp fields, CURRENT_TIMESTAMP is equivalent to NULL in many cases
+				if (in_array($propertyType, ['datetime', 'timestamp'])) {
+					$isCurrentTs = ($propDefault === 'CURRENT_TIMESTAMP' || $colDefault === 'CURRENT_TIMESTAMP');
+					$isNull = ($propDefault === null || $colDefault === null);
+					
+					if (!($isCurrentTs && $isNull)) {
+						$differences['default'] = [
+							'from' => $columnDef['default'],
+							'to' => $propertyDef['default']
+						];
+					}
+				} else {
+					$differences['default'] = [
+						'from' => $columnDef['default'],
+						'to' => $propertyDef['default']
+					];
+				}
 			}
 			
 			return $differences;
+		}
+		
+		/**
+		 * Normalize column type for consistent comparison
+		 * @param string $type Column type
+		 * @return string Normalized type
+		 */
+		private function normalizeColumnType(string $type): string {
+			// Map of equivalent types
+			$typeMap = [
+				'int' => 'int',
+				'integer' => 'int',
+				'smallint' => 'smallint',
+				'tinyint' => 'tinyint',
+				'mediumint' => 'mediumint',
+				'bigint' => 'bigint',
+				'decimal' => 'decimal',
+				'numeric' => 'decimal',
+				'float' => 'float',
+				'double' => 'double',
+				'char' => 'char',
+				'varchar' => 'varchar',
+				'text' => 'text',
+				'mediumtext' => 'mediumtext',
+				'longtext' => 'longtext',
+				'date' => 'date',
+				'datetime' => 'datetime',
+				'timestamp' => 'timestamp'
+			];
+			
+			return $typeMap[trim($type)] ?? trim($type);
+		}
+		
+		/**
+		 * Normalize default values for consistent comparison
+		 * @param mixed $value Default value
+		 * @return string|null Normalized value
+		 */
+		private function normalizeDefaultValue($value): ?string {
+			if ($value === null) {
+				return null;
+			}
+			
+			// Convert empty strings to explicit string representation for comparison
+			if ($value === '') {
+				return "''";
+			}
+			
+			// Normalize CURRENT_TIMESTAMP and similar
+			if (is_string($value) && preg_match('/current_timestamp/i', $value)) {
+				return 'CURRENT_TIMESTAMP';
+			}
+			
+			return (string)$value;
 		}
 		
 		/**
@@ -312,8 +437,9 @@
 			}
 			
 			$timestamp = time();
-			$className = 'Migration' . $timestamp;
-			$filename = $this->migrationsPath . '/' . $timestamp . '_' . $className . '.php';
+			$migrationName = 'EntitySchemaMigration' . date('YmdHis', $timestamp);
+			$className = 'Migration' . date('YmdHis', $timestamp);
+			$filename = $this->migrationsPath . '/' . date('YmdHis', $timestamp) . '_' . $migrationName . '.php';
 			
 			$migrationContent = $this->buildMigrationContent($className, $allChanges);
 			
@@ -425,7 +551,8 @@ PHP;
 			$columnDefs = [];
 			
 			foreach ($columns as $columnName => $columnDef) {
-				$type = $columnDef['type'];
+				// Map the entity type to a valid Phinx type
+				$type = $this->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['length'])) {
@@ -466,7 +593,7 @@ PHP;
 			$columnDefs = [];
 			
 			foreach ($columns as $columnName => $columnDef) {
-				$type = $isRollback ? $columnDef['type'] : $columnDef['type'];
+				$type = $this->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['length'])) {
@@ -523,7 +650,7 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$propertyDef = $changes['property'];
-				$type = $propertyDef['type'];
+				$type = $this->mapToPhinxType($propertyDef['type']);
 				$options = [];
 				
 				if (!empty($propertyDef['length'])) {
@@ -556,7 +683,7 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$columnDef = $changes['column'];
-				$type = $columnDef['type'];
+				$type = $this->mapToPhinxType($columnDef['type']);
 				$options = [];
 				
 				if (!empty($columnDef['size'])) {
@@ -602,27 +729,40 @@ PHP;
 		 */
 		private function mapToPhinxType(string $type): string {
 			$map = [
-				'int' => 'integer',
-				'tinyint' => 'boolean',
-				'smallint' => 'integer',
-				'mediumint' => 'integer',
-				'bigint' => 'biginteger',
-				'float' => 'float',
-				'double' => 'double',
-				'decimal' => 'decimal',
-				'char' => 'char',
-				'varchar' => 'string',
-				'text' => 'text',
+				'int'        => 'integer',
+				'integer'    => 'integer',
+				'tinyint'    => 'boolean',
+				'smallint'   => 'integer',
+				'mediumint'  => 'integer',
+				'bigint'     => 'biginteger',
+				'float'      => 'float',
+				'double'     => 'double',
+				'decimal'    => 'decimal',
+				'char'       => 'char',
+				'varchar'    => 'string',
+				'text'       => 'text',
 				'mediumtext' => 'text',
-				'longtext' => 'text',
-				'date' => 'date',
-				'datetime' => 'datetime',
-				'timestamp' => 'timestamp',
-				'time' => 'time',
-				'enum' => 'enum'
+				'longtext'   => 'text',
+				'date'       => 'date',
+				'datetime'   => 'datetime',
+				'timestamp'  => 'timestamp',
+				'time'       => 'time',
+				'enum'       => 'enum'
 			];
 			
 			return $map[strtolower($type)] ?? 'string';
+		}
+		
+		/**
+		 * Debug function to print an entity property for inspection
+		 * @param array $property The property details to print
+		 * @return void
+		 */
+		private function debugProperty(array $property): void {
+			$this->output->writeLn("Property Debug:");
+			$this->output->writeLn("- Name: " . $property['name']);
+			$this->output->writeLn("- Type: " . $property['type']);
+			$this->output->writeLn("- Property Name: " . $property['property_name']);
 		}
 		
 		/**
@@ -632,6 +772,12 @@ PHP;
 		 */
 		public function execute(array $parameters = []): int {
 			$this->output->writeLn("Generating database migrations based on entity changes...");
+			
+			// Debug mode flag - enable to see verbose output
+			$debug = false;
+			if (isset($parameters['debug']) && $parameters['debug']) {
+				$debug = true;
+			}
 			
 			// Load all entity classes
 			$this->entityClasses = $this->loadEntityClasses();
@@ -651,6 +797,13 @@ PHP;
 				
 				$entityProperties = $this->getEntityProperties($className);
 				
+				if ($debug) {
+					$this->output->writeLn("Entity properties for $className:");
+					foreach ($entityProperties as $columnName => $property) {
+						$this->debugProperty($property);
+					}
+				}
+				
 				// Check if table exists
 				if (!in_array($tableName, $existingTables)) {
 					$this->output->writeLn("Table '$tableName' does not exist. Will be created.");
@@ -663,6 +816,13 @@ PHP;
 				
 				// Get table definition from database
 				$tableColumns = $this->getTableDefinition($tableName);
+				
+				if ($debug) {
+					$this->output->writeLn("Database columns for $tableName:");
+					foreach ($tableColumns as $columnName => $column) {
+						$this->output->writeLn("- Column: $columnName, Type: {$column['type']}");
+					}
+				}
 				
 				// Compare entity properties with table columns
 				$changes = $this->compareColumns($entityProperties, $tableColumns);
@@ -685,6 +845,12 @@ PHP;
 				} else {
 					$this->output->writeLn("  No changes detected for table: $tableName");
 				}
+			}
+			
+			// Only generate migration file if there are changes
+			if (empty($allChanges)) {
+				$this->output->writeLn("No changes detected in any entities. Migration file not created.");
+				return 0;
 			}
 			
 			// Generate migration file

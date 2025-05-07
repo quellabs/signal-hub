@@ -263,7 +263,7 @@
 			// Add primary key property
 			$content .= "
 			/**
-			 * @Orm\Column(type=\"integer\" unsigned=true primary_key=true)
+			 * @Orm\Column(type=\"integer\", unsigned=true, primary_key=true)
 			 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
 			 */
 			protected int \$id;
@@ -335,23 +335,27 @@
 			$type = $property['type'] ?? 'string';
 			$snakeCaseName = $this->snakeCase($property['name']);
 			
-			$comment = "/**\n\t * @Orm\Column(name=\"{$snakeCaseName}\" type=\"{$type}\"";
+			$properties = [];
 			
+			// Add the name and type properties
+			$properties[] = "name=\"{$snakeCaseName}\"";
+			$properties[] = "type=\"{$type}\"";
+			
+			// Add optional properties if they exist
 			if (isset($property['length']) && is_numeric($property['length'])) {
-				$comment .= " length={$property['length']}";
+				$properties[] = "length={$property['length']}";
 			}
 			
 			if (isset($property['unsigned'])) {
-				$comment .= " unsigned=" . ($property['unsigned'] ? "true" : "false");
+				$properties[] = "unsigned=" . ($property['unsigned'] ? "true" : "false");
 			}
 			
 			if ($nullable) {
-				$comment .= " nullable=true";
+				$properties[] = "nullable=true";
 			}
 			
-			$comment .= ")\n\t */";
-			
-			return $comment;
+			$propertiesString = implode(", ", $properties);
+			return "/**\n\t * @Orm\Column({$propertiesString})\n\t */";
 		}
 		
 		/**

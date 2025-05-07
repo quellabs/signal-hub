@@ -54,7 +54,7 @@
 		 * @return int|string The length/size of the column
 		 */
 		public function getLength(): int|string {
-			return $this->parameters["length"];
+			return $this->parameters["length"] ?? 0;
 		}
 		
 		/**
@@ -70,7 +70,7 @@
 		 * @return mixed The default value for the column
 		 */
 		public function getDefault(): mixed {
-			return $this->parameters["default"];
+			return $this->parameters["default"] ?? null;
 		}
 		
 		/**

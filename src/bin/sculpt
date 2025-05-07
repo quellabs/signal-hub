@@ -10,6 +10,7 @@
 	$config->setCachePath(__DIR__ . '/../Cache');
 	$config->setUseAnnotationCache(true);
 	$config->setAnnotationCachePath(__DIR__ . '/../AnnotationCache');
+	$config->setMigrationsPath(__DIR__ . '/../../migrations');
 
 	$config->setDatabaseParams(
 		'mysql',                         // Driver
