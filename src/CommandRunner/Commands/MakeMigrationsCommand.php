@@ -32,8 +32,6 @@
 		private string $entityPath;
 		private AnnotationReader $annotationReader;
 		private string $migrationsPath;
-		private array $entityClasses = [];
-		private array $tableDefinitions = [];
 		private EntityScanner $entityScanner;
 		private DatabaseSchemaLoader $databaseSchemaLoader;
 		private SchemaComparator $schemaComparator;
@@ -119,27 +117,35 @@
 		 * @return bool Success status
 		 */
 		private function generateMigrationFile(array $allChanges): bool {
+			// If no changes were detected, inform the user and exit early
 			if (empty($allChanges)) {
 				$this->output->writeLn("No changes detected. Migration file not created.");
 				return false;
 			}
 			
+			// Create timestamp and name components for the migration file
 			$timestamp = time();
 			$migrationName = 'EntitySchemaMigration' . date('YmdHis', $timestamp);
 			$className = 'Migration' . date('YmdHis', $timestamp);
+			
+			// Construct the full filepath for the migration
 			$filename = $this->migrationsPath . '/' . date('YmdHis', $timestamp) . '_' . $migrationName . '.php';
 			
+			// Generate the PHP code content for the migration file
 			$migrationContent = $this->buildMigrationContent($className, $allChanges);
 			
+			// Create migrations directory if it doesn't exist
 			if (!is_dir($this->migrationsPath)) {
 				mkdir($this->migrationsPath, 0755, true);
 			}
 			
+			// Write the migration file and provide feedback on success/failure
 			if (file_put_contents($filename, $migrationContent)) {
 				$this->output->writeLn("Migration file created: $filename");
 				return true;
 			}
 			
+			// If file writing failed, inform the user
 			$this->output->writeLn("Failed to create migration file.");
 			return false;
 		}
@@ -450,9 +456,9 @@ PHP;
 			$this->output->writeLn("Generating database migrations based on entity changes...");
 			
 			// Load all entity classes
-			$this->entityClasses = $this->entityScanner->scanEntities();
+			$entityClasses = $this->entityScanner->scanEntities();
 			
-			if (empty($this->entityClasses)) {
+			if (empty($entityClasses)) {
 				$this->output->writeLn("No entity classes found.");
 				return 1;
 			}
@@ -462,7 +468,7 @@ PHP;
 			$allChanges = [];
 			
 			// Process each entity
-			foreach ($this->entityClasses as $className => $tableName) {
+			foreach ($entityClasses as $className => $tableName) {
 				$entityProperties = $this->extractEntityColumnDefinitions($className);
 				
 				// Check if table exists
