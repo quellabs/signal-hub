@@ -10,15 +10,13 @@
 	use Quellabs\ObjectQuel\CommandRunner\Command;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
+	use Quellabs\ObjectQuel\CommandRunner\Helpers\DatabaseSchemaLoader;
+	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\SchemaComparator;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\DatabaseAdapter\TableInfo;
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
-	use Quellabs\ObjectQuel\Annotations\Orm\Table;
-	use RecursiveDirectoryIterator;
-	use RecursiveIteratorIterator;
-	use ReflectionClass;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -36,6 +34,8 @@
 		private string $migrationsPath;
 		private array $entityClasses = [];
 		private array $tableDefinitions = [];
+		private EntityScanner $entityScanner;
+		private DatabaseSchemaLoader $databaseSchemaLoader;
 		private SchemaComparator $schemaComparator;
 		
 		/**
@@ -60,74 +60,9 @@
 			$this->entityPath = $configuration->getEntityPath();
 			$this->migrationsPath = $configuration->getMigrationsPath();
 			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
+			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
+			$this->databaseSchemaLoader = new DatabaseSchemaLoader($this->connection);
 			$this->schemaComparator = new SchemaComparator();
-		}
-		
-		/**
-		 * Finds and loads all entity classes from the entity path
-		 * @return array Array of entity class names with their table names
-		 */
-		private function loadEntityClasses(): array {
-			$entityClasses = [];
-			$directory = new RecursiveDirectoryIterator($this->entityPath);
-			$iterator = new RecursiveIteratorIterator($directory);
-			
-			foreach ($iterator as $file) {
-				if ($file->isFile() && $file->getExtension() === 'php') {
-					$className = $this->getClassNameFromFile($file->getPathname());
-					
-					if ($className && class_exists($className)) {
-						$reflection = new ReflectionClass($className);
-						
-						// Skip abstract classes and interfaces
-						if ($reflection->isAbstract() || $reflection->isInterface()) {
-							continue;
-						}
-						
-						// Check if class has Table annotation
-						$classAnnotations = $this->annotationReader->getClassAnnotations($className);
-						$tableName = null;
-						
-						// Look for Table annotation
-						foreach ($classAnnotations as $annotation) {
-							if ($annotation instanceof Table) {
-								$tableName = $annotation->getName();
-								break;
-							}
-						}
-						
-						// Only consider classes with a Table annotation as entities
-						if ($tableName) {
-							$entityClasses[$className] = $tableName;
-						}
-					}
-				}
-			}
-			
-			return $entityClasses;
-		}
-		
-		/**
-		 * Extract class name from file path
-		 * @param string $filePath Path to the PHP file
-		 * @return string|null The fully qualified class name if found, null otherwise
-		 */
-		private function getClassNameFromFile(string $filePath): ?string {
-			$content = file_get_contents($filePath);
-			
-			// Extract namespace
-			preg_match('/namespace\s+([^;]+);/', $content, $namespaceMatches);
-			$namespace = $namespaceMatches[1] ?? '';
-			
-			// Extract class name
-			preg_match('/class\s+(\w+)(?:\s+extends|\s+implements|\s*{)/', $content, $classMatches);
-			$className = $classMatches[1] ?? null;
-			
-			if ($namespace && $className) {
-				return $namespace . '\\' . $className;
-			}
-			
-			return null;
 		}
 		
 		/**
@@ -176,25 +111,6 @@
 			}
 			
 			return $properties;
-		}
-		
-		/**
-		 * Get table definitions from database
-		 * @param string $tableName Table name
-		 * @return array Array of column definitions
-		 */
-		private function fetchDatabaseTableSchema(string $tableName): array {
-			if (!isset($this->tableDefinitions[$tableName])) {
-				$columns = $this->connection->getColumnsEx($tableName);
-				
-				if (empty($columns)) {
-					return [];
-				}
-				
-				$this->tableDefinitions[$tableName] = $columns;
-			}
-			
-			return $this->tableDefinitions[$tableName];
 		}
 		
 		/**
@@ -534,7 +450,7 @@ PHP;
 			$this->output->writeLn("Generating database migrations based on entity changes...");
 			
 			// Load all entity classes
-			$this->entityClasses = $this->loadEntityClasses();
+			$this->entityClasses = $this->entityScanner->scanEntities();
 			
 			if (empty($this->entityClasses)) {
 				$this->output->writeLn("No entity classes found.");
@@ -562,7 +478,7 @@ PHP;
 				}
 				
 				// Get table definition from database
-				$tableColumns = $this->fetchDatabaseTableSchema($tableName);
+				$tableColumns = $this->databaseSchemaLoader->fetchDatabaseTableSchema($tableName);
 				
 				// Compare entity properties with table columns
 				$changes = $this->schemaComparator->compareColumns($entityProperties, $tableColumns);
