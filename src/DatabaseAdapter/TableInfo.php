@@ -81,6 +81,14 @@
 		}
 		
 		/**
+		 * Fetch a list of tables
+		 * @return array
+		 */
+		public function getTables(): array {
+			return $this->db->getTables();
+		}
+		
+		/**
 		 * This function fetches the table description from the database
 		 * and processes each column to collect relevant information.
 		 * It serves as the main public API of this class.

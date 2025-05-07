@@ -46,7 +46,6 @@
 		 * @param ConsoleInput $input Command line input interface
 		 * @param ConsoleOutput $output Command line output interface
 		 * @param Configuration $configuration Application configuration
-		 * @param EntityStore $entityStore Entity store for metadata
 		 */
 		public function __construct(
 			ConsoleInput  $input,
