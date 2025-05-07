@@ -170,6 +170,11 @@
 		 * @throws QuelException
 		 */
 		public function findBy(string $entityType, mixed $primaryKey): array {
+			// Check if the desired entity type is actually an entity
+			if (!$this->entity_store->exists($entityType)) {
+				throw new QuelException("Entity {$entityType} does not exist.");
+			}
+			
 			// Normalize the primary key
 			$primaryKeys = $this->entity_store->formatPrimaryKeyAsArray($primaryKey, $entityType);
 			
@@ -195,6 +200,11 @@
 		 * @throws QuelException
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
+			// Check if the desired entity type is actually an entity
+			if (!$this->entity_store->exists($entityType)) {
+				throw new QuelException("Entity {$entityType} does not exist.");
+			}
+			
 			// Normalize the primary key
 			$primaryKeys = $this->entity_store->formatPrimaryKeyAsArray($primaryKey, $entityType);
 			
