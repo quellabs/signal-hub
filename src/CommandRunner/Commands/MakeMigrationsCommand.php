@@ -7,6 +7,7 @@
 	 */
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
 	use Quellabs\ObjectQuel\CommandRunner\Command;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
@@ -67,51 +68,92 @@
 		}
 		
 		/**
+		 * Determines if a property represents an auto-increment column.
+		 * A column is considered auto-increment if it has both:
+		 * 1. A Column annotation marked as primary key
+		 * 2. A PrimaryKeyStrategy annotation with value 'auto_increment'
+		 * @param array $propertyAnnotations The annotations attached to the property
+		 * @return bool Returns true if the property is an auto-increment column, false otherwise
+		 */
+		private function isAutoIncrementColumn(array $propertyAnnotations): bool {
+			// First condition: verify the property has a Column annotation that is a primary key
+			// If any Column annotation is not a primary key, return false immediately
+			foreach ($propertyAnnotations as $annotation) {
+				if ($annotation instanceof Column) {
+					if (!$annotation->isPrimaryKey()) {
+						// If the property has a Column annotation, but it's not a primary key,
+						// then it cannot be an auto-increment column
+						return false;
+					}
+				}
+			}
+			
+			// Second condition: verify the property has a PrimaryKeyStrategy annotation with 'auto_increment' value
+			// If any PrimaryKeyStrategy annotation does not have 'auto_increment' value, return false immediately
+			foreach ($propertyAnnotations as $annotation) {
+				if ($annotation instanceof PrimaryKeyStrategy) {
+					if ($annotation->getValue() !== 'auto_increment') {
+						return false;
+					}
+				}
+			}
+			
+			// If we reach this point, both conditions are satisfied (or no relevant annotations were found)
+			// Note: This assumes that at least one Column and one PrimaryKeyStrategy annotation exist
+			return true;
+		}
+		
+		/**
 		 * Get entity property definitions from annotations
 		 * @param string $className Entity class name
 		 * @return array Array of property definitions
 		 */
 		private function extractEntityColumnDefinitions(string $className): array {
-			$reflection = new \ReflectionClass($className);
-			$properties = [];
-			
-			foreach ($reflection->getProperties() as $property) {
-				$propertyAnnotations = $this->annotationReader->getPropertyAnnotations($className, $property->getName());
+			$result = [];
+
+			try {
+				$reflection = new \ReflectionClass($className);
 				
-				// Look for Column annotation
-				$columnAnnotation = null;
-				
-				foreach ($propertyAnnotations as $annotation) {
-					if ($annotation instanceof Column) {
-						$columnAnnotation = $annotation;
-						break;
-					}
-				}
-				
-				if ($columnAnnotation) {
-					// Use the column name from the annotation, not the property name
-					$columnName = $columnAnnotation->getName();
+				foreach ($reflection->getProperties() as $property) {
+					$propertyAnnotations = $this->annotationReader->getPropertyAnnotations($className, $property->getName());
 					
-					// If no column name found, skip this property
-					if (empty($columnName)) {
-						continue;
+					// Look for Column annotation
+					$columnAnnotation = null;
+					
+					foreach ($propertyAnnotations as $annotation) {
+						if ($annotation instanceof Column) {
+							$columnAnnotation = $annotation;
+							break;
+						}
 					}
 					
-					// Gather property info
-					$properties[$columnName] = [
-						'property_name'  => $property->getName(),
-						'name'           => $columnAnnotation->getName(),
-						'type'           => $columnAnnotation->getType(),
-						'length'         => $columnAnnotation->getLength(),
-						'nullable'       => $columnAnnotation->isNullable(),
-						'default'        => $columnAnnotation->getDefault(),
-						'primary_key'    => $columnAnnotation->isPrimaryKey(),
-						'auto_increment' => $columnAnnotation->isAutoIncrement(),
-					];
+					if ($columnAnnotation) {
+						// Use the column name from the annotation, not the property name
+						$columnName = $columnAnnotation->getName();
+						
+						// If no column name found, skip this property
+						if (empty($columnName)) {
+							continue;
+						}
+						
+						// Gather property info
+						$result[$columnName] = [
+							'property_name'  => $property->getName(),
+							'name'           => $columnAnnotation->getName(),
+							'type'           => $columnAnnotation->getType(),
+							'length'         => $columnAnnotation->getLength(),
+							'nullable'       => $columnAnnotation->isNullable(),
+							'unsigned'       => $columnAnnotation->isUnsigned(),
+							'default'        => $columnAnnotation->getDefault(),
+							'primary_key'    => $columnAnnotation->isPrimaryKey(),
+							'auto_increment' => $this->isAutoIncrementColumn($propertyAnnotations),
+						];
+					}
 				}
+			} catch (\ReflectionException $e) {
 			}
 			
-			return $properties;
+			return $result;
 		}
 		
 		/**
@@ -270,8 +312,20 @@ PHP;
 					$options[] = "'identity' => true";
 				}
 				
+				// Add unsigned flag if set
+				if (!empty($columnDef['unsigned'])) {
+					$options[] = "'signed' => false";
+				}
+				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
+			}
+			
+			// Add an index for auto-increment primary key columns
+			foreach ($columns as $columnName => $columnDef) {
+				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
+					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
+				}
 			}
 			
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->create();";
@@ -281,10 +335,9 @@ PHP;
 		 * Build code for adding columns to a table
 		 * @param string $tableName Table name
 		 * @param array $columns Column definitions
-		 * @param bool $isRollback Whether this is for rollback code
 		 * @return string Code for adding columns
 		 */
-		private function buildAddColumnsCode(string $tableName, array $columns, bool $isRollback = false): string {
+		private function buildAddColumnsCode(string $tableName, array $columns): string {
 			$columnDefs = [];
 			
 			foreach ($columns as $columnName => $columnDef) {
@@ -299,7 +352,7 @@ PHP;
 					$options[] = "'null' => " . ($columnDef['nullable'] ? 'true' : 'false');
 				}
 				
-				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
+				if (isset($columnDef['default'])) {
 					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
 				}
 				
@@ -311,8 +364,19 @@ PHP;
 					$options[] = "'identity' => true";
 				}
 				
+				if (!empty($columnDef['unsigned'])) {
+					$options[] = "'signed' => false";
+				}
+				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
+			}
+			
+			// Add an index for auto-increment primary key columns
+			foreach ($columns as $columnName => $columnDef) {
+				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
+					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
+				}
 			}
 			
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
@@ -360,6 +424,10 @@ PHP;
 					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($propertyDef['default']);
 				}
 				
+				if (isset($propertyDef['unsigned'])) {
+					$options[] = "'signed' => " . ($propertyDef['unsigned'] ? 'false' : 'true');
+				}
+				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->changeColumn('$columnName', '$type'$optionsStr)";
 			}
@@ -393,6 +461,10 @@ PHP;
 					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
 				}
 				
+				if (isset($columnDef['attributes']) && isset($columnDef['attributes']['unsigned'])) {
+					$options[] = "'signed' => " . ($columnDef['attributes']['unsigned'] ? 'false' : 'true');
+				}
+				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->changeColumn('$columnName', '$type'$optionsStr)";
 			}
@@ -421,7 +493,7 @@ PHP;
 			
 			// Process each entity
 			$allChanges = [];
-
+			
 			foreach ($entityClasses as $className => $tableName) {
 				$entityProperties = $this->extractEntityColumnDefinitions($className);
 				
@@ -443,28 +515,7 @@ PHP;
 				
 				if (!empty($changes['added']) || !empty($changes['modified']) || !empty($changes['deleted'])) {
 					$allChanges[$tableName] = $changes;
-					
-					// Log the changes
-					if (!empty($changes['added'])) {
-						$this->output->writeLn("  Added columns: " . implode(', ', array_keys($changes['added'])));
-					}
-					
-					if (!empty($changes['modified'])) {
-						$this->output->writeLn("  Modified columns: " . implode(', ', array_keys($changes['modified'])));
-					}
-					
-					if (!empty($changes['deleted'])) {
-						$this->output->writeLn("  Deleted columns: " . implode(', ', array_keys($changes['deleted'])));
-					}
-				} else {
-					$this->output->writeLn("  No changes detected for table: $tableName");
 				}
-			}
-			
-			// Only generate migration file if there are changes
-			if (empty($allChanges)) {
-				$this->output->writeLn("No changes detected in any entities. Migration file not created.");
-				return 0;
 			}
 			
 			// Generate migration file

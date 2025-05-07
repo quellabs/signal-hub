@@ -26,9 +26,9 @@
 
 		/**
 		 * Returns the chosen strategy.
-		 * @return mixed
+		 * @return string
 		 */
-		public function getValue(): mixed {
+		public function getValue(): string {
 			return $this->parameters["strategy"] ?? 'auto_increment';
 		}
 	}

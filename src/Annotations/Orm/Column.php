@@ -12,7 +12,6 @@
 		
 		/**
 		 * Array containing all column parameters
-		 *
 		 * @var array
 		 */
 		protected array $parameters;
@@ -98,13 +97,6 @@
 		}
 
 		/**
-		 * Checks if this column is auto-incrementing
-		 * @return bool True if this column is auto-incrementing, false otherwise
-		 */
-		public function isAutoIncrement(): bool {
-			return $this->parameters["auto_increment"] ?? false;
-		}
-		
 		/**
 		 * Checks if this column allows NULL values
 		 * @return bool True if this column allows NULL values, false otherwise

@@ -97,6 +97,7 @@
 			$this->findLengthDifferences($propertyDef, $columnDef, $differences);
 			$this->findNullabilityDifferences($propertyDef, $columnDef, $differences);
 			$this->findDefaultValueDifferences($propertyDef, $columnDef, $differences);
+			$this->findUnsignedFlagDifferences($propertyDef, $columnDef, $differences);
 			return $differences;
 		}
 		
@@ -240,12 +241,35 @@
 		}
 		
 		/**
+		 * Compares the unsigned flag between entity property and database column
+		 * @param array $propertyDef Definition of property from the entity model
+		 * @param array $columnDef Definition of column from the database table
+		 * @param array &$differences Reference to array for storing detected differences
+		 * @return void
+		 */
+		private function findUnsignedFlagDifferences(array $propertyDef, array $columnDef, array &$differences): void {
+			// Get property unsigned status (from isUnsigned() method)
+			$propertyIsUnsigned = $propertyDef['unsigned'] ?? false;
+			
+			// Get column unsigned status (from attributes)
+			$columnIsUnsigned = isset($columnDef['attributes']['unsigned']) && $columnDef['attributes']['unsigned'] === true;
+			
+			// If they differ, record the difference
+			if ($propertyIsUnsigned !== $columnIsUnsigned) {
+				$differences['unsigned'] = [
+					'from' => $columnIsUnsigned,
+					'to'   => $propertyIsUnsigned
+				];
+			}
+		}
+		
+		/**
 		 * Normalizes default value representations for consistent comparison
 		 * Handles NULL, empty strings, and timestamp defaults
 		 * @param mixed $value The default value to normalize
 		 * @return string|null Normalized default value
 		 */
-		private function normalizeDefaultValue($value): ?string {
+		private function normalizeDefaultValue(mixed $value): ?string {
 			if ($value === null) {
 				return null;
 			}
