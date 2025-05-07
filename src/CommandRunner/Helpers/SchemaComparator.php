@@ -10,48 +10,73 @@
 	class SchemaComparator {
 		
 		/**
-		 * Identifies columns that have been added or modified in the entity compared to the table
+		 * Main public method to compare entity properties with table columns
+		 * Identifies added, modified, and deleted columns
+		 * @param array $entityProperties Map of property names to definitions from entity model
+		 * @param array $tableColumns Map of column names to definitions from database
+		 * @return array Structured array of all detected changes
+		 */
+		public function analyzeSchemaChanges(array $entityProperties, array $tableColumns): array {
+			return [
+				'added'    => $this->detectColumnAdditions($entityProperties, $tableColumns),
+				'modified' => $this->detectColumnChanges($entityProperties, $tableColumns),
+				'deleted'  => $this->detectColumnRemovals($entityProperties, $tableColumns),
+			];
+		}
+		
+		/**
+		 * Identifies columns that exist in the entity but not in the table
 		 * @param array $entityProperties Definition of properties from the entity model
 		 * @param array $tableColumns Definition of columns from the database table
-		 * @param array &$changes Reference to array for storing detected changes
-		 * @return void
+		 * @return array Columns that need to be added to the table
 		 */
-		private function findAddedOrModifiedColumns(array $entityProperties, array $tableColumns, array &$changes): void {
+		private function detectColumnAdditions(array $entityProperties, array $tableColumns): array {
+			return array_filter($entityProperties, function ($columnName) use ($tableColumns) {
+				return !isset($tableColumns[$columnName]);
+			}, ARRAY_FILTER_USE_KEY);
+		}
+		
+		/**
+		 * Identifies columns that exist in both entity and table but have differences
+		 * @param array $entityProperties Definition of properties from the entity model
+		 * @param array $tableColumns Definition of columns from the database table
+		 * @return array Columns that need to be modified in the table
+		 */
+		private function detectColumnChanges(array $entityProperties, array $tableColumns): array {
+			$result = [];
+			
 			foreach ($entityProperties as $columnName => $propertyDef) {
-				// If column doesn't exist in the table, mark it as added
+				// Skip if the column doesn't exist in the table (it's an added column)
 				if (!isset($tableColumns[$columnName])) {
-					$changes['added'][$columnName] = $propertyDef;
 					continue;
 				}
 				
 				// Compare property definition with column definition to find modifications
-				$modifications = $this->compareColumnDefinitions($propertyDef, $tableColumns[$columnName]);
+				$modifications = $this->getColumnDifferences($propertyDef, $tableColumns[$columnName]);
 				
 				// If modifications found, store the details
 				if (!empty($modifications)) {
-					$changes['modified'][$columnName] = [
+					$result[$columnName] = [
 						'property'      => $propertyDef,
 						'column'        => $tableColumns[$columnName],
 						'modifications' => $modifications
 					];
 				}
 			}
+			
+			return $result;
 		}
 		
 		/**
 		 * Identifies columns that exist in the table but not in the entity
 		 * @param array $entityProperties Definition of properties from the entity model
 		 * @param array $tableColumns Definition of columns from the database table
-		 * @param array &$changes Reference to array for storing detected changes
-		 * @return void
+		 * @return array Columns that need to be removed from the table
 		 */
-		private function findDeletedColumns(array $entityProperties, array $tableColumns, array &$changes): void {
-			foreach ($tableColumns as $columnName => $columnDef) {
-				// If column exists in table but not in entity, mark it as deleted
-				if (!isset($entityProperties[$columnName])) {
-					$changes['deleted'][$columnName] = $columnDef;
-				}
-			}
+		private function detectColumnRemovals(array $entityProperties, array $tableColumns): array {
+			return array_filter($tableColumns, function ($columnName) use ($entityProperties) {
+				return !isset($entityProperties[$columnName]);
+			}, ARRAY_FILTER_USE_KEY);
 		}
 		
 		/**
@@ -60,20 +85,18 @@
 		 * @param array $columnDef Definition of column from the database table
 		 * @return array Array of differences found (type, length, nullable, default)
 		 */
-		private function compareColumnDefinitions(array $propertyDef, array $columnDef): array {
-			$differences = [];
-			
+		private function getColumnDifferences(array $propertyDef, array $columnDef): array {
 			// Skip comparison if either definition is missing type information
-			if (!$this->hasValidTypeDefinitions($propertyDef, $columnDef)) {
-				return $differences;
+			if (!$this->bothDefinitionsHaveTypes($propertyDef, $columnDef)) {
+				return [];
 			}
 			
 			// Compare different aspects of the column definitions
-			$this->compareTypes($propertyDef, $columnDef, $differences);
-			$this->compareLengths($propertyDef, $columnDef, $differences);
-			$this->compareNullability($propertyDef, $columnDef, $differences);
-			$this->compareDefaultValues($propertyDef, $columnDef, $differences);
-			
+			$differences = [];
+			$this->findTypeDifferences($propertyDef, $columnDef, $differences);
+			$this->findLengthDifferences($propertyDef, $columnDef, $differences);
+			$this->findNullabilityDifferences($propertyDef, $columnDef, $differences);
+			$this->findDefaultValueDifferences($propertyDef, $columnDef, $differences);
 			return $differences;
 		}
 		
@@ -83,7 +106,7 @@
 		 * @param array $columnDef Definition of column from the database table
 		 * @return bool True if both definitions have type information
 		 */
-		private function hasValidTypeDefinitions(array $propertyDef, array $columnDef): bool {
+		private function bothDefinitionsHaveTypes(array $propertyDef, array $columnDef): bool {
 			return isset($propertyDef['type']) && isset($columnDef['type']);
 		}
 		
@@ -95,7 +118,7 @@
 		 * @param array &$differences Reference to array for storing detected differences
 		 * @return void
 		 */
-		private function compareTypes(array $propertyDef, array $columnDef, array &$differences): void {
+		private function findTypeDifferences(array $propertyDef, array $columnDef, array &$differences): void {
 			// Sanitize and standardize type names
 			$propertyType = is_string($propertyDef['type']) ? strtolower(trim($propertyDef['type'])) : '';
 			$columnType = is_string($columnDef['type']) ? strtolower(trim($columnDef['type'])) : '';
@@ -119,7 +142,7 @@
 		 * @param array &$differences Reference to array for storing detected differences
 		 * @return void
 		 */
-		private function compareLengths(array $propertyDef, array $columnDef, array &$differences): void {
+		private function findLengthDifferences(array $propertyDef, array $columnDef, array &$differences): void {
 			// Skip comparison if type already differs or length information is missing
 			if (!empty($differences['type']) ||
 				$propertyDef['length'] === null ||
@@ -131,7 +154,7 @@
 			$propertyType = $this->standardizeDataType($propertyDef['type']);
 			
 			if ($this->isDecimalType($propertyType)) {
-				$this->compareDecimalPrecision($propertyDef, $columnDef, $differences);
+				$this->findPrecisionDifferences($propertyDef, $columnDef, $differences);
 				return;
 			}
 			
@@ -151,7 +174,7 @@
 		 * @param array &$differences Reference to array for storing detected differences
 		 * @return void
 		 */
-		private function compareDecimalPrecision(array $propertyDef, array $columnDef, array &$differences): void {
+		private function findPrecisionDifferences(array $propertyDef, array $columnDef, array &$differences): void {
 			// Skip if either definition doesn't use the precision,scale format
 			if (!str_contains($propertyDef['length'], ',') || !str_contains($columnDef['size'], ',')) {
 				return;
@@ -176,7 +199,7 @@
 		 * @param array &$differences Reference to array for storing detected differences
 		 * @return void
 		 */
-		private function compareNullability(array $propertyDef, array $columnDef, array &$differences): void {
+		private function findNullabilityDifferences(array $propertyDef, array $columnDef, array &$differences): void {
 			if (isset($propertyDef['nullable']) && isset($columnDef['nullable']) && $propertyDef['nullable'] !== $columnDef['nullable']) {
 				$differences['nullable'] = [
 					'from' => $columnDef['nullable'],
@@ -193,7 +216,7 @@
 		 * @param array &$differences Reference to array for storing detected differences
 		 * @return void
 		 */
-		private function compareDefaultValues(array $propertyDef, array $columnDef, array &$differences): void {
+		private function findDefaultValueDifferences(array $propertyDef, array $columnDef, array &$differences): void {
 			// Normalize default values for consistent comparison
 			$propDefault = isset($propertyDef['default']) ? $this->normalizeDefaultValue($propertyDef['default']) : null;
 			$colDefault = isset($columnDef['default']) ? $this->normalizeDefaultValue($columnDef['default']) : null;
@@ -206,7 +229,7 @@
 			// Handle special case for timestamp defaults (NULL vs CURRENT_TIMESTAMP)
 			$propertyType = $this->standardizeDataType($propertyDef['type'] ?? '');
 			
-			if ($this->isTimestampType($propertyType) && $this->isEquivalentTimestampDefault($propDefault, $colDefault)) {
+			if ($this->isTimestampType($propertyType) && $this->areTimestampDefaultsEquivalent($propDefault, $colDefault)) {
 				return;
 			}
 			
@@ -242,7 +265,6 @@
 		/**
 		 * Standardizes data type names to handle variations and aliases
 		 * Maps database-specific types to standard types
-		 *
 		 * @param string $type The data type to standardize
 		 * @return string Standardized data type
 		 */
@@ -280,7 +302,6 @@
 		/**
 		 * Checks if two different type names are functionally equivalent
 		 * Handles special cases like boolean vs tinyint(1)
-		 *
 		 * @param string $propertyType Standardized property type
 		 * @param string $columnType Standardized column type
 		 * @param array $columnDef Full column definition
@@ -326,28 +347,10 @@
 		 * @param mixed $colDefault Column default value
 		 * @return bool True if defaults are functionally equivalent
 		 */
-		private function isEquivalentTimestampDefault(mixed $propDefault, mixed $colDefault): bool {
+		private function areTimestampDefaultsEquivalent(mixed $propDefault, mixed $colDefault): bool {
 			$isCurrentTs = ($propDefault === 'CURRENT_TIMESTAMP' || $colDefault === 'CURRENT_TIMESTAMP');
 			$isNull = ($propDefault === null || $colDefault === null);
 			return $isCurrentTs && $isNull;
 		}
-		
-		/**
-		 * Main public method to compare entity properties with table columns
-		 * Identifies added, modified, and deleted columns
-		 * @param array $entityProperties Map of property names to definitions from entity model
-		 * @param array $tableColumns Map of column names to definitions from database
-		 * @return array Structured array of all detected changes
-		 */
-		public function compareColumns(array $entityProperties, array $tableColumns): array {
-			$changes = [
-				'added'    => [], // Columns in entity but not in table
-				'modified' => [], // Columns in both but with differences
-				'deleted'  => []  // Columns in table but not in entity
-			];
-			
-			$this->findAddedOrModifiedColumns($entityProperties, $tableColumns, $changes);
-			$this->findDeletedColumns($entityProperties, $tableColumns, $changes);
-			return $changes;
-		}
+
 	}

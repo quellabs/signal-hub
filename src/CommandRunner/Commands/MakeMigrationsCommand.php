@@ -225,13 +225,11 @@ class $className extends AbstractMigration
      * Remember to call "create()" or "update()" and NOT "save()" when working
      * with the Table class.
      */
-    public function up()
-    {
+    public function up(): void {
 $upMethodContent
     }
 
-    public function down()
-    {
+    public function down(): void {
 $downMethodContent
     }
 }
@@ -420,16 +418,15 @@ PHP;
 			
 			// Get existing tables from database
 			$existingTables = $this->tableInfo->getTables();
-			$allChanges = [];
 			
 			// Process each entity
+			$allChanges = [];
+
 			foreach ($entityClasses as $className => $tableName) {
 				$entityProperties = $this->extractEntityColumnDefinitions($className);
 				
 				// Check if table exists
 				if (!in_array($tableName, $existingTables)) {
-					$this->output->writeLn("Table '$tableName' does not exist. Will be created.");
-					
 					$allChanges[$tableName] = [
 						'table_not_exists' => true,
 						'added'            => $entityProperties
@@ -442,7 +439,7 @@ PHP;
 				$tableColumns = $this->databaseSchemaLoader->fetchDatabaseTableSchema($tableName);
 				
 				// Compare entity properties with table columns
-				$changes = $this->schemaComparator->compareColumns($entityProperties, $tableColumns);
+				$changes = $this->schemaComparator->analyzeSchemaChanges($entityProperties, $tableColumns);
 				
 				if (!empty($changes['added']) || !empty($changes['modified']) || !empty($changes['deleted'])) {
 					$allChanges[$tableName] = $changes;
