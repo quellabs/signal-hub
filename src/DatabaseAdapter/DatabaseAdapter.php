@@ -260,25 +260,23 @@
 				preg_match('/([a-zA-Z\s]*)\((.*)\)(.*)/', $column["Type"], $matches);
 				
 				// Initialize property flags with default values
-				$unsigned = false;       // Whether the column allows only non-negative values
-				$zerofill = false;       // Whether values should be zero-padded to display width
-				$auto_increment = false; // Whether column auto-increments on NULL/0 insertions
-				$not_null = false;       // Redundant with nullable, kept for backward compatibility
-				$default_value = null;   // Extracted default value from properties
+				$properties = !empty($matches[3]) ? trim($matches[3]) : "";
 				
-				// Process additional properties if they exist
-				if (!empty($matches[3])) {
-					$properties = trim($matches[3]);
-					$unsigned = stripos($properties, 'unsigned') !== false;
-					$zerofill = stripos($properties, 'zerofill') !== false;
-					$auto_increment = stripos($properties, 'auto_increment') !== false;
-					$not_null = stripos($properties, 'not null') !== false;
-					
-					// Extract default value using regex if present
-					// Matches formats like: default 'value', default "value", or default value
-					if (preg_match('/default\s+([\'"]?)(.+?)\1(\s|$)/i', $properties, $defaultMatches)) {
-						$default_value = $defaultMatches[2];
-					}
+				// Extract default value using regex if present
+				// Matches formats like: default 'value', default "value", or default value
+				if (!empty($properties) && preg_match('/default\s+([\'"]?)(.+?)\1(\s|$)/i', $properties, $defaultMatches)) {
+					$default_value = $defaultMatches[2];
+				} else {
+					$default_value = null;
+				}
+				
+				// Check various placed where auto_increment can be defined
+				if ($column["Extra"] === "auto_increment") {
+					$autoIncrement = true;
+				} elseif (stripos($properties, 'auto_increment') !== false) {
+					$autoIncrement = true;
+				} else {
+					$autoIncrement = false;
 				}
 				
 				// Build the comprehensive column information array
@@ -293,11 +291,11 @@
 					'privileges' => $column["Privileges"],          // Access privileges for the column
 					'comment'    => $column["Comment"],             // User-defined column comment
 					'attributes' => [
-						'unsigned'       => $unsigned,               // Flag for unsigned numeric types
-						'auto_increment' => $auto_increment,         // Flag for auto-incrementing columns
-						'not_null'       => $not_null,               // Flag for NOT NULL constraint
-						'default_value'  => $default_value,          // Extracted default value from properties
-						'zerofill'       => $zerofill,               // Flag for zero-filled display
+						'unsigned'       => stripos($properties, 'unsigned') !== false,     // Flag for unsigned numeric types
+						'auto_increment' => $autoIncrement,                                        // Flag for auto-incrementing columns
+						'not_null'       => stripos($properties, 'not null') !== false,     // Flag for NOT NULL constraint
+						'zerofill'       => stripos($properties, 'zerofill') !== false,     // Flag for zero-filled display
+						'default_value'  => $default_value,                                        // Extracted default value from properties
 					]
 				];
 			}
