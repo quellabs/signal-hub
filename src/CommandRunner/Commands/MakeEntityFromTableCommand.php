@@ -140,6 +140,11 @@
 				$output .= "         * @Orm\Column(name=\"{$column["name"]}\", type=\"{$column["type"]}\"";
 				$output .= $this->getColumnAnnotationDetails($column);
 				$output .= ")\n";
+				
+				if ($column["primary_key"] && $column["auto_increment"]) {
+					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")\n";
+				}
+
 				$output .= "         */\n";
 				$output .= "        private {$acceptType} \${$columnCamelCase}";
 				$output .= $this->getColumnDefaultValue($column);
@@ -180,10 +185,6 @@
 			
 			if ($column["primary_key"]) {
 				$details .= ", primary_key=true";
-			}
-			
-			if ($column["auto_increment"]) {
-				$details .= ", auto_increment=true";
 			}
 			
 			if (!empty($column["default"])) {
