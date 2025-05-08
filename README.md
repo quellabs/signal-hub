@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![Downloads](https://img.shields.io/packagist/dt/quellabs/objectquel.svg)](https://packagist.org/packages/quellabs/objectquel)
 
-ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutionizes database interaction through its data mapper pattern implementation, intuitive query language, and efficient architecture. Built on CakePhp's robust database foundation ([CakePhp Database](https://book.cakephp.org/4/en/orm/database-basics.html)), it delivers a distinctive approach to data management that separates your domain objects from persistence concerns while maintaining developer-friendly simplicity.
+ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Data Mapper pattern, offering a clean separation between entities and persistence logic. It combines a purpose-built query language with structured data enrichment and is powered by CakePHP’s robust database foundation under the hood.
 
 ## Table of Contents
 
@@ -28,8 +28,10 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutioni
 
 ObjectQuel addresses fundamental design challenges in object-relational mapping through its architecture:
 
-- **Clean Domain Models**: True separation of concerns with the data mapper pattern
-- **Intuitive Queries**: The ObjectQuel language provides an intuitive, object-oriented syntax for database operations that feels natural to developers
+- **Entity-Based Query Language** – Readable, expressive queries tailored to entity models.
+- **Data Mapper Architecture** – Entities remain decoupled from the database, ensuring clean, testable domain logic.
+- **Powered by CakePHP's Database Layer** – Reliable and battle-tested SQL engine under the hood. 
+- **Composable Queries** – Incrementally build and manipulate queries at runtime.
 - **Relationship Simplicity**: Work with complex relationships without complex query code
 - **Performance By Design**: Multiple built-in optimization strategies for efficient database interactions
 - **Hybrid Data Sources**: Uniquely combine traditional databases with external JSON data sources
