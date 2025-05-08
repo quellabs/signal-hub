@@ -37,7 +37,7 @@
 		 * @return string De volledige namespace van het target entity.
 		 */
 		public function getTargetEntity(): string {
-			return "Quellabs\\ObjectQuel\\Entity\\{$this->parameters["targetEntity"]}";
+			return $this->parameters["targetEntity"];
 		}
 		
 		/**
@@ -61,14 +61,6 @@
 			return $this->parameters["relationColumn"] ?? null;
 		}
 		
-		/**
-		 * Returns fetch method (default LAZY)
-		 * @return string
-		 */
-		public function getFetch(): string {
-			return isset($this->parameters["fetch"]) ? strtoupper($this->parameters["fetch"]) : "LAZY";
-		}
-
 		/**
 		 * Returns the sort order
 		 * @return string

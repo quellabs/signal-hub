@@ -64,8 +64,8 @@
 		}
 		
 		/**
-		 * Returns fetch method (default LAZY)
-		 * @return mixed|string
+		 * Returns fetch method (default EAGER)
+		 * @return string
 		 */
 		public function getFetch(): string {
 			return isset($this->parameters["fetch"]) ? strtoupper($this->parameters["fetch"]) : "EAGER";

@@ -373,7 +373,7 @@ private ?CustomerEntity $customer;
 
 ```php
 /**
- * @Orm\OneToOne(targetEntity="CustomerEntity", mappedBy="customerId", relationColumn="customerId", fetch="LAZY")
+ * @Orm\OneToOne(targetEntity="CustomerEntity", mappedBy="customerId", relationColumn="customerId")
  */
 private ?CustomerEntity $customer;
 ```
@@ -383,13 +383,12 @@ private ?CustomerEntity $customer;
 | targetEntity | Target entity class |
 | mappedBy | Property in target entity that holds the foreign key |
 | relationColumn | Column in current entity that corresponds to the relationship |
-| fetch | Loading strategy ("EAGER" or "LAZY") |
 
 ### 3. ManyToOne (owning-side)
 
 ```php
 /**
- * @Orm\ManyToOne(targetEntity="CustomerEntity", inversedBy="customerId")
+ * @Orm\ManyToOne(targetEntity="CustomerEntity", inversedBy="customerId", fetch="EAGER")
  * @Orm\RequiredRelation
  */
 private ?CustomerEntity $customer;
@@ -406,7 +405,7 @@ private ?CustomerEntity $customer;
 
 ```php
 /**
- * @Orm\OneToMany(targetEntity="AddressEntity", mappedBy="customerId", fetch="EAGER")
+ * @Orm\OneToMany(targetEntity="AddressEntity", mappedBy="customerId")
  * @var $addresses EntityCollection
  */
 public $addresses;
