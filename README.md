@@ -274,7 +274,12 @@ While ObjectQuel ultimately translates to SQL, implementing our own query langua
 
 This approach delivers both a more intuitive developer experience and capabilities that extend beyond standard SQL, all while maintaining a consistent, object-oriented interface.
 
-Example:
+### Entity Property Selection
+
+ObjectQuel provides flexibility in what data you retrieve. You can:
+
+#### Retrieve entire entity objects:
+
 ```php
 $results = $entityManager->executeQuery("
     range of p is App\\Entity\\ProductEntity
@@ -286,7 +291,42 @@ $results = $entityManager->executeQuery("
 ]);
 ```
 
+#### Retrieve specific properties:
+
+```php
+// Returns only the price property values
+$results = $entityManager->executeQuery("
+range of p is App\\Entity\\ProductEntity
+retrieve (p.price) where p.productId = :productId
+", [
+'productId' => 1525
+]);
+
+// Access the retrieved property value
+$price = $results[0]['p.price'];
+```
+
+#### Retrieve a mix of entities and properties:
+
+```php
+// Returns product entities and just the name property from descriptions
+$results = $entityManager->executeQuery("
+    range of p is App\\Entity\\ProductEntity
+    range of d is App\\Entity\\ProductDescriptionEntity via p.descriptions
+    retrieve (p, d.productName) where p.productId = :productId
+    sort by d.productName asc
+", [
+'productId' => 1525
+]);
+
+// Access the mixed results
+$product = $results[0]['p'];
+$name = $results[0]['d.productName'];
+```
+
 ### Search Operations
+
+ObjectQuel transforms database querying with its expressive, developer-friendly syntax that converts complex search operations into elegant, readable code.
 
 | Operation | Example | Description |
 |-----------|---------|-------------|
