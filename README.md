@@ -181,7 +181,7 @@ $rs = $entityManager->executeQuery("
     range of main is Services\Entity\ProductsEntity
     range of x is Services\Entity\ProductsDescriptionEntity via main.productsDescriptions
     retrieve (x.productsName) where main.productsId=:productsId
-    sort by x.productsName asc, x.ietsAnders desc
+    sort by x.productsName asc, x.somethingElse desc
 ", [
     'productsId' => 1525
 ]);
@@ -273,31 +273,26 @@ ObjectQuel supports four types of relationships:
 3. **ManyToOne**: Multiple entities linked to a single entity, effectively the inverse perspective of OneToMany.
 4. **ManyToMany**: Multiple entities linked to multiple entities, implemented through combination of OneToMany/ManyToOne patterns with a join table.
 
-#### OneToOne example:
+#### OneToOne (owning-side) example:
 
 ```php
-// OneToOne (owning-side)
 /**
  * @Orm\OneToOne(targetEntity="CustomersEntity", inversedBy="customersId", relationColumn="customersInfoId", fetch="EAGER")
  */
 private ?CustomersEntity $parent;
 ```
 
-#### OneToMany example:
+#### OneToOne (not owning-side) example:
 
 ```php
-// OneToMany (not owning side)
 /**
- * @Orm\OneToMany(targetEntity="AddressBookEntity", mappedBy="customersId", fetch="EAGER")
- * @var $addressBooks EntityCollection
+ * @Orm\OneToOne(targetEntity="CustomersEntity", mappedBy="customersId", relationColumn="customersId", fetch="EAGER")
  */
-public $addressBooks;
+private ?CustomersEntity $parent;
 ```
 
-#### ManyToOne example:
+#### ManyToOne (owning-side) example :
 ```php
-
-// ManyToOne (owning-side)
 /**
  * @Orm\ManyToOne(targetEntity="CustomersEntity", inversedBy="customersId")
  * @Orm\RequiredRelation
@@ -305,7 +300,18 @@ public $addressBooks;
 private ?CustomersEntity $customer;
 ```
 
-### ManyToMany
+#### OneToMany (not owning side) example:
+
+```php
+// OneToMany 
+/**
+ * @Orm\OneToMany(targetEntity="AddressBookEntity", mappedBy="customersId", fetch="EAGER")
+ * @var $addressBooks EntityCollection
+ */
+public $addressBooks;
+```
+
+#### ManyToMany
 
 ManyToMany relationships are implemented as a specialized extension of OneToMany/ManyToOne relationships. To establish an effective ManyToMany relation:
 
@@ -313,10 +319,8 @@ ManyToMany relationships are implemented as a specialized extension of OneToMany
 2. This annotation instructs the query processor to treat the entity as an intermediary linking table.
 3. When queries execute, the processor automatically traverses and loads the related ManyToOne associations defined within this bridge entity.
 
-This architecture leverages the existing OneToMany/ManyToOne infrastructure while providing transparent access to related entities through the bridge, significantly simplifying complex relationship management.
-
 The `@EntityBridge` pattern extends beyond basic relationship mapping by offering several advanced capabilities:
-- Store supplementary data within the junction table (relationship metadata, timestamps, or configuration parameters)
+- Store supplementary data within the junction table (relationship metadata, timestamps, etc.
 - Access and manipulate this contextual data alongside the primary relationship information
 - Maintain comprehensive audit trails and relationship history between associated entities
 
@@ -371,6 +375,29 @@ When you execute this command, the `sculpt` tool will:
 2. **Define properties** - Add fields with their respective data types (string, integer, boolean, etc.)
 3. **Establish relationships** - Define connections to other entities (One-to-One, One-to-Many, etc.)
 4. **Generate accessors** - Create getters and setters for your properties
+
+### Creating Entities from Existing Database Tables
+
+To generate an entity from an existing database table, run this command in your terminal:
+
+```php
+php bin/sculpt make:entity-from-table
+```
+
+When executed, the sculpt tool will prompt you to select a table name and automatically create a properly structured entity class based on that table's schema.
+
+**Note:** Currently, this command does not automatically create relationships between entities. To add relationships after generating your entity, use the make:entity command to modify your newly created entity.
+
+### Generating Database Migrations
+To create migrations for entity changes, use this command:
+
+```php
+php bin/sculpt make:migrations
+```
+
+When executed, the sculpt tool analyzes differences between your entity definitions and the current database schema. It then automatically generates a migration file containing the necessary SQL statements to synchronize your database with your entities.
+
+**Note:** The system uses CakePHP's Phinx as its migration engine. All generated migrations follow the Phinx format and can be executed using standard Phinx commands.
 
 ## Query Optimization
 
