@@ -397,12 +397,13 @@ private ?CustomerEntity $customer;
 private ?CustomerEntity $customer;
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| targetEntity | Target entity class |
-| inversedBy | Property in target entity for reverse collection mapping |
-| fetch | Loading strategy ("EAGER" or "LAZY", optional) |
-| @Orm\RequiredRelation | Indicates that the relation can be loaded using an INNER JOIN (rather than the default LEFT JOIN) because it's guaranteed to be present, which improves query performance when the related entity must exist |
+| Parameter | Description                                                                                                                                                                                                  |
+|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| targetEntity | Target entity class                                                                                                                                                                                          |
+| inversedBy | Property in target entity for reverse collection mapping                                                                                                                                                     |
+| fetch | Loading strategy ("EAGER" or "LAZY", optional. EAGER is the default)                                                                                                                                         |
+
+The annotation `@Orm\RequiredRelation` indicates that the relation can be loaded using an INNER JOIN (rather than the default LEFT JOIN) because it's guaranteed to be present, which improves query performance.
 
 ### 4. OneToMany (inverse-side)
 
@@ -418,7 +419,6 @@ public $addresses;
 |-----------|-------------|
 | targetEntity | Target entity class |
 | mappedBy | Property in target entity that contains the foreign key |
-| fetch | Loading strategy ("EAGER" or "LAZY") |
 | indexBy | Optional property to use as collection index |
 
 ### 5. ManyToMany
