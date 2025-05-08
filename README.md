@@ -257,12 +257,31 @@ Entities are recognized by the `@Orm\Table` annotation:
 class CustomersInfoEntity {
     /**
      * @Orm\Column(name="customers_info_id", type="int", length=11, primary_key=true)
+     * @Orm\PrimaryKeyStrategy(strategy="auto_increment")
      */
     private int $customersInfoId;
 
     // Properties and methods...
 }
 ```
+
+Each database/entity property is marked by an @Orm\Column annotation. This annotation supports the following parameters:
+
+1. **name**: The database column name (required)
+2. **type**: The data type - options include 'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', or 'datetime'
+3. **length**: The column length (only relevant for string types)
+4. **primary_key**: Set to true to define this as a primary key column, false otherwise
+5. **default**: Specifies the default value when the database column is NULL
+6. **unsigned**: Set to true for unsigned values, false for signed values (signed is default)
+7. **nullable**: Set to true to allow NULL values in the database, false to require non-NULL values (not nullable is default).
+
+For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation to define how key values are generated. ObjectQuel supports the following strategies:
+
+1. **auto_increment**: Automatically increments values (default strategy)
+2. **uuid**: Generates a unique UUID for each new record
+3. **sequence**: Uses a select query to determine the next value in the sequence
+
+**Note:** While you can define multiple columns as primary keys, ObjectQuel will only use the first one specified.
 
 ### Entity Relationships
 
