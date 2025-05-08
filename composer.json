@@ -35,7 +35,8 @@
     "quellabs/annotation-reader": "dev-main",
     "robmorgan/phinx": "^0.13.4",
     "cakephp/database": "^4.4",
-    "softcreatr/jsonpath": "*"
+    "softcreatr/jsonpath": "*",
+    "vlucas/phpdotenv": "*"
   },
   "autoload": {
     "psr-4": {
