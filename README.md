@@ -93,17 +93,14 @@ $config->setEntityPath(__DIR__ . '/src');
 ObjectQuel uses proxy classes to implement lazy loading. Configure how these proxies are managed:
 
 ```php
-// Enable proxy generation (required for lazy loading)
-$config->setUseProxies(true);
-
-// Set where proxy classes will be stored
+// Set the directory where proxy classes will be stored
+// This is highly recommended as it significantly improves performance
+// Without this setting, proxies will be generated dynamically at runtime
 $config->setProxyDir(__DIR__ . '/var/cache/proxies');
 
-// Set the namespace for proxy classes
+// Set the namespace for generated proxy classes
+// This namespace should be unique to avoid conflicts with other code
 $config->setProxyNamespace('Quellabs\\ObjectQuel\\Proxies');
-
-// Enable automatic generation of proxy classes
-$config->setAutoGenerateProxyClasses(true);
 ```
 
 ### Configuring Metadata Caching
@@ -123,7 +120,7 @@ $config->setCacheDir(__DIR__ . '/var/cache/metadata');
 Once you've configured all settings, create the EntityManager:
 
 ```php
-use Quellabs\ObjectQuel\Core;
+use Quellabs\ObjectQuel;
 
 // Create the EntityManager with your configuration
 $entityManager = new EntityManager($config);
