@@ -34,16 +34,6 @@
 		private string $dsn = '';
 		
 		/**
-		 * @var string Path to entity classes
-		 */
-		private string $entityPaths = '';
-		
-		/**
-		 * @var bool Whether to use proxy objects for lazy loading
-		 */
-		private bool $useProxies = true;
-		
-		/**
 		 * @var string Directory where proxy classes will be stored
 		 */
 		private string $proxyDir = '';
@@ -52,6 +42,11 @@
 		 * @var string Namespace for proxy classes
 		 */
 		private string $proxyNamespace = 'Quellabs\\ObjectQuel\\Proxies';
+		
+		/**
+		 * @var string Path to entity classes
+		 */
+		private string $entityPath = '';
 		
 		/**
 		 * @var string Namespace for entities
@@ -208,7 +203,7 @@
 		 * @return self
 		 */
 		public function setEntityPath(string $path): self {
-			$this->entityPaths = $path;
+			$this->entityPath = $path;
 			return $this;
 		}
 		
@@ -217,26 +212,7 @@
 		 * @return string
 		 */
 		public function getEntityPath(): string {
-			return $this->entityPaths;
-		}
-		
-		/**
-		 * Set whether to use proxy objects for lazy loading
-		 * @param bool $useProxies
-		 * @return self
-		 */
-		public function setUseProxies(bool $useProxies): self {
-			$this->useProxies = $useProxies;
-			
-			return $this;
-		}
-		
-		/**
-		 * Get whether to use proxy objects
-		 * @return bool
-		 */
-		public function getUseProxies(): bool {
-			return $this->useProxies;
+			return $this->entityPath;
 		}
 		
 		/**
@@ -246,7 +222,6 @@
 		 */
 		public function setProxyDir(string $proxyDir): self {
 			$this->proxyDir = $proxyDir;
-			
 			return $this;
 		}
 		
