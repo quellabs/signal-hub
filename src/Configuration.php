@@ -54,24 +54,14 @@
 		private string $entityNameSpace = 'Quellabs\\ObjectQuel\\Entity';
 		
 		/**
-		 * @var string Cache directory for metadata
-		 */
-		private string $cachePath = '';
-		
-		/**
 		 * @var bool Whether to use metadata cache
 		 */
 		private bool $useMetadataCache = true;
 		
 		/**
-		 * @var bool True if cache should be used, false if not
-		 */
-		private bool $useAnnotationCache = false;
-		
-		/**
 		 * @var string Annotation cache directory
 		 */
-		private string $annotationCachePath = '';
+		private string $metadataCachePath = '';
 		
 		/**
 		 * @var string Migration path
@@ -260,21 +250,11 @@
 		}
 		
 		/**
-		 * Set cache directory for metadata
-		 * @param string $cacheDir
-		 * @return self
+		 * Get whether to use metadata cache
+		 * @return bool
 		 */
-		public function setCachePath(string $cacheDir): self {
-			$this->cachePath = $cacheDir;
-			return $this;
-		}
-		
-		/**
-		 * Get cache directory
-		 * @return string
-		 */
-		public function getCachePath(): string {
-			return $this->cachePath;
+		public function useMetadataCache(): bool {
+			return $this->useMetadataCache;
 		}
 		
 		/**
@@ -288,45 +268,20 @@
 		}
 		
 		/**
-		 * Get whether to use metadata cache
-		 * @return bool
-		 */
-		public function getUseMetadataCache(): bool {
-			return $this->useMetadataCache;
-		}
-		
-		/**
-		 * Returns true if the AnnotationReader should use cache, false if not
-		 * @return bool
-		 */
-		public function useAnnotationCache(): bool {
-			return $this->useAnnotationCache;
-		}
-		
-		/**
-		 * Sets the annotation reader cache option
-		 * @param bool $useAnnotationCache
-		 * @return void
-		 */
-		public function setUseAnnotationCache(bool $useAnnotationCache): void {
-			$this->useAnnotationCache = $useAnnotationCache;
-		}
-		
-		/**
-		 * Returns the annotation cache directory
+		 * Returns the metadata cache directory
 		 * @return string
 		 */
-		public function getAnnotationCachePath(): string {
-			return $this->annotationCachePath;
+		public function getMetadataCachePath(): string {
+			return $this->metadataCachePath;
 		}
 		
 		/**
-		 * Sets the annotation cache directory
+		 * Sets the metadata cache directory
 		 * @param string $annotationCacheDir
 		 * @return void
 		 */
-		public function setAnnotationCachePath(string $annotationCacheDir): void {
-			$this->annotationCachePath = $annotationCacheDir;
+		public function setMetadataCachePath(string $annotationCacheDir): void {
+			$this->metadataCachePath = $annotationCacheDir;
 		}
 		
 		/**

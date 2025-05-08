@@ -50,8 +50,8 @@
 	     */
 		public function __construct(Configuration $configuration) {
 			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
-			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
-			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
+			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
 
 			$this->configuration = $configuration;
 			$this->annotation_reader = new AnnotationReader($annotationReaderConfiguration);

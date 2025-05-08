@@ -10,9 +10,8 @@
 	$config = new Configuration();
 	$config->setEntityPath(__DIR__ . '/../src/Entity');
 	$config->setProxyDir(__DIR__ . '/../src/Proxies');
-	$config->setCachePath(__DIR__ . '/../src/Cache');
-	$config->setUseAnnotationCache(true);
-	$config->setAnnotationCachePath(__DIR__ . '/../src/AnnotationCache');
+	$config->setUseMetadataCache(true);
+	$config->setMetadataCachePath(__DIR__ . '/../src/AnnotationCache');
 	
 	$config->setDatabaseParams(
 		'mysql',                         // Driver

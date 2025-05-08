@@ -180,10 +180,6 @@
 				if (isset($proxy['namespace'])) {
 					$config->setProxyNamespace($proxy['namespace']);
 				}
-				
-				if (isset($proxy['enabled'])) {
-					$config->setUseProxies((bool)$proxy['enabled']);
-				}
 			}
 			
 			// Set cache-related paths and options
@@ -191,11 +187,11 @@
 				$cache = $configArray['cache'];
 				
 				if (isset($cache['path'])) {
-					$config->setCachePath($cache['path']);
+					$config->setMetadataCachePath($cache['path']);
 				}
 				
-				if (isset($cache['annotation_path'])) {
-					$config->setAnnotationCachePath($cache['annotation_path']);
+				if (isset($cache['metadata_path'])) {
+					$config->setMetadataCachePath($cache['metadata_path']);
 				}
 				
 				if (isset($cache['metadata_enabled'])) {
@@ -203,7 +199,7 @@
 				}
 				
 				if (isset($cache['annotation_enabled'])) {
-					$config->setUseAnnotationCache((bool)$cache['annotation_enabled']);
+					$config->setUseMetadataCache((bool)$cache['annotation_enabled']);
 				}
 			}
 			

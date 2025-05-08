@@ -11,9 +11,8 @@
 	$config = new Configuration();
 	$config->setEntityPath(__DIR__ . '/../Entity');
 	$config->setProxyDir(__DIR__ . '/../Proxies');
-	$config->setCachePath(__DIR__ . '/../Cache');
-	$config->setUseAnnotationCache(true);
-	$config->setAnnotationCachePath(__DIR__ . '/../AnnotationCache');
+	$config->setUseMetadataCache(true);
+	$config->setMetadataCachePath(__DIR__ . '/../AnnotationCache');
 	$config->setMigrationsPath(__DIR__ . '/../../migrations');
 
 	$config->setDatabaseParams(
@@ -26,7 +25,5 @@
 		$_ENV['DB_CHARSET'] ?? 'utf8mb4' // Character set
 	);
 
-	$sculpter = new \Quellabs\ObjectQuel\CommandRunner\CommandRunner($config);
-	$sculpter->run($argv);
-	
-	
+	$sculptRunner = new \Quellabs\ObjectQuel\CommandRunner\CommandRunner($config);
+	$sculptRunner->run($argv);

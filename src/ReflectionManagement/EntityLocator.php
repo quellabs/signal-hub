@@ -34,8 +34,8 @@
 			$this->configuration = $configuration;
 			
 			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
-			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useAnnotationCache());
-			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getAnnotationCachePath());
+			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
 			
 			$this->annotationReader = $annotationReader ?? new AnnotationReader($annotationReaderConfiguration);
 		}
