@@ -4,6 +4,8 @@
 	
 	use Quellabs\ObjectQuel\Configuration;
 
+	$config = ConfigurationLoader::loadCliConfiguration();
+
 	$config = new Configuration();
 	$config->setEntityPath(__DIR__ . '/../Entity');
 	$config->setProxyDir(__DIR__ . '/../Proxies');

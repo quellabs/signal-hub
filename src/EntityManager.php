@@ -17,7 +17,6 @@
 	
     namespace Quellabs\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\Configuration\ConfigurationDiscovery;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelException;
 	use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
@@ -46,14 +45,7 @@
 		 * @param Configuration|null $configuration
 		 */
         public function __construct(?Configuration $configuration = null) {
-			// Use provided config or auto-discover
-	        if ($configuration !== null) {
-		        $this->configuration = $configuration;
-	        } else {
-		        $this->configuration = ConfigurationDiscovery::discover();
-	        }
-			
-			// Instantiate all helper classes
+	        $this->configuration = $configuration;
             $this->connection = new DatabaseAdapter($configuration);
 	        $this->entity_store = new EntityStore($configuration);
             $this->unit_of_work = new UnitOfWork($this);
