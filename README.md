@@ -138,7 +138,6 @@ ObjectQuel provides three ways to retrieve entities:
 The simplest method to retrieve an entity by its primary key:
 
 ```php
-$entityManager = $stApp->getContainer(\Services\EntityManager\EntityManager::class);
 $entity = $entityManager->find(\Services\Entity\CustomersInfoEntity::class, 23);
 ```
 
@@ -147,8 +146,10 @@ $entity = $entityManager->find(\Services\Entity\CustomersInfoEntity::class, 23);
 Retrieve entities matching specific criteria:
 
 ```php
-$entityManager = $stApp->getContainer(\Services\EntityManager\EntityManager::class);
-$entities = $entityManager->findBy(\Services\Entity\CustomersInfoEntity::class, ['firstName' => 'Henk']);
+$entities = $entityManager->findBy(\Services\Entity\CustomersInfoEntity::class, [
+    'firstName' => 'John',
+    'lastName'  => 'Doe'
+]);
 ```
 
 ### 3. Writing a query
@@ -301,14 +302,32 @@ ObjectQuel supports four types of relationships:
 private ?CustomersEntity $parent;
 ```
 
-#### OneToOne (not owning-side) example:
+The annotation has the following elements:
+
+1. **targetEntity:** Specifies the target entity class ("CustomersEntity") that this relationship maps to - this defines which entity is on the other side of the relationship
+2. **inversedBy:** Indicates the property name in the target entity ("customersId") that contains the reverse mapping back to this entity - creates bidirectional navigation
+3. **relationColumn:** Specifies the column name in the current entity ("customersInfoId") that stores the foreign key for this relationship
+4. **fetch="EAGER":** Configures the loading strategy to load the related entity immediately whenever the current entity is loaded, rather than loading it lazily on demand
+
+This OneToOne relationship establishes a direct one-to-one connection between the current entity and a CustomersEntity instance, with the foreign key stored in the customersInfoId column.
+
+#### OneToOne (inverse-side) example:
 
 ```php
 /**
- * @Orm\OneToOne(targetEntity="CustomersEntity", mappedBy="customersId", relationColumn="customersId", fetch="EAGER")
+ * @Orm\OneToOne(targetEntity="CustomersEntity", mappedBy="customersId", relationColumn="customersId", fetch="LAZY")
  */
 private ?CustomersEntity $parent;
 ```
+
+The annotations have the following elements:
+
+1. **targetEntity:** Specifies the target entity class ("CustomersEntity") that this relationship maps to - this defines which entity is on the other side of the relationship
+2. **mappedBy:** Indicates the property name in the target entity ("customersId") that contains the foreign key - this marks the current entity as the "inverse" side of the relationship
+3. **relationColumn:** Specifies the column name in the current entity ("customersId") that establishes the relationship connection point, even though the foreign key is stored in the target entity
+4. **fetch="LAZY":** Configures the loading strategy to load the related entity only when it's actually accessed (on-demand loading), rather than loading it immediately with the parent entity - this can improve performance by avoiding unnecessary data loading
+
+This OneToOne relationship establishes a direct one-to-one connection between the current entity and a CustomersEntity instance. As the "inverse" side (specified by mappedBy), the current entity doesn't store the foreign key - instead, the CustomersEntity holds the foreign key. The relationColumn specifies which property in the current entity corresponds to this relationship, providing an explicit connection point for the ORM to use when traversing the relationship.
 
 #### ManyToOne (owning-side) example :
 ```php
@@ -319,10 +338,17 @@ private ?CustomersEntity $parent;
 private ?CustomersEntity $customer;
 ```
 
-#### OneToMany (not owning side) example:
+The annotations have the following elements:
+
+1. **targetEntity:** Specifies the target entity class ("CustomersEntity") that this relationship maps to - this defines which entity is on the other side of the relationship
+2. **inversedBy:** Indicates the property name in the target entity ("customersId") that contains the reverse mapping (collection) back to this entity - enables bidirectional navigation
+3. **@Orm\RequiredRelation:** Indicates that the relation can be loaded using an INNER JOIN (rather than the default LEFT JOIN) because it's guaranteed to be present, which improves query performance when the related entity must exist
+
+This ManyToOne relationship establishes that multiple instances of the current entity can reference a single CustomersEntity instance, with the current entity being the "owning" side that contains the foreign key. The nullable PHP type declaration (?CustomersEntity) indicates that while the relation is required when present, the property itself can be null.
+
+#### OneToMany (inverse-side) example:
 
 ```php
-// OneToMany 
 /**
  * @Orm\OneToMany(targetEntity="AddressBookEntity", mappedBy="customersId", fetch="EAGER")
  * @var $addressBooks EntityCollection
@@ -330,16 +356,31 @@ private ?CustomersEntity $customer;
 public $addressBooks;
 ```
 
+1. **targetEntity:** Specifies the target entity class ("AddressBookEntity") that this relationship maps to - this defines which entity is on the other side of the relationship
+2. **mappedBy:** Indicates the property name in the target entity ("customersId") that contains the foreign key to this entity - this marks the current entity as the "inverse" side of the relationship
+3. **fetch="EAGER"**: Configures the loading strategy to load all related entities immediately whenever the current entity is loaded, rather than loading them lazily on demand
+
+This OneToMany relationship establishes that a single instance of the current entity can be associated with multiple AddressBookEntity instances. The current entity is the "inverse" side, meaning the foreign key is stored in the AddressBookEntity table rather than in the current entity's table. The EntityCollection provides specialized collection functionality for managing the related entities.
+
 #### ManyToMany
 
 ManyToMany relationships are implemented as a specialized extension of OneToMany/ManyToOne relationships. To establish an effective ManyToMany relation:
+
+```php
+/**
+ * Class ProductsDescriptionEntity
+ * @Orm\Table(name="products_description")
+ * @Orm\EntityBridge
+ */
+class ProductsDescriptionEntity {
+```
 
 1. Apply the `@EntityBridge` annotation to your entity class that will serve as the junction table.
 2. This annotation instructs the query processor to treat the entity as an intermediary linking table.
 3. When queries execute, the processor automatically traverses and loads the related ManyToOne associations defined within this bridge entity.
 
 The `@EntityBridge` pattern extends beyond basic relationship mapping by offering several advanced capabilities:
-- Store supplementary data within the junction table (relationship metadata, timestamps, etc.
+- Store supplementary data within the junction table (relationship metadata, timestamps, etc.)
 - Access and manipulate this contextual data alongside the primary relationship information
 - Maintain comprehensive audit trails and relationship history between associated entities
 
@@ -347,29 +388,86 @@ This approach combines the performance benefits of traditional relational databa
 
 ### Saving and Persisting Data
 
-ObjectQuel uses `persist()` and `flush()` for saving data:
+ObjectQuel uses `persist()` and `flush()` for saving data.
+
+Example for updating an entity:
 
 ```php
-// Update an existing entity
-$entity = $entityManager->find(ProductsAttributesEntity::class, $attributeId);
-$entity->setText("hello");
-$entityManager->persist($entity); // Optional but provides clarity
-$entityManager->flush();
+// Retrieve an existing entity by its primary key
+// This queries the database for a ProductsAttributesEntity with ID 10
+// The entity is immediately loaded and tracked by the EntityManager
+// IMPORTANT: If no entity with ID 10 exists, this will return NULL, so error handling may be needed
+$entity = $entityManager->find(ProductsAttributesEntity::class, 10);
 
-// Create a new entity
-$product = $entityManager->find(ProductsEntity::class, 1520);
-$entity = new ProductsAttributesEntity();
-$entity->setProduct($product);
+// Update entity property value
+// Modifies the text property/field of the retrieved entity
+// The EntityManager automatically tracks this change since the entity was loaded via find()
 $entity->setText("hello");
-$entityManager->persist($entity); // Required for new entities
+
+// Register the entity with the EntityManager's identity map
+// NOTE: This call is optional in this case because entities retrieved via find() are automatically
+// tracked by the EntityManager. Including it may improve code readability by explicitly showing
+// which entities are being managed, especially in complex operations
+$entityManager->persist($entity);
+
+// Synchronize all pending changes with the database
+// This operation:
+// 1. Detects changes to managed entities (the text field modification in this case)
+// 2. Executes necessary SQL statements (UPDATE in this case)
+// 3. Commits the transaction
+// 4. Clears the identity map (tracking information)
+// After flush(), the EntityManager no longer knows about previously managed entities
 $entityManager->flush();
 ```
 
-### Deleting Entities
+Example for adding an entity:
 
 ```php
+// Create a new entity instance
+// This instantiates a fresh entity object in memory without persisting it to the database yet
+$entity = new ProductsAttributesEntity();
+
+// Set entity property value
+// Assigns the value "hello" to the text property/field of the entity
+// At this point, the change exists only in memory
+$entity->setText("hello");
+
+// Register the entity with the EntityManager's identity map
+// This tells the EntityManager to start tracking changes for this entity
+// IMPORTANT: This step is mandatory in ObjectQuel, unlike some other ORMs that automatically track new entities
+// Without this call, the entity would not be saved to the database during flush operations
+$entityManager->persist($entity);
+
+// Synchronize all pending changes with the database
+// This operation:
+// 1. Executes all necessary SQL statements (INSERT in this case)
+// 2. Commits the transaction
+// 3. Clears the identity map (tracking information)
+// After flush(), the EntityManager no longer knows about previously managed entities
+$entityManager->flush();
+```
+
+Example for removing an entity:
+
+```php
+// Retrieve an existing entity by its primary key
+// This queries the database for a SpecialsEntity with ID 1520
+// The entity is immediately loaded and tracked by the EntityManager
+// If no entity with ID 1520 exists, this will return NULL, so error handling may be needed
 $entity = $entityManager->find(SpecialsEntity::class, 1520);
+
+// Mark the entity for removal
+// This schedules the entity for deletion when flush() is called
+// The entity is not immediately deleted from the database
+// NOTE: This only works for entities that are being tracked by the EntityManager
 $entityManager->remove($entity);
+
+// Synchronize all pending changes with the database
+// This operation:
+// 1. Executes necessary SQL statements (DELETE in this case)
+// 2. Commits the transaction
+// 3. Clears the identity map (tracking information)
+// After flush(), the EntityManager no longer tracks this entity, and the record is removed from the database
 $entityManager->flush();
 ```
 
