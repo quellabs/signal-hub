@@ -198,7 +198,7 @@
 		 * @param mixed $primaryKey The primary key of the entity
 		 * @return T|null The found entity or null if not found
 		 * @throws QuelException
-		 * @phpstan-return T|null
+		 * @psalm-return T|null
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Check if the desired entity type is actually an entity
