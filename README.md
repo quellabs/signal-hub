@@ -356,12 +356,18 @@ $entityManager->flush();
 
 ## Utility Tools
 
-### Automatic Entity Generation
-
 ObjectQuel provides a powerful utility tool called `sculpt` that streamlines
 the creation of entities in your application. This interactive CLI tool guides you
 through a structured process, automatically generating properly formatted entity classes
 with all the necessary components.
+
+### Initialization
+
+Before using the `sculpt` tool, create an `objectquel-cli-config.php` configuration file in your project's root directory (where your `composer.json` file is located). This file must include your database credentials, entity namespace, entity path, and migration path.
+
+For convenience, ObjectQuel provides an `objectquel-cli-config.php.example` file that you can copy and customize with your specific settings. The CLI tools require this configuration file to function properly.
+
+### Automatic Entity Generation
 
 To create a new entity, run the following command in your terminal:
 
@@ -410,8 +416,9 @@ ObjectQuel supports query flags for optimization, starting with the '@' symbol:
 ## Important Notes
 
 - Proxy cache directories must be writable by the application
-- Proxy generation is required for lazy loading features to work
-- For the best performance in production, enable metadata caching
+- For the best performance in production, enable proxy and metadata caching **
+
+** When proxy path and namespace settings are not configured, the system generates proxies on-the-fly during runtime. This approach significantly reduces performance and can cause noticeable slowdowns in your application. For optimal performance, always configure both the proxy path and namespace in your application settings.
 
 ## Contributing
 
