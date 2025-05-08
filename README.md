@@ -637,7 +637,7 @@ php bin/sculpt make:migrations
 
 When executed, the sculpt tool analyzes differences between your entity definitions and the current database schema. It then automatically generates a migration file containing the necessary SQL statements to synchronize your database with your entities.
 
-**Note:** The system uses CakePHP's Phinx as its migration engine. All generated migrations follow the Phinx format and can be executed using standard Phinx commands.
+> **Note:** The system uses CakePHP's Phinx as its migration engine. All generated migrations follow the Phinx format and can be executed using standard Phinx commands.
 
 ## Query Optimization
 
