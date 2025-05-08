@@ -652,7 +652,7 @@ ObjectQuel supports query flags for optimization, starting with the '@' symbol:
 - Proxy cache directories must be writable by the application
 - For best performance in production, enable proxy and metadata caching
 
-> When proxy path and namespace settings are not configured, the system generates proxies on-the-fly during runtime. This approach significantly reduces performance and can cause noticeable slowdowns in your application. For optimal performance, always configure both the proxy path and namespace in your application settings.
+> **Note:** When proxy path and namespace settings are not configured, the system generates proxies on-the-fly during runtime. This approach significantly reduces performance and can cause noticeable slowdowns in your application. For optimal performance, always configure both the proxy path and namespace in your application settings.
 
 ## License
 
