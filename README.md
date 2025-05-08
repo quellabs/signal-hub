@@ -19,6 +19,7 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutioni
 - [The ObjectQuel Language](#the-objectquel-language)
 - [Entity Relationships](#entity-relationships)
 - [Saving and Persisting Data](#saving-and-persisting-data)
+- [Using Repositories](#using-repositories)
 - [Utility Tools](#utility-tools)
 - [Query Optimization](#query-optimization)
 - [License](#license)
@@ -480,6 +481,69 @@ $entityManager->remove($entity);
 $entityManager->flush();
 ```
 
+## Using Repositories
+
+ObjectQuel provides a flexible approach to the Repository pattern through its optional `Repository` base class. Unlike some ORMs that mandate repository usage, ObjectQuel makes repositories entirely optional—giving you the freedom to organize your data access layer as you prefer.
+
+### Repository Pattern Benefits
+
+The Repository pattern creates an abstraction layer between your domain logic and data access code, providing several advantages:
+
+- **Type Safety**: Better IDE autocomplete and type hinting
+- **Code Organization**: Centralizes query logic for specific entity types
+- **Business Logic**: Encapsulates common data access operations
+- **Testability**: Simplifies mocking for unit tests
+- **Query Reusability**: Prevents duplication of common queries
+
+### Creating Custom Repositories
+
+While you can work directly with the EntityManager, creating entity-specific repositories can enhance your application's structure:
+
+```php
+use Quellabs\ObjectQuel\Repository;
+
+class ProductRepository extends Repository {
+    
+    /**
+     * Constructor - specify the entity this repository manages
+     * @param EntityManager $entityManager The EntityManager instance
+     */
+    public function __construct(EntityManager $entityManager) {
+        parent::__construct($entityManager, ProductEntity::class);
+    }
+        
+    /**
+     * Find products below a certain price
+     * @param float $maxPrice Maximum price threshold
+     * @return array<ProductEntity> Matching products
+     */
+    public function findBelowPrice(float $maxPrice): array {
+        return $this->entityManager->executeQuery("
+            range of p is App\\Entity\\ProductEntity
+            retrieve (p) where p.price < :maxPrice
+            sort by p.price asc
+        ", [
+            'maxPrice' => $maxPrice
+        ]);
+    }
+}
+```
+
+### Using Repositories in Your Application
+Once you've defined your repositories, you can integrate them into your application:
+
+```php
+// Create the repository
+$productRepository = new ProductRepository($entityManager);
+
+// Use repository methods
+$affordableProducts = $productRepository->findBelowPrice(29.99);
+
+// Still have access to built-in methods
+$specificProduct = $productRepository->find(1001);
+$featuredProducts = $productRepository->findBy(['featured' => true]);
+```
+
 ## Utility Tools
 
 ObjectQuel provides a powerful utility tool called `sculpt` that streamlines
@@ -543,7 +607,7 @@ ObjectQuel supports query flags for optimization, starting with the '@' symbol:
 - Proxy cache directories must be writable by the application
 - For best performance in production, enable proxy and metadata caching
 
-** When proxy path and namespace settings are not configured, the system generates proxies on-the-fly during runtime. This approach significantly reduces performance and can cause noticeable slowdowns in your application. For optimal performance, always configure both the proxy path and namespace in your application settings.
+> When proxy path and namespace settings are not configured, the system generates proxies on-the-fly during runtime. This approach significantly reduces performance and can cause noticeable slowdowns in your application. For optimal performance, always configure both the proxy path and namespace in your application settings.
 
 ## License
 
