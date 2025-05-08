@@ -140,7 +140,7 @@
 	include_once('%s');
 	
 	%s
-	class %s extends \%s implements Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface {
+	class %s extends \%s implements \Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface {
 		%s
 	}
 ";

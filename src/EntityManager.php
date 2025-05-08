@@ -193,11 +193,12 @@
 		
 		/**
 		 * Searches for a single entity based on the given entity type and primary key.
-		 * @template T
+		 * @template T of object
 		 * @param class-string<T> $entityType The fully qualified class name of the container
 		 * @param mixed $primaryKey The primary key of the entity
 		 * @return T|null The found entity or null if not found
 		 * @throws QuelException
+		 * @phpstan-return T|null
 		 */
 		public function find(string $entityType, mixed $primaryKey): ?object {
 			// Check if the desired entity type is actually an entity
