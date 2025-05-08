@@ -11,10 +11,10 @@
 	/**
 	 * Represents a Quel result.
 	 * This class handles the hydration, relationship loading, and transformation of database query results.
-	 * It implements ArrayAccess to allow array-like access to the result set.
+	 * It implements ArrayAccess and IteratorAggregate to allow array-like access and iteration over the result set.
 	 */
-	class QuelResult implements \ArrayAccess {
-
+	class QuelResult implements \ArrayAccess, \IteratorAggregate {
+		
 		/**
 		 * Responsible for converting raw data into entity objects
 		 */
@@ -113,9 +113,9 @@
 		/**
 		 * Reads a row of a result set and advances the recordset pointer
 		 * Similar to PDO's fetch() method
-		 * @return array|false The current row as an array or false if no more rows
+		 * @return mixed The current row (entity or array) or false if no more rows
 		 */
-		public function fetchRow(): array|false {
+		public function fetchRow(): mixed {
 			if ($this->index >= $this->recordCount()) {
 				return false;
 			}
@@ -149,6 +149,16 @@
 		 */
 		public function seek(int $pos): void {
 			$this->index = $pos;
+		}
+		
+		/**
+		 * Resets the pointer and returns all rows as an array
+		 * Useful for getting the full result set at once
+		 * @return array All rows in the result set
+		 */
+		public function fetchAll(): array {
+			$this->index = 0; // Reset the pointer
+			return $this->result;
 		}
 		
 		/**
@@ -255,6 +265,15 @@
 			
 			// Remove duplicates and null values
 			return array_values(array_filter(array_unique($values)));
+		}
+		
+		/**
+		 * IteratorAggregate implementation: Gets an iterator for this object
+		 * This allows foreach iteration over the result set
+		 * @return \ArrayIterator An iterator for the result set
+		 */
+		public function getIterator(): \Traversable {
+			return new \ArrayIterator($this->result);
 		}
 		
 		/**
