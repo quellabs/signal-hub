@@ -10,7 +10,7 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutioni
 
 ## Table of Contents
 
-- [Why ObjectQuel?](#why-objectquel)
+- [The ObjectQuel Advantage](#the-objectquel-advantage)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Core Components](#core-components)
@@ -23,7 +23,7 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutioni
 - [Query Optimization](#query-optimization)
 - [License](#license)
 
-## Why ObjectQuel?
+## The ObjectQuel Advantage
 
 ObjectQuel addresses fundamental design challenges in object-relational mapping through its architecture:
 
@@ -35,12 +35,15 @@ ObjectQuel addresses fundamental design challenges in object-relational mapping 
 
 ## Installation
 
+Installation can be done through composer.
+
 ```bash
-# Install via Composer
 composer require quellabs/objectquel
 ```
 
 ## Quick Start
+
+This shows a quick way to use ObjectQuel:
 
 ```php
 // 1. Create configuration
@@ -64,7 +67,9 @@ $results = $entityManager->executeQuery("
     range of p is App\\Entity\\ProductEntity
     range of c is App\\Entity\\CategoryEntity via p.categories
     retrieve (p) where p.price < :maxPrice
-", ['maxPrice' => 50.00]);
+", [
+    'maxPrice' => 50.00
+]);
 ```
 
 ## Core Components
@@ -250,12 +255,21 @@ For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation
 
 ## The ObjectQuel Language
 
-ObjectQuel is a variant of the Oracle/Ingres language Quel, adapted for handling entities:
+ObjectQuel draws inspiration from QUEL, a pioneering database query language developed in the 1970s for the Ingres DBMS at UC Berkeley (later acquired by Oracle). While SQL became the industry standard, QUEL's elegant approach to querying has been adapted here for modern entity-based programming:
 
-- Works with entities instead of tables
-- Uses `RETRIEVE` instead of `SELECT`
-- Defines aliases with `range of x is y` (similar to `FROM y AS x` in SQL)
-- References entity properties instead of database columns
+- **Entity-Centric**: Works with domain entities instead of database tables
+- **Intuitive Syntax**: Uses `RETRIEVE` instead of `SELECT` for more natural data extraction
+- **Semantic Aliasing**: Defines aliases with `range of x is y` (similar to `FROM y AS x` in SQL) to create a more readable data scope
+- **Object-Oriented**: References entity properties directly instead of database columns, maintaining your domain language
+- **Relationship Traversal**: Simplifies complex data relationships through intuitive path expressions
+
+While ObjectQuel ultimately translates to SQL, implementing our own query language provides significant advantages. The abstraction layer allows ObjectQuel to:
+
+1. Express complex operations with elegant, developer-friendly syntax (e.g., `productId = /^a/` instead of SQL's more verbose `productId REGEXP('^a')`)
+2. Intelligently optimize database interactions by splitting operations into multiple efficient SQL queries when needed
+3. Perform additional post-processing operations not possible in SQL alone, such as seamlessly joining traditional database data with external JSON sources
+
+This approach delivers both a more intuitive developer experience and capabilities that extend beyond standard SQL, all while maintaining a consistent, object-oriented interface.
 
 Example:
 ```php
@@ -304,12 +318,12 @@ ObjectQuel supports four types of relationships:
 private ?CustomerEntity $customer;
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| targetEntity | Target entity class |
-| inversedBy | Property in target entity for reverse mapping |
-| relationColumn | Column storing the foreign key |
-| fetch | Loading strategy ("EAGER" or "LAZY") |
+| Parameter | Description                                           |
+|-----------|-------------------------------------------------------|
+| targetEntity | Target entity class                                   |
+| inversedBy | Property in target entity for reverse mapping         |
+| relationColumn | Column storing the foreign key                        |
+| fetch | Loading strategy ("EAGER" or "LAZY"; LAZY is default) |
 
 ### 2. OneToOne (inverse-side)
 
