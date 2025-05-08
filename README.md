@@ -283,12 +283,13 @@ ObjectQuel provides flexibility in what data you retrieve. You can:
 ```php
 $results = $entityManager->executeQuery("
     range of p is App\\Entity\\ProductEntity
-    range of d is App\\Entity\\ProductDescriptionEntity via p.descriptions
-    retrieve (p, d.productName) where p.productId = :productId
-    sort by d.productName asc
+    retrieve (p) where p.productId = :productId
 ", [
     'productId' => 1525
 ]);
+
+// Access the retrieved entity
+$product = $results[0]['p'];
 ```
 
 #### Retrieve specific properties:
@@ -296,10 +297,10 @@ $results = $entityManager->executeQuery("
 ```php
 // Returns only the price property values
 $results = $entityManager->executeQuery("
-range of p is App\\Entity\\ProductEntity
-retrieve (p.price) where p.productId = :productId
+    range of p is App\\Entity\\ProductEntity
+    retrieve (p.price) where p.productId = :productId
 ", [
-'productId' => 1525
+    'productId' => 1525
 ]);
 
 // Access the retrieved property value
@@ -316,7 +317,7 @@ $results = $entityManager->executeQuery("
     retrieve (p, d.productName) where p.productId = :productId
     sort by d.productName asc
 ", [
-'productId' => 1525
+    'productId' => 1525
 ]);
 
 // Access the mixed results
