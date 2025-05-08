@@ -107,7 +107,7 @@
 			    }
 		    } catch (\Exception $e) {
 			    // Log or handle initialization errors
-			    throw new \RuntimeException("Error initializing entities: " . $e->getMessage(), 0, $e);
+			    throw new OrmException("Error initializing entities: " . $e->getMessage(), 0, $e);
 		    }
 	    }
 		

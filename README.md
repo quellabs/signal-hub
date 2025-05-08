@@ -1,6 +1,10 @@
 # ObjectQuel
 
-ObjectQuel is a sophisticated Object-Relational Mapping (ORM) system that brings a fresh approach to database interaction. Drawing inspiration from Symfony's Doctrine, ObjectQuel establishes its own identity with a unique query language and streamlined architecture.
+ObjectQuel is a powerful Object-Relational Mapping (ORM) system that revolutionizes database
+interaction through its data mapper pattern implementation, intuitive query language, and
+efficient architecture. Built on CakePhp's robust database foundation (https://book.cakephp.org/4/en/orm/database-basics.html), it 
+delivers a distinctive approach to data management that separates your domain objects from persistence concerns
+while maintaining developer-friendly simplicity. 
 
 ## Key Features
 
