@@ -161,7 +161,9 @@ $rs = $entityManager->executeQuery("
     'productsId' => 1525
 ]);
 
-$results = $rs->fetchResults();
+foreach($rs as $row) {
+    echo $row['main']->getProductsId();
+}
 ```
 
 ## The ObjectQuel Language
