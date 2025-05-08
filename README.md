@@ -61,6 +61,7 @@ $product = $entityManager->find(\App\Entity\ProductEntity::class, 101);
 
 // 4. Update and save
 $product->setPrice(29.99);
+$entityManager->persist($product);
 $entityManager->flush();
 
 // 5. Query using ObjectQuel language
