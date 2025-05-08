@@ -232,6 +232,8 @@ class ProductEntity {
 }
 ```
 
+#### Column Annotation Properties
+
 Each database/entity property is marked by an @Orm\Column annotation. This annotation supports the following parameters:
 
 | Parameter | Description | Options/Format |
