@@ -23,6 +23,9 @@
     "docs": "https://objectquel.quellabs.com/docs",
     "source": "https://github.com/quellabs/objectquel"
   },
+  "bin": [
+    "src/bin/sculpt"
+  ],
   "require": {
     "php": ">=8.3",
     "ext-json": "*",
