@@ -226,27 +226,27 @@ class ProductEntity {
 }
 ```
 
-#### Column Annotation Properties
+Each database/entity property is marked by an @Orm\Column annotation. This annotation supports the following parameters:
 
-| Parameter | Description | Values |
-|-----------|-------------|--------|
-| name | Database column name | String (required) |
-| type | Data type | "smallint", "integer", "float", "string", "text", "guid", "date", "datetime" |
-| length | Column length | Integer (for string types) |
-| primary_key | Is a primary key | true/false |
-| default | Default value | Any valid value |
-| unsigned | For unsigned values | true/false |
-| nullable | Allow NULL values | true/false |
+| Parameter | Description | Options/Format |
+|-----------|-------------|----------------|
+| **name** | The database column name | Required |
+| **type** | The data type | 'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', 'datetime' |
+| **length** | The column length | Only relevant for string types |
+| **primary_key** | Define this as a primary key column | true or false |
+| **default** | Default value when database column is NULL | Value |
+| **unsigned** | For unsigned values | true (unsigned) or false (signed, default) |
+| **nullable** | Allow NULL values in the database | true (allow NULL) or false (non-NULL required, default) |
 
 #### Primary Key Strategies
 
-For primary key properties, use the `@Orm\PrimaryKeyStrategy` annotation:
+For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation to define how key values are generated. ObjectQuel supports the following strategies:
 
 | Strategy | Description |
 |----------|-------------|
-| auto_increment | Automatically increments values (default) |
-| uuid | Generates a unique UUID for each new record |
-| sequence | Uses a select query to determine the next value |
+| **auto_increment** | Automatically increments values (default strategy) |
+| **uuid** | Generates a unique UUID for each new record |
+| **sequence** | Uses a select query to determine the next value in the sequence |
 
 ## The ObjectQuel Language
 
@@ -342,6 +342,7 @@ private ?CustomerEntity $customer;
 | targetEntity | Target entity class |
 | inversedBy | Property in target entity for reverse collection mapping |
 | fetch | Loading strategy ("EAGER" or "LAZY", optional) |
+| @Orm\RequiredRelation | Indicates that the relation can be loaded using an INNER JOIN (rather than the default LEFT JOIN) because it's guaranteed to be present, which improves query performance when the related entity must exist |
 
 ### 4. OneToMany (inverse-side)
 
