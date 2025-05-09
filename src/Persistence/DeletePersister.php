@@ -2,7 +2,6 @@
 	
 	namespace Quellabs\ObjectQuel\Persistence;
 	
-	use Quellabs\ObjectQuel\Annotations\Orm\PostDelete;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
@@ -14,7 +13,7 @@
 	 * Extends the PersisterBase to inherit common persistence functionality
 	 * This class specifically manages the process of removing entities from the database
 	 */
-	class DeletePersister extends PersisterBase {
+	class DeletePersister {
 		
 		/**
 		 * Reference to the UnitOfWork that manages persistence operations
@@ -43,11 +42,9 @@
 		/**
 		 * DeletePersister constructor
 		 * Initializes all necessary components for entity deletion operations
-		 *
 		 * @param UnitOfWork $unitOfWork The UnitOfWork that will coordinate deletion operations
 		 */
 		public function __construct(UnitOfWork $unitOfWork) {
-			parent::__construct($unitOfWork);
 			$this->unit_of_work = $unitOfWork;
 			$this->entity_store = $unitOfWork->getEntityStore();
 			$this->property_handler = $unitOfWork->getPropertyHandler();
@@ -57,7 +54,6 @@
 		/**
 		 * Extracts primary key values from an entity into a column-to-value mapping
 		 * This mapping is used to build the WHERE clause for the DELETE statement
-		 *
 		 * @param object $entity The entity from which to extract primary key values
 		 * @param array $primaryKeys The property names that represent primary keys in the entity
 		 * @param array $primaryKeyColumns The corresponding database column names for the primary keys
@@ -74,21 +70,9 @@
 		}
 		
 		/**
-		 * Executes actions after deleting entities
-		 * Calls methods in the entity that are annotated with @PostDelete
-		 *
-		 * @param object $entity The entity that has been deleted
-		 * @return void
-		 */
-		protected function postDelete(object $entity): void {
-			$this->handlePersist($entity, PostDelete::class);
-		}
-		
-		/**
 		 * Deletes an entity from the database based on its primary keys
 		 * This function first retrieves the necessary table and key information and then
 		 * constructs a DELETE SQL query to remove the specific entity
-		 * @param object $entity The entity to be removed from the database
 		 * @param object $entity The entity to be removed from the database
 		 * @throws OrmException If the DELETE operation fails, an exception is thrown
 		 */
@@ -115,8 +99,5 @@
 				// from the database connection to help identify and resolve the issue
 				throw new OrmException("Error deleting entity: " . $this->connection->getLastErrorMessage(), $this->connection->getLastError());
 			}
-			
-			// Call the entity's postDelete method if present (methods annotated with @PostDelete)
-			$this->postDelete($entity);
 		}
 	}

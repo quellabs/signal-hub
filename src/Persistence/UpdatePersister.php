@@ -2,8 +2,6 @@
 	
 	namespace Quellabs\ObjectQuel\Persistence;
 	
-	use Quellabs\ObjectQuel\Annotations\Orm\PostUpdate;
-	use Quellabs\ObjectQuel\Annotations\Orm\PreUpdate;
 	use Quellabs\ObjectQuel\DatabaseAdapter\databaseAdapter;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
@@ -15,7 +13,7 @@
 	 * Extends the PersisterBase to inherit common persistence functionality
 	 * This class handles the process of detecting and persisting changes to existing entities
 	 */
-	class UpdatePersister extends PersisterBase {
+	class UpdatePersister {
 		
 		/**
 		 * Reference to the UnitOfWork that manages persistence operations
@@ -43,12 +41,9 @@
 		
 		/**
 		 * UpdatePersister constructor
-		 * Initializes all necessary components for entity update operations
-		 *
 		 * @param UnitOfWork $unitOfWork The UnitOfWork that will coordinate update operations
 		 */
 		public function __construct(UnitOfWork $unitOfWork) {
-			parent::__construct($unitOfWork);
 			$this->unit_of_work = $unitOfWork;
 			$this->entity_store = $unitOfWork->getEntityStore();
 			$this->property_handler = $unitOfWork->getPropertyHandler();
@@ -58,7 +53,6 @@
 		/**
 		 * Takes an array, adds a prefix to all keys, and returns the new, modified array
 		 * This is used to prevent parameter name collisions in SQL prepared statements
-		 *
 		 * @param array $array The original array with keys to be prefixed
 		 * @param string $prefix The prefix to add to each key
 		 * @return array The new array with prefixed keys and original values
@@ -75,30 +69,6 @@
 		}
 		
 		/**
-		 * Executes preparatory actions before updating entities
-		 * Calls methods in the entity that are annotated with @PreUpdate
-		 * This allows for custom logic to run before an entity is updated (e.g., setting update timestamps)
-		 *
-		 * @param object $entity The entity to be processed
-		 * @return void
-		 */
-		protected function preUpdate(object $entity): void {
-			$this->handlePersist($entity, PreUpdate::class);
-		}
-		
-		/**
-		 * Executes actions after updating entities
-		 * Calls methods in the entity that are annotated with @PostUpdate
-		 * This allows for custom logic to run after an entity has been successfully updated
-		 *
-		 * @param object $entity The entity that has been processed
-		 * @return void
-		 */
-		protected function postUpdate(object $entity): void {
-			$this->handlePersist($entity, PostUpdate::class);
-		}
-		
-		/**
 		 * Persists changes to an entity into the database
 		 * This method handles the complete update process including:
 		 * - Detecting which fields have changed
@@ -110,9 +80,6 @@
 		 * @throws OrmException If the database query fails
 		 */
 		public function persist(object $entity): void {
-			// Call the preUpdate method on the entity to execute any @PreUpdate annotated methods
-			$this->preUpdate($entity);
-			
 			// Retrieve basic information needed for the update
 			// Get the table name where the entity is stored
 			$tableName = $this->entity_store->getOwningTable($entity);
@@ -158,8 +125,5 @@
 			if (!$rs) {
 				throw new OrmException($this->connection->getLastErrorMessage(), $this->connection->getLastError());
 			}
-			
-			// Call the postUpdate method on the entity to execute any @PostUpdate annotated methods
-			$this->postUpdate($entity);
 		}
 	}

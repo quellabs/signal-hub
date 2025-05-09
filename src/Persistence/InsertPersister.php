@@ -2,8 +2,6 @@
 	
 	namespace Quellabs\ObjectQuel\Persistence;
 	
-	use Quellabs\ObjectQuel\Annotations\Orm\PostPersist;
-	use Quellabs\ObjectQuel\Annotations\Orm\PrePersist;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
@@ -15,7 +13,7 @@
 	 * Extends the PersisterBase to inherit common persistence functionality
 	 * This class handles the creation process of inserting entities into database tables
 	 */
-	class InsertPersister extends PersisterBase {
+	class InsertPersister {
 		
 		/**
 		 * The EntityStore that maintains metadata about entities and their mappings
@@ -43,12 +41,9 @@
 		
 		/**
 		 * InsertPersister constructor
-		 * Initializes all necessary components for entity insertion operations
-		 *
 		 * @param UnitOfWork $unitOfWork The UnitOfWork that will coordinate insertion operations
 		 */
 		public function __construct(UnitOfWork $unitOfWork) {
-			parent::__construct($unitOfWork);
 			$this->unit_of_work = $unitOfWork;
 			$this->entity_store = $unitOfWork->getEntityStore();
 			$this->property_handler = $unitOfWork->getPropertyHandler();
@@ -56,39 +51,11 @@
 		}
 		
 		/**
-		 * Executes preparatory actions before persisting entities
-		 * Calls methods in the entity that are annotated with @PrePersist
-		 * This allows for custom logic to run before an entity is inserted (e.g., setting timestamps)
-		 *
-		 * @param mixed $entity The entity to be processed
-		 */
-		protected function prePersist($entity): void {
-			$this->handlePersist($entity, PrePersist::class);
-		}
-		
-		/**
-		 * Executes actions after persisting entities
-		 * Calls methods in the entity that are annotated with @PostPersist
-		 * This allows for custom logic to run after an entity has been successfully inserted
-		 *
-		 * @param mixed $entity The entity that has been processed
-		 */
-		protected function postPersist($entity): void {
-			$this->handlePersist($entity, PostPersist::class);
-		}
-		
-		/**
 		 * Persists (inserts) an entity into the database
-		 * This method handles the complete insertion process including pre/post processing
-		 * and handling auto-increment primary keys
-		 *
 		 * @param object $entity The entity to be inserted into the database
 		 * @throws OrmException If the database query fails
 		 */
-		public function persist(object $entity) {
-			// Call the prePersist method on the entity to execute any @PrePersist annotated methods
-			$this->prePersist($entity);
-			
+		public function persist(object $entity): void {
 			// Gather the necessary information for the insert operation
 			// Get the table name where the entity should be stored
 			$tableName = $this->entity_store->getOwningTable($entity);
@@ -124,13 +91,12 @@
 			if ($autoIncrementId !== 0 && in_array(null, $primaryKeyValues, true)) {
 				// Find which primary key column had the null value
 				$indexOfAutoIncrementColumn = array_search(null, $primaryKeyValues, true);
+				
 				// Find the corresponding property name in the entity
 				$indexOfAutoIncrementKey = array_search($indexOfAutoIncrementColumn, $primaryKeyColumnNames, true);
+				
 				// Set the auto-increment value on the entity's property
 				$this->property_handler->set($entity, $primaryKeys[$indexOfAutoIncrementKey], $autoIncrementId);
 			}
-			
-			// Call the postPersist method on the entity to execute any @PostPersist annotated methods
-			$this->postPersist($entity);
 		}
 	}

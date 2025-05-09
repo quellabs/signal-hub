@@ -42,6 +42,7 @@
 		protected ?SQLSerializer $serializer;
 		protected ?DatabaseAdapter $connection;
 		protected SignalHub $signal_hub;
+		protected EntityLifecycleManager $lifecycleManager;
 		
 		/**
 		 * UnitOfWork constructor.
@@ -58,7 +59,11 @@
 			$this->identity_map = [];
 			$this->signal_hub = SignalHubLocator::getInstance();
 			
+			// Register the signals
 			$this->registerLifecycleSignals();
+			
+			// Create the EntityLifecycleManager instance
+			$this->lifecycleManager = new EntityLifecycleManager($this->signal_hub, $this->entity_store);
 		}
 		
 		/**
@@ -398,20 +403,7 @@
 			// Process dependent entities that should be cascade deleted
 			$this->processCascadingDeletions($entity);
 		}
-		
-		/**
-		 * Define standard ORM lifecycle signals
-		 * @return void
-		 */
-		private function registerLifecycleSignals(): void {
-			$this->signal_hub->createSignal('orm.prePersist', ['object']);
-			$this->signal_hub->createSignal('orm.postPersist', ['object']);
-			$this->signal_hub->createSignal('orm.preUpdate', ['object']);
-			$this->signal_hub->createSignal('orm.postUpdate', ['object']);
-			$this->signal_hub->createSignal('orm.preDelete', ['object']);
-			$this->signal_hub->createSignal('orm.postDelete', ['object']);
-		}
-		
+
 		/**
 		 * Determines the state of an entity (e.g., new, modified, not managed, etc.).
 		 * @param mixed $entity The entity whose state needs to be determined.
@@ -1125,5 +1117,19 @@
 				// Recursively process the related entity's own cascading relationships
 				$this->processCascadingPersistsForEntity($relatedEntity);
 			}
+		}
+		
+		/**
+		 * Create the lifetime signals
+		 * @return void
+		 */
+		private function registerLifecycleSignals(): void {
+			// Define standard ORM lifecycle signals
+			$this->signal_hub->createSignal('orm.prePersist', ['object']);
+			$this->signal_hub->createSignal('orm.postPersist', ['object']);
+			$this->signal_hub->createSignal('orm.preUpdate', ['object']);
+			$this->signal_hub->createSignal('orm.postUpdate', ['object']);
+			$this->signal_hub->createSignal('orm.preDelete', ['object']);
+			$this->signal_hub->createSignal('orm.postDelete', ['object']);
 		}
 	}
