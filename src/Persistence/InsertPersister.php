@@ -1,7 +1,7 @@
 <?php
-    
-    namespace Quellabs\ObjectQuel\Persistence;
-    
+	
+	namespace Quellabs\ObjectQuel\Persistence;
+	
 	use Quellabs\ObjectQuel\Annotations\Orm\PostPersist;
 	use Quellabs\ObjectQuel\Annotations\Orm\PrePersist;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
@@ -10,78 +10,127 @@
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\UnitOfWork;
 	
+	/**
+	 * Specialized persister class responsible for inserting new entities into the database
+	 * Extends the PersisterBase to inherit common persistence functionality
+	 * This class handles the creation process of inserting entities into database tables
+	 */
 	class InsertPersister extends PersisterBase {
 		
+		/**
+		 * The EntityStore that maintains metadata about entities and their mappings
+		 * Used to retrieve information about entity tables, columns and identifiers
+		 */
 		protected EntityStore $entity_store;
-        protected UnitOfWork $unit_of_work;
-        protected PropertyHandler $property_handler;
+		
+		/**
+		 * Reference to the UnitOfWork that manages persistence operations
+		 * This is a duplicate of the parent's unitOfWork property with a different naming convention
+		 */
+		protected UnitOfWork $unit_of_work;
+		
+		/**
+		 * Utility for handling entity property access and manipulation
+		 * Provides methods to get and set entity properties regardless of their visibility
+		 */
+		protected PropertyHandler $property_handler;
+		
+		/**
+		 * Database connection adapter used for executing SQL queries
+		 * Abstracts the underlying database system and provides a unified interface
+		 */
 		protected DatabaseAdapter $connection;
 		
 		/**
-         * InsertPersister constructor.
-         * @param UnitOfWork $unitOfWork
-         */
-        public function __construct(UnitOfWork $unitOfWork) {
+		 * InsertPersister constructor
+		 * Initializes all necessary components for entity insertion operations
+		 *
+		 * @param UnitOfWork $unitOfWork The UnitOfWork that will coordinate insertion operations
+		 */
+		public function __construct(UnitOfWork $unitOfWork) {
 			parent::__construct($unitOfWork);
-            $this->unit_of_work = $unitOfWork;
-            $this->entity_store = $unitOfWork->getEntityStore();
-            $this->property_handler = $unitOfWork->getPropertyHandler();
-            $this->connection = $unitOfWork->getConnection();
-        }
+			$this->unit_of_work = $unitOfWork;
+			$this->entity_store = $unitOfWork->getEntityStore();
+			$this->property_handler = $unitOfWork->getPropertyHandler();
+			$this->connection = $unitOfWork->getConnection();
+		}
 		
 		/**
-		 * Voert voorbereidende acties uit voor het aanmaken (persisten) van entiteiten.
-		 * @param mixed $entity De entiteit die behandeld moet worden.
+		 * Executes preparatory actions before persisting entities
+		 * Calls methods in the entity that are annotated with @PrePersist
+		 * This allows for custom logic to run before an entity is inserted (e.g., setting timestamps)
+		 *
+		 * @param mixed $entity The entity to be processed
 		 */
 		protected function prePersist($entity): void {
 			$this->handlePersist($entity, PrePersist::class);
 		}
 		
 		/**
-		 * Voert acties uit na het aanmaken (persisten) van entiteiten.
-		 * @param mixed $entity De entiteit die behandeld moet worden.
+		 * Executes actions after persisting entities
+		 * Calls methods in the entity that are annotated with @PostPersist
+		 * This allows for custom logic to run after an entity has been successfully inserted
+		 *
+		 * @param mixed $entity The entity that has been processed
 		 */
 		protected function postPersist($entity): void {
 			$this->handlePersist($entity, PostPersist::class);
 		}
 		
 		/**
-		 * Persisteert een entiteit naar de database.
-		 * @param object $entity
-		 * @throws OrmException Als de database query mislukt.
+		 * Persists (inserts) an entity into the database
+		 * This method handles the complete insertion process including pre/post processing
+		 * and handling auto-increment primary keys
+		 *
+		 * @param object $entity The entity to be inserted into the database
+		 * @throws OrmException If the database query fails
 		 */
 		public function persist(object $entity) {
-			// Roep de prePersist-methode aan op de entiteit
+			// Call the prePersist method on the entity to execute any @PrePersist annotated methods
 			$this->prePersist($entity);
 			
-			// Verzamel de benodigde informatie voor de insert
+			// Gather the necessary information for the insert operation
+			// Get the table name where the entity should be stored
 			$tableName = $this->entity_store->getOwningTable($entity);
+			
+			// Serialize the entity into an array of column name => value pairs
 			$serializedEntity = $this->unit_of_work->getSerializer()->serialize($entity);
+			
+			// Get the primary key property names and their corresponding column names
 			$primaryKeys = $this->entity_store->getIdentifierKeys($entity);
 			$primaryKeyColumnNames = $this->entity_store->getIdentifierColumnNames($entity);
+			
+			// Extract the current values of primary key columns from the serialized entity
 			$primaryKeyValues = array_intersect_key($serializedEntity, array_flip($primaryKeyColumnNames));
 			
-			// Maak de SQL-query
+			// Create the SQL query for insertion
+			// Generates a comma-separated list of "column=:value" pairs for the SET clause
 			$sql = implode(",", array_map(fn($key) => "`{$key}`=:{$key}", array_keys($serializedEntity)));
 			
-			// Voer de insert-query uit
+			// Execute the insert query with the serialized entity data as parameters
 			$rs = $this->connection->Execute("INSERT INTO `{$tableName}` SET {$sql}", $serializedEntity);
 			
-			// Als de query mislukt, gooi een uitzondering op
+			// If the query fails, throw an exception with the error details
 			if (!$rs) {
 				throw new OrmException($this->connection->getLastErrorMessage(), $this->connection->getLastError());
 			}
 			
-			// Als de query succesvol was, voeg de auto-increment ID toe aan de entiteit, indien van toepassing
+			// If the query was successful, add the auto-increment ID to the entity if applicable
+			// This handles cases where the primary key is auto-generated by the database
 			$autoIncrementId = $this->connection->getInsertId();
 			
+			// Check if there's an auto-increment ID and if any primary key value was null
+			// (indicating it should be filled with the auto-generated value)
 			if ($autoIncrementId !== 0 && in_array(null, $primaryKeyValues, true)) {
+				// Find which primary key column had the null value
 				$indexOfAutoIncrementColumn = array_search(null, $primaryKeyValues, true);
+				// Find the corresponding property name in the entity
 				$indexOfAutoIncrementKey = array_search($indexOfAutoIncrementColumn, $primaryKeyColumnNames, true);
+				// Set the auto-increment value on the entity's property
 				$this->property_handler->set($entity, $primaryKeys[$indexOfAutoIncrementKey], $autoIncrementId);
 			}
 			
-			// Roep de postPersist-methode aan op de entiteit
+			// Call the postPersist method on the entity to execute any @PostPersist annotated methods
 			$this->postPersist($entity);
 		}
-    }
+	}

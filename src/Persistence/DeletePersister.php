@@ -1,7 +1,7 @@
 <?php
-    
-    namespace Quellabs\ObjectQuel\Persistence;
-    
+	
+	namespace Quellabs\ObjectQuel\Persistence;
+	
 	use Quellabs\ObjectQuel\Annotations\Orm\PostDelete;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\EntityStore;
@@ -9,31 +9,59 @@
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\UnitOfWork;
 	
+	/**
+	 * Specialized persister class responsible for handling entity deletion operations
+	 * Extends the PersisterBase to inherit common persistence functionality
+	 * This class specifically manages the process of removing entities from the database
+	 */
 	class DeletePersister extends PersisterBase {
-    
-        protected UnitOfWork $unit_of_work;
+		
+		/**
+		 * Reference to the UnitOfWork that manages persistence operations
+		 * This is a duplicate of the parent's unitOfWork property with a different naming convention
+		 */
+		protected UnitOfWork $unit_of_work;
+		
+		/**
+		 * The EntityStore that maintains metadata about entities and their mappings
+		 * Used to retrieve information about entity tables, columns and identifiers
+		 */
 		protected EntityStore $entity_store;
-        protected PropertyHandler $property_handler;
+		
+		/**
+		 * Utility for handling entity property access and manipulation
+		 * Provides methods to get and set entity properties regardless of their visibility
+		 */
+		protected PropertyHandler $property_handler;
+		
+		/**
+		 * Database connection adapter used for executing SQL queries
+		 * Abstracts the underlying database system and provides a unified interface
+		 */
 		protected DatabaseAdapter $connection;
 		
 		/**
-         * DeletePersister constructor.
-         * @param UnitOfWork $unitOfWork
-         */
-        public function __construct(UnitOfWork $unitOfWork) {
+		 * DeletePersister constructor
+		 * Initializes all necessary components for entity deletion operations
+		 *
+		 * @param UnitOfWork $unitOfWork The UnitOfWork that will coordinate deletion operations
+		 */
+		public function __construct(UnitOfWork $unitOfWork) {
 			parent::__construct($unitOfWork);
-            $this->unit_of_work = $unitOfWork;
-            $this->entity_store = $unitOfWork->getEntityStore();
-            $this->property_handler = $unitOfWork->getPropertyHandler();
-            $this->connection = $unitOfWork->getConnection();
-        }
+			$this->unit_of_work = $unitOfWork;
+			$this->entity_store = $unitOfWork->getEntityStore();
+			$this->property_handler = $unitOfWork->getPropertyHandler();
+			$this->connection = $unitOfWork->getConnection();
+		}
 		
 		/**
-		 * Haalt de waarden van de primaire sleutels op voor een gegeven entiteit.
-		 * @param object $entity De entiteit waarvan de primaire sleutelwaarden worden opgehaald.
-		 * @param array $primaryKeys De lijst met primaire sleutels van de entiteit.
-		 * @param array $primaryKeyColumns De kolomnamen die overeenkomen met de primaire sleutels in de database.
-		 * @return array Associatieve array met kolomnamen als sleutels en bijbehorende waarden uit de entiteit.
+		 * Extracts primary key values from an entity into a column-to-value mapping
+		 * This mapping is used to build the WHERE clause for the DELETE statement
+		 *
+		 * @param object $entity The entity from which to extract primary key values
+		 * @param array $primaryKeys The property names that represent primary keys in the entity
+		 * @param array $primaryKeyColumns The corresponding database column names for the primary keys
+		 * @return array Associative array with column names as keys and their values from the entity
 		 */
 		private function extractPrimaryKeyValueMap(object $entity, array $primaryKeys, array $primaryKeyColumns): array {
 			$result = [];
@@ -46,8 +74,10 @@
 		}
 		
 		/**
-		 * Voert acties uit na het deleten van entiteiten.
-		 * @param object $entity Een entiteit die behandeld moeten worden.
+		 * Executes actions after deleting entities
+		 * Calls methods in the entity that are annotated with @PostDelete
+		 *
+		 * @param object $entity The entity that has been deleted
 		 * @return void
 		 */
 		protected function postDelete(object $entity): void {
@@ -55,37 +85,38 @@
 		}
 		
 		/**
-		 * Verwijdert een entiteit uit de database op basis van haar primaire sleutels.
-		 * Deze functie haalt eerst de benodigde tabel- en sleutelinformatie op en stelt vervolgens
-		 * een DELETE SQL-query samen om de specifieke entiteit te verwijderen.
-		 * @param object $entity De entiteit die verwijderd moet worden uit de database.
-		 * @throws OrmException Als de DELETE operatie mislukt, wordt er een exception gegooid.
+		 * Deletes an entity from the database based on its primary keys
+		 * This function first retrieves the necessary table and key information and then
+		 * constructs a DELETE SQL query to remove the specific entity
+		 * @param object $entity The entity to be removed from the database
+		 * @param object $entity The entity to be removed from the database
+		 * @throws OrmException If the DELETE operation fails, an exception is thrown
 		 */
 		public function persist(object $entity): void {
-			// Haal de naam van de tabel op waar de entiteit in opgeslagen moet worden.
+			// Get the name of the table where the entity is stored
 			$tableName = $this->entity_store->getOwningTable($entity);
 			
-			// Verkrijg de primaire sleutels en de corresponderende kolomnamen van de entiteit.
+			// Obtain the primary keys and corresponding column names of the entity
 			$primaryKeys = $this->entity_store->getIdentifierKeys($entity);
 			$primaryKeyColumns = $this->entity_store->getIdentifierColumnNames($entity);
 			
-			// Creëer een map van primaire sleutelkolomnamen naar hun waarden voor deze specifieke entiteit.
+			// Create a mapping of primary key column names to their values for this specific entity
 			$primaryKeyValues = $this->extractPrimaryKeyValueMap($entity, $primaryKeys, $primaryKeyColumns);
 			
-			// Stel de SQL-query samen voor het verwijderen van de entiteit, waarbij elke primaire sleutelwaarde
-			// gebruikt wordt in de WHERE-clausule om specifiek deze entiteit te targeten.
-			// Gebruikt `AND` om te zorgen dat alle voorwaarden overeen moeten komen.
+			// Construct the SQL query for deleting the entity, using each primary key value
+			// in the WHERE clause to target this specific entity
+			// Uses `AND` to ensure all conditions must match
 			$sql = implode(" AND ", array_map(fn($key) => "`{$key}`=:{$key}", array_keys($primaryKeyValues)));
 			
-			// Voer de DELETE-query uit met de opgestelde voorwaarden. Gebruik de primaire sleutelwaarden
-			// als parameters voor de prepared statement om SQL-injectie te voorkomen.
+			// Execute the DELETE query with the constructed conditions
+			// Use the primary key values as parameters for the prepared statement to prevent SQL injection
 			if (!$this->connection->execute("DELETE FROM `{$tableName}` WHERE {$sql}", $primaryKeyValues)) {
-				// Als de uitvoering mislukt, gooi een exception met het laatste foutbericht en foutcode
-				// van de databaseverbinding om de fout te kunnen identificeren en op te lossen.
-				throw new OrmException("Fout bij het verwijderen van entiteit: " . $this->connection->getLastErrorMessage(), $this->connection->getLastError());
+				// If execution fails, throw an exception with the last error message and error code
+				// from the database connection to help identify and resolve the issue
+				throw new OrmException("Error deleting entity: " . $this->connection->getLastErrorMessage(), $this->connection->getLastError());
 			}
 			
-			// Roep de postDelete method van de entity aan indien aanwezig
+			// Call the entity's postDelete method if present (methods annotated with @PostDelete)
 			$this->postDelete($entity);
 		}
-    }
+	}

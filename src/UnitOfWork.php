@@ -28,6 +28,8 @@
 	use Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface;
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\Serialization\Serializers\SQLSerializer;
+	use Quellabs\SignalHub\SignalHub;
+	use Quellabs\SignalHub\SignalHubLocator;
 	
 	class UnitOfWork {
 		
@@ -39,6 +41,7 @@
 		protected PropertyHandler $property_handler;
 		protected ?SQLSerializer $serializer;
 		protected ?DatabaseAdapter $connection;
+		protected SignalHub $signal_hub;
 		
 		/**
 		 * UnitOfWork constructor.
@@ -53,6 +56,9 @@
 			$this->original_entity_data = [];
 			$this->entity_removal_list = [];
 			$this->identity_map = [];
+			$this->signal_hub = SignalHubLocator::getInstance();
+			
+			$this->registerLifecycleSignals();
 		}
 		
 		/**
@@ -285,17 +291,26 @@
 						switch ($this->getEntityState($entity)) {
 							case DirtyState::New:
 								$changed[] = $entity; // Add entity to the changed list
+								
+								$this->signal_hub->getStandaloneSignal('orm.prePersist')->emit($entity);
 								$insertPersister->persist($entity); // Insert if the entity is new.
+								$this->signal_hub->getStandaloneSignal('orm.postPersist')->emit($entity);
 								break;
 							
 							case DirtyState::Dirty:
 								$changed[] = $entity; // Add entity to the changed list
+								
+								$this->signal_hub->getStandaloneSignal('orm.preUpdate')->emit($entity);
 								$updatePersister->persist($entity); // Update if the entity has been modified.
+								$this->signal_hub->getStandaloneSignal('orm.postUpdate')->emit($entity);
 								break;
 							
 							case DirtyState::Deleted:
 								$deleted[] = $entity; // Add entity to the deleted list
+								
+								$this->signal_hub->getStandaloneSignal('orm.preDelete')->emit($entity);
 								$deletePersister->persist($entity); // Delete if the entity is marked for deletion.
+								$this->signal_hub->getStandaloneSignal('orm.postDelete')->emit($entity);
 								break;
 						}
 					}
@@ -382,6 +397,19 @@
 			
 			// Process dependent entities that should be cascade deleted
 			$this->processCascadingDeletions($entity);
+		}
+		
+		/**
+		 * Define standard ORM lifecycle signals
+		 * @return void
+		 */
+		private function registerLifecycleSignals(): void {
+			$this->signal_hub->createSignal('orm.prePersist', ['object']);
+			$this->signal_hub->createSignal('orm.postPersist', ['object']);
+			$this->signal_hub->createSignal('orm.preUpdate', ['object']);
+			$this->signal_hub->createSignal('orm.postUpdate', ['object']);
+			$this->signal_hub->createSignal('orm.preDelete', ['object']);
+			$this->signal_hub->createSignal('orm.postDelete', ['object']);
 		}
 		
 		/**
