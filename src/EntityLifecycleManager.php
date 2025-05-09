@@ -45,7 +45,7 @@
 		/**
 		 * @var array Cache of entity classes that have lifecycle callbacks
 		 */
-		private array $hasLifecycleCallbacksCache = [];
+		private array $lifecycleAwareCache = [];
 		
 		/**
 		 * @var array Cache of entity lifecycle methods by class and event type
@@ -136,7 +136,7 @@
 			$entityClass = get_class($entity);
 			
 			// Skip if entity class doesn't have lifecycle callbacks
-			if (!$this->hasLifecycleCallbacks($entity)) {
+			if (!$this->isLifecycleAware($entity)) {
 				return;
 			}
 			
@@ -150,56 +150,23 @@
 		}
 		
 		/**
-		 * Check if an entity has the @Orm\HasLifecycleCallbacks class annotation
+		 * Check if an entity has the @Orm\LifecycleAware class annotation
 		 * This determines whether the entity has opted into the lifecycle callback system.
 		 * @param object $entity  The entity instance to check
-		 * @return bool  True if the entity has the @Orm\HasLifecycleCallbacks annotation
+		 * @return bool  True if the entity has the @Orm\LifecycleAware annotation
 		 */
-		private function hasLifecycleCallbacks(object $entity): bool {
+		private function isLifecycleAware(object $entity): bool {
 			try {
 				$className = get_class($entity);
 				
 				// Check cache first
-				if (isset($this->hasLifecycleCallbacksCache[$className])) {
-					return $this->hasLifecycleCallbacksCache[$className];
+				if (isset($this->lifecycleAwareCache[$className])) {
+					return $this->lifecycleAwareCache[$className];
 				}
 				
-				// Get all class-level annotations for this entity
-				$annotations = $this->entityStore->getAnnotationReader()->getClassAnnotations($entity);
-				
-				// Check if any annotation is an instance of HasLifecycleCallbacks
-				foreach($annotations as $annotation) {
-					if ($annotation instanceof LifecycleAware) {
-						return $this->hasLifecycleCallbacksCache[$className] = true;
-					}
-				}
-				
-				return $this->hasLifecycleCallbacksCache[$className] = false;
-			} catch (ParserException $e) {
-				return false;
-			}
-		}
-		
-		/**
-		 * Checks if a method in a given entity class has a specific annotation.
-		 * @param string $entityClass     The fully qualified class name to check
-		 * @param string $methodName      The name of the method to inspect for annotations
-		 * @param string $annotationClass The annotation class to look for
-		 * @return bool                   True if the annotation exists on the method, false otherwise
-		 */
-		private function methodHasAnnotation(string $entityClass, string $methodName, string $annotationClass): bool {
-			// Get all annotations for the specified method using the annotation reader
-			try {
-				$annotations = $this->entityStore->getAnnotationReader()->getMethodAnnotations($entityClass, $methodName);
-				
-				// Iterate through each annotation to check if any match the specified annotation class
-				foreach ($annotations as $annotation) {
-					if ($annotation instanceof $annotationClass) {
-						return true;
-					}
-				}
-				
-				return false;
+				// Check if the class is lifecycle aware
+				$isLifeCycleAware = $this->entityStore->getAnnotationReader()->classHasAnnotation($entity, LifecycleAware::class);
+				return $this->lifecycleAwareCache[$className] = $isLifeCycleAware;
 			} catch (ParserException $e) {
 				return false;
 			}
@@ -225,7 +192,7 @@
 			$reflectionClass = new \ReflectionClass($entityClass);
 			
 			foreach ($reflectionClass->getMethods() as $method) {
-				if ($this->methodHasAnnotation($entityClass, $method->getName(), $annotationClass)) {
+				if ($this->entityStore->getAnnotationReader()->methodHasAnnotation($entityClass, $method->getName(), $annotationClass)) {
 					$methods[] = $method->getName();
 				}
 			}
@@ -242,7 +209,7 @@
 		 * @param string $entityClass The entity class name
 		 */
 		public function clearCache(string $entityClass): void {
-			unset($this->hasLifecycleCallbacksCache[$entityClass]);
+			unset($this->lifecycleAwareCache[$entityClass]);
 			
 			foreach (array_keys($this->lifecycleMethodsCache) as $key) {
 				if (str_starts_with($key, $entityClass . ':')) {
@@ -255,7 +222,7 @@
 		 * Clear all caches
 		 */
 		public function clearAllCaches(): void {
-			$this->hasLifecycleCallbacksCache = [];
+			$this->lifecycleAwareCache = [];
 			$this->lifecycleMethodsCache = [];
 		}
 	}
