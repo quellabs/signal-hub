@@ -533,7 +533,7 @@ $entityManager->flush();
 > relationship as shown below:
 > 
 > ```php
-> use ObjectQuel\Orm\Annotation as Orm;
+> use Quellabs\ObjectQuel\Annotations\Orm;
 >
 > class Child { 
 >
