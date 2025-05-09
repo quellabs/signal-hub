@@ -27,7 +27,7 @@
 		 */
 		private function getRelationRanges(string $entityType): array {
 			// The first range is always 'main'
-			$ranges[] = ['main' => "range of main is {$entityType}"];
+			$ranges = ['main' => "range of main is {$entityType}"];
 			
 			// Find which entities have a relationship with this entity and process them
 			$rangeCounter = 0;
