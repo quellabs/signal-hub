@@ -396,20 +396,28 @@
 	     * @return object|null The cascade annotation if found, null otherwise
 	     */
 	    private function getCascadeInfo(string $entityClass, string $property): ?object {
+		    // Retrieve all annotations for the specified entity class from the entity store
 		    $entityAnnotations = $this->entity_store->getAnnotations($entityClass);
 		    
+		    // Check if the specified property exists in the entity annotations
+		    // If not, return null immediately since no cascade can exist
 		    if (!isset($entityAnnotations[$property])) {
 			    return null;
 		    }
 		    
+		    // Filter annotations to find only those that are instances of the Cascade class
+		    // This separates cascade annotations from other annotation types
 		    $cascadeAnnotations = array_filter($entityAnnotations[$property], function ($a) {
 			    return $a instanceof Cascade;
 		    });
 		    
+		    // If no cascade annotations were found for this property, return null
 		    if (empty($cascadeAnnotations)) {
 			    return null;
 		    }
 		    
+		    // Return the first cascade annotation found
+		    // The reset() function returns the first element of an array without affecting the internal pointer
 		    return reset($cascadeAnnotations);
 	    }
 	    
@@ -454,73 +462,73 @@
 			    $this->scheduleForDelete($dependentObject);
 		    }
 	    }
-
-		/**
-		 * Find an entity based on its class and primary keys.
-		 * @template T of object
-		 * @param class-string<T> $entityType Het type van de entiteit die gezocht wordt.
-		 * @param array $primaryKeys The serialized primary key data of the entity
-		 * @return object|null De gevonden entiteit of null als deze niet gevonden wordt.
-		 */
-        public function findEntity(string $entityType, array $primaryKeys): ?object {
-            // Normalize the entity name for dealing with proxies
-            $normalizedEntityName = $this->getEntityStore()->normalizeEntityName($entityType);
-            
-            // Check if the class exists in the identity map and return null if it doesn't
-            if (empty($this->identity_map[$normalizedEntityName])) {
-                return null;
-            }
-            
-            // Converteer de primary keys naar een string
-			$primaryKeyString = $this->convertPrimaryKeysToString($primaryKeys);
-			
-			// Kijk of de entity voorkomt in de identity map
-			$hash = $this->identity_map[$normalizedEntityName]['index'][$primaryKeyString] ?? null;
-			return $hash !== null ? $this->identity_map[$normalizedEntityName][$hash] : null;
-        }
-		
-		/**
-		 * Bepaalt de staat van een entiteit (bijv. nieuw, gewijzigd, niet beheerd, etc.).
-		 * @param mixed $entity De entiteit waarvan de staat moet worden bepaald.
-		 * @return int De staat van de entiteit, vertegenwoordigd als een constante uit DirtyState.
-		 */
-		private function getEntityState(mixed $entity): int {
-			// Controleert of de entiteit niet wordt beheerd.
-			if (!$this->isInIdentityMap($entity)) {
-				return DirtyState::NotManaged;
-			}
-			
-			// Class en hash van de entiteit object voor identificatie.
-			$entityHash = spl_object_id($entity);
-			
-			// Controleert of de entiteit voorkomt in de deleted list, zo ja, dan is de state Deleted
-			if ($this->isEntityScheduledForDeletion($entityHash)) {
-				return DirtyState::Deleted;
-			}
-			
-			// Controleert of de entiteit nieuw is op basis van de afwezigheid van originele data.
-			if (!isset($this->original_entity_data[$entityHash])) {
-				return DirtyState::New;
-			}
-			
-			// Controleert of de entiteit nieuw is op basis van de afwezigheid van primaire sleutels.
-			$primaryKeys = $this->entity_store->getIdentifierKeys($entity);
-			
-			if ($this->hasNullPrimaryKeys($entity, $primaryKeys)) {
-				return DirtyState::New;
-			}
-			
-			// Controleert of de entiteit gewijzigd is ten opzichte van de originele data.
-			$originalData = $this->getOriginalEntityData($entity);
-			$serializedEntity = $this->getSerializer()->serialize($entity);
-			
-			if ($this->isEntityDirty($serializedEntity, $originalData)) {
-				return DirtyState::Dirty;
-			}
-			
-			// Als geen van de bovenstaande voorwaarden waar is, dan is de entiteit niet gewijzigd.
-			return DirtyState::None;
-		}
+	    
+	    /**
+	     * Find an entity based on its class and primary keys.
+	     * @template T of object
+	     * @param class-string<T> $entityType The type of entity being searched for.
+	     * @param array $primaryKeys The serialized primary key data of the entity
+	     * @return object|null The found entity or null if it is not found.
+	     */
+	    public function findEntity(string $entityType, array $primaryKeys): ?object {
+		    // Normalize the entity name for dealing with proxies
+		    $normalizedEntityName = $this->getEntityStore()->normalizeEntityName($entityType);
+		    
+		    // Check if the class exists in the identity map and return null if it doesn't
+		    if (empty($this->identity_map[$normalizedEntityName])) {
+			    return null;
+		    }
+		    
+		    // Convert the primary keys to a string
+		    $primaryKeyString = $this->convertPrimaryKeysToString($primaryKeys);
+		    
+		    // Check if the entity exists in the identity map
+		    $hash = $this->identity_map[$normalizedEntityName]['index'][$primaryKeyString] ?? null;
+		    return $hash !== null ? $this->identity_map[$normalizedEntityName][$hash] : null;
+	    }
+	    
+	    /**
+	     * Determines the state of an entity (e.g., new, modified, not managed, etc.).
+	     * @param mixed $entity The entity whose state needs to be determined.
+	     * @return int The state of the entity, represented as a constant from DirtyState.
+	     */
+	    private function getEntityState(mixed $entity): int {
+		    // Checks if the entity is not being managed.
+		    if (!$this->isInIdentityMap($entity)) {
+			    return DirtyState::NotManaged;
+		    }
+		    
+		    // Class and hash of the entity object for identification.
+		    $entityHash = spl_object_id($entity);
+		    
+		    // Checks if the entity appears in the deleted list, if so, then the state is Deleted
+		    if ($this->isEntityScheduledForDeletion($entityHash)) {
+			    return DirtyState::Deleted;
+		    }
+		    
+		    // Checks if the entity is new based on the absence of original data.
+		    if (!isset($this->original_entity_data[$entityHash])) {
+			    return DirtyState::New;
+		    }
+		    
+		    // Checks if the entity is new based on the absence of primary keys.
+		    $primaryKeys = $this->entity_store->getIdentifierKeys($entity);
+		    
+		    if ($this->hasNullPrimaryKeys($entity, $primaryKeys)) {
+			    return DirtyState::New;
+		    }
+		    
+		    // Checks if the entity has been modified compared to the original data.
+		    $originalData = $this->getOriginalEntityData($entity);
+		    $serializedEntity = $this->getSerializer()->serialize($entity);
+		    
+		    if ($this->isEntityDirty($serializedEntity, $originalData)) {
+			    return DirtyState::Dirty;
+		    }
+		    
+		    // If none of the above conditions are true, then the entity is not modified.
+		    return DirtyState::None;
+	    }
 
         /**
          * Returns the property handler object
@@ -656,80 +664,81 @@
 			
 			return true;
 		}
-		
-		/**
-		 * Verwerkt en synchroniseert alle geplande entiteiten met de database.
-		 * Dit omvat het starten van een transactie, het uitvoeren van de nodige operaties (invoegen, bijwerken, verwijderen)
-		 * op basis van de staat van elke entiteit, en het commiten van de transactie. In geval van een fout
-		 * wordt de transactie teruggedraaid en de fout doorgestuurd.
-		 * @param mixed|null $entity
-		 * @return void
-		 * @throws OrmException als er een fout optreedt tijdens het databaseproces.
-		 */
-		public function commit(mixed $entity = null): void {
-			try {
-				// Bepaal de lijst van entities om te verwerken
-				if ($entity === null) {
-					$sortedEntities = $this->scheduleEntities();
-				} elseif (is_array($entity)) {
-					$sortedEntities = $entity;
-				} else {
-					$sortedEntities = [$entity];
-				}
-				
-				if (!empty($sortedEntities)) {
-					// Instantieer hulp classes
-					$insertPersister = new InsertPersister($this);
-					$updatePersister = new UpdatePersister($this);
-					$deletePersister = new DeletePersister($this);
-					
-					// Start een database transactie.
-					$this->connection->beginTrans();
-					
-					// Bepaal de staat van elke entiteit en voer de overeenkomstige actie uit.
-                    $changed = [];
-                    $deleted = [];
-                    
-					foreach ($sortedEntities as $entity) {
-						// Kopieer de primaire sleutels van de bovenliggende entiteit naar deze entiteit, indien beschikbaar.
-						// Dit gebeurt alleen als de relatie niet zelf-referentieel is.
-						foreach($this->fetchParentEntitiesPrimaryKeyData($entity) as $parentEntity) {
-							$this->property_handler->set($entity, $parentEntity["property"], $parentEntity["value"]);
-						}
-						
-						// Haal de staat van de entiteit op.
-						$entityState = $this->getEntityState($entity);
-						
-						// Voer de overeenkomstige database-operatie uit op basis van de staat van de entiteit.
-                        if ($entityState === DirtyState::Deleted) {
-                            $deleted[] = $entity; // Voeg entity toe aan de deleted lijst
-                            $deletePersister->persist($entity); // Verwijderen als de entiteit gemarkeerd is voor verwijdering.
-                        } elseif (($entityState === DirtyState::New) || ($entityState === DirtyState::Dirty)) {
-                            $changed[] = $entity; // Voeg entity toe aan de changed lijst
-                            
-                            if ($entityState === DirtyState::New) {
-                                $insertPersister->persist($entity); // Invoegen als de entiteit nieuw is.
-                            } else {
-                                $updatePersister->persist($entity); // Bijwerken als de entiteit gewijzigd is.
-                            }
-						}
-					}
-					
-					// Commit de transactie na succesvolle verwerking.
-					$this->connection->commitTrans();
-					
-					// Update de identity map en reset change tracking
-					$this->updateIdentityMapAndResetChangeTracking($changed, $deleted);
-				}
-			} catch (OrmException $e) {
-				// Draai de transactie terug als er een fout optreedt.
-				$this->connection->rollbackTrans();
-				
-				// Gooi de uitzondering opnieuw om afhandeling verderop mogelijk te maken.
-				throw $e;
-			}
-		}
+	    
+	    /**
+	     * Processes and synchronizes all scheduled entities with the database.
+	     * This includes starting a transaction, performing the necessary operations (insert, update, delete)
+	     * based on the state of each entity, and committing the transaction. In case of an error,
+	     * the transaction is rolled back and the error is forwarded.
+	     * @param mixed|null $entity
+	     * @return void
+	     * @throws OrmException if an error occurs during the database process.
+	     */
+	    public function commit(mixed $entity = null): void {
+		    try {
+			    // Determine the list of entities to process
+			    if ($entity === null) {
+				    $sortedEntities = $this->scheduleEntities();
+			    } elseif (is_array($entity)) {
+				    $sortedEntities = $entity;
+			    } else {
+				    $sortedEntities = [$entity];
+			    }
+			    
+			    if (!empty($sortedEntities)) {
+				    // Instantiate helper classes
+				    $insertPersister = new InsertPersister($this);
+				    $updatePersister = new UpdatePersister($this);
+				    $deletePersister = new DeletePersister($this);
+				    
+				    // Start a database transaction.
+				    $this->connection->beginTrans();
+				    
+				    // Determine the state of each entity and perform the corresponding action.
+				    $changed = [];
+				    $deleted = [];
+				    
+				    foreach ($sortedEntities as $entity) {
+					    // Copy the primary keys from the parent entity to this entity, if available.
+					    // This only happens if the relationship is not self-referential.
+					    foreach($this->fetchParentEntitiesPrimaryKeyData($entity) as $parentEntity) {
+						    $this->property_handler->set($entity, $parentEntity["property"], $parentEntity["value"]);
+					    }
+					    
+						// Perform the corresponding database operation based on the state of the entity.
+					    switch ($this->getEntityState($entity)) {
+						    case DirtyState::New:
+							    $changed[] = $entity; // Add entity to the changed list
+							    $insertPersister->persist($entity); // Insert if the entity is new.
+							    break;
+						    
+						    case DirtyState::Dirty:
+							    $changed[] = $entity; // Add entity to the changed list
+							    $updatePersister->persist($entity); // Update if the entity has been modified.
+							    break;
 
+						    case DirtyState::Deleted:
+							    $deleted[] = $entity; // Add entity to the deleted list
+							    $deletePersister->persist($entity); // Delete if the entity is marked for deletion.
+							    break;
+					    }
+				    }
+				    
+				    // Commit the transaction after successful processing.
+				    $this->connection->commitTrans();
+				    
+				    // Update the identity map and reset change tracking
+				    $this->updateIdentityMapAndResetChangeTracking($changed, $deleted);
+			    }
+		    } catch (OrmException $e) {
+			    // Roll back the transaction if an error occurs.
+			    $this->connection->rollbackTrans();
+			    
+			    // Re-throw the exception to allow handling elsewhere.
+			    throw $e;
+		    }
+	    }
+		
 		/**
 		 * Clear the entity map
 		 * @return void

@@ -355,7 +355,7 @@ window 1 using window_size 10
 
 ## Entity Relationships
 
-ObjectQuel supports four types of relationships:
+ObjectQuel supports five types of relationships:
 
 ### 1. OneToOne (owning-side)
 
@@ -527,6 +527,15 @@ $entityManager->remove($entity);
 $entityManager->flush();
 ```
 
+> **Note:** When removing entities, the engine does not cascade children except when you set this
+up in your database engine (foreign keys). If you would like to let ObjectQuel cascade removing children
+you can set this up using the @Orm\Cascade annotation like so:
+> 
+> ```php
+> @Orm\ManyToOne(...)
+> @Orm\Cascade(strategy="remove")
+> private $property
+> ```
 ## Using Repositories
 
 ObjectQuel provides a flexible approach to the Repository pattern through its optional `Repository` base class. Unlike some ORMs that mandate repository usage, ObjectQuel makes repositories entirely optional—giving you the freedom to organize your data access layer as you prefer.
