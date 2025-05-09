@@ -3,27 +3,9 @@
 	
 	include_once(dirname(__FILE__) . "/../../vendor/autoload.php");
 	
-	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\ConfigurationLoader;
 	
 	$config = ConfigurationLoader::loadCliConfiguration();
-
-	$config = new Configuration();
-	$config->setEntityPath(__DIR__ . '/../Entity');
-	$config->setProxyDir(__DIR__ . '/../Proxies');
-	$config->setUseMetadataCache(true);
-	$config->setMetadataCachePath(__DIR__ . '/../AnnotationCache');
-	$config->setMigrationsPath(__DIR__ . '/../../migrations');
-
-	$config->setDatabaseParams(
-		'mysql',                         // Driver
-		$_ENV['DB_HOST'] ?? 'localhost', // Host
-		$_ENV['DB_NAME'] ?? 'motorsportparts',// Database name
-		$_ENV['DB_USER'] ?? 'root',   // Username
-		$_ENV['DB_PASS'] ?? 'root',   // Password
-		$_ENV['DB_PORT'] ?? 3306,        // Port
-		$_ENV['DB_CHARSET'] ?? 'utf8mb4' // Character set
-	);
 
 	$sculptRunner = new \Quellabs\ObjectQuel\CommandRunner\CommandRunner($config);
 	$sculptRunner->run($argv);
