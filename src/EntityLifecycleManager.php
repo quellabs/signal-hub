@@ -133,15 +133,13 @@
 		 * @param string $annotationClass The annotation class to look for
 		 */
 		private function executeLifecycleMethods(object $entity, string $annotationClass): void {
-			$entityClass = get_class($entity);
-			
 			// Skip if entity class doesn't have lifecycle callbacks
 			if (!$this->isLifecycleAware($entity)) {
 				return;
 			}
 			
 			// Get methods with this annotation
-			$methods = $this->getLifecycleMethods($entityClass, $annotationClass);
+			$methods = $this->getLifecycleMethods(get_class($entity), $annotationClass);
 			
 			// Execute each method
 			foreach ($methods as $method) {

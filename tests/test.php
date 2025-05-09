@@ -25,9 +25,10 @@
 	
 	$entityManager = new EntityManager($config);
 	
-	$entity = $entityManager->find(ProductsDescriptionEntity::class, 1492);
-	$product = $entity->getProduct();
-	echo $product->getProductsId();
+	$entity = $entityManager->find(ProductsEntity::class, 1492);
+	$entity->setGuid('xyz1');
+	$entityManager->persist($entity);
+	$entityManager->flush($entity);
 	
 	
 	//$result = $entityManager->findBy(ProductsEntity::class, ['guid' => '8ed51c45-e34c-4d5f-b29b-83a5ee0ecbe2']);
