@@ -527,15 +527,28 @@ $entityManager->remove($entity);
 $entityManager->flush();
 ```
 
-> **Note:** When removing entities, the engine does not cascade children except when you set this
-up in your database engine (foreign keys). If you would like to let ObjectQuel cascade removing children
-you can set this up using the @Orm\Cascade annotation like so:
+> **Note:** When removing entities, ObjectQuel does not automatically cascade deletions to related
+> entities unless you've configured foreign keys in your database engine. If you want child entities
+> to be removed when their parent is deleted, add the @Orm\Cascade annotation to the ManyToOne
+> relationship as shown below:
 > 
 > ```php
-> @Orm\ManyToOne(...)
-> @Orm\Cascade(strategy="remove")
-> private $property
+> use ObjectQuel\Orm\Annotation as Orm;
+>
+> class Child { 
+>
+>    /**
+>     * @Orm\ManyToOne(targetEntity="Parent")
+>     * @Orm\Cascade(operations={"remove"})
+>     */
+>    private $parent;
+>    
+>    // ...
+> }
 > ```
+> This tells ObjectQuel to find and remove all child entities that reference the deleted parent
+> through their ManyToOne relationship.
+
 ## Using Repositories
 
 ObjectQuel provides a flexible approach to the Repository pattern through its optional `Repository` base class. Unlike some ORMs that mandate repository usage, ObjectQuel makes repositories entirely optional—giving you the freedom to organize your data access layer as you prefer.
