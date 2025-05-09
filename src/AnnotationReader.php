@@ -35,6 +35,116 @@
 		}
 		
 		/**
+		 * Takes a class's docComment and parses it
+		 * @param mixed $class
+		 * @return array
+		 * @throws ParserException
+		 */
+		public function getClassAnnotations(mixed $class): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["class"] ?? [];
+		}
+		
+		/**
+		 * Checks if a given entity class has a specific annotation.
+		 * @param mixed $class            The object to check
+		 * @param string $annotationClass The annotation class to look for
+		 * @return bool                   True if the annotation exists on the property, false otherwise
+		 */
+		public function classHasAnnotation(mixed $class, string $annotationClass): bool {
+			try {
+				foreach ($this->getClassAnnotations($class) as $annotation) {
+					if ($annotation instanceof $annotationClass) {
+						return true;
+					}
+				}
+			} catch (ParserException $e) {
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Takes a method's docComment and parses it
+		 * @param mixed $class
+		 * @param string $methodName
+		 * @return array
+		 * @throws ParserException
+		 */
+		public function getMethodAnnotations(mixed $class, string $methodName): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["methods"][$methodName] ?? [];
+		}
+		
+		/**
+		 * Checks if a method in a given entity class has a specific annotation.
+		 * @param mixed $class            The object to check
+		 * @param string $methodName      The name of the method to inspect for annotations
+		 * @param string $annotationClass The annotation class to look for
+		 * @return bool                   True if the annotation exists on the method, false otherwise
+		 */
+		public function methodHasAnnotation(mixed $class, string $methodName, string $annotationClass): bool {
+			try {
+				foreach ($this->getMethodAnnotations($class, $methodName) as $annotation) {
+					if ($annotation instanceof $annotationClass) {
+						return true;
+					}
+				}
+			} catch (ParserException $e) {
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Takes a property's docComment and parses it
+		 * @param mixed $class
+		 * @param string $propertyName
+		 * @return array
+		 * @throws ParserException
+		 */
+		public function getPropertyAnnotations(mixed $class, string $propertyName): array {
+			$annotations = $this->getAllObjectAnnotations($class);
+			return $annotations["properties"][$propertyName] ?? [];
+		}
+		
+		/**
+		 * Checks if a method in a given entity class has a specific annotation.
+		 * @param mixed $class            The object to check
+		 * @param string $propertyName    The name of the property to inspect for annotations
+		 * @param string $annotationClass The annotation class to look for
+		 * @return bool                   True if the annotation exists on the property, false otherwise
+		 */
+		public function propertyHasAnnotation(mixed $class, string $propertyName, string $annotationClass): bool {
+			try {
+				foreach ($this->getPropertyAnnotations($class, $propertyName) as $annotation) {
+					if ($annotation instanceof $annotationClass) {
+						return true;
+					}
+				}
+			} catch (ParserException $e) {
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Parses a string and returns the found annotations
+		 * @param $string
+		 * @return array
+		 * @throws ParserException
+		 */
+		public function getAnnotations($string): array {
+			try {
+				$lexer = new Lexer($string);
+				$parser = new Parser($lexer, $this->configuration);
+				return $parser->parse();
+			} catch (LexerException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
+			}
+		}
+
+		/**
 		 * Transforms a className to a filename
 		 * @param string $className
 		 * @return string
@@ -223,54 +333,4 @@
 			}
 		}
 		
-		/**
-		 * Takes a class's docComment and parses it
-		 * @param mixed $class
-		 * @return array
-		 * @throws ParserException
-		 */
-		public function getClassAnnotations(mixed $class): array {
-			$annotations = $this->getAllObjectAnnotations($class);
-			return $annotations["class"] ?? [];
-		}
-		
-		/**
-		 * Takes a method's docComment and parses it
-		 * @param mixed $class
-		 * @param string $method
-		 * @return array
-		 * @throws ParserException
-		 */
-		public function getMethodAnnotations(mixed $class, string $method): array {
-			$annotations = $this->getAllObjectAnnotations($class);
-			return $annotations["methods"][$method] ?? [];
-		}
-		
-		/**
-		 * Takes a property's docComment and parses it
-		 * @param mixed $class
-		 * @param string $property
-		 * @return array
-		 * @throws ParserException
-		 */
-		public function getPropertyAnnotations(mixed $class, string $property): array {
-			$annotations = $this->getAllObjectAnnotations($class);
-			return $annotations["properties"][$property] ?? [];
-		}
-		
-		/**
-		 * Parses a string and returns the found annotations
-		 * @param $string
-		 * @return array
-		 * @throws ParserException
-		 */
-		public function getAnnotations($string): array {
-			try {
-				$lexer = new Lexer($string);
-				$parser = new Parser($lexer, $this->configuration);
-				return $parser->parse();
-			} catch (LexerException $e) {
-				throw new ParserException($e->getMessage(), $e->getCode(), $e);
-			}
-		}
 	}
