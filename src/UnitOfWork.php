@@ -292,25 +292,25 @@
 							case DirtyState::New:
 								$changed[] = $entity; // Add entity to the changed list
 								
-								$this->signal_hub->getStandaloneSignal('orm.prePersist')->emit($entity);
+								$this->signal_hub->getSignal('orm.prePersist')->emit($entity);
 								$insertPersister->persist($entity); // Insert if the entity is new.
-								$this->signal_hub->getStandaloneSignal('orm.postPersist')->emit($entity);
+								$this->signal_hub->getSignal('orm.postPersist')->emit($entity);
 								break;
 							
 							case DirtyState::Dirty:
 								$changed[] = $entity; // Add entity to the changed list
 								
-								$this->signal_hub->getStandaloneSignal('orm.preUpdate')->emit($entity);
+								$this->signal_hub->getSignal('orm.preUpdate')->emit($entity);
 								$updatePersister->persist($entity); // Update if the entity has been modified.
-								$this->signal_hub->getStandaloneSignal('orm.postUpdate')->emit($entity);
+								$this->signal_hub->getSignal('orm.postUpdate')->emit($entity);
 								break;
 							
 							case DirtyState::Deleted:
 								$deleted[] = $entity; // Add entity to the deleted list
 								
-								$this->signal_hub->getStandaloneSignal('orm.preDelete')->emit($entity);
+								$this->signal_hub->getSignal('orm.preDelete')->emit($entity);
 								$deletePersister->persist($entity); // Delete if the entity is marked for deletion.
-								$this->signal_hub->getStandaloneSignal('orm.postDelete')->emit($entity);
+								$this->signal_hub->getSignal('orm.postDelete')->emit($entity);
 								break;
 						}
 					}
