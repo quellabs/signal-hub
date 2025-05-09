@@ -3,117 +3,117 @@
 	namespace Quellabs\ObjectQuel\Collections;
 	
 	/**
-     * Een generieke collectie-klasse
+	 * A generic collection class
 	 * @template T of object
 	 * @implements CollectionInterface<T>
 	 */
 	class Collection implements CollectionInterface {
-        
-        /**
-         * De collectie van objecten, waarbij de sleutel een string of integer kan zijn.
-         * @var array<string|int, T>
-         */
-        protected array $collection;
-        
-        /**
-         * Een array van gesorteerde sleutels, indien aanwezig.
-         * @var array<string|int>|null
-         */
-        protected ?array $sortedKeys = null;
-        
-        /**
-         * Huidige positie in de iteratie van de collectie.
-         * @var int|null
-         */
-        protected ?int $position;
-        
-        /**
-         * Geeft de sorteer volgorde aan als string.
-         * @var string
-         */
-        protected string $sortOrder;
-        
-        /**
-         * Vlag die aangeeft of de collectie is gewijzigd en moet worden hergesorteerd.
-         * @var bool
-         */
-        protected bool $isDirty = false;
-        
-        /**
-         * Collection constructor
-         * @param string $sortOrder De sorteer volgorde voor de collectie, standaard een lege string.
-         */
-        public function __construct(string $sortOrder = '') {
-            $this->collection = []; // Initialisatie van de collectie array
-            $this->sortOrder = $sortOrder; // Initialisatie van de sorteer volgorde
-            $this->position = null; // Initialisatie van de positie
-            $this->isDirty = false; // De collectie is nog niet gemarkeerd als gewijzigd
-        }
-        
-        /**
-         * Sorteer callback op basis van de sortOrder string
-         * Deze functie wordt gebruikt om twee elementen van de collectie met elkaar te vergelijken
-         * @param mixed $a Het eerste te vergelijken element
-         * @param mixed $b Het tweede te vergelijken element
-         * @return int Een integer die aangeeft of $a minder dan, gelijk aan, of groter dan $b is
-         */
-        protected function sortCallback(mixed $a, mixed $b): int {
-            try {
-                $fields = array_map('trim', explode(',', $this->sortOrder));
-                
-                foreach ($fields as $field) {
-                    // Split elk veld in property en richting
-                    // Bijvoorbeeld: "naam ASC" wordt ["naam", "ASC"]
-                    $parts = array_map('trim', explode(' ', $field));
-                    $property = $parts[0];
-                    
-                    // Bepaal de sorteerrichting: -1 voor DESC, 1 voor ASC (standaard)
-                    $direction = isset($parts[1]) && strtolower($parts[1]) === 'desc' ? -1 : 1;
-                    
-                    // Haal de waarden op voor vergelijking
-                    $valueA = $this->extractValue($a, $property);
-                    $valueB = $this->extractValue($b, $property);
-                    
-                    // Als beide waarden null zijn, ga door naar het volgende veld
-                    if ($valueA === null && $valueB === null) {
-                        continue;
-                    }
-                    
-                    // Null-waarden worden als groter beschouwd in PHP
-                    if ($valueA === null) {
-                        return $direction;
-                    }
-                    
-                    if ($valueB === null) {
-                        return -$direction;
-                    }
-                    
-                    // If both values are strings, use case-insensitive comparison
-                    if (is_string($valueA) && is_string($valueB)) {
-                        $result = strcasecmp($valueA, $valueB);
-
-                        if ($result > 0) {
-                            return $direction;
-                        }
-
-                        if ($result < 0) {
-                            return -$direction;
-                        }
-                    } elseif ($valueA > $valueB) {
-                        return $direction;
-                    } elseif ($valueA < $valueB) {
-                        return -$direction;
-                    }
-                    
-                    // Als de waarden gelijk zijn, ga door naar het volgende veld
-                }
-            } catch (\ReflectionException $e) {
-                // Log eventuele reflectie-fouten
-                error_log("Reflection error in collection sort");
-            }
-            
-            // Als alle velden gelijk zijn, behoud de originele volgorde
-            return 0;
+		
+		/**
+		 * The collection of objects, where the key can be a string or integer.
+		 * @var array<string|int, T>
+		 */
+		protected array $collection;
+		
+		/**
+		 * An array of sorted keys, if present.
+		 * @var array<string|int>|null
+		 */
+		protected ?array $sortedKeys = null;
+		
+		/**
+		 * Current position in the iteration of the collection.
+		 * @var int|null
+		 */
+		protected ?int $position;
+		
+		/**
+		 * Indicates the sort order as a string.
+		 * @var string
+		 */
+		protected string $sortOrder;
+		
+		/**
+		 * Flag indicating whether the collection has been modified and needs to be resorted.
+		 * @var bool
+		 */
+		protected bool $isDirty = false;
+		
+		/**
+		 * Collection constructor
+		 * @param string $sortOrder The sort order for the collection, default is an empty string.
+		 */
+		public function __construct(string $sortOrder = '') {
+			$this->collection = []; // Initialization of the collection array
+			$this->sortOrder = $sortOrder; // Initialization of the sort order
+			$this->position = null; // Initialization of the position
+			$this->isDirty = false; // The collection is not yet marked as modified
+		}
+		
+		/**
+		 * Sort callback based on the sortOrder string
+		 * This function is used to compare two elements of the collection
+		 * @param mixed $a The first element to compare
+		 * @param mixed $b The second element to compare
+		 * @return int An integer indicating whether $a is less than, equal to, or greater than $b
+		 */
+		protected function sortCallback(mixed $a, mixed $b): int {
+			try {
+				$fields = array_map('trim', explode(',', $this->sortOrder));
+				
+				foreach ($fields as $field) {
+					// Split each field into property and direction
+					// For example, "name ASC" becomes ["name", "ASC"]
+					$parts = array_map('trim', explode(' ', $field));
+					$property = $parts[0];
+					
+					// Determine the sort direction: -1 for DESC, 1 for ASC (default)
+					$direction = isset($parts[1]) && strtolower($parts[1]) === 'desc' ? -1 : 1;
+					
+					// Get the values for comparison
+					$valueA = $this->extractValue($a, $property);
+					$valueB = $this->extractValue($b, $property);
+					
+					// If both values are null, continue to the next field
+					if ($valueA === null && $valueB === null) {
+						continue;
+					}
+					
+					// Null values are considered larger in PHP
+					if ($valueA === null) {
+						return $direction;
+					}
+					
+					if ($valueB === null) {
+						return -$direction;
+					}
+					
+					// If both values are strings, use case-insensitive comparison
+					if (is_string($valueA) && is_string($valueB)) {
+						$result = strcasecmp($valueA, $valueB);
+						
+						if ($result > 0) {
+							return $direction;
+						}
+						
+						if ($result < 0) {
+							return -$direction;
+						}
+					} elseif ($valueA > $valueB) {
+						return $direction;
+					} elseif ($valueA < $valueB) {
+						return -$direction;
+					}
+					
+					// If the values are equal, continue to the next field
+				}
+			} catch (\ReflectionException $e) {
+				// Log any reflection errors
+				error_log("Reflection error in collection sort");
+			}
+			
+			// If all fields are equal, maintain the original order
+			return 0;
 		}
 		
 		/**
@@ -123,19 +123,19 @@
 		 * @return mixed The extracted value, or null if not found
 		 */
 		protected function extractValue(mixed $var, string $property): mixed {
-			// Als $var een array is, probeer de waarde op te halen met de property als key
+			// If $var is an array, try to get the value with the property as key
 			if (is_array($var)) {
 				return $var[$property] ?? null;
 			}
 			
-			// Als $var een object is, probeer de waarde op verschillende manieren op te halen
+			// If $var is an object, try to get the value in different ways
 			if (is_object($var)) {
-				// Controleer op een getter methode (bijv. getName() voor property 'name')
+				// Check for a getter method (e.g. getName() for property 'name')
 				if (method_exists($var, 'get' . ucfirst($property))) {
 					return $var->{'get' . ucfirst($property)}();
 				}
 				
-				// Gebruik reflectie om private/protected properties te benaderen
+				// Use reflection to access private/protected properties
 				try {
 					$reflection = new \ReflectionClass($var);
 					
@@ -145,47 +145,47 @@
 						return $prop->getValue($var);
 					}
 				} catch (\ReflectionException $e) {
-					// Log de fout als reflectie mislukt
+					// Log the error if reflection fails
 					error_log("Reflection error in collection sort: " . $e->getMessage());
 				}
 			}
 			
-			// Voor scalaire waarden (int, float, string, bool), als
-			// de property 'value' is, retourneer de waarde zelf.
+			// For scalar values (int, float, string, bool), if
+			// the property is 'value', return the value itself.
 			if ($property === 'value' && is_scalar($var)) {
 				return $var;
 			}
 			
-			// Als geen van bovenstaande methoden werkt, retourneer null
+			// If none of the above methods work, return null
 			return null;
 		}
 		
-        /**
-         * Bereken en sorteer de sleutels als dat nodig is.
-         * @return void
-         */
-        protected function calculateSortedKeys(): void {
-            // Controleer of de gegevens niet gewijzigd zijn en de sleutels al zijn berekend
-            if (!$this->isDirty && $this->sortedKeys !== null) {
-                return; // Niets te doen, vroegtijdig terugkeren
-            }
-            
-            // Haal de sleutels op
-            $this->sortedKeys = $this->getKeys();
-            
-            // Sorteer de sleutels indien er een sorteervolgorde is ingesteld
-            if (!empty($this->sortOrder)) {
-                usort($this->sortedKeys, function($keyA, $keyB) {
-                    return $this->sortCallback($this->collection[$keyA], $this->collection[$keyB]);
-                });
-            }
-            
-            // Markeer de sleutels als up-to-date
-            $this->isDirty = false;
-        }
+		/**
+		 * Calculate and sort the keys if needed.
+		 * @return void
+		 */
+		protected function calculateSortedKeys(): void {
+			// Check if the data hasn't changed and the keys are already calculated
+			if (!$this->isDirty && $this->sortedKeys !== null) {
+				return; // Nothing to do, early return
+			}
+			
+			// Get the keys
+			$this->sortedKeys = $this->getKeys();
+			
+			// Sort the keys if a sort order is set
+			if (!empty($this->sortOrder)) {
+				usort($this->sortedKeys, function($keyA, $keyB) {
+					return $this->sortCallback($this->collection[$keyA], $this->collection[$keyB]);
+				});
+			}
+			
+			// Mark the keys as up-to-date
+			$this->isDirty = false;
+		}
 		
 		/**
-		 * Krijg de gesorteerde sleutels van de collection
+		 * Get the sorted keys of the collection
 		 * @return array<string|int>
 		 */
 		protected function getSortedKeys(): array {
@@ -237,7 +237,7 @@
 		}
 		
 		/**
-         * Geeft het huidige element in de collectie terug op basis van de huidige positie.
+		 * Returns the current element in the collection based on the current position.
 		 * @return T|null
 		 */
 		public function current() {
@@ -255,49 +255,49 @@
 		}
 		
 		/**
-         * Geeft het eerste element in de collectie terug.
-		 * @return T|null Het eerste element in de collectie, of null als de collectie leeg is.
+		 * Returns the first element in the collection.
+		 * @return T|null The first element in the collection, or null if the collection is empty.
 		 */
 		public function first() {
 			$keys = $this->getSortedKeys();
-		
+			
 			if (!empty($keys)) {
 				return $this->collection[$keys[0]];
 			}
 			
 			return null;
 		}
-        
-        /**
-         * Verplaatst de interne pointer naar het volgende element in de collectie en geeft dit element terug.
-         * @return void
-         */
+		
+		/**
+		 * Moves the internal pointer to the next element in the collection and returns this element.
+		 * @return void
+		 */
 		public function next(): void {
 			if ($this->position !== null) {
 				$this->position++;
 			}
 		}
-        
-        /**
-         * Controleert of een bepaalde sleutel in de collectie bestaat.
-         * @param mixed $offset
-         * @return bool
-         */
+		
+		/**
+		 * Checks if a certain key exists in the collection.
+		 * @param mixed $offset
+		 * @return bool
+		 */
 		public function offsetExists(mixed $offset): bool {
 			return array_key_exists($offset, $this->collection);
 		}
 		
 		/**
-         * Haalt een element uit de collectie op basis van de gegeven sleutel.
-		 * @param string|int $offset De sleutel waarmee het element in de collectie wordt geïdentificeerd.
-		 * @return T|null Het element dat overeenkomt met de gegeven sleutel, of null als de sleutel niet bestaat.
+		 * Retrieves an element from the collection based on the given key.
+		 * @param string|int $offset The key that identifies the element in the collection.
+		 * @return T|null The element that corresponds to the given key, or null if the key doesn't exist.
 		 */
 		public function offsetGet($offset) {
 			return $this->collection[$offset] ?? null;
 		}
 		
 		/**
-         * Stelt een element in de collectie in op een bepaalde sleutel.
+		 * Sets an element in the collection at a specific key.
 		 * @param mixed $offset
 		 * @param T $value
 		 */
@@ -310,20 +310,20 @@
 			
 			$this->isDirty = true;
 		}
-        
-        /**
-         * Verwijdert een element uit de collectie op basis van de opgegeven sleutel.
-         * @param mixed $offset De sleutel van het element dat moet worden verwijderd.
-         */
+		
+		/**
+		 * Removes an element from the collection based on the specified key.
+		 * @param mixed $offset The key of the element to be removed.
+		 */
 		public function offsetUnset(mixed $offset): void {
 			unset($this->collection[$offset]);
 			$this->isDirty = true;
 		}
-        
-        /**
-         * Geeft de huidige sleutel van het element in de collectie terug.
-         * @return mixed De sleutel van het huidige element, of null als de positie niet geldig is.
-         */
+		
+		/**
+		 * Returns the current key of the element in the collection.
+		 * @return mixed The key of the current element, or null if the position is not valid.
+		 */
 		public function key(): mixed {
 			if ($this->position === null) {
 				return null;
@@ -332,11 +332,11 @@
 			$keys = $this->getSortedKeys();
 			return $keys[$this->position] ?? null;
 		}
-        
-        /**
-         * Controleert of de huidige positie geldig is in de collectie.
-         * @return bool True als de huidige positie geldig is, anders false.
-         */
+		
+		/**
+		 * Checks if the current position is valid in the collection.
+		 * @return bool True if the current position is valid, otherwise false.
+		 */
 		public function valid(): bool {
 			if ($this->position === null) {
 				return false;
@@ -345,11 +345,11 @@
 			$keys = $this->getSortedKeys();
 			return isset($keys[$this->position]);
 		}
-        
-        /**
-         * Zorg ervoor dat we gesorteerd zijn voordat we beginnen te itereren
-         * @return void
-         */
+		
+		/**
+		 * Make sure we are sorted before we start iterating
+		 * @return void
+		 */
 		public function rewind(): void {
 			$this->calculateSortedKeys();
 			$this->position = empty($this->sortedKeys) ? null : 0;
@@ -413,17 +413,17 @@
 		}
 		
 		/**
-		 * Update de sorteervolgorde
-		 * @param string $sortOrder Nieuwe sorteervolgorde
+		 * Update the sort order
+		 * @param string $sortOrder New sort order
 		 */
 		public function updateSortOrder(string $sortOrder): void {
-            // Sla de nieuwe sorteervolgorde op
-            $this->sortOrder = $sortOrder;
-            
-            // Reset gesorteerde sleutels
+			// Save the new sort order
+			$this->sortOrder = $sortOrder;
+			
+			// Reset sorted keys
 			$this->sortedKeys = null;
 			
-            // Zet dirty flag
-            $this->isDirty = true;
+			// Set dirty flag
+			$this->isDirty = true;
 		}
 	}
