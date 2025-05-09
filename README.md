@@ -1,5 +1,9 @@
 # SignalHub: Type-Safe Signal-Slot System for PHP
 
+[![Latest Version](https://img.shields.io/packagist/v/quellabs/signal-hub.svg)](https://packagist.org/packages/quellabs/signal-hub)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+[![Downloads](https://img.shields.io/packagist/dt/quellabs/signal-hub.svg)](https://packagist.org/packages/quellabs/signal-hub)
+
 SignalHub is a Qt-inspired signal-slot implementation for PHP with strong type checking and flexible connection options. It allows for loose coupling between components while maintaining type safety.
 
 ## Features
@@ -10,6 +14,7 @@ SignalHub is a Qt-inspired signal-slot implementation for PHP with strong type c
 - **Object-owned signals**: Define signals as part of your classes
 - **Signal discovery**: Find signals by name patterns
 - **Priority-based execution**: Control the order of slot execution
+- **Unified API**: Simple interface for working with both standalone and object signals
 
 ## Installation
 
@@ -23,9 +28,10 @@ composer require quellabs/signal-hub
 
 ```php
 use Quellabs\SignalHub\SignalHub;
+use Quellabs\SignalHub\SignalHubLocator;
 
-// Create a signal hub for registration and discovery
-$hub = new SignalHub();
+// Fetch the signal hub for registration and discovery
+$hub = SignalHubLocator::getInstance();
 
 // Create a standalone signal with a string parameter
 $buttonClickedSignal = $hub->createSignal('button.clicked', ['string']);
@@ -71,7 +77,13 @@ class Button {
 }
 
 // Create a button
-$hub = new SignalHub();
+use Quellabs\SignalHub\SignalHub;
+use Quellabs\SignalHub\SignalHubLocator;
+
+// Fetch the signal hub for registration and discovery
+$hub = SignalHubLocator::getInstance();
+
+// Instantiate the button class
 $button = new Button('Submit', $hub);
 
 // Connect to the button's clicked signal
@@ -114,6 +126,9 @@ The SignalHub provides powerful signal discovery capabilities:
 // Find all signals matching a pattern
 $buttonSignals = $hub->findSignals('button.*');
 
+// Find all signals matching a pattern for a specific object
+$buttonSignals = $hub->findSignals('clicked', $button);
+
 // Connect to all found signals
 foreach ($buttonSignals as $name => $signal) {
     echo "Found signal: {$name}\n";
@@ -122,6 +137,10 @@ foreach ($buttonSignals as $name => $signal) {
         echo "Handler for {$name} triggered with: {$id}\n";
     });
 }
+
+// Get a specific signal (standalone or object-owned)
+$clickedSignal = $hub->getSignal('clicked', $button);       // Get object signal
+$globalSignal = $hub->getSignal('application.started');     // Get standalone signal
 
 // Get info about all registered signals
 $allSignals = $hub->getAllSignals();
@@ -187,21 +206,21 @@ $signal->disconnect($handler);
 The system consists of three main components:
 
 1. **SignalHub**: Registry for signal creation and discovery
-    - `createSignal()` - Create standalone signals
-    - `findSignals()` - Find signals by pattern
-    - `getStandaloneSignal()` / `getObjectSignal()` - Retrieve specific signals
-    - `registerSignal()` - Register signals with the hub
+   - `createSignal()` - Create standalone signals
+   - `getSignal()` - Get a signal by name with optional owner
+   - `findSignals()` - Find signals by pattern with optional owner
+   - `registerSignal()` - Register signals with the hub
 
 2. **Signal**: Core signal functionality
-    - `connect()` - Connect handlers (callable or object methods)
-    - `emit()` - Emit the signal with parameters
-    - `disconnect()` - Remove connections
+   - `connect()` - Connect handlers (callable or object methods)
+   - `emit()` - Emit the signal with parameters
+   - `disconnect()` - Remove connections
 
 3. **HasSignals trait**: Makes any class capable of having signals
-    - `createSignal()` - Create signals owned by the object
-    - `emit()` - Emit object signals
-    - `signal()` - Get a specific signal
-    - `registerWithHub()` - Register with the SignalHub
+   - `createSignal()` - Create signals owned by the object
+   - `emit()` - Emit object signals
+   - `signal()` - Get a specific signal
+   - `registerWithHub()` - Register with the SignalHub
 
 ## Differences from Qt
 
@@ -271,6 +290,36 @@ $loginForm->signal('validated')->connect(function(string $formName, bool $isVali
 $loginForm->submit(['username' => 'john', 'password' => 'secret']);
 ```
 
+## Signal Access from Different Components
+
+Access signals from various parts of your application through the unified API:
+
+```php
+// Component 1: Creating and using signals directly
+$button = new Button('Submit', $hub);
+$button->click();
+
+// Component 2: Working with buttons via the hub
+$buttonSignal = $hub->getSignal('clicked', $button);
+$buttonSignal->connect(function(string $label) {
+    echo "Button handler attached via hub: {$label}\n";
+});
+
+// Component 3: Listening for all form signals
+$formSignals = $hub->findSignals('form.*');
+// Process all form signals...
+
+// Component 4: Creating a logger for all signals
+$allSignals = $hub->getAllSignals();
+foreach ($allSignals as $info) {
+    $signal = $info['signal'];
+    $signal->connect(function(...$args) use ($info) {
+        $name = $info['standalone'] ? $info['name'] : "{$info['class']}::{$info['name']}";
+        echo "LOG: Signal {$name} emitted\n";
+    });
+}
+```
+
 ## Best Practices
 
 1. Use meaningful signal names, preferably in dot notation (e.g., 'user.login', 'form.submitted')
@@ -280,6 +329,7 @@ $loginForm->submit(['username' => 'john', 'password' => 'secret']);
 5. Use pattern matching for logging and debugging purposes
 6. Keep signals focused on specific events
 7. Consider using priorities for handlers that need to run first or last
+8. Use the unified getSignal() and findSignals() methods for a consistent experience
 
 ## License
 
