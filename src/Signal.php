@@ -194,37 +194,98 @@
 		}
 		
 		/**
-		 * Checks if signal type is compatible with slot type
-		 * @param string $signalType Signal parameter type
-		 * @param string $slotType Slot parameter type
-		 * @return bool True if types are compatible
+		 * Checks if a type from a signal parameter is compatible with a slot parameter type
+		 * @param string $signalType The type of the value being passed (from signal emission)
+		 * @param string $slotType The type declaration of the receiving parameter
+		 * @return bool True if types are compatible, false otherwise
 		 */
 		private function isTypeCompatible(string $signalType, string $slotType): bool {
-			$primitiveTypes = ['int', 'float', 'string', 'bool', 'array'];
-			
-			// Normalize types
+			// Normalize type names to handle aliases
 			$signalType = $this->normalizeType($signalType);
 			$slotType = $this->normalizeType($slotType);
 			
-			// Exact match
+			// Handle special case for generic 'object' type
+			if ($this->isGenericObjectCompatibility($signalType, $slotType)) {
+				return true;
+			}
+			
+			// If types are exactly the same, they're compatible
 			if ($signalType === $slotType) {
 				return true;
 			}
 			
-			// Check primitive type compatibility
-			$isSignalPrimitive = in_array($signalType, $primitiveTypes);
-			$isSlotPrimitive = in_array($slotType, $primitiveTypes);
-			
-			if ($isSignalPrimitive && $isSlotPrimitive) {
-				return false;  // Different primitive types are not compatible
+			// Handle primitive types compatibility
+			if ($this->involvesNonCompatiblePrimitives($signalType, $slotType)) {
+				return false;
 			}
 			
-			if ($isSignalPrimitive || $isSlotPrimitive) {
-				return false;  // A primitive type is not compatible with an object type
+			// Check class inheritance for compatibility
+			return $this->hasInheritanceRelationship($signalType, $slotType);
+		}
+		
+		/**
+		 * Checks if either type is a generic 'object' type and the other is a class
+		 * @param string $typeA First type to check
+		 * @param string $typeB Second type to check
+		 * @return bool True if one is 'object' and the other is a class
+		 */
+		private function isGenericObjectCompatibility(string $typeA, string $typeB): bool {
+			// If typeB is generic 'object', check if typeA is a class
+			if ($typeB === 'object' && $this->isClassName($typeA)) {
+				return true;
 			}
 			
-			// Both are object types - check inheritance
-			return is_subclass_of($signalType, $slotType) || is_subclass_of($slotType, $signalType);
+			// If typeA is generic 'object', check if typeB is a class
+			if ($typeA === 'object' && $this->isClassName($typeB)) {
+				return true;
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Determines if a type string represents a class name
+		 * @param string $type Type to check
+		 * @return bool True if the type is likely a class name
+		 */
+		private function isClassName(string $type): bool {
+			return str_starts_with($type, '\\') || class_exists($type);
+		}
+		
+		/**
+		 * Checks if the types involve non-compatible primitive types
+		 * @param string $typeA First type to check
+		 * @param string $typeB Second type to check
+		 * @return bool True if types are primitive and not compatible
+		 */
+		private function involvesNonCompatiblePrimitives(string $typeA, string $typeB): bool {
+			$primitiveTypes = ['int', 'float', 'string', 'bool', 'array'];
+			
+			$isTypeAPrimitive = in_array($typeA, $primitiveTypes);
+			$isTypeBPrimitive = in_array($typeB, $primitiveTypes);
+			
+			// If one is primitive and the other isn't, they're not compatible
+			if ($isTypeAPrimitive !== $isTypeBPrimitive) {
+				return true;
+			}
+			
+			// If both are primitives but different types, they're not compatible
+			if ($isTypeAPrimitive && $isTypeBPrimitive && $typeA !== $typeB) {
+				return true;
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Checks if two class types have an inheritance relationship
+		 * @param string $classA First class name
+		 * @param string $classB Second class name
+		 * @return bool True if one class inherits from the other
+		 */
+		private function hasInheritanceRelationship(string $classA, string $classB): bool {
+			// Check if either class inherits from the other
+			return is_subclass_of($classA, $classB) || is_subclass_of($classB, $classA);
 		}
 		
 		/**
