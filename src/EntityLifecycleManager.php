@@ -18,7 +18,7 @@
 	namespace Quellabs\ObjectQuel;
 	
 	use Quellabs\AnnotationReader\Exception\ParserException;
-	use Quellabs\ObjectQuel\Annotations\Orm\HasLifecycleCallbacks;
+	use Quellabs\ObjectQuel\Annotations\Orm\LifecycleAware;
 	use Quellabs\ObjectQuel\Annotations\Orm\PrePersist;
 	use Quellabs\ObjectQuel\Annotations\Orm\PostPersist;
 	use Quellabs\ObjectQuel\Annotations\Orm\PreUpdate;
@@ -169,7 +169,7 @@
 				
 				// Check if any annotation is an instance of HasLifecycleCallbacks
 				foreach($annotations as $annotation) {
-					if ($annotation instanceof HasLifecycleCallbacks) {
+					if ($annotation instanceof LifecycleAware) {
 						return $this->hasLifecycleCallbacksCache[$className] = true;
 					}
 				}

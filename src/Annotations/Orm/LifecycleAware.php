@@ -4,12 +4,12 @@
 	
 	use Quellabs\AnnotationReader\AnnotationInterface;
 	
-	class HasLifecycleCallbacks implements AnnotationInterface {
+	class LifecycleAware implements AnnotationInterface {
 		
 		protected array $parameters;
 		
 		/**
-		 * HasLifecycleCallbacks constructor.
+		 * LifecycleAware constructor.
 		 * @param array $parameters
 		 */
 		public function __construct(array $parameters) {

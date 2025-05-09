@@ -73,7 +73,6 @@
 		 * This method handles the complete update process including:
 		 * - Detecting which fields have changed
 		 * - Building and executing the UPDATE SQL statement
-		 * - Running pre/post update lifecycle hooks
 		 *
 		 * @param object $entity The entity to be updated in the database
 		 * @return void
