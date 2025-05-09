@@ -440,6 +440,15 @@
 		    // Yes, cascading removal should be performed
 		    return true;
 	    }
+		
+	    /**
+	     * Determines if cascading persist should be performed
+	     * @param object $cascadeAnnotation The cascade annotation object
+	     * @return bool True if cascading removal should be performed
+	     */
+	    private function shouldCascadePersist(object $cascadeAnnotation): bool {
+		    return in_array('persist', $cascadeAnnotation->getOperations());
+	    }
 	    
 	    /**
 	     * Find and schedule deletion of dependent objects
