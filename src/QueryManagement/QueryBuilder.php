@@ -17,30 +17,29 @@
 		}
 		
 		/**
-		 * Genereert een array van bereikdefinities voor de hoofdentiteit en haar relaties.
-		 * Deze methode wordt gebruikt om de bereiken te definiëren voor de query die uitgevoerd zal worden.
-		 * Het combineert zowel ManyToOne als OneToMany afhankelijkheden om een uitgebreid overzicht
-		 * van de relaties van de entiteit te bieden. Als er geen ManyToOne afhankelijkheden zijn,
-		 * wordt de hoofdentiteit als een stand-alone bereik toegevoegd.
-		 * @param string $entityType De entiteitstype waarvoor de relaties opgehaald moeten worden.
-		 * @return array Een array met de bereikdefinities voor de entiteit en haar relaties.
+		 * Generates an array of range definitions for the main entity and its relationships.
+		 * This method is used to define the ranges for the query that will be executed.
+		 * It combines both ManyToOne and OneToMany dependencies to provide a comprehensive overview
+		 * of the entity's relationships. If there are no ManyToOne dependencies,
+		 * the main entity is added as a stand-alone range.
+		 * @param string $entityType The entity type for which relationships should be retrieved.
+		 * @return array An array with range definitions for the entity and its relationships.
 		 */
 		private function getRelationRanges(string $entityType): array {
-			$ranges = [];
-			$rangeCounter = 0;
+			// The first range is always 'main'
+			$ranges[] = ['main' => "range of main is {$entityType}"];
 			
-			// Eerst range is altijd de main
-			$ranges['main'] = "range of main is {$entityType}";
-            
-			// Zoek op welke entities een relatie hebben met deze entity en verwerk ze
+			// Find which entities have a relationship with this entity and process them
+			$rangeCounter = 0;
+
 			foreach($this->entityStore->getDependentEntities($entityType) as $dependentEntityType) {
 				$this->processOneToOneDependencies($entityType, $dependentEntityType, $ranges, $rangeCounter);
 				
-				// Verwerkt ManyToOne relaties en voegt deze toe aan de bereiken.
+				// Process ManyToOne relationships and add them to the ranges.
 				$this->processManyToOneDependencies($entityType, $dependentEntityType, $ranges, $rangeCounter);
 			}
 			
-			// Retourneer de ranges lijst
+			// Return the range list
 			return $ranges;
 		}
 		
@@ -64,101 +63,100 @@
 		}
 		
 		/**
-		 * Creëert een unieke alias voor een range op basis van een meegegeven teller.
-		 * Deze methode genereert een alias door de huidige waarde van de range teller
-		 * voor te stellen met een 'r' prefix. Deze alias wordt gebruikt om ranges uniek te
-		 * identificeren binnen een query.
-		 * @param int $rangeCounter Een referentie naar de teller die wordt gebruikt om een unieke alias te genereren.
-		 * @return string De gegenereerde unieke alias voor de range.
+		 * Creates a unique alias for a range based on a provided counter.
+		 * This method generates an alias by representing the current value of the range counter
+		 * with an 'r' prefix. This alias is used to uniquely identify ranges within a query.
+		 * @param int $rangeCounter A reference to the counter used to generate a unique alias.
+		 * @return string The generated unique alias for the range.
 		 */
 		private function createAlias(int &$rangeCounter): string {
 			return "r{$rangeCounter}";
 		}
 		
 		/**
-		 * Verwerkt OneToOne afhankelijkheden voor een gegeven entity type.
-		 * @param string $entityType Het type van de entiteit waarvoor relaties worden verwerkt.
+		 * Processes OneToOne dependencies for a given entity type.
+		 * @param string $entityType The type of entity for which relationships are being processed.
 		 * @param string $dependentEntityType
-		 * @param array $ranges Een array van bestaande ranges die moet worden uitgebreid.
-		 * @param int $rangeCounter Een teller om unieke aliassen voor ranges te creëren.
+		 * @param array $ranges An array of existing ranges that needs to be extended.
+		 * @param int $rangeCounter A counter to create unique aliases for ranges.
 		 * @return void
 		 */
 		private function processOneToOneDependencies(string $entityType, string $dependentEntityType, array &$ranges, int &$rangeCounter): void {
-			// Haal alle niet LAZY manyToOne dependencies op
+			// Get all non-LAZY oneToOne dependencies
 			$oneToOneDependencies = $this->entityStore->getOneToOneDependencies($dependentEntityType);
 			$oneToOneDependenciesFiltered = array_filter($oneToOneDependencies, function($e) { return $e->getInversedBy() === null; });
 			$oneToOneDependenciesFiltered = array_filter($oneToOneDependenciesFiltered, function($e) { return $e->getFetch() !== "LAZY"; });
 			$oneToOneDependenciesFiltered = array_filter($oneToOneDependenciesFiltered, function($e) use ($entityType) { return $e->getTargetEntity() === $entityType; });
 			
 			foreach ($oneToOneDependenciesFiltered as $propertyName => $relation) {
-				// Creëer een unieke alias voor de range.
+				// Create a unique alias for the range.
 				$alias = $this->createAlias($rangeCounter);
 				
-				// Haal relatie kolommen op
+				// Get relationship columns
 				$inversedBy = $relation->getInversedBy();
 				$relationColumn = $relation->getRelationColumn();
 				
-				// Voeg de range toe
+				// Add the range
 				$ranges[$alias] = "range of {$alias} is {$dependentEntityType} via {$alias}.{$relationColumn}=main.{$inversedBy}";
 				
-				// Verhoog de range counter voor de volgende unieke range.
+				// Increment the range counter for the next unique range.
 				++$rangeCounter;
 			}
 		}
-        
-        /**
-		 * Verwerkt ManyToOne afhankelijkheden voor een gegeven entity type.
-		 * Deze methode loopt door alle ManyToOne relaties van het opgegeven entiteitstype en voegt
-		 * voor elke relatie een nieuwe range toe aan de meegegeven array. Deze ranges worden
-		 * gebruikt voor het bouwen van query's met gerelateerde entiteiten. Tevens wordt de hoofdentiteit
-		 * ingesteld met een 'via' clausule indien er ManyToOne relaties bestaan.
-		 * @param string $entityType Het type van de entiteit waarvoor relaties worden verwerkt.
+		
+		/**
+		 * Processes ManyToOne dependencies for a given entity type.
+		 * This method iterates through all ManyToOne relationships of the specified entity type and adds
+		 * a new range to the provided array for each relationship. These ranges are
+		 * used for building queries with related entities. Additionally, the main entity
+		 * is set with a 'via' clause if ManyToOne relationships exist.
+		 * @param string $entityType The type of entity for which relationships are being processed.
 		 * @param string $dependentEntityType
-		 * @param array $ranges Een array van bestaande ranges die moet worden uitgebreid.
-		 * @param int $rangeCounter Een teller om unieke aliassen voor ranges te creëren.
+		 * @param array $ranges An array of existing ranges that needs to be extended.
+		 * @param int $rangeCounter A counter to create unique aliases for ranges.
 		 * @return void
 		 */
 		private function processManyToOneDependencies(string $entityType, string $dependentEntityType, array &$ranges, int &$rangeCounter): void {
-			// Haal alle niet LAZY manyToOne dependencies op
+			// Get all non-LAZY manyToOne dependencies
 			$manyToOneDependencies = $this->entityStore->getManyToOneDependencies($dependentEntityType);
 			$manyToOneDependenciesFiltered = array_filter($manyToOneDependencies, function($e) { return $e->getFetch() !== "LAZY"; });
 			$manyToOneDependenciesFiltered = array_filter($manyToOneDependenciesFiltered, function($e) use ($entityType) { return $e->getTargetEntity() === $entityType; });
 			
 			foreach ($manyToOneDependenciesFiltered as $propertyName => $relation) {
-				// Creëer een unieke alias voor de range.
+				// Create a unique alias for the range.
 				$alias = $this->createAlias($rangeCounter);
 				
-				// Haal relatie kolommen op
+				// Get relationship columns
 				$inversedBy = $relation->getInversedBy();
 				$relationColumn = $relation->getRelationColumn();
 				
-				// Voeg de nieuwe range toe aan de lijst.
+				// Add the new range to the list.
 				$ranges[$alias] = "range of {$alias} is {$dependentEntityType} via {$alias}.{$relationColumn}=main.{$inversedBy}";
 				
-				// Verhoog de range counter voor de volgende unieke range.
+				// Increment the range counter for the next unique range.
 				++$rangeCounter;
 			}
 		}
-        
+		
 		/**
-		 * Bereidt een query voor op basis van het gegeven entiteitstype en primaire sleutels.
-		 * Deze functie genereert een query string die gebruikt kan worden om een entiteit en
-		 * haar gerelateerde entiteiten op te halen.
-		 * @param string $entityType Het type van de entiteit waarvoor de query wordt voorbereid.
-		 * @param array $primaryKeys De primaire sleutels voor de entiteit.
-		 * @return string De samengestelde query string.
+		 * Prepares a query based on the given entity type and primary keys.
+		 * This function generates a query string that can be used to retrieve an entity
+		 * and its related entities.
+		 * @param string $entityType The type of entity for which the query is being prepared.
+		 * @param array $primaryKeys The primary keys for the entity.
+		 * @return string The composed query string.
 		 */
 		public function prepareQuery(string $entityType, array $primaryKeys): string {
-			// Haal de bereikdefinities op voor de relaties van de entiteit.
+			// Get the range definitions for the entity's relationships.
 			$relationRanges = $this->getRelationRanges($entityType);
 			
-			// Implementeer de bereikdefinities in de query.
+			// Implement the range definitions in the query.
 			$rangesImpl = implode("\n", $relationRanges);
 			
-			// Maak een WHERE-string op basis van de primaire sleutels.
+			// Create a WHERE string based on the primary keys.
 			$whereString = $this->parametersToString($primaryKeys, "main");
 			
-			// Combineer alles tot de uiteindelijke query string.
+			// Combine everything into the final query string.
 			return "{$rangesImpl}\nretrieve unique (" . implode(",", array_keys($relationRanges)) . ") where {$whereString}";
 		}
 	}

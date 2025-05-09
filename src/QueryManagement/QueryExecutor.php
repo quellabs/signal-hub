@@ -50,43 +50,141 @@
 		}
 		
 		/**
-		 * Verwijdert dubbele objecten uit een array op basis van hun object-hash.
-		 * Niet-objecten in de array worden ongewijzigd gelaten.
-		 * @param array $array De input array met mogelijk dubbele objecten.
-		 * @return array Een array met unieke objecten en alle oorspronkelijke niet-object elementen.
+		 * Returns the DatabaseAdapter
+		 * @return DatabaseAdapter
+		 */
+		public function getConnection(): DatabaseAdapter {
+			return $this->connection;
+		}
+		
+		/**
+		 * Removes duplicate objects from an array based on their object hash.
+		 * Non-objects in the array are left unchanged.
+		 * @param array $array The input array with possibly duplicate objects.
+		 * @return array An array with unique objects and all original non-object elements.
 		 */
 		public function deDuplicateObjects(array $array): array {
-			// Opslag voor de hashes van objecten die al zijn gezien.
+			// Storage for the hashes of objects that have already been seen.
 			$objectKeys = [];
 			
-			// Gebruik array_filter om door de array te gaan en dubbele objecten te verwijderen.
+			// Use array_filter to go through the array and remove duplicate objects.
 			return array_filter($array, function ($item) use (&$objectKeys) {
-				// Als het item geen object is, behoud het in de array.
+				// If the item is not an object, keep it in the array.
 				if (!is_object($item)) {
 					return true;
 				}
 				
-				// Bereken de unieke hash van het object.
+				// Calculate the unique hash of the object.
 				$hash = spl_object_hash($item);
 				
-				// Controleer of de hash al in de lijst van gezien objecten staat.
+				// Check if the hash is already in the list of seen objects.
 				if (in_array($hash, $objectKeys)) {
-					// Als ja, filter dit object uit de array.
+					// If yes, filter this object out of the array.
 					return false;
 				}
 				
-				// Voeg de hash toe aan de lijst van gezien objecten en behoud het item in de array.
+				// Add the hash to the list of seen objects and keep the item in the array.
 				$objectKeys[] = $hash;
 				return true;
 			});
 		}
 		
 		/**
-		 * Returns the DatabaseAdapter
-		 * @return DatabaseAdapter
+		 * Execute a database query and return the results
+		 * @param ExecutionStage $stage
+		 * @param array $initialParams (Optional) An array of parameters to bind to the query
+		 * @return array
+		 * @throws QuelException
 		 */
-		public function getConnection(): DatabaseAdapter {
-			return $this->connection;
+		public function executeStage(ExecutionStage $stage, array $initialParams = []): array {
+			$queryType = $stage->getRange() instanceof AstRangeJsonSource ? 'json' : 'database';
+			
+			return match ($queryType) {
+				'json' => $this->executeSimpleQueryJson($stage, $initialParams),
+				'database' => $this->executeSimpleQueryDatabase($stage, $initialParams),
+			};
+		}
+		
+		/**
+		 * Retrieves all results of an executed ObjectQuel query.
+		 * @param string $query
+		 * @param array $parameters
+		 * @return array
+		 * @throws QuelException
+		 */
+		public function getAll(string $query, array $parameters = []): array {
+			// Executes the query with the specified parameters.
+			$rs = $this->executeQuery($query, $parameters);
+			
+			// Checks if the query has successful results.
+			if ($rs->recordCount() == 0) {
+				return [];
+			}
+			
+			// Iterates through all rows of the result.
+			$result = [];
+			while ($row = $rs->fetchRow()) {
+				$result[] = $row;
+			}
+			
+			return $result;
+		}
+		
+		/**
+		 * Executes an ObjectQuel query and returns an array of objects from the
+		 * first column of each result, with duplicates removed.
+		 * @param string $query The ObjectQuel query to execute.
+		 * @param array $parameters Optional parameters for the query.
+		 * @return array An array of unique objects from the first column of the query results.
+		 * @throws QuelException
+		 */
+		public function getCol(string $query, array $parameters = []): array {
+			// Executes the query with the specified parameters.
+			$rs = $this->executeQuery($query, $parameters);
+			
+			// Checks if the query was successful and has results.
+			if ($rs->recordCount() == 0) {
+				return [];
+			}
+			
+			// Get the result
+			$result = [];
+			$keys = null;
+			
+			while ($row = $rs->fetchRow()) {
+				// Determines the keys (column names) of the first row, if not already determined.
+				if ($keys === null) {
+					$keys = array_keys($row);
+				}
+				
+				// Adds the value of the first column to the result.
+				$result[] = $row[$keys[0]];
+			}
+			
+			// Returns deduplicated results.
+			return $this->deDuplicateObjects($result);
+		}
+		
+		/**
+		 * Execute a decomposed query plan
+		 * @param string $query The query to execute
+		 * @param array $parameters Initial parameters for the plan
+		 * @return QuelResult The results of the execution plan
+		 * @throws QuelException
+		 */
+		public function executeQuery(string $query, array $parameters = []): QuelResult {
+			// Parse the input query string into an Abstract Syntax Tree (AST)
+			$ast = $this->getObjectQuel()->parse($query);
+			
+			// Decompose the query
+			$decomposer = new QueryDecomposer();
+			$executionPlan = $decomposer->buildExecutionPlan($ast, $parameters);
+			
+			// Execute the returned execution plan and return the QuelResult
+			$result = $this->planExecutor->execute($executionPlan);
+			
+			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
+			return new QuelResult($this->entityManager, $ast, $result);
 		}
 		
 		/**
@@ -96,19 +194,19 @@
 		 * @return array The QuelResult object
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryDatabase(ExecutionStage $stage, array $initialParams = []): array {
-			// Converteer de query naar SQL
+		private function executeSimpleQueryDatabase(ExecutionStage $stage, array $initialParams = []): array {
+			// Convert the query to SQL
 			$sql = $this->objectQuel->convertToSQL($stage->getQuery(), $initialParams);
 			
-			// Voer de SQL query uit
+			// Execute the SQL query
 			$rs = $this->connection->execute($sql, $initialParams);
 			
-			// Indien de query incorrect is, gooi een exception
+			// If the query is incorrect, throw an exception
 			if (!$rs) {
 				throw new QuelException($this->connection->getLastErrorMessage());
 			}
 			
-			// Haal alle data op en stuur dit door naar QuelResult
+			// Retrieve all data and pass it to QuelResult
 			$result = [];
 			while ($row = $rs->fetch('assoc')) {
 				$result[] = $row;
@@ -123,7 +221,7 @@
 		 * @return array
 		 * @throws QuelException
 		 */
-		protected function loadAndFilterJsonFile(AstRangeJsonSource $source): array {
+		private function loadAndFilterJsonFile(AstRangeJsonSource $source): array {
 			// Load the JSON file
 			$contents = file_get_contents($source->getPath());
 			
@@ -171,7 +269,7 @@
 		 * @return array
 		 * @throws QuelException
 		 */
-		protected function executeSimpleQueryJson(ExecutionStage $stage, array $initialParams = []): array {
+		private function executeSimpleQueryJson(ExecutionStage $stage, array $initialParams = []): array {
 			// Load the JSON file and perform initial filtering
 			$contents = $this->loadAndFilterJsonFile($stage->getRange());
 			
@@ -186,103 +284,5 @@
 			}
 			
 			return $result;
-		}
-		
-		/**
-		 * Execute a database query and return the results
-		 * @param ExecutionStage $stage
-		 * @param array $initialParams (Optional) An array of parameters to bind to the query
-		 * @return array
-		 * @throws QuelException
-		 */
-		public function executeStage(ExecutionStage $stage, array $initialParams = []): array {
-			$queryType = $stage->getRange() instanceof AstRangeJsonSource ? 'json' : 'database';
-			
-			return match ($queryType) {
-				'json' => $this->executeSimpleQueryJson($stage, $initialParams),
-				'database' => $this->executeSimpleQueryDatabase($stage, $initialParams),
-			};
-		}
-		
-		/**
-		 * Haalt alle resultaten van een uitgevoerde ObjectQuel-query op.
-		 * @param string $query
-		 * @param array $parameters
-		 * @return array
-		 * @throws QuelException
-		 */
-		public function getAll(string $query, array $parameters = []): array {
-			// Voert de query uit met de opgegeven parameters.
-			$rs = $this->executeQuery($query, $parameters);
-			
-			// Controleert of de query succesvol resultaten heeft.
-			if ($rs->recordCount() == 0) {
-				return [];
-			}
-			
-			// Loopt door alle rijen van het resultaat.
-			$result = [];
-			while ($row = $rs->fetchRow()) {
-				$result[] = $row;
-			}
-			
-			return $result;
-		}
-		
-		/**
-		 * Voert een ObjectQuel-query uit en retourneert een array met objecten uit de
-		 * eerste kolom van elk resultaat, waarbij duplicaten verwijderd zijn.
-		 * @param string $query De ObjectQuel-query om uit te voeren.
-		 * @param array $parameters Optionele parameters voor de query.
-		 * @return array Een array met unieke objecten uit de eerste kolom van de queryresultaten.
-		 * @throws QuelException
-		 */
-		public function getCol(string $query, array $parameters = []): array {
-			// Voert de query uit met de opgegeven parameters.
-			$rs = $this->executeQuery($query, $parameters);
-			
-			// Controleert of de query succesvol was en resultaten heeft.
-			if ($rs->recordCount() == 0) {
-				return [];
-			}
-			
-			// Haal resultaat op
-			$result = [];
-			$keys = null;
-			
-			while ($row = $rs->fetchRow()) {
-				// Bepaalt de sleutels (kolomnamen) van de eerste rij, indien nog niet bepaald.
-				if ($keys === null) {
-					$keys = array_keys($row);
-				}
-				
-				// Voegt de waarde van de eerste kolom toe aan het resultaat.
-				$result[] = $row[$keys[0]];
-			}
-			
-			// Retourneert ontdubbelde resultaten.
-			return $this->deDuplicateObjects($result);
-		}
-		
-		/**
-		 * Execute a decomposed query plan
-		 * @param string $query The query to execute
-		 * @param array $parameters Initial parameters for the plan
-		 * @return QuelResult The results of the execution plan
-		 * @throws QuelException
-		 */
-		public function executeQuery(string $query, array $parameters = []): QuelResult {
-			// Parse the input query string into an Abstract Syntax Tree (AST)
-			$ast = $this->getObjectQuel()->parse($query);
-			
-			// Decompose the query
-			$decomposer = new QueryDecomposer();
-			$executionPlan = $decomposer->buildExecutionPlan($ast, $parameters);
-			
-			// Execute the returned execution plan and return the QuelResult
-			$result = $this->planExecutor->execute($executionPlan);
-			
-			// QuelResult gebruikt de AST om de ontvangen data te transformeren naar entities
-			return new QuelResult($this->entityManager, $ast, $result);
 		}
 	}

@@ -22,6 +22,7 @@
 	 * execution stages that can be managed by an ExecutionPlan.
 	 */
 	class QueryDecomposer {
+		
 		/**
 		 * @var array Cache of results for expensive operations
 		 */

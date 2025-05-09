@@ -984,19 +984,31 @@
 		 * Process cascading persists for a single entity.
 		 * This method handles the automatic persistence of related entities when
 		 * they are configured with cascade=persist in their relationship annotations.
-		 * It ensures that collections and related entities are properly saved when their parent is saved.
 		 * @param object $entity The entity whose relationships should be checked for cascade persist
 		 * @return void
 		 */
 		private function processCascadingPersistsForEntity(object $entity): void {
-			// First, process OneToMany relationships (collections of related entities)
-			// OneToMany typically represents collections like a User having many Posts
+			// Process OneToMany relationships
+			$this->processCascadingOneToManyPersists($entity);
+			
+			// Process OneToOne relationships
+			$this->processCascadingOneToOnePersists($entity);
+		}
+		
+		/**
+		 * Process cascading persists for OneToMany relationships of an entity.
+		 * This handles collections of related entities that should be persisted
+		 * when the parent entity is persisted.
+		 * @param object $entity The entity whose OneToMany relationships should be processed
+		 * @return void
+		 */
+		private function processCascadingOneToManyPersists(object $entity): void {
+			// Get OneToMany dependencies for this entity
 			$oneToManyDependencies = $this->getEntityStore()->getOneToManyDependencies($entity);
 			
 			// Check each OneToMany relationship defined in this entity
 			foreach ($oneToManyDependencies as $property => $annotation) {
 				// Retrieve cascade configuration from metadata for this property
-				// This contains information about whether changes should cascade to related entities
 				$cascadeInfo = $this->getCascadeInfo(get_class($entity), $property);
 				
 				// Skip this relationship if:
@@ -1007,11 +1019,9 @@
 				}
 				
 				// Get the actual collection of related entities from the entity's property
-				// This might be an array, ArrayCollection, or other collection implementation
 				$collection = $this->property_handler->get($entity, $property);
 				
 				// Skip if the collection property is null (no collection initialized)
-				// This prevents null pointer errors when accessing the collection
 				if ($collection === null) {
 					continue;
 				}
@@ -1022,7 +1032,6 @@
 				}
 				
 				// Iterate through each entity in the collection
-				// These are the "many" side entities that belong to the current entity
 				foreach ($collection as $relatedEntity) {
 					// Check if the related entity is already being tracked in the identity map
 					if ($this->isInIdentityMap($relatedEntity)) {
@@ -1033,20 +1042,25 @@
 					$this->persistNew($relatedEntity);
 					
 					// Recursively process the related entity's own cascading relationships
-					// This handles nested cascades (e.g., A → B → C) where all should be persisted
 					$this->processCascadingPersistsForEntity($relatedEntity);
 				}
 			}
-			
-			// Next, process OneToOne relationships (single related entities)
-			// OneToOne typically represents 1:1 associations like User having one Profile
+		}
+		
+		/**
+		 * Process cascading persists for OneToOne relationships of an entity.
+		 * This handles single related entities that should be persisted
+		 * when the parent entity is persisted.
+		 * @param object $entity The entity whose OneToOne relationships should be processed
+		 * @return void
+		 */
+		private function processCascadingOneToOnePersists(object $entity): void {
+			// Get OneToOne dependencies for this entity
 			$oneToOneDependencies = $this->getEntityStore()->getOneToOneDependencies($entity);
 			
 			// Check each OneToOne relationship defined in this entity
 			foreach ($oneToOneDependencies as $property => $annotation) {
 				// Skip if this is the inverse (non-owning) side of the relationship
-				// We only want to process the owning side to avoid duplicate processing
-				// The owning side is identified by having a mappedBy attribute
 				if (empty($annotation->getMappedBy())) {
 					continue;
 				}
@@ -1081,7 +1095,6 @@
 				$this->persistNew($relatedEntity);
 				
 				// Recursively process the related entity's own cascading relationships
-				// This ensures complete cascade chains are followed
 				$this->processCascadingPersistsForEntity($relatedEntity);
 			}
 		}

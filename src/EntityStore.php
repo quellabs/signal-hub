@@ -79,121 +79,20 @@
 		}
 	    
 	    /**
-	     * Initialize entity classes using the EntityLocator.
-	     * This method discovers entity classes, validates them,
-	     * and loads their properties and annotations into memory.
-	     * @return void
+	     * Returns the annotationReader object
+	     * @return AnnotationReader
 	     */
-	    private function initializeEntities(): void {
-		    try {
-			    // Discover all entities using the EntityLocator
-			    $entityClasses = $this->entity_locator->discoverEntities();
-			    
-			    // Process each discovered entity
-			    foreach ($entityClasses as $entityName) {
-				    // Initialize data structures for this entity
-				    $this->entity_annotations[$entityName] = [];
-				    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
-				    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Quellabs\\ObjectQuel\\Annotations\\Orm\\Table"]->getName();
-				    
-				    // Process each property of the entity
-				    foreach ($this->entity_properties[$entityName] as $property) {
-					    // Get annotations for the current property
-					    $annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
-					    
-					    // Store property annotations in the entity_annotations array
-					    $this->entity_annotations[$entityName][$property] = $annotations;
-				    }
-			    }
-		    } catch (\Exception $e) {
-			    // Log or handle initialization errors
-			    throw new OrmException("Error initializing entities: " . $e->getMessage(), 0, $e);
-		    }
+	    public function getAnnotationReader(): AnnotationReader {
+		    return $this->annotation_reader;
 	    }
-		
-		/**
-		 * Returns a list of entities and their manytoone dependencies
-		 * @return array
-		 */
-		private function getAllEntityDependencies(): array {
-			if ($this->dependencies === null) {
-				$this->dependencies = [];
-
-				foreach (array_keys($this->entity_table_name) as $class) {
-					$manyToOneDependencies = $this->getManyToOneDependencies($class);
-					$oneToOneDependencies = array_filter($this->getOneToOneDependencies($class), function($e) { return !empty($e->getInversedBy()); });
-					
-					$this->dependencies[$class] = array_unique(array_merge(
-						array_map(function($e) { return $e->getTargetEntity(); }, $manyToOneDependencies),
-						array_map(function($e) { return $e->getTargetEntity(); }, $oneToOneDependencies),
-					));
-				}
-			}
-			
-			return $this->dependencies;
-		}
-		
-		/**
-		 * Interne helper functies voor het ophalen van properties met een bepaalde annotatie
-		 * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
-		 * @param string $desiredAnnotationType Het type van de afhankelijkheid
-		 * @return array
-		 */
-		private function internalGetDependencies(mixed $entity, string $desiredAnnotationType): array {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Cache hash
-			$md5OfQuery = hash("sha256", $normalizedClass . "##" . $desiredAnnotationType);
-			
-			// Haal dependencies uit cache indien mogelijk
-			if (isset($this->dependencies_cache[$md5OfQuery])) {
-				return $this->dependencies_cache[$md5OfQuery];
-			}
-			
-			// Haal de annotaties op voor de opgegeven klasse.
-			$annotationList = $this->getAnnotations($normalizedClass);
-			
-			// Loop door elke annotatie om te controleren op een relatie.
-			$result = [];
-			
-			foreach ($annotationList as $property => $annotations) {
-				foreach ($annotations as $annotation) {
-					if ($annotation instanceof $desiredAnnotationType) {
-						$result[$property] = $annotation;
-						break; // Stop met zoeken als de gewenste annotatie is gevonden
-					}
-				}
-			}
-			
-			$this->dependencies_cache[$md5OfQuery] = $result;
-			return $result;
-		}
-		
-		/**
-         * Returns the annotationReader object
-         * @return AnnotationReader
-         */
-        public function getAnnotationReader(): AnnotationReader {
-            return $this->annotation_reader;
-        }
-    
-        /**
-         * Returns the ReflectionHandler object
-         * @return ReflectionHandler
-         */
-        public function getReflectionHandler(): ReflectionHandler {
-            return $this->reflection_handler;
-        }
+	    
+	    /**
+	     * Returns the ReflectionHandler object
+	     * @return ReflectionHandler
+	     */
+	    public function getReflectionHandler(): ReflectionHandler {
+		    return $this->reflection_handler;
+	    }
 	    
 	    /**
 	     * Normalizes the entity name to return the base entity class if the input is a proxy class.
@@ -258,7 +157,7 @@
 	     * @return string|null
 	     */
 	    public function getOwningTable(mixed $entity): ?string {
-			// Determine the class name of the entity
+		    // Determine the class name of the entity
 		    if (!is_object($entity)) {
 			    $entityClass = ltrim($entity, "\\");
 		    } elseif ($entity instanceof \ReflectionClass) {
@@ -266,152 +165,152 @@
 		    } else {
 			    $entityClass = get_class($entity);
 		    }
-
-			// If the class name is a proxy, get the parent class name
+		    
+		    // If the class name is a proxy, get the parent class name
 		    $normalizedClass = $this->normalizeEntityName($entityClass);
-
-			// Get the table name
+		    
+		    // Get the table name
 		    return $this->entity_table_name[$normalizedClass] ?? null;
 	    }
 	    
-		/**
-		 * Deze functie haalt de primaire sleutels van een gegeven entiteit op.
-		 * @param mixed $entity De entiteit waarvan de primaire sleutels worden opgehaald.
-		 * @return array Een array met de namen van de eigenschappen die de primaire sleutels zijn.
-		 */
-		public function getIdentifierKeys(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Gebruik de gecachte waarde als deze bestaat
-			if (isset($this->identifier_keys_cache[$normalizedClass])) {
-				return $this->identifier_keys_cache[$normalizedClass];
-			}
-			
-			// Ophalen van alle annotaties voor de gegeven entiteit.
-			$entityAnnotations = $this->getAnnotations($entity);
-			
-			// Zoek de primaire sleutels en cache het resultaat
-			$result = [];
-			
-			foreach ($entityAnnotations as $property => $annotations) {
-				foreach ($annotations as $annotation) {
-					if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
-						$result[] = $property;
-						break;
-					}
-				}
-			}
-			
-			// Cache het resultaat voor toekomstig gebruik
-			$this->identifier_keys_cache[$normalizedClass] = $result;
-			
-			// Retourneer het resultaat
-			return $result;
-		}
-
-		/**
-		 * Haalt de kolomnamen op die als primaire sleutel dienen voor een bepaalde entiteit.
-		 * @param mixed $entity De entiteit waarvoor de primaire sleutelkolommen worden opgehaald.
-		 * @return array Een array met de namen van de kolommen die als primaire sleutel dienen.
-		 */
-		public function getIdentifierColumnNames(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Gebruik de gecachte waarde als deze bestaat
-			if (isset($this->identifier_columns_cache[$normalizedClass])) {
-				return $this->identifier_columns_cache[$normalizedClass];
-			}
-			
-			// Haal alle annotaties op voor de gegeven entiteit
-			$annotationList = $this->getAnnotations($normalizedClass);
-			
-			// Initialiseer een lege array om de resultaten in op te slaan
-			$result = [];
-			
-			// Loop door alle annotaties van de entiteit
-			foreach ($annotationList as $annotations) {
-				foreach ($annotations as $annotation) {
-					if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
-						$result[] = $annotation->getName();
-					}
-				}
-			}
-			
-			// Cache het resultaat voor toekomstig gebruik
-			$this->identifier_columns_cache[$normalizedClass] = $result;
-			
-			// Retourneer het resultaat
-			return $result;
-		}
-		
-		/**
-		 * Verkrijgt de kaart tussen eigenschappen en kolomnamen voor een gegeven entiteit.
-		 * Deze functie genereert een associatieve array die de eigenschappen van een entiteit
-		 * koppelt aan hun respectievelijke kolomnamen in de database. De resultaten worden gecached
-		 * om herhaalde berekeningen te voorkomen.
-		 * @param mixed $entity Het object of de klassenaam van de entiteit.
-		 * @return array Een associatieve array met de eigenschap als sleutel en de kolomnaam als waarde.
-		 */
-		public function getColumnMap(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			if (!is_object($entity)) {
-				$entityClass = ltrim($entity, "\\");
-			} elseif ($entity instanceof \ReflectionClass) {
-				$entityClass = $entity->getName();
-			} else {
-				$entityClass = get_class($entity);
-			}
-			
-			// Als de klassenaam een proxy is, haal dan de class op van de parent
-			$normalizedClass = $this->normalizeEntityName($entityClass);
-			
-			// Gebruik de gecachte waarde als deze bestaat
-			if (isset($this->column_map_cache[$normalizedClass])) {
-				return $this->column_map_cache[$normalizedClass];
-			}
-			
-			// Haal alle annotaties voor de entiteit op
-			$annotationList = $this->getAnnotations($normalizedClass);
-			
-			// Loop door alle annotaties, gekoppeld aan hun respectievelijke eigenschappen
-			$result = [];
-
-			foreach ($annotationList as $property => $annotations) {
-				// Verkrijg de kolomnaam van de annotaties
-				foreach ($annotations as $annotation) {
-					if ($annotation instanceof Column) {
-						$result[$property] = $annotation->getName();
-						break;
-					}
-				}
-			}
-			
-			// Cache het resultaat voor toekomstig gebruik
-			$this->column_map_cache[$normalizedClass] = $result;
-			
-			// Retourneer het resultaat
-			return $result;
-		}
+	    /**
+	     * This function retrieves the primary keys of a given entity.
+	     * @param mixed $entity The entity from which the primary keys are retrieved.
+	     * @return array An array with the names of the properties that are the primary keys.
+	     */
+	    public function getIdentifierKeys(mixed $entity): array {
+		    // Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Use the cached value if it exists
+		    if (isset($this->identifier_keys_cache[$normalizedClass])) {
+			    return $this->identifier_keys_cache[$normalizedClass];
+		    }
+		    
+		    // Retrieve all annotations for the given entity.
+		    $entityAnnotations = $this->getAnnotations($entity);
+		    
+		    // Find the primary keys and cache the result
+		    $result = [];
+		    
+		    foreach ($entityAnnotations as $property => $annotations) {
+			    foreach ($annotations as $annotation) {
+				    if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
+					    $result[] = $property;
+					    break;
+				    }
+			    }
+		    }
+		    
+		    // Cache the result for future use
+		    $this->identifier_keys_cache[$normalizedClass] = $result;
+		    
+		    // Return the result
+		    return $result;
+	    }
+	    
+	    /**
+	     * Retrieves the column names that serve as primary keys for a specific entity.
+	     * @param mixed $entity The entity for which the primary key columns are retrieved.
+	     * @return array An array with the names of the columns that serve as primary keys.
+	     */
+	    public function getIdentifierColumnNames(mixed $entity): array {
+		    // Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Use the cached value if it exists
+		    if (isset($this->identifier_columns_cache[$normalizedClass])) {
+			    return $this->identifier_columns_cache[$normalizedClass];
+		    }
+		    
+		    // Retrieve all annotations for the given entity
+		    $annotationList = $this->getAnnotations($normalizedClass);
+		    
+		    // Initialize an empty array to store the results
+		    $result = [];
+		    
+		    // Loop through all annotations of the entity
+		    foreach ($annotationList as $annotations) {
+			    foreach ($annotations as $annotation) {
+				    if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
+					    $result[] = $annotation->getName();
+				    }
+			    }
+		    }
+		    
+		    // Cache the result for future use
+		    $this->identifier_columns_cache[$normalizedClass] = $result;
+		    
+		    // Return the result
+		    return $result;
+	    }
+	    
+	    /**
+	     * Obtains the map between properties and column names for a given entity.
+	     * This function generates an associative array that links the properties of an entity
+	     * to their respective column names in the database. The results are cached
+	     * to prevent repeated calculations.
+	     * @param mixed $entity The object or class name of the entity.
+	     * @return array An associative array with the property as key and the column name as value.
+	     */
+	    public function getColumnMap(mixed $entity): array {
+		    // Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Use the cached value if it exists
+		    if (isset($this->column_map_cache[$normalizedClass])) {
+			    return $this->column_map_cache[$normalizedClass];
+		    }
+		    
+		    // Retrieve all annotations for the entity
+		    $annotationList = $this->getAnnotations($normalizedClass);
+		    
+		    // Loop through all annotations, linked to their respective properties
+		    $result = [];
+		    
+		    foreach ($annotationList as $property => $annotations) {
+			    // Get the column name from the annotations
+			    foreach ($annotations as $annotation) {
+				    if ($annotation instanceof Column) {
+					    $result[$property] = $annotation->getName();
+					    break;
+				    }
+			    }
+		    }
+		    
+		    // Cache the result for future use
+		    $this->column_map_cache[$normalizedClass] = $result;
+		    
+		    // Return the result
+		    return $result;
+	    }
 	    
 	    /**
 	     * Returns the entity's annotations
@@ -428,75 +327,75 @@
 		    // Return the annotation information
 		    return $this->entity_annotations[$normalizedClass] ?? [];
 	    }
-		
-		/**
-		 * Haalt alle OneToOne-afhankelijkheden op voor een bepaalde entiteit.
-		 * @param mixed $entity De naam van de entiteit waarvoor je de OneToOne-afhankelijkheden wilt krijgen.
-		 * @return OneToOne[] Een associatieve array met als sleutel de naam van de doelentiteit en als waarde de annotatie.
-		 */
-		public function getOneToOneDependencies(mixed $entity): array {
-			return $this->internalGetDependencies($entity, OneToOne::class);
-		}
-		
-		/**
-		 * Haal de ManyToOne afhankelijkheden op voor een gegeven entiteitsklasse.
-		 * Deze functie gebruikt annotaties om te bepalen welke andere entiteiten
-		 * gerelateerd zijn aan de gegeven entiteitsklasse via een ManyToOne relatie.
-		 * De namen van deze gerelateerde entiteiten worden geretourneerd als een array.
-		 * @param mixed $entity De naam van de entiteitsklasse om te inspecteren.
-		 * @return ManyToOne[] Een array van entiteitsnamen waarmee de gegeven klasse een ManyToOne relatie heeft.
-		 */
-		public function getManyToOneDependencies(mixed $entity): array {
-			return $this->internalGetDependencies($entity, ManyToOne::class);
-		}
-		
-		/**
-		 * Haalt alle OneToMany-afhankelijkheden op voor een bepaalde entiteit.
-		 * @param mixed $entity De naam van de entiteit waarvoor je de OneToMany-afhankelijkheden wilt krijgen.
-		 * @return OneToMany[] Een associatieve array met als sleutel de naam van de doelentiteit en als waarde de annotatie.
-		 */
-		public function getOneToManyDependencies(mixed $entity): array {
-			return $this->internalGetDependencies($entity, OneToMany::class);
-		}
-        
-        /**
-         * Interne helper functie voor het ophalen van properties met een bepaalde annotatie
-         * @param mixed $entity De naam van de entiteit waarvoor je afhankelijkheden wilt krijgen.
-         * @return array
-         */
-        public function getAllDependencies(mixed $entity): array {
-			// Bepaal de klassenaam van de entiteit
-			$entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
-            
-            // Als de klassenaam een proxy is, haal dan de class op van de parent
-            $normalizedClass = $this->normalizeEntityName($entityClass);
-            
-            // Cache hash
-            $md5OfQuery = hash("sha256", $normalizedClass);
-            
-            // Haal dependencies uit cache indien mogelijk
-            if (isset($this->dependencies_cache[$md5OfQuery])) {
-                return $this->dependencies_cache[$md5OfQuery];
-            }
-            
-            // Haal de annotaties op voor de opgegeven klasse.
-            $annotationList = $this->getAnnotations($normalizedClass);
-            
-            // Loop door elke annotatie om te controleren op een relatie.
-			$result = [];
-			
-			foreach (array_keys($annotationList) as $property) {
-				foreach ($annotationList[$property] as $annotation) {
-					if ($annotation instanceof OneToMany || $annotation instanceof OneToOne || $annotation instanceof ManyToOne) {
-						$result[$property][] = $annotation;
-						continue 2;
-					}
-				}
-			}
-            
-            $this->dependencies_cache[$md5OfQuery] = $result;
-            return $result;
-        }
+	    
+	    /**
+	     * Retrieves all OneToOne dependencies for a specific entity.
+	     * @param mixed $entity The name of the entity for which you want to get the OneToOne dependencies.
+	     * @return OneToOne[] An associative array with the name of the target entity as key and the annotation as value.
+	     */
+	    public function getOneToOneDependencies(mixed $entity): array {
+		    return $this->internalGetDependencies($entity, OneToOne::class);
+	    }
+	    
+	    /**
+	     * Retrieve the ManyToOne dependencies for a given entity class.
+	     * This function uses annotations to determine which other entities
+	     * are related to the given entity class via a ManyToOne relationship.
+	     * The names of these related entities are returned as an array.
+	     * @param mixed $entity The name of the entity class to inspect.
+	     * @return ManyToOne[] An array of entity names with which the given class has a ManyToOne relationship.
+	     */
+	    public function getManyToOneDependencies(mixed $entity): array {
+		    return $this->internalGetDependencies($entity, ManyToOne::class);
+	    }
+	    
+	    /**
+	     * Retrieves all OneToMany dependencies for a specific entity.
+	     * @param mixed $entity The name of the entity for which you want to get the OneToMany dependencies.
+	     * @return OneToMany[] An associative array with the name of the target entity as key and the annotation as value.
+	     */
+	    public function getOneToManyDependencies(mixed $entity): array {
+		    return $this->internalGetDependencies($entity, OneToMany::class);
+	    }
+	    
+	    /**
+	     * Internal helper function for retrieving properties with a specific annotation
+	     * @param mixed $entity The name of the entity for which you want to get dependencies.
+	     * @return array
+	     */
+	    public function getAllDependencies(mixed $entity): array {
+		    // Determine the class name of the entity
+		    $entityClass = !is_object($entity) ? ltrim($entity, "\\") : get_class($entity);
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Cache hash
+		    $md5OfQuery = hash("sha256", $normalizedClass);
+		    
+		    // Get dependencies from cache if possible
+		    if (isset($this->dependencies_cache[$md5OfQuery])) {
+			    return $this->dependencies_cache[$md5OfQuery];
+		    }
+		    
+		    // Get the annotations for the specified class.
+		    $annotationList = $this->getAnnotations($normalizedClass);
+		    
+		    // Loop through each annotation to check for a relationship.
+		    $result = [];
+		    
+		    foreach (array_keys($annotationList) as $property) {
+			    foreach ($annotationList[$property] as $annotation) {
+				    if ($annotation instanceof OneToMany || $annotation instanceof OneToOne || $annotation instanceof ManyToOne) {
+					    $result[$property][] = $annotation;
+					    continue 2;
+				    }
+			    }
+		    }
+		    
+		    $this->dependencies_cache[$md5OfQuery] = $result;
+		    return $result;
+	    }
 	    
 	    /**
 	     * Returns all entities that depend on the specified entity.
@@ -580,5 +479,105 @@
 		    // Otherwise, get the identifier keys and create an array with the proper key and value.
 		    $identifierKeys = $this->getIdentifierKeys($entityType);
 		    return [$identifierKeys[0] => $primaryKey];
+	    }
+
+	    /**
+	     * Initialize entity classes using the EntityLocator.
+	     * This method discovers entity classes, validates them,
+	     * and loads their properties and annotations into memory.
+	     * @return void
+	     */
+	    private function initializeEntities(): void {
+		    try {
+			    // Discover all entities using the EntityLocator
+			    $entityClasses = $this->entity_locator->discoverEntities();
+			    
+			    // Process each discovered entity
+			    foreach ($entityClasses as $entityName) {
+				    // Initialize data structures for this entity
+				    $this->entity_annotations[$entityName] = [];
+				    $this->entity_properties[$entityName] = $this->reflection_handler->getProperties($entityName);
+				    $this->entity_table_name[$entityName] = $this->annotation_reader->getClassAnnotations($entityName)["Quellabs\\ObjectQuel\\Annotations\\Orm\\Table"]->getName();
+				    
+				    // Process each property of the entity
+				    foreach ($this->entity_properties[$entityName] as $property) {
+					    // Get annotations for the current property
+					    $annotations = $this->annotation_reader->getPropertyAnnotations($entityName, $property);
+					    
+					    // Store property annotations in the entity_annotations array
+					    $this->entity_annotations[$entityName][$property] = $annotations;
+				    }
+			    }
+		    } catch (\Exception $e) {
+			    error_log("Error initializing entities: " . $e->getMessage());
+		    }
+	    }
+		
+		/**
+		 * Returns a list of entities and their manytoone dependencies
+		 * @return array
+		 */
+		private function getAllEntityDependencies(): array {
+			if ($this->dependencies === null) {
+				$this->dependencies = [];
+
+				foreach (array_keys($this->entity_table_name) as $class) {
+					$manyToOneDependencies = $this->getManyToOneDependencies($class);
+					$oneToOneDependencies = array_filter($this->getOneToOneDependencies($class), function($e) { return !empty($e->getInversedBy()); });
+					
+					$this->dependencies[$class] = array_unique(array_merge(
+						array_map(function($e) { return $e->getTargetEntity(); }, $manyToOneDependencies),
+						array_map(function($e) { return $e->getTargetEntity(); }, $oneToOneDependencies),
+					));
+				}
+			}
+			
+			return $this->dependencies;
+		}
+	    
+	    /**
+	     * Internal helper functions for retrieving properties with a specific annotation
+	     * @param mixed $entity The name of the entity for which you want to get dependencies.
+	     * @param string $desiredAnnotationType The type of the dependency
+	     * @return array
+	     */
+	    private function internalGetDependencies(mixed $entity, string $desiredAnnotationType): array {
+		    // Determine the class name of the entity
+		    if (!is_object($entity)) {
+			    $entityClass = ltrim($entity, "\\");
+		    } elseif ($entity instanceof \ReflectionClass) {
+			    $entityClass = $entity->getName();
+		    } else {
+			    $entityClass = get_class($entity);
+		    }
+		    
+		    // If the class name is a proxy, get the class from the parent
+		    $normalizedClass = $this->normalizeEntityName($entityClass);
+		    
+		    // Cache hash
+		    $md5OfQuery = hash("sha256", $normalizedClass . "##" . $desiredAnnotationType);
+		    
+		    // Get dependencies from cache if possible
+		    if (isset($this->dependencies_cache[$md5OfQuery])) {
+			    return $this->dependencies_cache[$md5OfQuery];
+		    }
+		    
+		    // Get the annotations for the specified class
+		    $annotationList = $this->getAnnotations($normalizedClass);
+		    
+		    // Loop through each annotation to check for a relationship
+		    $result = [];
+		    
+		    foreach ($annotationList as $property => $annotations) {
+			    foreach ($annotations as $annotation) {
+				    if ($annotation instanceof $desiredAnnotationType) {
+					    $result[$property] = $annotation;
+					    break; // Stop searching if the desired annotation is found
+				    }
+			    }
+		    }
+		    
+		    $this->dependencies_cache[$md5OfQuery] = $result;
+		    return $result;
 	    }
     }
