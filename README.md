@@ -28,10 +28,9 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Dat
 
 ObjectQuel addresses fundamental design challenges in object-relational mapping through its architecture:
 
-- **Entity-Based Query Language** – Readable, expressive queries tailored to entity models.
+- **Entity-Based Query Language**: The ObjectQuel language provides an intuitive, object-oriented syntax for database operations that feels natural to developers
 - **Data Mapper Architecture** – Entities remain decoupled from the database, ensuring clean, testable domain logic.
 - **Powered by CakePHP's Database Layer** – Reliable and battle-tested SQL engine under the hood. 
-- **Composable Queries** – Incrementally build and manipulate queries at runtime.
 - **Relationship Simplicity**: Work with complex relationships without complex query code
 - **Performance By Design**: Multiple built-in optimization strategies for efficient database interactions
 - **Hybrid Data Sources**: Uniquely combine traditional databases with external JSON data sources
@@ -201,7 +200,7 @@ $entities = $entityManager->findBy(\App\Entity\ProductEntity::class, [
 ]);
 ```
 
-#### 3. Writing a query
+#### 3. Using a query
 
 ```php
 // Complex query using ObjectQuel language
