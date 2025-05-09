@@ -20,6 +20,7 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Dat
 - [Entity Relationships](#entity-relationships)
 - [Saving and Persisting Data](#saving-and-persisting-data)
 - [Using Repositories](#using-repositories)
+- [SignalHub](#signalhub)
 - [Utility Tools](#utility-tools)
 - [Query Optimization](#query-optimization)
 - [License](#license)
@@ -611,6 +612,161 @@ $affordableProducts = $productRepository->findBelowPrice(29.99);
 $specificProduct = $productRepository->find(1001);
 $featuredProducts = $productRepository->findBy(['featured' => true]);
 ```
+
+## SignalHub
+
+ObjectQuel provides a robust event system that allows you to execute custom logic at specific points in an entity's lifecycle. This event system is powered by our [SignalHub](https://github.com/quellabs/signalhub) component, offering both standard ORM lifecycle hooks and the flexibility to create custom events.
+
+### Lifecycle Events Overview
+
+Lifecycle events allow you to intercept and respond to key moments in an entity's persistence lifecycle, such as:
+
+| Lifecycle Event | Description | Timing |
+|----------------|-------------|--------|
+| **prePersist** | Triggered before a new entity is inserted | Before INSERT query |
+| **postPersist** | Triggered after a new entity is inserted | After INSERT query |
+| **preUpdate** | Triggered before an existing entity is updated | Before UPDATE query |
+| **postUpdate** | Triggered after an existing entity is updated | After UPDATE query |
+| **preDelete** | Triggered before an entity is deleted | Before DELETE query |
+| **postDelete** | Triggered after an entity is deleted | After DELETE query |
+
+### Setting Up Lifecycle Callbacks
+
+To enable lifecycle callbacks on an entity:
+
+1. Mark your entity class with the `@LifecycleAware` annotation
+2. Add methods with the appropriate lifecycle annotations
+
+```php
+use Quellabs\ObjectQuel\Annotations\Orm\Table;
+use Quellabs\ObjectQuel\Annotations\Orm\LifecycleAware;
+use Quellabs\ObjectQuel\Annotations\Orm\PrePersist;
+use Quellabs\ObjectQuel\Annotations\Orm\PostUpdate;
+
+/**
+ * @Table(name="products")
+ * @LifecycleAware
+ */
+class ProductEntity {
+    /**
+     * @Orm\Column(name="created_at", type="datetime", nullable=true)
+     */
+    private ?\DateTime $createdAt = null;
+    
+    /**
+     * @Orm\Column(name="updated_at", type="datetime", nullable=true)
+     */
+    private ?\DateTime $updatedAt = null;
+    
+    /**
+     * @PrePersist
+     */
+    public function setCreatedAt(): void {
+        $this->createdAt = new \DateTime();
+    }
+    
+    /**
+     * @PostUpdate
+     */
+    public function setUpdatedAt(): void {
+        $this->updatedAt = new \DateTime();
+    }
+    
+    // Other entity properties and methods...
+}
+```
+
+Once configured, these lifecycle methods will automatically be called at the appropriate times during the entity's lifecycle without any additional code required in your application logic.
+
+### Common Use Cases for Lifecycle Events
+
+Some popular applications of lifecycle events include:
+
+- Timestamp Management: Automatically set created/updated timestamps
+- Value Generation: Generate UUIDs, slugs, or other derived values
+- Validation: Perform complex validation before persisting data
+- Cache Invalidation: Clear caches when entities change
+- Logging: Record changes for audit trails
+- Related Entity Updates: Update or validate related entities
+- External System Synchronization: Push changes to external services
+
+### Listening to Built-in Lifecycle Signals
+
+You can listen to standard entity lifecycle events without modifying your entities:
+
+```php
+use Quellabs\SignalHub\SignalHubLocator;
+
+// Get SignalHub instance
+$signalHub = SignalHubLocator::getInstance();
+
+// Connect a custom handler to the prePersist signal
+$signalHub->getSignal('orm.prePersist')->connect(function(object $entity) {
+    // This will be called for all entities before they're persisted
+    if ($entity instanceof ProductEntity) {
+        // Do something specific for products
+        logProductChange($entity);
+    }
+});
+```
+
+### Creating and Using Custom Signals
+
+You can also define your own custom signals for domain-specific events:
+
+```php
+use Quellabs\SignalHub\HasSignals;
+
+class ProductService {
+    use HasSignals;
+    
+    public function __construct() {
+        // Define a custom signal with parameter types
+        $this->createSignal('productPriceChanged', ['ProductEntity', 'float', 'float']);
+        
+        // Register with SignalHub (optional)
+        $this->registerWithHub();
+    }
+    
+    public function updatePrice(ProductEntity $product, float $newPrice): void {
+        $oldPrice = $product->getPrice();
+        $product->setPrice($newPrice);
+        
+        // Emit the signal when price changes
+        $this->emit('productPriceChanged', $product, $oldPrice, $newPrice);
+    }
+}
+```
+
+SignalHub supports wildcard patterns for connecting to multiple signals:
+
+```php
+// Connect to all signals that start with "product"
+$signalHub->getSignal('product*')->connect(function($entity) {
+    // This will be called for all product-related signals
+    recordProductActivity($entity);
+});
+```
+
+You can also specify priorities when connecting handlers to ensure they execute in the desired order:
+
+```php
+// Higher priority handlers execute first
+$signalHub->getSignal('orm.prePersist')->connect($highPriorityHandler, null, 100);
+$signalHub->getSignal('orm.prePersist')->connect($normalPriorityHandler, null, 0);
+$signalHub->getSignal('orm.prePersist')->connect($lowPriorityHandler, null, -100);
+```
+
+### Performance Considerations
+
+While lifecycle events offer great flexibility, they can impact performance if overused. Keep these guidelines in mind:
+
+- Lifecycle methods should be lightweight and fast
+- Use PostPersist/PostUpdate for heavy operations when possible
+- Consider batching operations in postFlush for better performance
+- Enable eager loading for entities needed in lifecycle callbacks
+
+When properly implemented, lifecycle events provide a clean, aspect-oriented approach to cross-cutting concerns while maintaining separation of your core domain logic from peripheral concerns like logging, validation, and data transformation.
 
 ## Utility Tools
 
