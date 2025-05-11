@@ -56,7 +56,7 @@ class Button {
     
     private string $label;
     
-    public function __construct(string $label, SignalHub $hub = null) {
+    public function __construct(string $label) {
         $this->label = $label;
         
         // Define signals for this object
@@ -64,9 +64,7 @@ class Button {
         $this->createSignal('pressed', ['string']);    // Passes button label
         
         // Register with the hub (optional)
-        if ($hub !== null) {
-            $this->registerWithHub($hub);
-        }
+        $this->registerWithHub($hub);
     }
     
     public function click(): void {
@@ -206,7 +204,7 @@ $signal->disconnect($handler);
 The system consists of three main components:
 
 1. **SignalHub**: Registry for signal creation and discovery
-   - `createSignal()` - Create standalone signals
+   - `createSignal()` - Create signals
    - `getSignal()` - Get a signal by name with optional owner
    - `findSignals()` - Find signals by pattern with optional owner
    - `registerSignal()` - Register signals with the hub
