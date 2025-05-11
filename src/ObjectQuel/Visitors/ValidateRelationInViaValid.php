@@ -40,22 +40,22 @@
 		 * @throws QuelException
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Eerst controleren we of de node van het type AstIdentifier is.
+			// First we check if the node is of type AstIdentifier.
 			if (!$node instanceof AstIdentifier) {
 				return;
 			}
 			
-			// Doe niets als de identifier onderdeel is van een ketting
+			// Do nothing if the identifier is part of a chain
 			if (!$node->isRoot()) {
 				return;
 			}
 			
-			// Doe niets als de identifier geen properties heeft
+			// Do nothing if the identifier has no properties
 			if (!$node->hasNext()) {
 				return;
 			}
 			
-			// Haal alle afhankelijkheden op.
+			// Get all dependencies.
 			$entityName = $node->getEntityName();
 			$rangeName = $node->getRange()->getName();
 			$propertyName = $node->getNext()->getName();
@@ -66,7 +66,7 @@
 				'oneToMany' => $this->entityStore->getOneToManyDependencies($entityName),
 			];
 			
-			// Doorloop alle afhankelijkheidstypes.
+			// Loop through all dependency types.
 			foreach ($dependencies as $dependencyType => $dependency) {
 				if (isset($dependency[$propertyName])) {
 					$relation = $dependency[$propertyName];

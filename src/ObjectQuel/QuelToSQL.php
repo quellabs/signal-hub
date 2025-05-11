@@ -27,10 +27,10 @@
 		}
 		
 		/**
-		 * Zoekt naar een range met een specifieke naam in een array van ranges.
-		 * @param array $ranges De lijst van ranges om te doorzoeken.
-		 * @param string $rangeName De naam van de range die gezocht wordt.
-		 * @return AstRangeDatabase|null De gevonden range of null als deze niet gevonden is.
+		 * Searches for a range with a specific name in an array of ranges.
+		 * @param array $ranges The list of ranges to search through.
+		 * @param string $rangeName The name of the range being searched for.
+		 * @return AstRangeDatabase|null The found range or null if it is not found.
 		 */
 		private function findRangeByName(array $ranges, string $rangeName): ?AstRangeDatabase {
 			foreach ($ranges as $range) {
@@ -43,10 +43,10 @@
 		}
 		
 		/**
-		 * Controleert of een range al aanwezig is in de resultatenlijst.
-		 * @param string $rangeName De naam van de range die gecontroleerd moet worden.
-		 * @param array $result De lijst van ranges waarin gezocht wordt.
-		 * @return bool Geeft true terug als de range al in de lijst staat, anders false.
+		 * Checks if a range is already present in the results list.
+		 * @param string $rangeName The name of the range to be checked.
+		 * @param array $result The list of ranges to search in.
+		 * @return bool Returns true if the range is already in the list, otherwise false.
 		 */
 		private function isRangeNameInResult(string $rangeName, array $result): bool {
 			return $this->findRangeByName($result, $rangeName) !== null;
@@ -125,111 +125,111 @@
 		}
 		
 		/**
-		 * Haalt de veldnamen op uit een AstRetrieve object en converteert deze naar een SQL-compatibele string.
-		 * @param AstRetrieve $retrieve Het AstRetrieve object om te verwerken.
-		 * @return string De geformatteerde veldnamen als een enkele string.
+		 * Retrieves the field names from an AstRetrieve object and converts them to a SQL-compatible string.
+		 * @param AstRetrieve $retrieve The AstRetrieve object to process.
+		 * @return string The formatted field names as a single string.
 		 */
 		protected function getFieldNames(AstRetrieve $retrieve): string {
-			// Initialiseer een lege array om het resultaat op te slaan
+			// Initialize an empty array to store the result
 			$result = [];
 			
-			// Loop door elke waarde in het AstRetrieve object
+			// Loop through each value in the AstRetrieve object
 			foreach ($retrieve->getValues() as $value) {
-				// Maak een nieuwe QuelToSQLConvertToString converter
+				// Create a new QuelToSQLConvertToString converter
 				$quelToSQLConvertToString = new QuelToSQLConvertToString($this->entityStore, $this->parameters, "VALUES");
 				
-				// Accepteer de waarde voor conversie
+				// Accept the value for conversion
 				$value->accept($quelToSQLConvertToString);
 				
-				// Haal het geconverteerde SQL-resultaat op
+				// Get the converted SQL result
 				$sqlResult = $quelToSQLConvertToString->getResult();
 				
-				// Controleer of de alias geen volledige entity is
+				// Check if the alias is not a complete entity
 				if (!empty($sqlResult)) {
 					if (($value instanceof AstAlias) && !$this->identifierIsEntity($value->getExpression())) {
-						// Voeg de alias toe aan het SQL-resultaat
+						// Add the alias to the SQL result
 						$sqlResult .= " as `{$value->getName()}`";
 					}
 					
-					// Voeg het SQL-resultaat toe aan de resultaat array
+					// Add the SQL result to the result array
 					$result[] = $sqlResult;
 				}
 			}
 			
-			// Converteer de array naar een string en verwijder dubbele waarden
+			// Convert the array to a string and remove duplicate values
 			return implode(",", array_unique($result));
 		}
 		
 		/**
-		 * Genereer het FROM-gedeelte van de SQL-query op basis van ranges zonder JOINS.
-		 * @param AstRetrieve $retrieve Het retrieve-object waaruit entiteiten worden gehaald.
-		 * @return string Het FROM-gedeelte van de SQL-query.
+		 * Generate the FROM part of the SQL query based on ranges without JOINS.
+		 * @param AstRetrieve $retrieve The retrieve object from which entities are extracted.
+		 * @return string The FROM part of the SQL query.
 		 */
 		protected function getFrom(AstRetrieve $retrieve): string {
-			// Verkrijg alle gebruikte entiteiten in de retrieve-query.
-			// Dit omvat het identificeren van de tabellen en hun aliassen voor gebruik in de query.
+			// Obtain all entities used in the retrieve query.
+			// This includes identifying the tables and their aliases for use in the query.
 			$ranges = $retrieve->getRanges();
 			
-			// Haal alle entiteit-namen op die in de FROM-clausule moeten komen,
-			// maar zonder de entiteiten die via JOINs verbonden worden.
+			// Get all entity names that should be in the FROM clause,
+			// but without the entities that are connected via JOINs.
 			$tableNames = [];
 			
-			// Doorloop alle ranges (entiteiten) in de retrieve-query.
+			// Loop through all ranges (entities) in the retrieve query.
 			foreach($ranges as $range) {
-				// Sla JSON ranges over
+				// Skip JSON ranges
 				if (!$range instanceof AstRangeDatabase) {
 					continue;
 				}
 				
-				// Sla ranges met JOIN-eigenschappen over. Deze komen in de JOIN.
+				// Skip ranges with JOIN properties. These go in the JOIN.
 				if ($range->getJoinProperty() !== null) {
 					continue;
 				}
 				
-				// Verkrijg de naam van de range
+				// Get the name of the range
 				$rangeName = $range->getName();
-	
-				// Verkrijg de corresponderende tabelnaam voor de entiteit.
+				
+				// Get the corresponding table name for the entity.
 				$owningTable = $this->entityStore->getOwningTable($range->getEntityName());
 				
-				// Voeg de tabelnaam en alias toe aan de lijst voor de FROM-clausule.
+				// Add the table name and alias to the list for the FROM clause.
 				$tableNames[] = "`{$owningTable}` as `{$rangeName}`";
 			}
 			
-			// Retourneer niets als er geen tabellen gerefereerd worden
+			// Return nothing if no tables are referenced
 			if (empty($tableNames)) {
 				return "";
 			}
 			
-			// Combineer de tabelnamen met komma's om het FROM-gedeelte van de SQL-query te genereren.
+			// Combine the table names with commas to generate the FROM part of the SQL query.
 			return " FROM " . implode(",", $tableNames);
 		}
 		
 		/**
-		 * Genereer het WHERE-gedeelte van de SQL-query voor de gegeven retrieve-operatie.
-		 * Deze functie verwerkt de voorwaarden van de retrieve en zet deze om in een SQL-conforme WHERE-clausule.
-		 * @param AstRetrieve $retrieve Het retrieve-object waaruit voorwaarden worden gehaald.
-		 * @return string Het WHERE-gedeelte van de SQL-query. Retourneert een lege string als er geen voorwaarden zijn.
+		 * Generate the WHERE part of the SQL query for the given retrieve operation.
+		 * This function processes the conditions of the retrieve and converts them into a SQL-compliant WHERE clause.
+		 * @param AstRetrieve $retrieve The retrieve object from which conditions are extracted.
+		 * @return string The WHERE part of the SQL query. Returns an empty string if there are no conditions.
 		 */
 		protected function getWhere(AstRetrieve $retrieve): string {
-			// Verkrijg de voorwaarden van de retrieve-operatie.
+			// Get the conditions of the retrieve operation.
 			$conditions = $retrieve->getConditions();
 			
-			// Controleer of er voorwaarden zijn. Zo niet, retourneer dan een lege string.
+			// Check if there are conditions. If not, return an empty string.
 			if ($conditions === null) {
 				return "";
 			}
 			
-			// Maak een nieuwe instantie van QuelToSQLConvertToString om de voorwaarden om te zetten naar een SQL-string.
-			// Dit object zal de Quel-voorwaarden verwerken en omzetten in een formaat dat SQL begrijpt.
+			// Create a new instance of QuelToSQLConvertToString to convert the conditions to a SQL string.
+			// This object will process the Quel conditions and convert them into a format that SQL understands.
 			$retrieveEntitiesVisitor = new QuelToSQLConvertToString($this->entityStore, $this->parameters, "WHERE");
 			
-			// Gebruik de accept-methode van de voorwaarden om het QuelToSQLConvertToString-object de verwerking te laten uitvoeren.
-			// Hierdoor wordt de logica voor het omzetten van Quel naar SQL geactiveerd.
+			// Use the accept method of the conditions to let the QuelToSQLConvertToString object perform the processing.
+			// This activates the logic for converting Quel to SQL.
 			$conditions->accept($retrieveEntitiesVisitor);
 			
-			// Haal het resultaat op, dat nu een SQL-conforme string is, en voeg 'WHERE' toe voor de SQL-query.
-			// Dit is het resultaat van de conversie van Quel-voorwaarden naar SQL.
+			// Get the result, which is now a SQL-compliant string, and add 'WHERE' for the SQL query.
+			// This is the result of converting Quel conditions to SQL.
 			return "WHERE " . $retrieveEntitiesVisitor->getResult();
 		}
 		
@@ -239,14 +239,14 @@
 		 * @return string
 		 */
 		private function getSortUsingIn(AstRetrieve $retrieve): string {
-			// Controleer en haal de primaire sleutel informatie op
+			// Check and retrieve the primary key information
 			$primaryKeyInfo = $this->entityStore->fetchPrimaryKeyOfMainRange($retrieve);
 			
 			if (!is_array($primaryKeyInfo)) {
 				return $this->getSortDefault($retrieve);
 			}
 			
-			// Maak een AstIdentifier voor het zoeken naar een IN() in de query
+			// Create an AstIdentifier for searching for an IN() in the query
 			$astIdentifier = new AstIdentifier($primaryKeyInfo['entityName']);
 			
 			try {
@@ -256,11 +256,11 @@
 			} catch (GetMainEntityInAstException $exception) {
 				$astObject = $exception->getAstObject();
 				
-				// Converteer Quel-voorwaarden naar een SQL-string
+				// Convert Quel conditions to a SQL string
 				$retrieveEntitiesVisitor = new QuelToSQLConvertToString($this->entityStore, $this->parameters, "SORT");
 				$astObject->getIdentifier()->accept($retrieveEntitiesVisitor);
 				
-				// Verwerk de resultaten tot een SQL ORDER-BY-clausule
+				// Process the results into a SQL ORDER BY clause
 				$parametersSql = implode(",", array_unique(array_map(function ($e) { return $e->getValue(); }, $astObject->getParameters())));
 				return " ORDER BY FIELD(" . $retrieveEntitiesVisitor->getResult() . ", " . $parametersSql . ")";
 			}
@@ -272,43 +272,43 @@
 		 * @return string
 		 */
 		protected function getSortDefault(AstRetrieve $retrieve): string {
-			// Verkrijg de voorwaarden van de retrieve-operatie.
+			// Get the conditions of the retrieve operation.
 			$sort = $retrieve->getSort();
 			
-			// Controleer of er voorwaarden zijn. Zo niet, retourneer dan een lege string.
+			// Check if there are conditions. If not, return an empty string.
 			if (empty($sort)) {
 				return "";
 			}
 			
-			// Zet de sort elementen om naar SQL
+			// Convert the sort elements to SQL
 			$sqlSort = [];
 			
 			foreach($sort as $s) {
-				// Maak een nieuwe instantie van QuelToSQLConvertToString om de voorwaarden om te zetten naar een SQL-string.
-				// Dit object zal de Quel-voorwaarden verwerken en omzetten in een formaat dat SQL begrijpt.
+				// Create a new instance of QuelToSQLConvertToString to convert the conditions to a SQL string.
+				// This object will process the Quel conditions and convert them into a format that SQL understands.
 				$retrieveEntitiesVisitor = new QuelToSQLConvertToString($this->entityStore, $this->parameters, "SORT");
 				
-				// Loods de QUEL erdoor om een SQL-query terug te krijgen
+				// Guide the QUEL through to get a SQL query back
 				$s['ast']->accept($retrieveEntitiesVisitor);
 				
-				// Bewaar het queryresultaat
+				// Save the query result
 				$sqlSort[] = $retrieveEntitiesVisitor->getResult() . " " . $s["order"];
 			}
 			
-			// Haal het resultaat op, dat nu een SQL-conforme string is, en voeg 'WHERE' toe voor de SQL-query.
-			// Dit is het resultaat van de conversie van Quel-voorwaarden naar SQL.
+			// Get the result, which is now a SQL-compliant string, and add 'WHERE' for the SQL query.
+			// This is the result of converting Quel conditions to SQL.
 			return " ORDER BY " . implode(",", $sqlSort);
 		}
 		
 		/**
-		 * Genereer het ORDER BY-gedeelte van de SQL-query voor de gegeven retrieve-operatie.
-		 * Deze functie verwerkt de voorwaarden van de retrieve en zet deze om in een SQL-conforme ORDER BY-clausule.
+		 * Generate the ORDER BY part of the SQL query for the given retrieve operation.
+		 * This function processes the conditions of the retrieve and converts them into a SQL-compliant ORDER BY clause.
 		 * @param AstRetrieve $retrieve
 		 * @return string
 		 */
 		protected function getSort(AstRetrieve $retrieve): string {
-			// Als de compiler directive @InValuesAreFinal meegegeven is, dan moeten we sorteren op de
-			// volgorde binnen de IN() lijst
+			// If the compiler directive @InValuesAreFinal is provided, then we need to sort based on
+			// the order within the IN() list
 			$compilerDirectives = $retrieve->getDirectives();
 			
 			if (isset($compilerDirectives['InValuesAreFinal']) && ($compilerDirectives['InValuesAreFinal'] === true)) {
@@ -321,52 +321,52 @@
 		}
 		
 		/**
-		 * Genereer het JOIN-gedeelte van de SQL-query voor de gegeven retrieve-operatie.
-		 * Deze functie analyseert alle entiteiten met join-eigenschappen en converteert deze
-		 * naar SQL JOIN-instructies.
-		 * @param AstRetrieve $retrieve Het retrieve-object waaruit entiteiten en hun join-eigenschappen worden gehaald.
-		 * @return string Het JOIN-gedeelte van de SQL-query, geformatteerd als een string.
+		 * Generate the JOIN part of the SQL query for the given retrieve operation.
+		 * This function analyzes all entities with join properties and converts them
+		 * to SQL JOIN instructions.
+		 * @param AstRetrieve $retrieve The retrieve object from which entities and their join properties are extracted.
+		 * @return string The JOIN part of the SQL query, formatted as a string.
 		 */
 		protected function getJoins(AstRetrieve $retrieve): string {
 			$result = [];
-
-			// Haal de lijst van entiteiten op die betrokken zijn bij de retrieve-operatie.
+			
+			// Get the list of entities involved in the retrieve operation.
 			$ranges = $retrieve->getRanges();
 			
-			// Doorloop alle entiteiten (ranges) en verwerk degenen met join-eigenschappen.
+			// Loop through all entities (ranges) and process those with join properties.
 			foreach($ranges as $range) {
-				// Sla de range over als deze een json data-source is
+				// Skip the range if it is a json data-source
 				if (!$range instanceof AstRangeDatabase) {
 					continue;
 				}
 				
-				// Als de entiteit geen join-eigenschap heeft, sla deze dan over.
+				// If the entity has no join property, skip it.
 				if ($range->getJoinProperty() === null) {
 					continue;
 				}
 				
-				// Verkrijg de naam en join-eigenschap van de entiteit.
+				// Get the name and join property of the entity.
 				$rangeName = $range->getName();
 				$joinProperty = $range->getJoinProperty();
 				$entityName = $range->getEntityName();
-
-				// Vind de tabel die bij de entiteit hoort.
+				
+				// Find the table associated with the entity.
 				$owningTable = $this->entityStore->getOwningTable($entityName);
 				
-				// Zet de join-voorwaarde om naar een SQL-string.
-				// Dit houdt in dat de join-voorwaarde wordt vertaald naar een formaat dat SQL begrijpt.
+				// Convert the join condition to a SQL string.
+				// This involves translating the join condition to a format that SQL understands.
 				$visitor = new QuelToSQLConvertToString($this->entityStore, $this->parameters, "CONDITION");
 				$joinProperty->accept($visitor);
 				$joinColumn = $visitor->getResult();
 				$joinType = $range->isRequired() ? "INNER" : "LEFT";
 				
-				// Voeg de SQL JOIN-instructie toe aan het resultaat.
-				// Dit resulteert in een LEFT JOIN-instructie voor de betreffende entiteit.
+				// Add the SQL JOIN instruction to the result.
+				// This results in a LEFT JOIN instruction for the relevant entity.
 				$result[] = "{$joinType} JOIN `{$owningTable}` as `{$rangeName}` ON {$joinColumn}";
 			}
 			
-			// Converteer de lijst van JOIN-instructies naar een enkele string.
-			// Elke JOIN-instructie wordt op een nieuwe regel geplaatst voor betere leesbaarheid.
+			// Convert the list of JOIN instructions to a single string.
+			// Each JOIN instruction is placed on a new line for better readability.
 			return implode("\n", $result);
 		}
 		

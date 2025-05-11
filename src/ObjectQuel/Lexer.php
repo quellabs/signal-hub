@@ -2,10 +2,6 @@
     
     namespace Quellabs\ObjectQuel\ObjectQuel;
 
-    /**
-     * Simple lexer to dissect doc blocks
-     * @package Quellabs\ObjectQuel\AnnotationsReader
-     */
     class Lexer {
         protected string $string;
         protected int $pos;
@@ -114,9 +110,10 @@
             $this->lookahead = $this->nextToken();
         }
         
-        /**
-         * Advance $this->pos to the start of the next token
-         */
+	    /**
+	     * Advance $this->pos to the start of the next token
+	     * @return void
+	     */
 		protected function advance(): void {
 			while ($this->pos < $this->length) {
 				$currentChar = $this->string[$this->pos];
@@ -163,7 +160,6 @@
 				$this->pos++;
 			}
 			
-			// Gebruik een early return om direct het type getal te retourneren.
 			return $string;
 		}
         

@@ -5,7 +5,7 @@
 	interface AstInterface {
 		
 		/**
-		 * Valideer de AST
+		 * Validate the AST
 		 * @param AstVisitorInterface $visitor
 		 * @return void
 		 */

@@ -25,59 +25,59 @@
 		}
 		
 		/**
-		 * Voegt een unieke range toe aan de entity als deze ontbreekt
+		 * Adds a unique range to the entity if it is missing
 		 * @param AstInterface $node
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Deze visitor behandeld alleen AstEntity
+			// This visitor only handles AstEntity
 			if (!$node instanceof AstIdentifier) {
 				return;
 			}
 			
-			// Sla deze node over als hij al een alias heeft
+			// Skip this node if it already has an alias
 			if ($node->hasRange()) {
 				return;
 			}
 			
-			// Sla deze node over als het onderdeel is van een keten
+			// Skip this node if it is part of a chain
 			if ($node->getParent() instanceof AstIdentifier) {
 				return;
 			}
 			
-			// Als we al een alias hebben gemaakt voor deze entity, gebruik deze dan
+			// If we have already created an alias for this entity, use it
 			if (isset($this->created_ranges[$node->getName()])) {
 				$node->setRange($this->created_ranges[$node->getName()]);
 				return;
 			}
 			
-			// Haal de eerste letter van de entiteitsnaam op
+			// Get the first letter of the entity name
 			$firstLetter = substr($node->getName(), 0, 1);
 			
-			// Initialiseer of verhoog het volgnummer voor deze entiteit
+			// Initialize or increment the sequence number for this entity
 			if (!isset($this->counters[$firstLetter])) {
 				$this->counters[$firstLetter] = 0;
 			}
 			
 			do {
-				// Verhoog het volgnummer
+				// Increment the sequence number
 				$this->counters[$firstLetter]++;
 				
-				// Maak de nieuwe alias
+				// Create the new alias
 				$newAlias = sprintf('%s%03d', $firstLetter, $this->counters[$firstLetter]);
 			} while (in_array($newAlias, $this->range_names));
 			
-			// Make een nieuwe range
+			// Create a new range
 			$newRange = new AstRangeDatabase($newAlias, $node->getEntityName(), null);
 			
-			// Voeg de nieuwe, unieke alias toe aan de lijst met bestaande aliassen
+			// Add the new, unique alias to the list of existing aliases
 			$this->created_ranges[$node->getName()] = $newRange;
 			$this->range_names[] = $newAlias;
 			
-			// Voeg de nieuwe AstRange toe
+			// Add the new AstRange
 			$this->ranges[] = $newRange;
 			
-			// Zet de nieuwe alias voor het AstEntity
+			// Set the new alias for the AstEntity
 			$node->setRange($newRange);
 		}
 		

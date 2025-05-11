@@ -4,9 +4,9 @@
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
-   use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
-   use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstCheckNull;
+	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
+	use Quellabs\ObjectQuel\ObjectQuel\AstVisitorInterface;
 	
 	/**
 	 * Class ContainsRange
@@ -25,21 +25,21 @@
 		}
 		
 		/**
-		 * Functie om een node in de AST (Abstract Syntax Tree) te bezoeken.
+		 * Function to visit a node in the AST (Abstract Syntax Tree).
 		 * @param AstInterface $node
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
 			if (!$node instanceof AstCheckNull) {
-                return;
-            }
-            
-            if (!$node->getExpression() instanceof AstIdentifier) {
-                return;
-            }
-            
-            if ($node->getExpression()->getRange()->getName() === $this->rangeName) {
-                throw new \Exception("Contains {$this->rangeName}");
+				return;
+			}
+			
+			if (!$node->getExpression() instanceof AstIdentifier) {
+				return;
+			}
+			
+			if ($node->getExpression()->getRange()->getName() === $this->rangeName) {
+				throw new \Exception("Contains {$this->rangeName}");
 			}
 		}
 	}

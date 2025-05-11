@@ -774,25 +774,25 @@
 		}
 		
 		/**
-		 * Voegt paginatiegegevens toe aan een AstRetrieve query door de query te manipuleren
-		 * om alleen de primaire sleutels van de gevraagde pagina op te halen.
-		 * Dit gebeurt door de query eerst te transformeren om alleen de primaire sleutels terug te geven,
-		 * vervolgens de relevante subset van primaire sleutels op te halen gebaseerd op de paginatie parameters,
-		 * en uiteindelijk de originele query te herstellen met een aangepaste voorwaarde die enkel de gefilterde sleutels bevat.
+		 * Adds pagination data to an AstRetrieve query by manipulating the query
+		 * to only retrieve the primary keys of the requested page.
+		 * This is done by first transforming the query to only return the primary keys,
+		 * then retrieving the relevant subset of primary keys based on the pagination parameters,
+		 * and finally restoring the original query with a modified condition that only contains the filtered keys.
 		 * @param AstRetrieve $e
 		 * @param array $parameters
 		 * @return void
 		 */
 		private function addPaginationDataToQuery(AstRetrieve &$e, array $parameters): void {
-			// Controleer en haal de primaire sleutel informatie op.
+			// Check and retrieve the primary key information.
 			$primaryKeyInfo = $this->entityStore->fetchPrimaryKeyOfMainRange($e);
 			
 			if ($primaryKeyInfo === null) {
 				return;
 			}
 			
-			// Als de compiler directive @SkipInValidation is meegegeven, skip dan de extra
-			// Queries en werkt direct met de IN waardes
+			// If the compiler directive @SkipInValidation is provided, skip the extra
+			// Queries and work directly with the IN values
 			$compilerDirectives = $e->getDirectives();
 			
 			if (isset($compilerDirectives['InValuesAreFinal']) && ($compilerDirectives['InValuesAreFinal'] === true)) {

@@ -2,8 +2,6 @@
 	
 	namespace Quellabs\ObjectQuel\ObjectQuel;
 	
-	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
-	
 	/**
 	 * Class AstFinderException
 	 * @package Quellabs\ObjectQuel\ObjectQuel

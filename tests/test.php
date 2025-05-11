@@ -26,7 +26,7 @@
 	$entityManager = new EntityManager($config);
 	
 	$entity = $entityManager->find(ProductsEntity::class, 1492);
-	$entity->setGuid('xyz1');
+	$entity->setGuid('xyz');
 	$entityManager->persist($entity);
 	$entityManager->flush($entity);
 	

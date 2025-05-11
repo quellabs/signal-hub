@@ -1,9 +1,9 @@
 <?php
 	
-	// Namespace declaration voor gestructureerde code
+	// Namespace declaration for structured code
 	namespace Quellabs\ObjectQuel\ObjectQuel\Visitors;
 	
-	// Importeer de vereiste klassen en interfaces
+	// Import the required classes and interfaces
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstIdentifier;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRangeDatabase;
 	use Quellabs\ObjectQuel\ObjectQuel\AstInterface;
@@ -11,29 +11,29 @@
 	
 	/**
 	 * Class RetrieveEntities
-	 * Implementeert AstVisitor om entiteiten uit een AST te verzamelen.
+	 * Implements AstVisitor to collect entities from an AST.
 	 */
 	class QuelToSQLFetchEntities implements AstVisitorInterface {
 		
-		// Array om verzamelde entiteiten op te slaan
+		// Array to store collected entities
 		private array $entities;
 		
 		/**
-		 * Constructor om de entities array te initialiseren.
+		 * Constructor to initialize the entities array.
 		 */
 		public function __construct() {
 			$this->entities = [];
 		}
 		
 		/**
-		 * Voeg een entiteit toe aan de lijst als deze nog niet bestaat.
-		 * @param AstIdentifier $entity De entiteit die mogelijk wordt toegevoegd.
+		 * Add an entity to the list if it doesn't exist yet.
+		 * @param AstIdentifier $entity The entity that might be added.
 		 * @return void
 		 */
 		protected function addEntityIfNotExists(AstIdentifier $entity): void {
-			// Loop door alle bestaande entiteiten om te controleren op duplicaten
+			// Loop through all existing entities to check for duplicates
 			foreach($this->entities as $e) {
-				// Als een entiteit met dezelfde gegevens al bestaat, verlaat de functie vroegtijdig
+				// If an entity with the same data already exists, exit the function early
 				if (
 					$e->getRange() instanceof AstRangeDatabase &&
 					($e->getName() == $entity->getEntityName()) &&
@@ -43,25 +43,25 @@
 				}
 			}
 			
-			// Voeg de nieuwe entiteit toe aan de lijst
+			// Add the new entity to the list
 			$this->entities[] = $entity;
 		}
-
+		
 		/**
-		 * Bezoek een knooppunt in de AST.
-		 * @param AstInterface $node Het te bezoeken knooppunt.
+		 * Visit a node in the AST.
+		 * @param AstInterface $node The node to visit.
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Controleer of het knooppunt een entiteit is en voeg het toe aan de array
+			// Check if the node is an entity and add it to the array
 			if ($node instanceof AstIdentifier) {
 				$this->addEntityIfNotExists($node);
 			}
 		}
 		
 		/**
-		 * Verkrijg de verzamelde entiteiten.
-		 * @return AstIdentifier[] De verzamelde entiteiten.
+		 * Get the collected entities.
+		 * @return AstIdentifier[] The collected entities.
 		 */
 		public function getEntities(): array {
 			return $this->entities;

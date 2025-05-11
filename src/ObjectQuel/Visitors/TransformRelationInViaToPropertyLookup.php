@@ -67,73 +67,73 @@
 		}
 		
 		/**
-		 * Creëert een Property Lookup AST (Abstract Syntax Tree) gebruikmakend van een relatie.
-		 * @param AstIdentifier $joinProperty Het join property waarmee de relatie wordt gemaakt.
-		 * @param mixed $relation De relatie die gebruikt wordt om de property lookup te creëren.
-		 * @return AstInterface Het gegenereerde AST-object.
+		 * Creates a Property Lookup AST (Abstract Syntax Tree) using a relation.
+		 * @param AstIdentifier $joinProperty The join property with which the relation is made.
+		 * @param mixed $relation The relation used to create the property lookup.
+		 * @return AstInterface The generated AST object.
 		 */
 		public function createPropertyLookupAstUsingRelation(AstIdentifier $joinProperty, mixed $relation): AstInterface {
-			// Haal de entiteit en range op van de join property
+			// Get the entity and range from the join property
 			$entity = $joinProperty->getParent();
 			$range = $entity->getRange();
 			$relationColumn = $relation->getRelationColumn();
 			
-			// Als de relatiekolom null is, gebruik de eerste identifier key van de entiteit
+			// If the relation column is null, use the first identifier key of the entity
 			if ($relationColumn === null) {
 				$identifierKeys = $this->entityStore->getIdentifierKeys($entity->getName());
 				$relationColumn = $identifierKeys[0];
 			}
 			
-			// Voor ManyToOne relaties, gebruik de 'inversedBy' waarde
+			// For ManyToOne relations, use the 'inversedBy' value
 			if ($relation instanceof ManyToOne) {
 				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getInversedBy());
 			}
 			
-			// Voor OneToMany relaties, gebruik de 'mappedBy' waarde
+			// For OneToMany relations, use the 'mappedBy' value
 			if ($relation instanceof OneToMany) {
 				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getMappedBy());
 			}
 			
-			// Voor relaties met een 'inversedBy' waarde, gebruik deze
+			// For relations with an 'inversedBy' value, use this
 			if (!empty($relation->getInversedBy())) {
 				return $this->createPropertyLookupAst($relationColumn, $range, $relation->getInversedBy());
 			}
 			
-			// Voor alle andere gevallen, gebruik de 'mappedBy' waarde
+			// For all other cases, use the 'mappedBy' value
 			return $this->createPropertyLookupAst($relationColumn, $range, $relation->getMappedBy());
 		}
 		
 		/**
-		 * Verwerkt een enkele zijde (links of rechts) van de node en past deze aan indien nodig.
-		 * Als de zijde een AstIdentifier is en overeenkomt met een relatie-eigenschap, wordt deze
-		 * vervangen door een nieuwe node die de relatie vertegenwoordigt. Anders wordt de originele
-		 * zijde ongewijzigd geretourneerd.
-		 * @param AstInterface $side De linker of rechterzijde van de node die verwerkt moet worden.
-		 * @return AstInterface De oorspronkelijke of aangepaste zijde van de node.
+		 * Processes a single side (left or right) of the node and adjusts it if necessary.
+		 * If the side is an AstIdentifier and matches a relation property, it is
+		 * replaced by a new node that represents the relation. Otherwise, the original
+		 * side is returned unchanged.
+		 * @param AstInterface $side The left or right side of the node to be processed.
+		 * @return AstInterface The original or modified side of the node.
 		 */
 		public function processNodeSide(AstInterface $side): AstInterface {
-			// Controleer of de zijde een AstIdentifier is en een relatie-eigenschap vertegenwoordigt.
+			// Check if the side is an AstIdentifier and represents a relation property.
 			if (!($side instanceof AstIdentifier) || !$this->isRelationProperty($side)) {
-				return $side; // Geen aanpassingen nodig als het geen AstIdentifier of geen relatie-eigenschap is.
+				return $side; // No adjustments needed if it's not an AstIdentifier or not a relation property.
 			}
 			
-			// Haal de entiteitsnaam en eigenschapsnaam op van de zijde.
+			// Get the entity name and property name from the side.
 			$entityName = $side->getEntityName();
 			$propertyName = $side->getName();
 			
-			// Combineer alle relatie-afhankelijkheden voor de gegeven entiteitsnaam.
+			// Combine all relation dependencies for the given entity name.
 			$relations = array_merge(
 				$this->entityStore->getOneToOneDependencies($entityName),
 				$this->entityStore->getManyToOneDependencies($entityName),
 				$this->entityStore->getOneToManyDependencies($entityName)
 			);
 			
-			// Controleer of de eigenschapsnaam bestaat in de relaties voordat we deze gebruiken.
+			// Check if the property name exists in the relations before using it.
 			if (!isset($relations[$propertyName])) {
-				return $side; // Geen aanpassingen nodig als de eigenschap niet bestaat in de relaties.
+				return $side; // No adjustments needed if the property doesn't exist in the relations.
 			}
 			
-			// Vervang de zijde door een nieuwe node die de relatie vertegenwoordigt.
+			// Replace the side with a new node that represents the relation.
 			return $this->createPropertyLookupAstUsingRelation($side, $relations[$propertyName]);
 		}
 		
@@ -145,15 +145,15 @@
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Als de node niet van het type AstBinaryOperator is, doen we niets.
+			// If the node is not of type AstBinaryOperator, we do nothing.
 			if (!$node instanceof AstBinaryOperator) {
 				return;
 			}
 			
-			// Verwerk en update indien nodig de linkerzijde van de node
+			// Process and update the left side of the node if necessary
 			$node->setLeft($this->processNodeSide($node->getLeft()));
 			
-			// Verwerk en update indien nodig de rechterzijde van de node
+			// Process and update the right side of the node if necessary
 			$node->setRight($this->processNodeSide($node->getRight()));
 		}
 	}

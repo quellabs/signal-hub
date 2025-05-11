@@ -63,7 +63,6 @@
 		 * Visits a node in the AST to validate entity existence.
 		 * This method specifically handles AstIdentifier nodes,
 		 * extracting entity names and validating them against the EntityStore.
-		 *
 		 * @param AstInterface $node The node to visit and validate
 		 * @throws QuelException When an entity reference doesn't exist in the store
 		 */

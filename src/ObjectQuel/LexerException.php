@@ -7,6 +7,7 @@
 	 * @package Quellabs\ObjectQuel\ObjectQuel
 	 */
 	class LexerException extends \Exception {
+		
 		/**
 		 * Redefine the exception so message isn't optional
 		 * @param string $message

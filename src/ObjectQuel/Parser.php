@@ -20,27 +20,27 @@
             $this->rangeRule = new Range($lexer);
             $this->retrieveRule = new Retrieve($lexer);
         }
-        
-        /**
-         * Helper functie om de waarde van een directive te matchen en terug te geven.
-         * @param string $directiveName
-         * @return mixed
-         * @throws ParserException
-         * @throws LexerException
-         */
-		protected function matchDirectiveValue(string $directiveName): mixed {
-			if ($this->lexer->optionalMatch(Token::True)) {
-				return true;
-			} elseif ($this->lexer->optionalMatch(Token::False)) {
-				return false;
-			} elseif ($this->lexer->optionalMatch(Token::Number, $result)) {
-				return $result->getValue();
-			} elseif ($this->lexer->optionalMatch(Token::Identifier, $result)) {
-				return $result->getValue();
-			} else {
-				throw new ParserException("Invalid compiler directive value for @{$directiveName}");
-			}
-		}
+	    
+	    /**
+	     * Helper function to match and return the value of a directive.
+	     * @param string $directiveName
+	     * @return mixed
+	     * @throws ParserException
+	     * @throws LexerException
+	     */
+	    protected function matchDirectiveValue(string $directiveName): mixed {
+		    if ($this->lexer->optionalMatch(Token::True)) {
+			    return true;
+		    } elseif ($this->lexer->optionalMatch(Token::False)) {
+			    return false;
+		    } elseif ($this->lexer->optionalMatch(Token::Number, $result)) {
+			    return $result->getValue();
+		    } elseif ($this->lexer->optionalMatch(Token::Identifier, $result)) {
+			    return $result->getValue();
+		    } else {
+			    throw new ParserException("Invalid compiler directive value for @{$directiveName}");
+		    }
+	    }
 		
 		/**
 		 * Parser compiler directives
@@ -76,39 +76,39 @@
 			
 			return $ranges;
 		}
-		
-		/**
-		 * Parse queries
-		 * @return AstInterface|null
-		 * @throws LexerException|ParserException
-         */
-		public function parse(): ?AstInterface {
-			// Compiler directives
-			$directives = $this->parseCompilerDirectives();
-			
-			// Ranges
-			$ranges = $this->parseRanges();
-
-			// Doorgaan met parsen totdat een break-conditie wordt bereikt.
-			$queries = [];
-
-			do {
-				// Haal het volgende token op zonder de positie in de lexer te veranderen.
-				$token = $this->lexer->peek();
-				
-				// Controleer of het token een 'Retrieve' type is.
-				switch($token->getType()) {
-					case Token::Retrieve :
-						$queries[] = $this->retrieveRule->parse($directives, $ranges);
-						break;
-						
-					default :
-						throw new ParserException("Unexpected token '{$token->getValue()}' on line {$this->lexer->getLineNumber()}");
-				}
-			} while ($this->lexer->peek()->getType() !== Token::Eof);
-			
-			// Retourneer het eerste query AST-object uit de array.
-			// Opmerking: Dit gaat ervan uit dat er maar één query is.
-			return $queries[0];
-		}
+	    
+	    /**
+	     * Parse queries
+	     * @return AstInterface|null
+	     * @throws LexerException|ParserException
+	     */
+	    public function parse(): ?AstInterface {
+		    // Compiler directives
+		    $directives = $this->parseCompilerDirectives();
+		    
+		    // Ranges
+		    $ranges = $this->parseRanges();
+		    
+		    // Continue parsing until a break condition is reached.
+		    $queries = [];
+		    
+		    do {
+			    // Get the next token without changing the position in the lexer.
+			    $token = $this->lexer->peek();
+			    
+			    // Check if the token is a 'Retrieve' type.
+			    switch($token->getType()) {
+				    case Token::Retrieve :
+					    $queries[] = $this->retrieveRule->parse($directives, $ranges);
+					    break;
+				    
+				    default :
+					    throw new ParserException("Unexpected token '{$token->getValue()}' on line {$this->lexer->getLineNumber()}");
+			    }
+		    } while ($this->lexer->peek()->getType() !== Token::Eof);
+		    
+		    // Return the first query AST object from the array.
+		    // Note: This assumes there is only one query.
+		    return $queries[0];
+	    }
     }

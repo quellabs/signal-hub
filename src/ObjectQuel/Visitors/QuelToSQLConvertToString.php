@@ -37,21 +37,21 @@
 	
 	/**
 	 * Class QuelToSQLConvertToString
-	 * Implementeert AstVisitor om entiteiten uit een AST te verzamelen.
+	 * Implements AstVisitor to collect entities from an AST.
 	 */
 	class QuelToSQLConvertToString implements AstVisitorInterface {
 		
-		// De entity store voor entity naar table conversies
+		// The entity store for entity to table conversions
 		private EntityStore $entityStore;
 		
-		// Array om verzamelde entiteiten op te slaan
+		// Array to store collected entities
 		private array $result;
 		private array $visitedNodes;
 		private array $parameters;
 		private string $partOfQuery;
 		
 		/**
-		 * Constructor om de entities array te initialiseren.
+		 * Constructor to initialize the entities array.
 		 * @param EntityStore $store
 		 * @param array $parameters
 		 * @param string $partOfQuery
@@ -141,7 +141,7 @@
 		}
 		
 		/**
-		 * Markeer het object als bezocht.
+		 * Mark the object as visited.
 		 * @param AstInterface $ast
 		 * @return void
 		 */
@@ -158,7 +158,7 @@
 		}
 		
 		/**
-		 * Converteer de zoekoperator naar SQL
+		 * Convert search operator to SQL
 		 * @param AstSearch $search
 		 * @return void
 		 */
@@ -210,99 +210,100 @@
 		}
 		
 		/**
-		 * Verwerkt een AstConcat-object en converteert het naar de SQL CONCAT-functie.
-		 * @param AstConcat $concat Het AstConcat-object met de te verwerken parameters.
+		 * Processes an AstConcat object and converts it to the SQL CONCAT function.
+		 * @param AstConcat $concat The AstConcat object with the parameters to process.
+		 * @return void
 		 */
 		protected function handleConcat(AstConcat $concat): void {
-			// Start de CONCAT-functie in SQL.
+			// Start the CONCAT function in SQL.
 			$this->result[] = "CONCAT(";
 			
-			// Loop door alle parameters van het AstConcat-object.
+			// Loop through all parameters of the AstConcat object.
 			$counter = 0;
-
+			
 			foreach($concat->getParameters() as $parameter) {
-				// Als dit niet het eerste item is, voeg een komma toe.
+				// If this is not the first item, add a comma.
 				if ($counter > 0) {
 					$this->result[] = ",";
 				}
 				
-				// Accepteer het huidige parameterobject en verwerk het.
+				// Accept the current parameter object and process it.
 				$parameter->accept($this);
 				++$counter;
 			}
 			
-			// Sluit de CONCAT-functie in SQL.
+			// Close the CONCAT function in SQL.
 			$this->result[] = ")";
 		}
 		
 		/**
-		 * Verwerkt een generieke expressie in een Abstract Syntax Tree (AST).
-		 * Deze functie controleert op speciale gevallen zoals '= string', die mogelijk
-		 * omgezet wordt naar een LIKE-expressie in SQL, en reguliere expressies,
-		 * voordat het de standaard expressie verwerkt.
-		 * @param AstInterface $ast De AST-node die de expressie representeert.
-		 * @param string $operator De operator in de expressie (bijvoorbeeld '=', '<', etc.).
+		 * Processes a generic expression in an Abstract Syntax Tree (AST).
+		 * This function checks for special cases like '= string', which might
+		 * be converted to a LIKE expression in SQL, and regular expressions,
+		 * before processing the standard expression.
+		 * @param AstInterface $ast The AST node that represents the expression.
+		 * @param string $operator The operator in the expression (for example '=', '<', etc.).
 		 * @return void
 		 */
 		protected function genericHandleExpression(AstInterface $ast, string $operator): void {
-			// Controleer of de operator gelijk is aan "=" of "<>", de enige ondersteunde speciale operatoren.
+			// Check if the operator is equal to "=" or "<>", the only supported special operators.
 			if (in_array($operator, ["=", "<>"], true)) {
-				// Behandel het geval waar de rechterzijde van de expressie een string is.
+				// Handle the case where the right side of the expression is a string.
 				if ($ast->getRight() instanceof AstString) {
 					$stringAst = $ast->getRight();
 					$stringValue = $stringAst->getValue();
 					
-					// Controleer of de stringwaarde wildcard karakters bevat.
+					// Check if the string value contains wildcard characters.
 					if (str_contains($stringValue, "*") || str_contains($stringValue, "?")) {
-						// Voeg de string toe aan bezochte nodes voor mogelijke verdere verwerking.
+						// Add the string to visited nodes for possible further processing.
 						$this->addToVisitedNodes($stringAst);
 						
-						// Verwerk de linkerzijde van de expressie.
+						// Process the left side of the expression.
 						$ast->getLeft()->accept($this);
 						
-						// Vervang wildcard karakters door SQL LIKE syntax equivalenten.
+						// Replace wildcard characters with SQL LIKE syntax equivalents.
 						$stringValue = str_replace(["%", "_", "*", "?"], ["\\%", "\\_", "%", "_"], $stringValue);
 						
-						// Bepaal de LIKE-operator op basis van de oorspronkelijke operator.
+						// Determine the LIKE operator based on the original operator.
 						$regexpOperator = $operator == "=" ? " LIKE " : " NOT LIKE ";
 						
-						// Voeg het resultaat toe met de aangepaste operator en waarde.
+						// Add the result with the adjusted operator and value.
 						$this->result[] = "{$regexpOperator}\"{$stringValue}\"";
 						return;
 					}
 				}
 				
-				// Behandel het geval waar de rechterzijde van de expressie een reguliere expressie is.
+				// Handle the case where the right side of the expression is a regular expression.
 				if ($ast->getRight() instanceof AstRegExp) {
 					$regexpAst = $ast->getRight();
 					$stringValue = $regexpAst->getValue();
-
-					// Voeg de reguliere expressie toe aan bezochte nodes.
+					
+					// Add the regular expression to visited nodes.
 					$this->addToVisitedNodes($regexpAst);
-
-					// Verwerk de linkerzijde van de expressie.
+					
+					// Process the left side of the expression.
 					$ast->getLeft()->accept($this);
 					
-					// Bepaal de REGEXP operator op basis van de oorspronkelijke operator.
+					// Determine the REGEXP operator based on the original operator.
 					$regexpOperator = $operator == "=" ? " REGEXP " : " NOT REGEXP ";
-
-					// Voeg het resultaat toe met de aangepaste operator en waarde van de reguliere expressie.
+					
+					// Add the result with the adjusted operator and value of the regular expression.
 					$this->result[] = "{$regexpOperator}\"{$stringValue}\"";
 					return;
 				}
 			}
 			
-			// Als geen van de speciale gevallen van toepassing is, verwerk de expressie op standaard wijze.
-			// Dit omvat het accepteren van de linkerzijde van de expressie, toevoegen van de operator,
-			// en vervolgens het accepteren van de rechterzijde van de expressie.
+			// If none of the special cases apply, process the expression in the standard way.
+			// This includes accepting the left side of the expression, adding the operator,
+			// and then accepting the right side of the expression.
 			$ast->getLeft()->accept($this);
 			$this->result[] = " {$operator} ";
 			$ast->getRight()->accept($this);
 		}
-
+		
 		/**
-		 * Verwerkt een AstExpression-object
-		 * @param AstExpression $ast Het AstExpression-object
+		 * Processes an AstExpression object
+		 * @param AstExpression $ast The AstExpression object
 		 * @return void
 		 */
 		protected function handleExpression(AstExpression $ast): void {
@@ -310,8 +311,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstTerm-object
-		 * @param AstTerm $ast Het AstTerm-object
+		 * Processes an AstTerm object
+		 * @param AstTerm $ast The AstTerm object
 		 * @return void
 		 */
 		protected function handleTerm(AstTerm $ast): void {
@@ -319,8 +320,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstTerm-object
-		 * @param AstFactor $ast Het AstFactor-object
+		 * Processes an AstFactor object
+		 * @param AstFactor $ast The AstFactor object
 		 * @return void
 		 */
 		protected function handleFactor(AstFactor $ast): void {
@@ -328,8 +329,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstBinaryOperator-object en converteert dit naar SQL met een alias.
-		 * @param AstBinaryOperator $ast Het AstBinaryOperator-object
+		 * Processes an AstBinaryOperator object and converts it to SQL with an alias.
+		 * @param AstBinaryOperator $ast The AstBinaryOperator object
 		 * @return void
 		 */
 		protected function handleBinaryOperator(AstBinaryOperator $ast): void {
@@ -337,12 +338,12 @@
 		}
 		
 		/**
-		 * Verwerkt een AstAlias-object en converteert dit naar SQL met een alias.
-		 * @param AstAlias $ast Het AstAlias-object dat een expressie en een alias bevat.
+		 * Processes an AstAlias object and converts it to SQL with an alias.
+		 * @param AstAlias $ast The AstAlias object that contains an expression and an alias.
 		 * @return void
 		 */
 		protected function handleAlias(AstAlias $ast): void {
-			// Verwerk een entity apart
+			// Process an entity separately
 			$expression = $ast->getExpression();
 			
 			if ($this->identifierIsEntity($expression)) {
@@ -351,12 +352,12 @@
 				return;
 			}
 			
-			// Verwerk de expressie die voor de alias komt.
+			// Process the expression that comes before the alias.
 			$ast->getExpression()->accept($this);
 		}
 		
 		/**
-		 * Voeg NOT toe aan de output stream
+		 * Add NOT to the output stream
 		 * @param AstNot $ast
 		 * @return void
 		 */
@@ -365,8 +366,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstNull-object
-		 * @param AstNull $ast Het AstNull-object
+		 * Processes an AstNull object
+		 * @param AstNull $ast The AstNull object
 		 * @return void
 		 */
 		protected function handleNull(AstNull $ast): void {
@@ -374,8 +375,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstBool-object
-		 * @param AstBool $ast Het AstBool-object
+		 * Processes an AstBool object
+		 * @param AstBool $ast The AstBool object
 		 * @return void
 		 */
 		protected function handleBool(AstBool $ast): void {
@@ -383,8 +384,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstNumber-object
-		 * @param AstNumber $ast Het AstNumber-object
+		 * Processes an AstNumber object
+		 * @param AstNumber $ast The AstNumber object
 		 * @return void
 		 */
 		protected function handleNumber(AstNumber $ast): void {
@@ -392,8 +393,8 @@
 		}
 		
 		/**
-		 * Verwerkt een AstString-object
-		 * @param AstString $ast Het AstString-object
+		 * Processes an AstString object
+		 * @param AstString $ast The AstString object
 		 * @return void
 		 */
 		protected function handleString(AstString $ast): void {
@@ -401,34 +402,34 @@
 		}
 		
 		/**
-		 * Verwerkt een AstIdentifier-object
-		 * @param AstIdentifier $ast Het AstIdentifier-object
+		 * Processes an AstIdentifier object
+		 * @param AstIdentifier $ast The AstIdentifier object
 		 * @return void
 		 */
 		protected function handleIdentifier(AstIdentifier $ast): void {
-			// Voeg de identifier en alle properties toe aan de 'visited nodes' lijst
+			// Add the identifier and all properties to the 'visited nodes' list
 			$this->addToVisitedNodes($ast);
 			
-			// Laat de informatie weg uit de query als de range geen database range is
+			// Omit the information from the query if the range is not a database range
 			if ($ast->getRange() instanceof AstRangeJsonSource) {
 				return;
 			}
 			
-			// Haal informatie van de identifier op
+			// Get information from the identifier
 			$range = $ast->getRange();
 			$rangeName = $range->getName();
 			$entityName = $ast->getEntityName();
 			$propertyName = $ast->getNext()->getName();
 			$columnMap = $this->entityStore->getColumnMap($entityName);
 			
-			// Als dit niet het onderdeel 'SORT BY' is, voeg dan de genormaliseerde property toe
+			// If this is not the 'SORT BY' section, add the normalized property
 			if ($this->partOfQuery !== "SORT") {
 				$this->result[] = $rangeName . "." . $columnMap[$propertyName];
 				return;
 			}
 			
-			// Als dit wel een 'SORT BY' is, dan moeten we mogelijk een NULL waarde omzetten naar COALESCE.
-			// Zonder COALESCE wordt er niet correct gesorteerd.
+			// If this is a 'SORT BY', then we may need to convert a NULL value to COALESCE.
+			// Without COALESCE, sorting will not be correct.
 			$annotations = $this->entityStore->getAnnotations($entityName);
 			$annotationsOfProperty = array_values(array_filter($annotations[$propertyName], function($e) { return $e instanceof Column; }));
 			
@@ -442,16 +443,16 @@
 		}
 		
 		/**
-		 * Verwerkt een AstParameter-object
-		 * @param AstParameter  $ast Het AstParameter-object
+		 * Processes an AstParameter object
+		 * @param AstParameter $ast The AstParameter object
 		 * @return void
 		 */
 		protected function handleParameter(AstParameter $ast): void {
 			$this->result[] = ":" . $ast->getName();
 		}
-
+		
 		/**
-		 * Verwerkt een entity
+		 * Processes an entity
 		 * @param AstInterface $ast
 		 * @return void
 		 */
@@ -469,37 +470,37 @@
 		}
 		
 		/**
-		 * Verwerkt de 'IN' conditie van een SQL-query.
-		 * De 'IN' conditie wordt gebruikt om te controleren of een waarde
-		 * overeenkomt met een waarde in een lijst van waarden.
-		 * @param AstIn $ast Een object dat de 'IN' clausule voorstelt.
+		 * Processes the 'IN' condition of a SQL query.
+		 * The 'IN' condition is used to check if a value
+		 * matches a value in a list of values.
+		 * @param AstIn $ast An object that represents the 'IN' clause.
 		 * @return void
 		 */
 		protected function handleIn(AstIn $ast): void {
-			// vlag de identifier node als behandeld
+			// flag the identifier node as processed
 			$this->visitNode($ast->getIdentifier());
 			
-			// Voeg de start van de 'IN' conditie toe aan het resultaat.
+			// Add the start of the 'IN' condition to the result.
 			$this->result[] = " IN(";
 			
-			// Een vlag om te controleren of we het eerste item verwerken.
+			// A flag to check if we are processing the first item.
 			$first = true;
 			
-			// Doorloop elk item dat gecontroleerd moet worden binnen de 'IN' conditie.
+			// Loop through each item that needs to be checked within the 'IN' condition.
 			foreach($ast->getParameters() as $item) {
-				// Als het niet het eerste item is, voeg dan een komma toe voor de scheiding.
+				// If it's not the first item, add a comma for separation.
 				if (!$first) {
 					$this->result[] = ",";
 				}
 				
-				// Verwerk het item en voeg het toe aan het resultaat.
+				// Process the item and add it to the result.
 				$this->visitNode($item);
-
-				// Zet de vlag op 'false' omdat we na het eerste item niet meer zijn.
+				
+				// Set the flag to 'false' because we are no longer at the first item.
 				$first = false;
 			}
 			
-			// Voeg de afsluitende haak toe aan de 'IN' conditie.
+			// Add the closing bracket to the 'IN' condition.
 			$this->result[] = ")";
 		}
 		
@@ -510,22 +511,22 @@
 		 * @return void
 		 */
 		protected function universalHandleCount(AstInterface $ast, bool $distinct): void {
-			// Verkrijg de identifier (entiteit of eigenschap) die geteld moet worden.
+			// Get the identifier (entity or property) that needs to be counted.
 			$identifier = $ast->getIdentifier();
 			
-			// Als de identifier een entiteit is, tellen we het aantal unieke instanties van deze entiteit.
+			// If the identifier is an entity, we count the number of unique instances of this entity.
 			if ($this->identifierIsEntity($identifier)) {
-				// Voeg de entiteit toe aan de lijst van bezochte nodes.
+				// Add the entity to the list of visited nodes.
 				$this->addToVisitedNodes($identifier);
 				
-				// Verkrijg het bereik en de naam van de entiteit.
+				// Get the range and name of the entity.
 				$range = $identifier->getRange()->getName();
 				$entityName = $identifier->getName();
 				
-				// Verkrijg de kolomnamen die de identificatie van de entiteit bepalen.
+				// Get the column names that determine the identification of the entity.
 				$identifierColumns = $this->entityStore->getIdentifierColumnNames($entityName);
 				
-				// Voeg de COUNT DISTINCT operatie toe aan het resultaat, om unieke entiteiten te tellen.
+				// Add the COUNT DISTINCT operation to the result, to count unique entities.
 				if ($distinct) {
 					$this->result[] = "COUNT(DISTINCT {$range}.{$identifierColumns[0]})";
 				} else {
@@ -533,19 +534,19 @@
 				}
 			}
 			
-			// Als de identifier een specifieke eigenschap binnen een entiteit is, tellen we hoe vaak deze eigenschap voorkomt.
+			// If the identifier is a specific property within an entity, we count how often this property occurs.
 			if ($identifier instanceof AstIdentifier) {
-				// Voeg de eigenschap en de bijbehorende entiteit toe aan de lijst van bezochte nodes.
+				// Add the property and the associated entity to the list of visited nodes.
 				$this->addToVisitedNodes($identifier);
 				
-				// Verkrijg het bereik van de entiteit waar de eigenschap deel van uitmaakt.
+				// Get the range of the entity where the property is part of.
 				$range = $identifier->getRange()->getName();
 				
-				// Verkrijg de eigenschapsnaam en de bijbehorende kolomnaam in de database.
+				// Get the property name and the corresponding column name in the database.
 				$property = $identifier->getNext()->getName();
 				$columnMap = $this->entityStore->getColumnMap($identifier->getEntityName());
 				
-				// Voeg de COUNT operatie toe aan het resultaat, om de frequentie van een specifieke eigenschap te tellen.
+				// Add the COUNT operation to the result, to count the frequency of a specific property.
 				if ($distinct) {
 					$this->result[] = "COUNT(DISTINCT {$range}.{$columnMap[$property]})";
 				} else {
@@ -555,7 +556,7 @@
 		}
 		
 		/**
-		 * Deze functie verwerkt het 'count' commando binnen een abstract syntax tree (AST).
+		 * This function processes the 'count' command within an abstract syntax tree (AST).
 		 * @param AstCount $count
 		 * @return void
 		 */
@@ -564,7 +565,7 @@
 		}
 		
 		/**
-		 * Deze functie verwerkt het 'count' commando binnen een abstract syntax tree (AST).
+		 * This function processes the 'count' command within an abstract syntax tree (AST).
 		 * @param AstUCount $count
 		 * @return void
 		 */
@@ -799,36 +800,36 @@
 		}
 		
 		/**
-		 * Bezoek een knooppunt in de AST.
-		 * @param AstInterface $node Het te bezoeken knooppunt.
+		 * Visit a node in the AST.
+		 * @param AstInterface $node The node to visit.
 		 * @return void
 		 */
 		public function visitNode(AstInterface $node): void {
-			// Genereer een unieke hash voor het object om duplicaten te voorkomen.
+			// Generate a unique hash for the object to prevent duplicates.
 			$objectHash = spl_object_id($node);
 			
-			// Als het object al is bezocht, sla het dan over om oneindige lussen te voorkomen.
+			// If the object has already been visited, skip it to prevent infinite loops.
 			if (isset($this->visitedNodes[$objectHash])) {
 				return;
 			}
 			
-			// Markeer het object als bezocht.
+			// Mark the object as visited.
 			$this->visitedNodes[$objectHash] = true;
 			
-			// Bepaal de naam van de methode die dit specifieke type Ast-node zal afhandelen.
-			// De 'substr' functie wordt gebruikt om de relevante delen van de classnaam te verkrijgen.
+			// Determine the name of the method that will handle this specific type of Ast node.
+			// The 'substr' function is used to get the relevant parts of the class name.
 			$className = ltrim(strrchr(get_class($node), '\\'), '\\');
 			$handleMethod = 'handle' . substr($className, 3);
 			
-			// Controleer of de bepaalde methode bestaat en roep deze aan als dat het geval is.
+			// Check if the determined method exists and call it if that is the case.
 			if (method_exists($this, $handleMethod)) {
 				$this->{$handleMethod}($node);
 			}
 		}
 		
 		/**
-		 * Bezoek een knooppunt in de AST en retourneer de SQL
-		 * @param AstInterface $node Het te bezoeken knooppunt.
+		 * Visit a node in the AST and return the SQL
+		 * @param AstInterface $node The node to visit.
 		 * @return string
 		 */
 		public function visitNodeAndReturnSQL(AstInterface $node): string {
@@ -844,8 +845,8 @@
 		}
 		
 		/**
-		 * Verkrijg de verzamelde entiteiten.
-		 * @return string De geproduceerde string
+		 * Get the collected entities.
+		 * @return string The produced string
 		 */
 		public function getResult(): string {
 			return implode("", $this->result);
