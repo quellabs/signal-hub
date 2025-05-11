@@ -305,12 +305,13 @@ $buttonSignal->connect(function(string $label) {
 
 // Component 3: Listening for all form signals
 $formSignals = $hub->findSignals('form.*');
-// Process all form signals...
 
 // Component 4: Creating a logger for all signals
 $allSignals = $hub->getAllSignals();
+
 foreach ($allSignals as $info) {
     $signal = $info['signal'];
+
     $signal->connect(function(...$args) use ($info) {
         $name = $info['standalone'] ? $info['name'] : "{$info['class']}::{$info['name']}";
         echo "LOG: Signal {$name} emitted\n";
