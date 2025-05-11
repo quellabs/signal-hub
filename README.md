@@ -1,5 +1,9 @@
 # PHP Annotation Reader
 
+[![Latest Version](https://img.shields.io/packagist/v/quellabs/annotation-reader.svg)](https://packagist.org/packages/quellabs/signal-hub)
+[![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
+[![Downloads](https://img.shields.io/packagist/dt/quellabs/annotation-reader.svg)](https://packagist.org/packages/quellabs/signal-hub)
+
 A powerful PHP annotation reader for parsing, processing, and caching docblock annotations in PHP classes.
 
 ## Overview
@@ -37,11 +41,20 @@ $reader = new AnnotationsReader($config);
 // Get annotations for a class
 $classAnnotations = $reader->getClassAnnotations(MyClass::class);
 
+// Get annotations for a class, filtered by a specific annotation
+$classAnnotations = $reader->getClassAnnotations(MyClass::class, SomeAnnotation::class);
+
 // Get annotations for a property
 $propertyAnnotations = $reader->getPropertyAnnotations(MyClass::class, 'propertyName');
 
+// Get annotations for a property, filtered by a specific annotation
+$propertyAnnotations = $reader->getPropertyAnnotations(MyClass::class, 'propertyName', SomeAnnotation::class);
+
 // Get annotations for a method
 $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName');
+
+// Get annotations for a method, filtered by a specific annotation
+$methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName', SomeAnnotation::class);
 ```
 
 ## Annotation Format
