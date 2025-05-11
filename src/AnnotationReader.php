@@ -269,21 +269,17 @@
 		
 		/**
 		 * Fetch all object annotations
-		 * @param mixed $class
+		 * @param \ReflectionClass $reflection
 		 * @return array
+		 * @throws ParserException
 		 */
-		protected function readAllObjectAnnotations(mixed $class): array {
+		protected function readAllObjectAnnotations(\ReflectionClass $reflection): array {
+			// Setup array which will receive the parse results
 			$result = [
 				'class'      => [],
 				'properties' => [],
 				'methods'    => []
 			];
-			
-			try {
-				$reflection = new \ReflectionClass($class);
-			} catch (\ReflectionException $e) {
-				return $result;
-			}
 			
 			// Load the use statements of this file
 			$imports = $this->use_statement_parser->getImportsForClass($reflection);
@@ -323,7 +319,7 @@
 				// If caching is disabled or no cache path is set, process annotations directly
 				// We still store in memory cache to avoid redundant processing within the same request
 				if (!$this->useCache || empty($this->annotationCachePath)) {
-					$this->cached_annotations[$cacheFilename] = $this->readAllObjectAnnotations($class);
+					$this->cached_annotations[$cacheFilename] = $this->readAllObjectAnnotations($reflection);
 					return $this->cached_annotations[$cacheFilename];
 				}
 				
@@ -335,7 +331,7 @@
 				}
 				
 				// If no valid cache exists, parse the annotations directly from the class
-				$annotations = $this->readAllObjectAnnotations($class);
+				$annotations = $this->readAllObjectAnnotations($reflection);
 				
 				// Write the newly parsed annotations to the cache file
 				// This will speed up future requests for this class's annotations
