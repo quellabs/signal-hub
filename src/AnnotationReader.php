@@ -35,13 +35,30 @@
 		}
 		
 		/**
-		 * Takes a class's docComment and parses it
-		 * @param mixed $class
+		 * Takes a class's docComment, parses it and returns the annotations
+		 * @param mixed $class The class object or class name to analyze
+		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
 		 * @return array
 		 * @throws ParserException
 		 */
-		public function getClassAnnotations(mixed $class): array {
+		public function getClassAnnotations(mixed $class, ?string $annotationClass=null): array {
+			// Get all annotations for the class
 			$annotations = $this->getAllObjectAnnotations($class);
+			
+			// If no annotations found, return an empty array
+			if (!isset($annotations['class'])) {
+				return [];
+			}
+			
+			// If an annotation class filter is provided, only return annotations of that type
+			if ($annotationClass !== null) {
+				return array_filter($annotations['class'], function ($item) use ($annotationClass) {
+					// Filter the class's annotations to include only instances of the specified class
+					return $item instanceof $annotationClass;
+				});
+			}
+			
+			// Return all annotations for the specified method
 			return $annotations["class"] ?? [];
 		}
 		
@@ -53,27 +70,39 @@
 		 */
 		public function classHasAnnotation(mixed $class, string $annotationClass): bool {
 			try {
-				foreach ($this->getClassAnnotations($class) as $annotation) {
-					if ($annotation instanceof $annotationClass) {
-						return true;
-					}
-				}
+				return !empty($this->getClassAnnotations($class, $annotationClass));
 			} catch (ParserException $e) {
+				return false;
 			}
-			
-			return false;
 		}
 		
 		/**
-		 * Takes a method's docComment and parses it
-		 * @param mixed $class
-		 * @param string $methodName
-		 * @return array
-		 * @throws ParserException
+		 * Takes a method's docComment and parses it to extract annotations
+		 * @param mixed $class            The class object or class name to analyze
+		 * @param string $methodName      The name of the method whose annotations to retrieve
+		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
+		 * @return array                  Array of parsed annotations for the specified method
+		 * @throws ParserException        If there's an error parsing the annotations
 		 */
-		public function getMethodAnnotations(mixed $class, string $methodName): array {
+		public function getMethodAnnotations(mixed $class, string $methodName, ?string $annotationClass=null): array {
+			// Get all annotations for the method
 			$annotations = $this->getAllObjectAnnotations($class);
-			return $annotations["methods"][$methodName] ?? [];
+			
+			// If no annotations found, return an empty array
+			if (!isset($annotations['methods'][$methodName])) {
+				return [];
+			}
+			
+			// If an annotation class filter is provided, only return annotations of that type
+			if ($annotationClass !== null) {
+				return array_filter($annotations['methods'][$methodName], function ($item) use ($annotationClass) {
+					// Filter the method's annotations to include only instances of the specified class
+					return $item instanceof $annotationClass;
+				});
+			}
+			
+			// Return all annotations for the specified method
+			return $annotations["methods"][$methodName];
 		}
 		
 		/**
@@ -85,15 +114,10 @@
 		 */
 		public function methodHasAnnotation(mixed $class, string $methodName, string $annotationClass): bool {
 			try {
-				foreach ($this->getMethodAnnotations($class, $methodName) as $annotation) {
-					if ($annotation instanceof $annotationClass) {
-						return true;
-					}
-				}
+				return !empty($this->getMethodAnnotations($class, $methodName, $annotationClass));
 			} catch (ParserException $e) {
+				return false;
 			}
-			
-			return false;
 		}
 		
 		/**
@@ -103,8 +127,24 @@
 		 * @return array
 		 * @throws ParserException
 		 */
-		public function getPropertyAnnotations(mixed $class, string $propertyName): array {
+		public function getPropertyAnnotations(mixed $class, string $propertyName, ?string $annotationClass=null): array {
+			// Get all annotations for the property
 			$annotations = $this->getAllObjectAnnotations($class);
+			
+			// If no annotations found, return an empty array
+			if (!isset($annotations['properties'][$propertyName])) {
+				return [];
+			}
+			
+			// If an annotation class filter is provided, only return annotations of that type
+			if ($annotationClass !== null) {
+				return array_filter($annotations['properties'][$propertyName], function ($item) use ($annotationClass) {
+					// Filter the method's annotations to include only instances of the specified class
+					return $item instanceof $annotationClass;
+				});
+			}
+			
+			// Return all annotations for the specified method
 			return $annotations["properties"][$propertyName] ?? [];
 		}
 		
@@ -117,15 +157,10 @@
 		 */
 		public function propertyHasAnnotation(mixed $class, string $propertyName, string $annotationClass): bool {
 			try {
-				foreach ($this->getPropertyAnnotations($class, $propertyName) as $annotation) {
-					if ($annotation instanceof $annotationClass) {
-						return true;
-					}
-				}
+				return !empty($this->getPropertyAnnotations($class, $propertyName, $annotationClass));
 			} catch (ParserException $e) {
+				return false;
 			}
-			
-			return false;
 		}
 		
 		/**
