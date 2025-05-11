@@ -18,10 +18,10 @@
 		}
 		
 		/**
-		 * Haalt de inhoud van een bestand op en slaat deze op in een cache.
-		 * Als het bestand al in de cache staat, wordt de gecachte versie geretourneerd.
-		 * @param string $filename De naam van het bestand dat moet worden ingelezen.
-		 * @return array Een array van regels uit het bestand.
+		 * Retrieves the content of a file and stores it in a cache.
+		 * If the file is already in the cache, the cached version is returned.
+		 * @param string $filename The name of the file to be read.
+		 * @return array An array of lines from the file.
 		 */
 		protected function getCachedFile(string $filename): array {
 			if (!isset($this->file_cache[$filename])) {
@@ -52,45 +52,45 @@
 		}
 		
 		/**
-		 * Haalt de naam van de parentklasse op voor een gegeven klasse.
-		 * @param mixed $class De klassenaam of het object om te inspecteren.
-		 * @return string|null De naam van de parentklasse als een string, of null als deze niet bestaat of er een fout optreedt.
+		 * Retrieves the name of the parent class for a given class.
+		 * @param mixed $class The class name or object to inspect.
+		 * @return string|null The name of the parent class as a string, or null if it doesn't exist or an error occurs.
 		 */
 		public function getParent(mixed $class): ?string {
 			try {
-				// Initialiseer ReflectionClass voor de opgegeven klassenaam of object.
+				// Initialize ReflectionClass for the specified class name or object.
 				$reflectionClass = $this->getReflectionClass($class);
 				
-				// Haal de ReflectionClass van de parentklasse op.
+				// Get the ReflectionClass of the parent class.
 				$parentClass = $reflectionClass->getParentClass();
 				
-				// Controleer of de parentklasse bestaat.
+				// Check if the parent class exists.
 				if ($parentClass === false) {
 					return null;
 				}
 				
-				// Als de parentklasse bestaat, retourneer dan de naam.
+				// If the parent class exists, return the name.
 				return $parentClass->getName();
 			} catch (\ReflectionException $e) {
-				// Retourneer null als er een fout optreedt, zoals wanneer de klasse niet gevonden kan worden.
+				// Return null if an error occurs, such as when the class cannot be found.
 				return null;
 			}
 		}
 		
 		/**
-		 * Haalt het bestandspad op waar een bepaalde klasse is gedefinieerd.
-		 * @param mixed $class De naam van de klasse waarvan we het bestandspad willen opzoeken.
-		 * @return string|null Het volledige pad naar het bestand waar de klasse is gedefinieerd, of null als de klasse niet gevonden wordt.
+		 * Retrieves the file path where a specific class is defined.
+		 * @param mixed $class The name of the class whose file path we want to look up.
+		 * @return string|null The full path to the file where the class is defined, or null if the class is not found.
 		 */
 		public function getFilename(mixed $class): ?string {
 			try {
-				// Initialiseer ReflectionClass voor de opgegeven klassenaam.
+				// Initialize ReflectionClass for the specified class name.
 				$reflectionClass = $this->getReflectionClass($class);
 				
-				// Haal het bestandspad op waar de klasse is gedefinieerd.
+				// Get the file path where the class is defined.
 				return $reflectionClass->getFileName();
 			} catch (\ReflectionException $e) {
-				// Retourneer null als er een fout optreedt (bijv. klasse niet gevonden).
+				// Return null if an error occurs (e.g., class not found).
 				return null;
 			}
 		}
@@ -494,64 +494,64 @@
 		}
 		
 		/**
-		 * Haalt de body van een opgegeven methode op uit een gegeven klasse.
-		 * Deze functie gebruikt de Reflection API om de bestandsnaam en de start- en eindregel van de methode te vinden.
-		 * Vervolgens leest het de broncode van het bestand en extraheert het de methode-body.
-		 * De functie houdt ook rekening met verschillende coderingsstijlen voor het plaatsen van accolades.
-		 * @param mixed $class  De naam van de klasse of een instantie van de klasse.
-		 * @param string $method  De naam van de methode waarvan de body moet worden opgehaald.
-		 * @return string  De body van de opgegeven methode als een string.
+		 * Retrieves the body of a specified method from a given class.
+		 * This function uses the Reflection API to find the filename and the start and end lines of the method.
+		 * It then reads the source code of the file and extracts the method body.
+		 * The function also accounts for different coding styles for placing braces.
+		 * @param mixed $class  The name of the class or an instance of the class.
+		 * @param string $method  The name of the method whose body should be retrieved.
+		 * @return string  The body of the specified method as a string.
 		 */
 		public function getMethodBody(mixed $class, string $method): string {
 			try {
-				// Maak een ReflectionClass object van de opgegeven klasse
+				// Create a ReflectionClass object of the specified class
 				$reflectionClass = new \ReflectionClass($class);
 				
-				// Haal het ReflectionMethod object op voor de opgegeven methode
+				// Get the ReflectionMethod object for the specified method
 				$methodClass = $reflectionClass->getMethod($method);
 				
-				// Bepaal de bestandsnaam en start- en eindregels van de methode
+				// Determine the filename and start and end lines of the method
 				$fileName = $methodClass->getFileName();
-				$startLine = $methodClass->getStartLine() - 1; // Neem ook de functie definitie mee
+				$startLine = $methodClass->getStartLine() - 1; // Include the function definition
 				$endLine = $methodClass->getEndLine();
 				
-				// Lees het bestand in een array van regels
+				// Read the file into an array of lines
 				$lines = $this->getCachedFile($fileName);
 				
-				// Haal alleen de regels op die de methodebody vormen
+				// Get only the lines that form the method body
 				$bodyLines = array_slice($lines, $startLine, $endLine - $startLine);
 				
-				// Vind de eerste opening accolade in de eerste regel
+				// Find the first opening brace in the first line
 				$firstLine = $bodyLines[0];
 				$startPos = strpos($firstLine, '{');
 				
-				// Vind de laatste sluitende accolade in de laatste regel
+				// Find the last closing brace in the last line
 				$lastLine = end($bodyLines);
 				$endPos = strrpos($lastLine, '}');
 				
-				// Pas de eerste en laatste regel aan om respectievelijk de opening '{' en sluitende '}' te verwijderen
+				// Adjust the first and last line to remove the opening '{' and closing '}' respectively
 				$bodyLines[0] = substr($firstLine, $startPos + 1);
 				$bodyLines[count($bodyLines) - 1] = substr($lastLine, 0, $endPos);
 				
-				// Voeg de aangepaste regels samen tot één string en retourneer dit als de body van de methode
+				// Combine the adjusted lines into a single string and return it as the method body
 				return implode("", $bodyLines);
 			} catch (\ReflectionException $e) {
-				// Retourneer een lege string als er een uitzondering optreedt
+				// Return an empty string if an exception occurs
 				return "";
 			}
 		}
-
+		
 		/**
-		 * Verwijdert PHP-commentaar uit een gegeven string.
-		 * Deze functie verwijdert alle typen PHP-commentaar uit de meegeleverde string.
-		 * @param string $code De string waaruit het commentaar moet worden verwijderd.
-		 * @return string De string zonder PHP-commentaar.
+		 * Removes PHP comments from a given string.
+		 * This function removes all types of PHP comments from the provided string.
+		 * @param string $code The string from which comments should be removed.
+		 * @return string The string without PHP comments.
 		 */
 		public function removePHPComments(string $code): string {
-			// Verwijder /** */ en /* */ blokcommentaar
+			// Remove /** */ and /* */ block comments
 			$code = preg_replace('!/\*.*?\*/!s', '', $code);
 			
-			// Verwijder // lijncommentaar
+			// Remove // line comments
 			return preg_replace('!//.*?$!m', '', $code);
 		}
 		

@@ -97,7 +97,6 @@
 		}
 
 		/**
-		/**
 		 * Checks if this column allows NULL values
 		 * @return bool True if this column allows NULL values, false otherwise
 		 */

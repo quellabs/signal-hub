@@ -9,7 +9,7 @@
         protected $parameters;
         
         /**
-         * OneToMany constructor.
+         * PostPersist constructor.
          * @param array $parameters
          */
         public function __construct(array $parameters) {

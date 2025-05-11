@@ -8,20 +8,20 @@
 		
 		/**
 		 * SQLSerializer constructor
-		 * Initialiseert de benodigde handlers en readers.
+		 * Initializes the required handlers and readers.
 		 * @param EntityStore $entityStore
 		 */
 		public function __construct(EntityStore $entityStore) {
 			parent::__construct($entityStore);
 		}
-
+		
 		/**
-		 * Extraheert alle waarden uit de entiteit die gemarkeerd zijn als Column.
-		 * @param object $entity De entiteit waaruit de waarden geëxtraheerd moeten worden.
-		 * @return array Een array met property namen als keys en hun waarden.
+		 * Extracts all values from the entity that are marked as Column.
+		 * @param object $entity The entity from which the values must be extracted.
+		 * @return array An array with property names as keys and their values.
 		 */
 		public function serialize(object $entity): array {
-			// Serializeer de data
+			// Serialize the data
 			$serializedData = parent::serialize($entity);
 			
 			// Retrieve the column map (property > database column)
@@ -35,29 +35,29 @@
 		}
 		
 		/**
-		 * Injecteert de gegeven waarden in de entiteit.
-		 * @param object $entity De entiteit waarin de waarden geïnjecteerd moeten worden.
-		 * @param array $values De te injecteren waarden, met property namen als keys.
+		 * Injects the given values into the entity.
+		 * @param object $entity The entity into which the values must be injected.
+		 * @param array $values The values to be injected, with property names as keys.
 		 * @return void
 		 */
 		public function deserialize(object $entity, array $values): void {
 			// Retrieve the column map (property > database column)
 			$columnMap = $this->entityStore->getColumnMap($entity);
 			
-			// Stap 1: Creëer een tijdelijke array met kolomnamen als zowel key als value
-			// Dit is nodig omdat array_intersect_key() werkt met array keys
+			// Step 1: Create a temporary array with column names as both key and value
+			// This is necessary because array_intersect_key() works with array keys
 			$tempColumnMap = array_combine(
 				array_values($columnMap),
 				array_values($columnMap)
 			);
 			
-			// Stap 2: Filter de keys die zowel in $columnMap als in $values voorkomen
-			// array_intersect_key() behoudt alleen de keys uit $tempColumnMap die ook in $values bestaan
+			// Step 2: Filter the keys that exist in both $columnMap and $values
+			// array_intersect_key() keeps only the keys from $tempColumnMap that also exist in $values
 			$filteredKeys = array_intersect_key($tempColumnMap, $values);
 			
-			// Stap 3: Maak de uiteindelijke result array
-			// De keys van $filteredKeys zijn nu de property names die we willen gebruiken
-			// We mappen elke key naar zijn corresponderende waarde in $values
+			// Step 3: Create the final result array
+			// The keys of $filteredKeys are now the property names we want to use
+			// We map each key to its corresponding value in $values
 			$result = array_combine(
 				array_keys($filteredKeys),
 				array_map(
@@ -66,7 +66,7 @@
 				)
 			);
 			
-			// Gebruik de parent methode om te deserialiseren met de gefilterde en getransformeerde data
+			// Use the parent method to deserialize with the filtered and transformed data
 			parent::deserialize($entity, $result);
 		}
 	}

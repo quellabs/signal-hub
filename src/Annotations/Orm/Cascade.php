@@ -6,11 +6,6 @@
 	
 	/**
 	 * Class Cascade
-	 *
-	 * Defines cascading behavior for entity relationships
-	 * Used to specify what operations should cascade and how they should be implemented
-	 *
-	 * @package Quellabs\ObjectQuel\AnnotationsReader\Annotations\Orm
 	 */
 	class Cascade implements AnnotationInterface {
 		
@@ -42,8 +37,6 @@
 		 * Possible values include:
 		 * - "remove": Cascade deletion
 		 * - "persist": Cascade persistence
-		 * - "all": Cascade all operations
-		 *
 		 * @return array List of operations to cascade
 		 */
 		public function getOperations(): array {

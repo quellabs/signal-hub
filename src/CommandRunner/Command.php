@@ -29,19 +29,19 @@
 		abstract public function execute(array $parameters=[]): int;
 		
 		/**
-		 * Haal signature op van dit commando (e.g. make:entity)
+		 * Get signature of this command (e.g. make:entity)
 		 * @return string
 		 */
 		abstract public static function getSignature(): string;
 		
 		/**
-		 * Haal de beschrijving op
+		 * Get the description
 		 * @return string
 		 */
 		abstract public static function getDescription(): string;
-
+		
 		/**
-		 * Haal de hulp tekst op
+		 * Get the help text
 		 * @return string
 		 */
 		abstract public static function getHelp(): string;

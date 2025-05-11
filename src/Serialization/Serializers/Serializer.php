@@ -24,11 +24,11 @@
 		
 		/**
 		 * Serializer constructor
-		 * Initialiseert de benodigde handlers en readers.
+		 * Initializes the required handlers and readers.
 		 * @param EntityStore $entityStore
 		 * @param string $serializationGroupName
 		 */
-		public function __construct(EntityStore $entityStore, string $serializationGroupName="") {
+		public function __construct(EntityStore $entityStore, string $serializationGroupName = "") {
 			$this->entityStore = $entityStore;
 			$this->propertyHandler = new PropertyHandler();
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
@@ -40,34 +40,34 @@
 			$this->normalizerInstances = [];
 			$this->int_types = array_flip(["int", "integer", "smallint", "tinyint", "mediumint", "bigint", "bit"]);
 			$this->float_types = array_flip(["decimal", "numeric", "float", "double", "real"]);
-
+			
 			$this->initializeNormalizers();
 		}
 		
 		/**
-		 * Deze functie initialiseert alle entiteiten in de "Entity"-directory.
+		 * This function initializes all entities in the "Entity" directory.
 		 * @return void
 		 */
 		private function initializeNormalizers(): void {
-			// Ophalen van alle bestandsnamen in de "Entity"-directory.
+			// Retrieve all file names in the "Entity" directory.
 			$normalizerFiles = scandir(dirname(__FILE__) . DIRECTORY_SEPARATOR . ".." . DIRECTORY_SEPARATOR . "Normalizer");
 			
-			// Itereren over alle bestanden in de "Entity"-directory.
+			// Iterate over all files in the "Entity" directory.
 			foreach ($normalizerFiles as $fileName) {
-				// Overslaan als het bestand geen PHP-bestand is.
+				// Skip if the file is not a PHP file.
 				if (($fileName == 'NormalizerInterface.php') || !$this->isPHPFile($fileName)) {
 					continue;
 				}
 				
-				// Construeren van de entiteitsnaam op basis van de bestandsnaam.
+				// Construct the entity name based on the file name.
 				$this->normalizers[] = strtolower(substr($fileName, 0, strpos($fileName, "Normalizer")));
 			}
 		}
 		
 		/**
-		 * Controleert of het opgegeven bestand een PHP-bestand is.
-		 * @param string $fileName Naam van het bestand.
-		 * @return bool True als het een PHP-bestand is, anders false.
+		 * Checks if the specified file is a PHP file.
+		 * @param string $fileName Name of the file.
+		 * @return bool True if it is a PHP file, otherwise false.
 		 */
 		private function isPHPFile(string $fileName): bool {
 			$fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
@@ -75,18 +75,18 @@
 		}
 		
 		/**
-		 * Controleert of een gegeven kolomtype een integer-type is.
-		 * @param string $columnType Het kolomtype om te controleren.
-		 * @return bool True als het kolomtype een integer-type is, anders false.
+		 * Checks if a given column type is an integer type.
+		 * @param string $columnType The column type to check.
+		 * @return bool True if the column type is an integer type, otherwise false.
 		 */
 		private function isIntColumnType(string $columnType): bool {
 			return isset($this->int_types[$columnType]);
 		}
 		
 		/**
-		 * Controleert of een gegeven kolomtype een float-type is.
-		 * @param string $columnType Het kolomtype om te controleren.
-		 * @return bool True als het kolomtype een float-type is, anders false.
+		 * Checks if a given column type is a float type.
+		 * @param string $columnType The column type to check.
+		 * @return bool True if the column type is a float type, otherwise false.
 		 */
 		private function isFloatColumnType(string $columnType): bool {
 			return isset($this->float_types[$columnType]);
@@ -207,34 +207,34 @@
 		}
 		
 		/**
-		 * Controleert of een eigenschap tot een specifieke serialisatiegroep behoort.
-		 * Deze functie bepaalt of een gegeven eigenschap moet worden opgenomen in de serialisatie
-		 * op basis van de gespecificeerde serialisatiegroep en de annotaties van de eigenschap.
-		 * @param array $annotations Een array van annotaties geassocieerd met de eigenschap.
-		 * @return bool True als de eigenschap moet worden geserialiseerd, anders false.
+		 * Checks if a property belongs to a specific serialization group.
+		 * This function determines whether a given property should be included in the serialization
+		 * based on the specified serialization group and the annotations of the property.
+		 * @param array $annotations An array of annotations associated with the property.
+		 * @return bool True if the property should be serialized, otherwise false.
 		 */
 		public function propertyInSerializeGroup(array $annotations): bool {
-			// Als er geen serialisatiegroep is opgegeven, includeren we alle eigenschappen
+			// If no serialization group is specified, we include all properties
 			if (empty($this->serialization_group_name)) {
 				return true;
 			}
 			
-			// Zoek naar de SerializeGroup annotatie
+			// Look for the SerializeGroup annotation
 			foreach ($annotations as $annotation) {
 				if ($annotation instanceof SerializationGroups) {
-					// Controleer of de huidige serialisatiegroep in de annotatie voorkomt
+					// Check if the current serialization group appears in the annotation
 					return in_array($this->serialization_group_name, $annotation->getGroups(), true);
 				}
 			}
 			
-			// Als er geen SerializeGroup annotatie is gevonden, dan includeren we de eigenschap
+			// If no SerializeGroup annotation is found, then we include the property
 			return true;
 		}
 		
 		/**
-		 * Extraheert alle waarden uit de entiteit die gemarkeerd zijn als Column.
-		 * @param object $entity De entiteit waaruit de waarden geëxtraheerd moeten worden.
-		 * @return array Een array met property namen als keys en hun waarden.
+		 * Extracts all values from the entity that are marked as Column.
+		 * @param object $entity The entity from which the values must be extracted.
+		 * @return array An array with property names as keys and their values.
 		 */
 		public function serialize(object $entity): array {
 			// Early return if the entity does not exist in the entity store.
@@ -321,7 +321,7 @@
 						} else {
 							$this->propertyHandler->set($entity, $property, $normalizedValue);
 						}
-
+						
 						// Skip to the next property
 						break;
 					}

@@ -5,16 +5,16 @@
 	use Quellabs\AnnotationReader\AnnotationInterface;
 	
 	/**
-	 * Definieert de ManyToOne klasse die de relatie tussen entiteiten beschrijft
+	 * Defines the ManyToOne class that describes the relationship between entities
 	 */
 	class ManyToOne implements AnnotationInterface {
 		
-		// Bevat parameters die extra informatie over de relatie geven
+		// Contains parameters that provide additional information about the relationship
 		protected array $parameters;
 		
 		/**
-		 * Constructor om de parameters te initialiseren.
-		 * @param array $parameters Array met parameters die de relatie beschrijven.
+		 * Constructor to initialize the parameters.
+		 * @param array $parameters Array with parameters that describe the relationship.
 		 */
 		public function __construct(array $parameters) {
 			$this->parameters = $parameters;
@@ -29,29 +29,29 @@
 		}
 		
 		/**
-		 * Haalt de target entiteit op.
-		 * @return string De volledige namespace van de doelentiteit.
+		 * Retrieves the target entity.
+		 * @return string The full namespace of the target entity.
 		 */
 		public function getTargetEntity(): string {
-			return "Quellabs\\ObjectQuel\\Entity\\{$this->parameters["targetEntity"]}";
+			return $this->parameters["targetEntity"];
 		}
-
+		
 		/**
-		 * Haalt de 'inversedBy' parameter op, als die aanwezig is.
-		 * @return string|null De naam van het veld in de doelentiteit dat naar de huidige entiteit verwijst, of null als het niet is ingesteld.
+		 * Retrieves the 'inversedBy' parameter, if present.
+		 * @return string|null The name of the field in the target entity that refers to the current entity, or null if it is not set.
 		 */
 		public function getInversedBy(): ?string {
 			return $this->parameters["inversedBy"] ?? null;
 		}
 		
 		/**
-		 * Haal de naam van de relatie-kolom op.
-		 * Deze methode haalt de naam van de kolom op die de ManyToOne relatie in de database vertegenwoordigt.
-		 * De naam van de kolom wordt bepaald op basis van de volgende prioriteiten:
-		 * 1. Als de parameter "relationColumn" is ingesteld in de annotatie, dan wordt deze waarde gebruikt.
-		 * 2. Als "relationColumn" niet is ingesteld maar "inversedBy" wel, dan wordt de waarde van "inversedBy" gebruikt.
-		 * 3. Als geen van beide parameters is ingesteld, wordt null geretourneerd.
-		 * @return string|null De naam van de join-kolom of null als deze niet is ingesteld.
+		 * Retrieve the name of the relationship column.
+		 * This method retrieves the name of the column that represents the ManyToOne relationship in the database.
+		 * The column name is determined based on the following priorities:
+		 * 1. If the parameter "relationColumn" is set in the annotation, then this value is used.
+		 * 2. If "relationColumn" is not set but "inversedBy" is, then the value of "inversedBy" is used.
+		 * 3. If neither parameter is set, null is returned.
+		 * @return string|null The name of the join column or null if it is not set.
 		 */
 		public function getRelationColumn(): ?string {
 			if (isset($this->parameters["relationColumn"])) {

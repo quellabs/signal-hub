@@ -101,9 +101,9 @@
 		}
 		
 		/**
-		 * Extraheert alle waarden uit de entiteit die gemarkeerd zijn als Column.
-		 * @param object $entity De entiteit waaruit de waarden geëxtraheerd moeten worden.
-		 * @return array Een array met property namen als keys en hun waarden.
+		 * Extracts all values from the entity that are marked as Column.
+		 * @param object $entity The entity from which the values must be extracted.
+		 * @return array An array with property names as keys and their values.
 		 */
 		public function serialize(object $entity): array {
 			$entityName = $this->normalizeEntityName(get_class($entity));

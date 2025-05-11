@@ -42,13 +42,13 @@
 			$currentDirnameLength = strlen($currentDirname) + 1;
 			
 			foreach (glob($directory . '/*') as $item) {
-				// Recursief scannen voor subdirectories
+				// Recursively scan for subdirectories
 				if (is_dir($item)) {
 					$this->scanCommands($item);
 					continue;
 				}
 				
-				// Command registreren
+				// Register command
 				if (str_ends_with($item, 'Command.php')) {
 					$itemWithoutDirectory = substr($item, $currentDirnameLength);
 					$itemWithoutPhp = substr($itemWithoutDirectory, 0, -4);
@@ -61,7 +61,7 @@
 		}
 		
 		/**
-		 * Voer het commando uit
+		 * Execute the command
 		 * @param array $args
 		 * @return void
 		 */

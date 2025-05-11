@@ -6,19 +6,19 @@
 	
 	/**
 	 * Class OneToMany
-	 * Deze klasse representeert een OneToMany-relatie in de ORM en bevat verschillende methodes
-	 * om informatie over de relatie te verkrijgen.
+	 * This class represents a OneToMany relationship in the ORM and contains various methods
+	 * to obtain information about the relationship.
 	 */
 	class OneToMany implements AnnotationInterface {
 		
 		/**
-		 * @var array De parameters die zijn doorgegeven bij de annotatie.
+		 * @var array The parameters that were passed with the annotation.
 		 */
 		protected array $parameters;
 		
 		/**
 		 * OneToMany constructor.
-		 * @param array $parameters De parameters van de OneToMany annotatie.
+		 * @param array $parameters The parameters of the OneToMany annotation.
 		 */
 		public function __construct(array $parameters) {
 			$this->parameters = $parameters;
@@ -33,29 +33,29 @@
 		}
 		
 		/**
-		 * Haal het target entity op.
-		 * @return string De volledige namespace van het target entity.
+		 * Retrieve the target entity.
+		 * @return string The full namespace of the target entity.
 		 */
 		public function getTargetEntity(): string {
 			return $this->parameters["targetEntity"];
 		}
 		
 		/**
-		 * Haal de 'mappedBy' parameter op.
-		 * @return string|null De waarde van de 'mappedBy' parameter of een lege string als deze niet is ingesteld.
+		 * Retrieve the 'mappedBy' parameter.
+		 * @return string|null The value of the 'mappedBy' parameter or an empty string if it is not set.
 		 */
 		public function getMappedBy(): ?string {
 			return $this->parameters["mappedBy"] ?? null;
 		}
 		
 		/**
-		 * Haal de naam van de relatie-kolom op.
-		 * Deze methode haalt de naam van de kolom op die de OneToMany relatie in de database vertegenwoordigt.
-		 * De naam van de kolom wordt bepaald op basis van de volgende prioriteiten:
-		 * 1. Als de parameter "relationColumn" is ingesteld in de annotatie, dan wordt deze waarde gebruikt.
-		 * 2. Als "relationColumn" niet is ingesteld maar "mappedBy" wel, dan wordt de waarde van "mappedBy" gebruikt.
-		 * 3. Als geen van beide parameters is ingesteld, wordt null geretourneerd.
-		 * @return string|null De naam van de join-kolom of null als deze niet is ingesteld.
+		 * Retrieve the name of the relationship column.
+		 * This method retrieves the name of the column that represents the OneToMany relationship in the database.
+		 * The column name is determined based on the following priorities:
+		 * 1. If the parameter "relationColumn" is set in the annotation, then this value is used.
+		 * 2. If "relationColumn" is not set but "mappedBy" is, then the value of "mappedBy" is used.
+		 * 3. If neither parameter is set, null is returned.
+		 * @return string|null The name of the join column or null if it is not set.
 		 */
 		public function getRelationColumn(): ?string {
 			return $this->parameters["relationColumn"] ?? null;

@@ -26,7 +26,7 @@
 		private PropertyHandler $propertyHandler;
 		
 		/**
-		 * Constructor
+		 * RelationshipLoader constructor
 		 * @param EntityManager $entityManager
 		 * @param AstRetrieve $retrieve
 		 */
@@ -39,55 +39,55 @@
 		}
 		
 		/**
-		 * Bepaalt de juiste eigenschapnaam op de proxy op basis van de afhankelijkheid.
-		 * @param $dependency mixed De OneToOne-afhankelijkheid.
-		 * @return string De naam van de eigenschap.
+		 * Determines the correct property name on the proxy based on the dependency.
+		 * @param $dependency mixed The OneToOne dependency.
+		 * @return string The name of the property.
 		 */
 		private function determineRelationPropertyName(mixed $dependency): string {
 			return !empty($dependency->getInversedBy()) ? $dependency->getInversedBy() : $dependency->getMappedBy();
 		}
 		
 		/**
-		 * Verwerkt de afhankelijkheid van een entiteit en update de eigenschap met de gespecificeerde afhankelijkheid.
-		 * Deze functie controleert of de huidige relatie null is of niet geïnitialiseerd en zoekt vervolgens
-		 * naar de gerelateerde entiteit op basis van de opgegeven afhankelijkheid. Als een overeenkomstige entiteit
-		 * wordt gevonden, wordt de eigenschap van de huidige entiteit bijgewerkt om deze relatie te weerspiegelen.
-		 * @param object $entity De entiteit waarvan de afhankelijkheid wordt verwerkt.
-		 * @param string $property De eigenschap van de entiteit die bijgewerkt moet worden.
-		 * @param mixed $dependency De afhankelijkheid die gebruikt wordt om de gerelateerde entiteit te vinden.
+		 * Processes the dependency of an entity and updates the property with the specified dependency.
+		 * This function checks if the current relation is null or not initialized and then searches
+		 * for the related entity based on the given dependency. If a matching entity
+		 * is found, the property of the current entity is updated to reflect this relationship.
+		 * @param object $entity The entity whose dependency is being processed.
+		 * @param string $property The property of the entity that needs to be updated.
+		 * @param mixed $dependency The dependency used to find the related entity.
 		 */
 		private function processEntityDependency(object $entity, string $property, mixed $dependency): void {
-			// Verkrijg de huidige waarde van de eigenschap.
+			// Get the current value of the property.
 			$currentRelation = $this->propertyHandler->get($entity, $property);
 			
-			// Controleer of de huidige relatie al is ingesteld en of deze niet een ongeïnitialiseerde proxy is.
+			// Check if the current relation is already set and if it's not an uninitialized proxy.
 			if ($currentRelation !== null &&
 				(!($currentRelation instanceof ProxyInterface) || $currentRelation->isInitialized())) {
 				return;
 			}
 			
-			// Bepaal de kolom en waarde voor de relatie op basis van de afhankelijkheid.
+			// Determine the column and value for the relation based on the dependency.
 			$relationColumn = $dependency->getRelationColumn();
 			$relationColumnValue = $this->propertyHandler->get($entity, $relationColumn);
 			
-			// Als de waarde van de relatiekolom 0 of null is, wordt de operatie niet voortgezet.
+			// If the value of the relation column is 0 or null, the operation does not continue.
 			if (empty($relationColumnValue)) {
 				return;
 			}
 			
-			// Bepaal de naam en eigenschap van de doelentiteit op basis van de afhankelijkheid.
+			// Determine the name and property of the target entity based on the dependency.
 			$targetEntityName = $dependency->getTargetEntity();
 			$inversedPropertyName = $this->getInversedPropertyName($dependency);
 			
-			// Voeg de namespace toe aan de naam van de doelentiteit en zoek de gerelateerde entiteit.
+			// Add the namespace to the target entity name and find the related entity.
 			$targetEntity = $this->entityStore->normalizeEntityName($targetEntityName);
 			$relationEntity = $this->unitOfWork->findEntity($targetEntity, [$inversedPropertyName => $relationColumnValue]);
 			
-			// Als een gerelateerde entiteit wordt gevonden, update dan de eigenschap van de huidige entiteit.
+			// If a related entity is found, update the property of the current entity.
 			if ($relationEntity !== null) {
-				// Update de property met de gevonden entiteit
-				// Als er een setter-method bestaat, voer deze dan uit.
-				// Zet anders direct de property.
+				// Update the property with the found entity
+				// If a setter method exists, execute it.
+				// Otherwise set the property directly.
 				$setterMethod = 'set' . ucfirst($property);
 				
 				if (method_exists($entity, $setterMethod)) {
@@ -163,26 +163,26 @@
 		}
 		
 		/**
-		 * Filtert en retourneert een array van geldige OneToOne en ManyToOne dependencies voor een gegeven entiteit en eigenschap.
-		 * @param object $entity De entiteit waarvan de eigenschap wordt gecontroleerd.
-		 * @param string $property De naam van de eigenschap van de entiteit.
-		 * @param array $dependencies Een array van dependencies om te filteren.
-		 * @return array Een array van geldige OneToOne en ManyToOne dependencies.
+		 * Filters and returns an array of valid OneToOne and ManyToOne dependencies for a given entity and property.
+		 * @param object $entity The entity whose property is being checked.
+		 * @param string $property The name of the entity's property.
+		 * @param array $dependencies An array of dependencies to filter.
+		 * @return array An array of valid OneToOne and ManyToOne dependencies.
 		 */
 		private function filterValidDependencies(object $entity, string $property, array $dependencies): array {
 			$validDependencies = [];
 			
 			foreach ($dependencies as $dependency) {
-				// Controleer of de dependency een instantie is van OneToOne of ManyToOne
+				// Check if the dependency is an instance of OneToOne or ManyToOne
 				if (!($dependency instanceof OneToOne) && !($dependency instanceof ManyToOne)) {
-					// Ga verder naar de volgende iteratie als de dependency geen OneToMany is
+					// Continue to the next iteration if the dependency is not a OneToMany
 					continue;
 				}
 				
-				// Haal de waarde van de eigenschap op uit de entiteit
+				// Get the value of the property from the entity
 				$propertyValue = $this->propertyHandler->get($entity, $property);
 				
-				// Voeg de waarde toe aan de lijst van geldige dependencies
+				// Add the value to the list of valid dependencies
 				if ($propertyValue === null) {
 					$validDependencies[] = $dependency;
 				}
@@ -205,32 +205,32 @@
 		}
 		
 		/**
-		 * Filtert en retourneert een array van geldige OneToMany dependencies voor een gegeven entiteit en eigenschap.
-		 * @param object $entity De entiteit waarvan de eigenschap wordt gecontroleerd.
-		 * @param string $property De naam van de eigenschap van de entiteit.
-		 * @param array $dependencies Een array van dependencies om te filteren.
-		 * @return array Een array van geldige OneToMany dependencies.
+		 * Filters and returns an array of valid OneToMany dependencies for a given entity and property.
+		 * @param object $entity The entity whose property is being checked.
+		 * @param string $property The name of the entity's property.
+		 * @param array $dependencies An array of dependencies to filter.
+		 * @return array An array of valid OneToMany dependencies.
 		 */
 		private function filterEmptyOneToManyDependencies(object $entity, string $property, array $dependencies): array {
 			$validDependencies = [];
 			
 			foreach ($dependencies as $dependency) {
-				// Controleer of de dependency een instantie is van OneToMany
+				// Check if the dependency is an instance of OneToMany
 				if (!($dependency instanceof OneToMany)) {
-					// Ga verder naar de volgende iteratie als de dependency geen OneToMany is
+					// Continue to the next iteration if the dependency is not a OneToMany
 					continue;
 				}
 				
-				// Haal de waarde van de eigenschap op uit de entiteit
+				// Get the value of the property from the entity
 				$propertyValue = $this->propertyHandler->get($entity, $property);
 				
-				// Voeg de waarde toe aan de lijst van geldige dependencies
+				// Add the value to the list of valid dependencies
 				if ($propertyValue instanceof Collection && $propertyValue->isEmpty()) {
 					$validDependencies[] = $dependency;
 				}
 			}
 			
-			// Retourneer de array van geldige dependencies
+			// Return the array of valid dependencies
 			return $validDependencies;
 		}
 		
@@ -255,9 +255,9 @@
 		}
 		
 		/**
-		 * Controleert of een specifieke entity type via een specifieke join property werd opgevraagd.
-		 * @param string $targetEntity De entity class name
-		 * @param string $joinProperty De specifieke join property waar we naar zoeken
+		 * Checks if a specific entity type was requested via a specific join property.
+		 * @param string $targetEntity The entity class name
+		 * @param string $joinProperty The specific join property we are looking for
 		 * @return bool
 		 */
 		private function wasEntityRequested(string $currentEntity, string $targetEntity, string $joinProperty): bool {
@@ -273,7 +273,7 @@
 					continue;
 				}
 				
-				// Check of de entity matched en of de join property voorkomt in de range
+				// Check if the entity matches and if the join property occurs in the range
 				$entity = $value->getExpression();
 				$range = $entity->getRange();
 				
@@ -289,39 +289,38 @@
 		}
 		
 		/**
-		 * Stelt zowel OneToOne- als ManyToOne-relaties in voor elke entiteit in de opgegeven rij.
-		 * @param array $filteredEntities Een array van gefilterde entiteiten waarvoor de relaties moeten worden ingesteld.
+		 * Sets both OneToOne and ManyToOne relationships for each entity in the given row.
+		 * @param array $filteredEntities An array of filtered entities for which the relationships should be set.
 		 * @return void
 		 */
 		private function setDirectRelations(array $filteredEntities): void {
 			foreach ($filteredEntities as $entity) {
-				// Normaliseer de naam van de entiteitsklasse
+				// Normalize the entity class name
 				$entityClass = $this->entityStore->normalizeEntityName(get_class($entity));
 				
 				// Dependencies
 				$entityDependencies = $this->entityStore->getAllDependencies($entityClass);
 				
-				// Controleer of er relaties zijn voor de entiteitsklasse
+				// Check if there are relationships for the entity class
 				if (empty($entityDependencies)) {
 					continue;
 				}
 				
-				// Itereer door elke eigenschap en zijn dependencies in de relatie-cache
+				// Iterate through each property and its dependencies in the relationship cache
 				foreach ($entityDependencies as $property => $dependencies) {
-					// Itereer door elke dependency van de eigenschap
+					// Iterate through each dependency of the property
 					foreach ($dependencies as $dependency) {
-						// Controleer of de dependency een OneToOne of ManyToOne relatie is
+						// Check if the dependency is a OneToOne or ManyToOne relationship
 						if (!($dependency instanceof OneToOne) && !($dependency instanceof ManyToOne)) {
 							continue;
 						}
 						
-						// Verwerk de entity dependency
+						// Process the entity dependency
 						$this->processEntityDependency($entity, $property, $dependency);
 					}
 				}
 			}
 		}
-		
 		
 		/**
 		 * Promotes empty relationships to proxy objects for the given filtered entities.
@@ -353,37 +352,37 @@
 		}
 		
 		/**
-		 * Promoot lege OneToMany-relaties naar lazy-loaded collecties voor de gegeven gefilterde rijen.
-		 * @param array $filteredRows De rijen die verwerkt moeten worden
+		 * Promotes empty OneToMany relationships to lazy-loaded collections for the given filtered rows.
+		 * @param array $filteredRows The rows that need to be processed
 		 * @return void
 		 */
 		private function setupOneToManyCollections(array $filteredRows): void {
-			// Loop door alle gefilterde rijen
+			// Loop through all filtered rows
 			foreach ($filteredRows as $value) {
-				// Haal de genormaliseerde naam van de entity klasse
+				// Get the normalized name of the entity class
 				$objectClass = $this->entityStore->normalizeEntityName(get_class($value));
 				
-				// Verkrijg alle afhankelijkheden van de entity klasse
+				// Get all dependencies of the entity class
 				$entityDependencies = $this->entityStore->getAllDependencies($objectClass);
 				
-				// Loop door alle eigenschappen en hun afhankelijkheden
+				// Loop through all properties and their dependencies
 				foreach ($entityDependencies as $property => $dependencies) {
-					// Filter lege One-to-Many afhankelijkheden voor de huidige waarde en eigenschap
+					// Filter empty One-to-Many dependencies for the current value and property
 					$validDependencies = $this->filterEmptyOneToManyDependencies($value, $property, $dependencies);
 					
-					// Maak en stel een collectie van entities in voor elke geldige afhankelijkheid
+					// Create and set a collection of entities for each valid dependency
 					foreach ($validDependencies as $dependency) {
 						$targetEntity = $this->entityStore->normalizeEntityName($dependency->getTargetEntity());
 						$relationColumn = $this->getRelationColumn($value, $dependency);
 						$mappedBy = $dependency->getMappedBy();
 						
-						// Doe niets als de data voor deze query wel opgevraagd is. Er is dan simpelweg geen data,
-						// dus het heeft geen zin om deze data alsnog te laxy loaden. We houden dan de lege collectie.
+						// Do nothing if the data for this query was requested. There is simply no data,
+						// so there's no point in lazy loading this data. We keep the empty collection.
 						if ($this->wasEntityRequested($objectClass, $targetEntity, $mappedBy)) {
 							continue;
 						}
 						
-						// Maak een Entity Collection aan
+						// Create an Entity Collection
 						$primaryKeyValue = $this->propertyHandler->get($value, $relationColumn);
 						
 						$proxy = new EntityCollection(

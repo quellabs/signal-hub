@@ -27,7 +27,6 @@
 		
 		/**
 		 * Range parser constructor
-		 *
 		 * @param Lexer $lexer The lexer instance to use for tokenization
 		 */
 		public function __construct(Lexer $lexer) {

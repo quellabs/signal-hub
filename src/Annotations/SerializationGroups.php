@@ -18,7 +18,6 @@
 		/**
 		 * SerializationGroups constructor.
 		 * Initializes the class with the provided annotation parameters
-		 *
 		 * @param array $parameters Parameters passed to this annotation
 		 */
 		public function __construct(array $parameters) {
