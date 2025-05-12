@@ -2,17 +2,20 @@
 	
 	namespace Quellabs\ObjectQuel\DatabaseAdapter;
 	
+	use Cake\Database\Schema\Collection;
 	use Cake\Database\StatementInterface;
 	use Cake\Datasource\ConnectionInterface;
 	use Cake\Datasource\ConnectionManager;
+	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\ObjectQuel\Configuration;
+	use Phinx\Db\Adapter\AdapterFactory;
 	
 	/**
 	 * Database adapter that ties ObjectQuel and Cakephp/Database together
 	 */
 	class DatabaseAdapter {
 		
-		protected Configuration|array $configuration;
+		protected Configuration $configuration;
 		protected ConnectionInterface $connection;
 		protected array $descriptions;
 		protected array $columns_ex_descriptions;
@@ -20,21 +23,6 @@
 		protected string $last_error_message;
 		protected int $transaction_depth;
 		protected array $indexes;
-		
-		protected static array $int_types = [
-			"int",
-			"integer",
-			"smallint",
-			"tinyint",
-			"mediumint",
-			"bigint",
-			"decimal",
-			"numeric",
-			"float",
-			"double",
-			"real",
-			"bit"
-		];
 		
 		/**
 		 * Database Adapter constructor.
@@ -61,55 +49,6 @@
 			// Create the database connection
 			ConnectionManager::setConfig('default', ['url' => $configuration->getDsn()]);
 			$this->connection = ConnectionManager::get('default');
-		}
-		
-		/**
-		 * Mysqli doesn't support named parameters, but we still like to use them.
-		 * This function converts named parameters to anonymous parameters
-		 * @param string $query
-		 * @param array $parameters
-		 * @return array
-		 */
-		protected function namedParametersToAnonymousParameters(string $query, array $parameters): array {
-			// Initialize variables
-			$newQuery = '';
-			$parameterArray = [];
-			
-			// Loop through each character in the query string
-			$queryLength = strlen($query);
-			
-			for ($i = 0; $i < $queryLength; ++$i) {
-				if ($query[$i] === ':') {
-					$j = $i + 1;
-					
-					while ($j < $queryLength && ($query[$j] === '_' || ctype_alnum($query[$j]))) {
-						++$j;
-					}
-					
-					$parameterName = substr($query, $i + 1, $j - $i - 1);
-					
-					// Replace named parameter if it exists in the provided parameters
-					if ($parameterName && array_key_exists($parameterName, $parameters)) {
-						$parameterValue = $parameters[$parameterName];
-						$newQuery .= $parameterValue !== null ? '?' : 'NULL';
-						
-						if ($parameterValue !== null) {
-							$parameterArray[] = $parameterValue;
-						}
-						
-						$i = $j - 1;
-					} else {
-						$newQuery .= $query[$i];
-					}
-				} else {
-					$newQuery .= $query[$i];
-				}
-			}
-			
-			return [
-				'query'      => $newQuery,
-				'parameters' => $parameterArray
-			];
 		}
 		
 		/**
@@ -281,21 +220,22 @@
 				
 				// Build the comprehensive column information array
 				$result[$column["Field"]] = [
-					'type'       => $matches[1] ?? $column["Type"], // Column data type (int, varchar, etc.)
-					'size'       => $matches[2] ?? null,            // Size/length parameter if applicable
-					'collation'  => $column["Collation"],           // Character set collation for text types
-					'nullable'   => $column["Null"] == "YES",       // Whether NULL values are allowed
-					'key'        => $column["Key"],                 // Key type (PRI, UNI, MUL, etc.)
-					'default'    => $column["Default"],             // Default value from SHOW COLUMNS
-					'extra'      => $column["Extra"],               // Extra information (auto_increment, etc.)
-					'privileges' => $column["Privileges"],          // Access privileges for the column
-					'comment'    => $column["Comment"],             // User-defined column comment
-					'attributes' => [
-						'unsigned'       => stripos($properties, 'unsigned') !== false,     // Flag for unsigned numeric types
-						'auto_increment' => $autoIncrement,                                        // Flag for auto-incrementing columns
-						'not_null'       => stripos($properties, 'not null') !== false,     // Flag for NOT NULL constraint
-						'zerofill'       => stripos($properties, 'zerofill') !== false,     // Flag for zero-filled display
-						'default_value'  => $default_value,                                        // Extracted default value from properties
+					'type'           => $matches[1] ?? $column["Type"], // Column data type (int, varchar, etc.)
+					'size'           => $matches[2] ?? null,            // Size/length parameter if applicable
+					'collation'      => $column["Collation"],           // Character set collation for text types
+					'nullable'       => $column["Null"] == "YES",       // Whether NULL values are allowed
+					'key'            => $column["Key"],                 // Key type (PRI, UNI, MUL, etc.)
+					'primary_key'    => $column["Key"] === "PRI",
+					'auto_increment' => $autoIncrement,                                        // Flag for auto-incrementing columns
+					'default'        => $column["Default"],             // Default value from SHOW COLUMNS
+					'unsigned'       => stripos($properties, 'unsigned') !== false,     // Flag for unsigned numeric types
+					'extra'          => $column["Extra"],               // Extra information (auto_increment, etc.)
+					'privileges'     => $column["Privileges"],          // Access privileges for the column
+					'comment'        => $column["Comment"],             // User-defined column comment
+					'attributes'     => [
+						'not_null'      => stripos($properties, 'not null') !== false,     // Flag for NOT NULL constraint
+						'zerofill'      => stripos($properties, 'zerofill') !== false,     // Flag for zero-filled display
+						'default_value' => $default_value,                                        // Extracted default value from properties
 					]
 				];
 			}
@@ -499,14 +439,6 @@
 			return array_values(array_filter($this->getIndexes($tableName), function ($e) use ($column) {
 				return $e["column"] == $column;
 			}));
-		}
-		
-		/**
-		 * Returns all numeric mysql types
-		 * @return string[]
-		 */
-		public function getIntTypes(): array {
-			return self::$int_types;
 		}
 		
 		/**
@@ -715,5 +647,50 @@
 		 */
 		public function getInsertId(): int|string|false {
 			return $this->connection->getDriver()->lastInsertId();
+		}
+		
+		/**
+		 * Returns the schema collection of this connection
+		 * @return Collection
+		 */
+		public function getSchemaCollection(): Collection {
+			return $this->connection->getSchemaCollection();
+		}
+		
+		/**
+		 * Get a Phinx adapter instance using CakePHP's database connection
+		 * @return \Phinx\Db\Adapter\AdapterInterface
+		 */
+		public function getPhinxAdapter(): AdapterInterface {
+			// Get the CakePHP connection
+			$connection = ConnectionManager::get('default');
+			
+			// Get the CakePHP connection config
+			$config = $connection->config();
+
+			// Map CakePHP driver to Phinx adapter name
+			$driverMap = [
+				'Cake\Database\Driver\Mysql' => 'mysql',
+				'Cake\Database\Driver\Postgres' => 'pgsql',
+				'Cake\Database\Driver\Sqlite' => 'sqlite',
+				'Cake\Database\Driver\Sqlserver' => 'sqlsrv'
+			];
+
+			// Get the appropriate adapter name
+			$adapter = $driverMap[$config['driver']] ?? 'mysql';
+
+			// Convert CakePHP connection config to Phinx format
+			$phinxConfig = [
+				'adapter' => $adapter,
+				'host'    => $config['host'] ?? 'localhost',
+				'name'    => $config['database'],
+				'user'    => $config['username'],
+				'pass'    => $config['password'],
+				'port'    => $config['port'] ?? 3306,
+				'charset' => $config['encoding'] ?? 'utf8mb4',
+			];
+			
+			// Create and return the adapter
+			return AdapterFactory::instance()->getAdapter($phinxConfig['adapter'], $phinxConfig);
 		}
 	}

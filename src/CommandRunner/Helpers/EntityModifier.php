@@ -7,6 +7,7 @@
 	class EntityModifier {
 		
 		private Configuration $configuration;
+		private PhinxTypeMapper $typeMapper;
 		
 		/**
 		 * Constructor for EntityModifier
@@ -14,6 +15,7 @@
 		 */
 		public function __construct(Configuration $configuration) {
 			$this->configuration = $configuration;
+			$this->typeMapper = new PhinxTypeMapper();
 		}
 		
 		/**
@@ -426,12 +428,20 @@
 			$properties[] = "type=\"{$type}\"";
 			
 			// Add optional properties if they exist
-			if (isset($property['length']) && is_numeric($property['length'])) {
-				$properties[] = "length={$property['length']}";
+			if (isset($property['limit']) && is_numeric($property['limit'])) {
+				$properties[] = "limit={$property['limit']}";
 			}
 			
 			if (isset($property['unsigned'])) {
 				$properties[] = "unsigned=" . ($property['unsigned'] ? "true" : "false");
+			}
+			
+			if (isset($property['precision']) && is_numeric($property['precision'])) {
+				$properties[] = "precision={$property['precision']}";
+			}
+			
+			if (isset($property['scale']) && is_numeric($property['scale'])) {
+				$properties[] = "scale={$property['scale']}";
 			}
 			
 			if ($nullable) {
@@ -515,27 +525,13 @@
 			
 			// Handle regular properties
 			$type = $property['type'] ?? 'string';
-			$phpType = $this->typeToPhpType($type);
+			$phpType = $this->typeMapper->phinxTypeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return "protected {$nullableIndicator}{$phpType} \${$property['name']};";
 		}
 		
-		/**
-		 * Transforms an entered type in a php type
-		 * @param string $type
-		 * @return string
-		 */
-		protected function typeToPhpType(string $type): string {
-			return match ($type) {
-				'integer', 'smallint' => 'int',
-				'date' => '\\DateTime',
-				'datetime' => '\\DateTime',
-				'float' => 'float',
-				default => 'string',
-			};
-		}
-		
+
 		/**
 		 * Generate a getter method for a property
 		 * @param array $property Property information
@@ -581,7 +577,7 @@
 			// Handle regular property getter
 			$nullable = $property['nullable'] ?? false;
 			$type = $property['type'] ?? 'string';
-			$phpType = $this->typeToPhpType($type);
+			$phpType = $this->typeMapper->phinxTypeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
 			return <<<EOT
@@ -651,7 +647,7 @@
 			
 			// Convert database/schema type to PHP type
 			// This handles mapping of types like 'varchar' to 'string', 'integer' to 'int', etc.
-			$phpType = $this->typeToPhpType($type);
+			$phpType = $this->phinxTypeToPhpType($type);
 			
 			// Create PHP 7.1+ nullable type indicator (? prefix) if property is nullable
 			$nullableIndicator = $nullable ? '?' : '';

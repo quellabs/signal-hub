@@ -52,16 +52,16 @@
 		 * Gets the column length/size
 		 * @return int|null The length/size of the column
 		 */
-		public function getLength(): ?int {
-			if (empty($this->parameters["length"])) {
+		public function getLimit(): ?int {
+			if (empty($this->parameters["limit"])) {
 				return null;
 			}
 			
-			if (!is_numeric($this->parameters["length"])) {
+			if (!is_numeric($this->parameters["limit"])) {
 				return null;
 			}
 			
-			return (int)$this->parameters["length"];
+			return (int)$this->parameters["limit"];
 		}
 		
 		/**
@@ -69,7 +69,7 @@
 		 * @return bool True if a default value is specified, false otherwise
 		 */
 		public function hasDefault(): bool {
-			return array_key_exists("default", $this->parameters);
+			return !empty($this->parameters["default"]);
 		}
 		
 		/**
@@ -95,12 +95,28 @@
 		public function isUnsigned(): bool {
 			return $this->parameters["unsigned"] ?? false;
 		}
-
+		
 		/**
 		 * Checks if this column allows NULL values
 		 * @return bool True if this column allows NULL values, false otherwise
 		 */
 		public function isNullable(): bool {
 			return $this->parameters["nullable"] ?? false;
+		}
+		
+		/**
+		 * Gets the precision for this column (for decimal/numeric types)
+		 * @return int|null The precision value or null if not set
+		 */
+		public function getPrecision(): ?int {
+			return $this->parameters["precision"] ?? null;
+		}
+		
+		/**
+		 * Gets the scale for this column (for decimal/numeric types)
+		 * @return int|null The scale value or null if not set
+		 */
+		public function getScale(): ?int {
+			return $this->parameters["scale"] ?? null;
 		}
 	}

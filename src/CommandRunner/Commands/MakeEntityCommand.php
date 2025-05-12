@@ -213,7 +213,8 @@
 				
 				// Prompt user to select property data type from available options
 				$propertyType = $this->input->choice("\nField type", [
-					'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', 'datetime', 'relationship'
+					'tinyinteger', 'smallinteger','integer', 'biginteger', 'string', 'char', 'text', 'float',
+					'decimal', 'boolean', 'date', 'datetime', 'time', 'timestamp', 'relationship'
 				]);
 				
 				// If the type is relationship, collect relationship details
@@ -313,16 +314,46 @@
 				
 				// For string type, ask for length; otherwise set to null
 				if ($propertyType == 'string') {
-					$propertyLength = $this->input->ask("\nMaximum character length for this string field", "255");
+					$propertyLimit = $this->input->ask("\nCharacter limit for this string field", "255");
 				} else {
-					$propertyLength = null;
+					$propertyLimit = null;
 				}
 				
 				// For integer types, ask if unsigned; otherwise set to null
-				if (in_array($propertyType, ['integer', 'smallint'])) {
+				if (in_array($propertyType, ['tinyinteger', 'smallinteger', 'integer', 'biginteger'])) {
 					$unsigned = $this->input->confirm("\nShould this number field store positive values only (unsigned)?", false);
 				} else {
 					$unsigned = null;
+				}
+				
+				// For decimal types, ask for precision and scale
+				$precision = null;
+				$scale = null;
+
+				if (in_array($propertyType, ['decimal'])) {
+					// Ask for precision with validation
+					$precision = null;
+					
+					while ($precision === null || $precision <= 0) {
+						$precision = (int) $this->input->ask("\nPrecision (total digits, e.g. 10)?", 10);
+						
+						if ($precision <= 0) {
+							$this->output->warning("Precision must be greater than 0.");
+						}
+					}
+					
+					// Ask for scale with validation against precision
+					$scale = null;
+					
+					while ($scale === null || $scale < 0 || $scale > $precision) {
+						$scale = (int) $this->input->ask("\nScale (decimal digits, e.g. 2)?", 2);
+						
+						if ($scale < 0) {
+							$this->output->warning("Scale cannot be negative.");
+						} elseif ($scale > $precision) {
+							$this->output->warning("Scale cannot be greater than precision ($precision).");
+						}
+					}
 				}
 				
 				// Ask if property can be nullable in the database
@@ -330,11 +361,13 @@
 				
 				// Add collected property info to the property array
 				$properties[] = [
-					"name"     => $propertyName,
-					"type"     => $propertyType,
-					"length"   => $propertyLength,
-					'unsigned' => $unsigned,
-					"nullable" => $propertyNullable,
+					"name"      => $propertyName,
+					"type"      => $propertyType,
+					"limit"     => $propertyLimit,
+					'unsigned'  => $unsigned,
+					"nullable"  => $propertyNullable,
+					'precision' => $precision,
+					'scale'     => $scale,
 				];
 			}
 			

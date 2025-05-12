@@ -84,4 +84,14 @@
 		public function writeLn(string $message): void {
 			fwrite($this->output, $message . "\n");
 		}
+		
+		/**
+		 * Display a warning message
+		 * @param string $message
+		 * @return void
+		 */
+		public function warning(string $message): void {
+			$prefix = "\033[33m⚠ WARNING:\033[0m ";  // Yellow color with warning symbol
+			$this->writeLn($prefix . $message);
+		}
 	}

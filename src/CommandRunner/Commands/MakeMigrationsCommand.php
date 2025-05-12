@@ -6,6 +6,7 @@
 	 * Import required classes for migration generation and entity analysis
 	 */
 	
+	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
 	use Quellabs\ObjectQuel\CommandRunner\Command;
@@ -35,7 +36,6 @@
 		private AnnotationReader $annotationReader;
 		private string $migrationsPath;
 		private EntityScanner $entityScanner;
-		private DatabaseSchemaLoader $databaseSchemaLoader;
 		private SchemaComparator $schemaComparator;
 		private PhinxTypeMapper $phinxTypeMapper;
 		
@@ -62,9 +62,61 @@
 			$this->migrationsPath = $configuration->getMigrationsPath();
 			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
 			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
-			$this->databaseSchemaLoader = new DatabaseSchemaLoader($this->connection);
 			$this->schemaComparator = new SchemaComparator();
 			$this->phinxTypeMapper = new PhinxTypeMapper();
+		}
+		
+		/**
+		 * Execute the command
+		 * @param array $parameters Optional parameters passed to the command
+		 * @return int Exit code (0 for success)
+		 */
+		public function execute(array $parameters = []): int {
+			$this->output->writeLn("Generating database migrations based on entity changes...");
+			
+			// Load all entity classes
+			$entityClasses = $this->entityScanner->scanEntities();
+			
+			if (empty($entityClasses)) {
+				$this->output->writeLn("No entity classes found.");
+				return 1;
+			}
+			
+			// Get existing tables from database
+			$existingTables = $this->tableInfo->getTables();
+			
+			// Process each entity
+			$allChanges = [];
+			
+			foreach ($entityClasses as $className => $tableName) {
+				$entityProperties = $this->extractEntityColumnDefinitions($className);
+				
+				// Check if table exists
+				if (!in_array($tableName, $existingTables)) {
+					$allChanges[$tableName] = [
+						'table_not_exists' => true,
+						'added'            => $entityProperties
+					];
+					
+					continue;
+				}
+				
+				// Get table definition from database
+				$phinxAdapter = $this->connection->getPhinxAdapter();
+				$tableColumns = $this->getColumns($phinxAdapter, $tableName);
+				
+				// Compare entity properties with table columns
+				$changes = $this->schemaComparator->analyzeSchemaChanges($entityProperties, $tableColumns);
+				
+				if (!empty($changes['added']) || !empty($changes['modified']) || !empty($changes['deleted'])) {
+					$allChanges[$tableName] = $changes;
+				}
+			}
+			
+			// Generate migration file
+			$success = $this->generateMigrationFile($allChanges);
+			
+			return $success ? 0 : 1;
 		}
 		
 		/**
@@ -110,7 +162,7 @@
 		 */
 		private function extractEntityColumnDefinitions(string $className): array {
 			$result = [];
-
+			
 			try {
 				$reflection = new \ReflectionClass($className);
 				
@@ -139,13 +191,14 @@
 						// Gather property info
 						$result[$columnName] = [
 							'property_name'  => $property->getName(),
-							'name'           => $columnAnnotation->getName(),
 							'type'           => $columnAnnotation->getType(),
-							'length'         => $columnAnnotation->getLength(),
+							'limit'          => $columnAnnotation->getLimit(),
 							'nullable'       => $columnAnnotation->isNullable(),
 							'unsigned'       => $columnAnnotation->isUnsigned(),
 							'default'        => $columnAnnotation->getDefault(),
 							'primary_key'    => $columnAnnotation->isPrimaryKey(),
+							'scale'          => $columnAnnotation->getScale(),
+							'precision'      => $columnAnnotation->getPrecision(),
 							'auto_increment' => $this->isAutoIncrementColumn($propertyAnnotations),
 						];
 					}
@@ -281,40 +334,23 @@ PHP;
 		/**
 		 * Build code for creating a new table
 		 * @param string $tableName Table name
-		 * @param array $columns Column definitions
+		 * @param array $entityColumns Column definitions
 		 * @return string Code for creating table
 		 */
-		private function buildCreateTableCode(string $tableName, array $columns): string {
+		private function buildCreateTableCode(string $tableName, array $entityColumns): string {
 			$columnDefs = [];
 			
-			foreach ($columns as $columnName => $columnDef) {
+			foreach ($entityColumns as $columnName => $definition) {
 				// Map the entity type to a valid Phinx type
-				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
-				$options = [];
+				$type = $definition['type'];
+				$options = $this->buildColumnOptions($definition);
 				
-				if (!empty($columnDef['length'])) {
-					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['length']);
-				}
-				
-				if (isset($columnDef['nullable'])) {
-					$options[] = "'null' => " . ($columnDef['nullable'] ? 'true' : 'false');
-				}
-				
-				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
-					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
-				}
-				
-				if (!empty($columnDef['primary_key'])) {
+				if (!empty($definition['primary_key'])) {
 					$options[] = "'primary' => true";
 				}
 				
-				if (!empty($columnDef['auto_increment'])) {
+				if (!empty($definition['auto_increment'])) {
 					$options[] = "'identity' => true";
-				}
-				
-				// Add unsigned flag if set
-				if (!empty($columnDef['unsigned'])) {
-					$options[] = "'signed' => false";
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
@@ -322,7 +358,7 @@ PHP;
 			}
 			
 			// Add an index for auto-increment primary key columns
-			foreach ($columns as $columnName => $columnDef) {
+			foreach ($entityColumns as $columnName => $columnDef) {
 				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
 					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
 				}
@@ -334,27 +370,15 @@ PHP;
 		/**
 		 * Build code for adding columns to a table
 		 * @param string $tableName Table name
-		 * @param array $columns Column definitions
+		 * @param array $entityColumns Column definitions
 		 * @return string Code for adding columns
 		 */
-		private function buildAddColumnsCode(string $tableName, array $columns): string {
+		private function buildAddColumnsCode(string $tableName, array $entityColumns): string {
 			$columnDefs = [];
 			
-			foreach ($columns as $columnName => $columnDef) {
-				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
-				$options = [];
-				
-				if (!empty($columnDef['length'])) {
-					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['length']);
-				}
-				
-				if (isset($columnDef['nullable'])) {
-					$options[] = "'null' => " . ($columnDef['nullable'] ? 'true' : 'false');
-				}
-				
-				if (isset($columnDef['default'])) {
-					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
-				}
+			foreach ($entityColumns as $columnName => $columnDef) {
+				$type = $columnDef['type'];
+				$options = $this->buildColumnOptions($columnDef['options']);
 				
 				if (!empty($columnDef['primary_key'])) {
 					$options[] = "'primary' => true";
@@ -364,16 +388,12 @@ PHP;
 					$options[] = "'identity' => true";
 				}
 				
-				if (!empty($columnDef['unsigned'])) {
-					$options[] = "'signed' => false";
-				}
-				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
 			}
 			
 			// Add an index for auto-increment primary key columns
-			foreach ($columns as $columnName => $columnDef) {
+			foreach ($entityColumns as $columnName => $columnDef) {
 				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
 					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
 				}
@@ -399,6 +419,55 @@ PHP;
 		}
 		
 		/**
+		 * Generate column options array for Phinx migrations
+		 *
+		 * Takes a property definition array and extracts relevant options like:
+		 * - limit (column size)
+		 * - default value
+		 * - nullability
+		 * - precision/scale (for decimal types)
+		 * - signed/unsigned status
+		 *
+		 * @param array $propertyDef The property definition containing column attributes
+		 * @return array Formatted column options for Phinx migration
+		 */
+		private function buildColumnOptions(array $propertyDef): array {
+			$result = [];
+			
+			// Set maximum column size (e.g., VARCHAR length)
+			if (!empty($propertyDef['limit'])) {
+				$result[] = "'limit' => " . $this->phinxTypeMapper->formatValue($propertyDef['limit']);
+			}
+			
+			// Set default value if specified and not null
+			if (!empty($propertyDef['default']) && $propertyDef['default'] !== null) {
+				$result[] = "'default' => " . $this->phinxTypeMapper->formatValue($propertyDef['default']);
+			}
+			
+			// Set whether column allows NULL values
+			if (!empty($propertyDef['nullable'])) {
+				$result[] = "'null' => " . ($propertyDef['nullable'] ? 'true' : 'false');
+			}
+			
+			// Set precision for numeric types (total digits)
+			if (!empty($propertyDef['precision'])) { // Note: Fixed variable name from $definition to $propertyDef
+				$result[] = "'precision' => " . $propertyDef['precision']; // Fixed variable name
+			}
+			
+			// Set scale for decimal types (digits after decimal point)
+			if (!empty($propertyDef['scale'])) { // Note: Fixed variable name from $definition to $propertyDef
+				$result[] = "'scale' => " . $propertyDef['scale']; // Fixed variable name
+			}
+			
+			// Set whether column is signed or unsigned
+			if (isset($propertyDef['unsigned'])) {
+				$result[] = "'signed' => " . ($propertyDef['unsigned'] ? 'false' : 'true');
+			}
+			
+			return $result;
+		}
+		
+		/**
 		 * Build code for modifying columns in a table
 		 * @param string $tableName Table name
 		 * @param array $modifiedColumns Modified column definitions
@@ -408,25 +477,8 @@ PHP;
 			$columnDefs = [];
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
-				$propertyDef = $changes['property'];
-				$type = $this->phinxTypeMapper->mapToPhinxType($propertyDef['type']);
-				$options = [];
-				
-				if (!empty($propertyDef['length'])) {
-					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($propertyDef['length']);
-				}
-				
-				if (isset($propertyDef['nullable'])) {
-					$options[] = "'null' => " . ($propertyDef['nullable'] ? 'true' : 'false');
-				}
-				
-				if (isset($propertyDef['default']) && $propertyDef['default'] !== null) {
-					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($propertyDef['default']);
-				}
-				
-				if (isset($propertyDef['unsigned'])) {
-					$options[] = "'signed' => " . ($propertyDef['unsigned'] ? 'false' : 'true');
-				}
+				$type = $changes['to']['type'];
+				$options = $this->buildColumnOptions($changes['to']); // Updated function name
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->changeColumn('$columnName', '$type'$optionsStr)";
@@ -445,25 +497,8 @@ PHP;
 			$columnDefs = [];
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
-				$columnDef = $changes['column'];
-				$type = $this->phinxTypeMapper->mapToPhinxType($columnDef['type']);
-				$options = [];
-				
-				if (!empty($columnDef['size'])) {
-					$options[] = "'limit' => " . $this->phinxTypeMapper->formatValue($columnDef['size']);
-				}
-				
-				if (isset($columnDef['nullable'])) {
-					$options[] = "'null' => " . ($columnDef['nullable'] ? 'true' : 'false');
-				}
-				
-				if (isset($columnDef['default']) && $columnDef['default'] !== null) {
-					$options[] = "'default' => " . $this->phinxTypeMapper->formatValue($columnDef['default']);
-				}
-				
-				if (isset($columnDef['attributes']) && isset($columnDef['attributes']['unsigned'])) {
-					$options[] = "'signed' => " . ($columnDef['attributes']['unsigned'] ? 'false' : 'true');
-				}
+				$type = $changes['from']['type'];
+				$options = $this->buildColumnOptions($changes['from']); // Updated function name
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->changeColumn('$columnName', '$type'$optionsStr)";
@@ -472,56 +507,29 @@ PHP;
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
 		}
 		
-		/**
-		 * Execute the command
-		 * @param array $parameters Optional parameters passed to the command
-		 * @return int Exit code (0 for success)
-		 */
-		public function execute(array $parameters = []): int {
-			$this->output->writeLn("Generating database migrations based on entity changes...");
+		protected function getColumns(AdapterInterface $phinxAdapter, string $tableName): array {
+			$result = [];
 			
-			// Load all entity classes
-			$entityClasses = $this->entityScanner->scanEntities();
+			// Get primary key columns first
+			$primaryKey = $phinxAdapter->getPrimaryKey($tableName);
 			
-			if (empty($entityClasses)) {
-				$this->output->writeLn("No entity classes found.");
-				return 1;
+			// Fetch and process columns
+			foreach ($phinxAdapter->getColumns($tableName) as $column) {
+				$result[$column->getName()] = [
+					'type'           => $column->getType(),
+					'limit'          => $column->getLimit(),
+					'default'        => $column->getDefault(),
+					'nullable'       => $column->getNull(),
+					'precision'      => $column->getPrecision(),
+					'scale'          => $column->getScale(),
+					'unsigned'       => !$column->getSigned(),
+					'generated'      => $column->getGenerated(),
+					'auto_increment' => $column->getIdentity(), // Auto-increment/identity property
+					'primary_key'    => in_array($column->getName(), $primaryKey), // Is part of primary key
+				];
 			}
 			
-			// Get existing tables from database
-			$existingTables = $this->tableInfo->getTables();
-			
-			// Process each entity
-			$allChanges = [];
-			
-			foreach ($entityClasses as $className => $tableName) {
-				$entityProperties = $this->extractEntityColumnDefinitions($className);
-				
-				// Check if table exists
-				if (!in_array($tableName, $existingTables)) {
-					$allChanges[$tableName] = [
-						'table_not_exists' => true,
-						'added'            => $entityProperties
-					];
-					
-					continue;
-				}
-				
-				// Get table definition from database
-				$tableColumns = $this->databaseSchemaLoader->fetchDatabaseTableSchema($tableName);
-				
-				// Compare entity properties with table columns
-				$changes = $this->schemaComparator->analyzeSchemaChanges($entityProperties, $tableColumns);
-				
-				if (!empty($changes['added']) || !empty($changes['modified']) || !empty($changes['deleted'])) {
-					$allChanges[$tableName] = $changes;
-				}
-			}
-			
-			// Generate migration file
-			$success = $this->generateMigrationFile($allChanges);
-			
-			return $success ? 0 : 1;
+			return $result;
 		}
 		
 		/**

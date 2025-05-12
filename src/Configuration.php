@@ -130,7 +130,6 @@
 		
 		/**
 		 * Set DSN string directly
-		 *
 		 * @param string $dsn Database connection string
 		 * @return self
 		 */

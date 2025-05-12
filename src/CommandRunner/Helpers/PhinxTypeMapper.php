@@ -6,34 +6,99 @@
 	class PhinxTypeMapper {
 		
 		/**
-		 * Map entity data type to Phinx data type
-		 * @param string $type Entity data type
-		 * @return string Phinx data type
+		 * Convert a Phinx column type to a corresponding PHP type
+		 * @param string $phinxType The Phinx column type
+		 * @return string The corresponding PHP type
 		 */
-		public function mapToPhinxType(string $type): string {
-			$map = [
-				'int'        => 'integer',
-				'integer'    => 'integer',
-				'tinyint'    => 'boolean',
-				'smallint'   => 'integer',
-				'mediumint'  => 'integer',
-				'bigint'     => 'biginteger',
-				'float'      => 'float',
-				'double'     => 'double',
-				'decimal'    => 'decimal',
-				'char'       => 'char',
-				'varchar'    => 'string',
-				'text'       => 'text',
-				'mediumtext' => 'text',
-				'longtext'   => 'text',
-				'date'       => 'date',
-				'datetime'   => 'datetime',
-				'timestamp'  => 'timestamp',
-				'time'       => 'time',
-				'enum'       => 'enum'
+		public function phinxTypeToPhpType(string $phinxType): string {
+			$typeMap = [
+				// Integer types
+				'tinyinteger'  => 'int',
+				'smallinteger' => 'int',
+				'integer'      => 'int',
+				'biginteger'   => 'int', // Could be 'string' for very large numbers
+				
+				// String types
+				'string'       => 'string',
+				'char'         => 'string',
+				'text'         => 'string',
+				
+				// Float/decimal types
+				'float'        => 'float',
+				'decimal'      => 'float', // Could also be string for precision
+				
+				// Boolean type
+				'boolean'      => 'bool',
+				
+				// Date and time types
+				'date'         => 'string', // Or \DateTime
+				'datetime'     => 'string', // Or \DateTime
+				'time'         => 'string', // Or \DateTime
+				'timestamp'    => 'string', // Or \DateTime
+				
+				// Binary type
+				'binary'       => 'string',
+				'blob'         => 'string',
+				
+				// JSON type
+				'json'         => 'array',  // Assuming JSON is decoded to array
+				'jsonb'        => 'array',  // PostgreSQL JSON type
+				
+				// Other types
+				'enum'         => 'string',
+				'set'          => 'array',
+				'uuid'         => 'string',
+				'year'         => 'int'
 			];
 			
-			return $map[strtolower($type)] ?? 'string';
+			return $typeMap[$phinxType] ?? 'mixed';
+		}
+		
+		/**
+		 * Get relevant properties for column comparison based on type
+		 * @param string $type
+		 * @return array
+		 */
+		public function getRelevantProperties(string $type): array {
+			// Base properties all columns have
+			$baseProperties = ['type', 'null', 'default'];
+			
+			// Type-specific properties
+			$typeProperties = [
+				// Integer types (universally supported)
+				'tinyinteger'  => ['limit', 'unsigned', 'identity'],
+				'smallinteger' => ['limit', 'unsigned', 'identity'],
+				'integer'      => ['limit', 'unsigned', 'identity'],
+				'biginteger'   => ['limit', 'unsigned', 'identity'],
+				
+				// String types (universally supported)
+				'string'       => ['limit'],
+				'char'         => ['limit'],
+				'text'         => [],
+				
+				// Float/decimal types (universally supported)
+				'float'        => ['precision', 'unsigned'],
+				'decimal'      => ['precision', 'scale', 'unsigned'],
+				
+				// Boolean type (universally supported)
+				'boolean'      => [],
+				
+				// Date and time types (universally supported)
+				'date'         => [],
+				'datetime'     => ['precision'],
+				'time'         => ['precision'],
+				'timestamp'    => ['precision', 'update'],
+				
+				// Binary type (universally supported)
+				'binary'       => ['limit'],
+				'blob'         => [],
+				
+				// Common extension types
+				'json'         => [],
+				'enum'         => ['values'],
+			];
+			
+			return array_merge($baseProperties, $typeProperties[$type] ?? []);
 		}
 
 		/**
