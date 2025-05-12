@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
 	
+	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
+	
 	/**
 	 * Class SchemaComparator
 	 * Compares entity schema (object properties) with database schema (table columns)
@@ -10,15 +12,15 @@
 	class SchemaComparator {
 		
 		/**
-		 * @var PhinxTypeMapper Class responsible for mapping phinx types to php and vice versa
+		 * @var TypeMapper Class responsible for mapping phinx types to php and vice versa
 		 */
-		private PhinxTypeMapper $typeMapper;
+		private TypeMapper $typeMapper;
 		
 		/**
 		 * SchemaComparator constructor
 		 */
 		public function __construct() {
-			$this->typeMapper = new PhinxTypeMapper();
+			$this->typeMapper = new TypeMapper();
 		}
 		
 		/**

@@ -12,14 +12,13 @@
 	use Quellabs\ObjectQuel\CommandRunner\Command;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
-	use Quellabs\ObjectQuel\CommandRunner\Helpers\DatabaseSchemaLoader;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
-	use Quellabs\ObjectQuel\CommandRunner\Helpers\PhinxTypeMapper;
 	use Quellabs\ObjectQuel\CommandRunner\Helpers\SchemaComparator;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\DatabaseAdapter\TableInfo;
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -37,7 +36,7 @@
 		private string $migrationsPath;
 		private EntityScanner $entityScanner;
 		private SchemaComparator $schemaComparator;
-		private PhinxTypeMapper $phinxTypeMapper;
+		private TypeMapper $phinxTypeMapper;
 		
 		/**
 		 * Constructor
@@ -63,7 +62,7 @@
 			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
 			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
 			$this->schemaComparator = new SchemaComparator();
-			$this->phinxTypeMapper = new PhinxTypeMapper();
+			$this->phinxTypeMapper = new TypeMapper();
 		}
 		
 		/**

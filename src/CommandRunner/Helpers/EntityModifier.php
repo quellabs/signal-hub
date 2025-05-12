@@ -3,11 +3,12 @@
 	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
 	
 	use Quellabs\ObjectQuel\Configuration;
+	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	
 	class EntityModifier {
 		
 		private Configuration $configuration;
-		private PhinxTypeMapper $typeMapper;
+		private TypeMapper $typeMapper;
 		
 		/**
 		 * Constructor for EntityModifier
@@ -15,7 +16,7 @@
 		 */
 		public function __construct(Configuration $configuration) {
 			$this->configuration = $configuration;
-			$this->typeMapper = new PhinxTypeMapper();
+			$this->typeMapper = new TypeMapper();
 		}
 		
 		/**
