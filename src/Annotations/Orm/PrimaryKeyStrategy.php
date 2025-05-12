@@ -29,6 +29,6 @@
 		 * @return string
 		 */
 		public function getValue(): string {
-			return $this->parameters["strategy"] ?? 'auto_increment';
+			return $this->parameters["strategy"] ?? 'identity';
 		}
 	}

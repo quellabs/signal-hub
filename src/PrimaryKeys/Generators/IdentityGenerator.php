@@ -6,9 +6,9 @@
 	use Quellabs\ObjectQuel\PrimaryKeys\PrimaryKeyGeneratorInterface;
 	
 	/**
-	 * AutoIncrementGenerator class for handling auto-incrementing primary keys
+	 * IdentityGenerator class for handling auto-incrementing primary keys
 	 */
-	class AutoIncrementGenerator implements PrimaryKeyGeneratorInterface {
+	class IdentityGenerator implements PrimaryKeyGeneratorInterface {
 		
 		/**
 		 * Generate a new primary key for the given entity

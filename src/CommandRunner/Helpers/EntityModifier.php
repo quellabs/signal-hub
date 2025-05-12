@@ -344,7 +344,7 @@
 			$content .= "
 			/**
 			 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
-			 * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")
+			 * @Orm\PrimaryKeyStrategy(strategy=\"identity\")
 			 */
 			protected int \$id;
 		";
@@ -647,7 +647,7 @@
 			
 			// Convert database/schema type to PHP type
 			// This handles mapping of types like 'varchar' to 'string', 'integer' to 'int', etc.
-			$phpType = $this->phinxTypeToPhpType($type);
+			$phpType = $this->typeMapper->phinxTypeToPhpType($type);
 			
 			// Create PHP 7.1+ nullable type indicator (? prefix) if property is nullable
 			$nullableIndicator = $nullable ? '?' : '';

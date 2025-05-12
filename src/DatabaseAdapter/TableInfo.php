@@ -76,7 +76,7 @@
 				'key'            => !empty($desc["Key"]),      // Whether column is any kind of key
 				'nullable'       => $desc["Null"] === "YES",   // Whether column allows NULL values
 				'default'        => $desc["Default"],          // Default value (if any)
-				'auto_increment' => str_contains($desc["Extra"], "auto_increment"), // Whether column auto-increments
+				'identity'       => str_contains($desc["Extra"], "auto_increment"), // Whether column auto-increments
 			];
 		}
 		

@@ -123,11 +123,11 @@
 		 * Determines if a property represents an auto-increment column.
 		 * A column is considered auto-increment if it has both:
 		 * 1. A Column annotation marked as primary key
-		 * 2. A PrimaryKeyStrategy annotation with value 'auto_increment'
+		 * 2. A PrimaryKeyStrategy annotation with value 'identity'
 		 * @param array $propertyAnnotations The annotations attached to the property
 		 * @return bool Returns true if the property is an auto-increment column, false otherwise
 		 */
-		private function isAutoIncrementColumn(array $propertyAnnotations): bool {
+		private function isIdentityColumn(array $propertyAnnotations): bool {
 			// First condition: verify the property has a Column annotation that is a primary key
 			// If any Column annotation is not a primary key, return false immediately
 			foreach ($propertyAnnotations as $annotation) {
@@ -140,11 +140,11 @@
 				}
 			}
 			
-			// Second condition: verify the property has a PrimaryKeyStrategy annotation with 'auto_increment' value
-			// If any PrimaryKeyStrategy annotation does not have 'auto_increment' value, return false immediately
+			// Second condition: verify the property has a PrimaryKeyStrategy annotation with 'identity' value
+			// If any PrimaryKeyStrategy annotation does not have 'identity' value, return false immediately
 			foreach ($propertyAnnotations as $annotation) {
 				if ($annotation instanceof PrimaryKeyStrategy) {
-					if ($annotation->getValue() !== 'auto_increment') {
+					if ($annotation->getValue() !== 'identity') {
 						return false;
 					}
 				}
@@ -199,7 +199,7 @@
 							'primary_key'    => $columnAnnotation->isPrimaryKey(),
 							'scale'          => $columnAnnotation->getScale(),
 							'precision'      => $columnAnnotation->getPrecision(),
-							'auto_increment' => $this->isAutoIncrementColumn($propertyAnnotations),
+							'identity'       => $this->isIdentityColumn($propertyAnnotations),
 						];
 					}
 				}
@@ -349,7 +349,7 @@ PHP;
 					$options[] = "'primary' => true";
 				}
 				
-				if (!empty($definition['auto_increment'])) {
+				if (!empty($definition['identity'])) {
 					$options[] = "'identity' => true";
 				}
 				
@@ -359,7 +359,7 @@ PHP;
 			
 			// Add an index for auto-increment primary key columns
 			foreach ($entityColumns as $columnName => $columnDef) {
-				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
+				if ($columnDef['primary_key'] && $columnDef['identity']) {
 					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
 				}
 			}
@@ -374,32 +374,32 @@ PHP;
 		 * @return string Code for adding columns
 		 */
 		private function buildAddColumnsCode(string $tableName, array $entityColumns): string {
-			$columnDefs = [];
+			$result = [];
 			
 			foreach ($entityColumns as $columnName => $columnDef) {
 				$type = $columnDef['type'];
-				$options = $this->buildColumnOptions($columnDef['options']);
+				$options = $this->buildColumnOptions($columnDef);
 				
 				if (!empty($columnDef['primary_key'])) {
 					$options[] = "'primary' => true";
 				}
 				
-				if (!empty($columnDef['auto_increment'])) {
+				if (!empty($columnDef['identity'])) {
 					$options[] = "'identity' => true";
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
-				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
+				$result[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
 			}
 			
 			// Add an index for auto-increment primary key columns
 			foreach ($entityColumns as $columnName => $columnDef) {
-				if ($columnDef['primary_key'] && $columnDef['auto_increment']) {
-					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
+				if ($columnDef['primary_key'] && $columnDef['identity']) {
+					$result[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
 				}
 			}
 			
-			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
+			return "        \$this->table('$tableName')\n" . implode("\n", $result) . "\n            ->update();";
 		}
 		
 		/**
@@ -507,25 +507,50 @@ PHP;
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
 		}
 		
+		/**
+		 * Retrieves and formats column definitions from the database table
+		 * @param AdapterInterface $phinxAdapter The Phinx database adapter
+		 * @param string $tableName Name of the table to analyze
+		 * @return array Associative array of column definitions indexed by column name
+		 */
 		protected function getColumns(AdapterInterface $phinxAdapter, string $tableName): array {
 			$result = [];
 			
-			// Get primary key columns first
+			// Get primary key columns first so we can mark them in column definitions
 			$primaryKey = $phinxAdapter->getPrimaryKey($tableName);
 			
-			// Fetch and process columns
+			// Fetch and process each column in the table
 			foreach ($phinxAdapter->getColumns($tableName) as $column) {
 				$result[$column->getName()] = [
+					// Basic column type (integer, string, decimal, etc.)
 					'type'           => $column->getType(),
+					
+					// Maximum length for string types or display width for numeric types
 					'limit'          => $column->getLimit(),
+					
+					// Default value for the column if not specified during insert
 					'default'        => $column->getDefault(),
+					
+					// Whether NULL values are allowed in this column
 					'nullable'       => $column->getNull(),
+					
+					// For numeric types: total number of digits (precision)
 					'precision'      => $column->getPrecision(),
+					
+					// For decimal types: number of digits after decimal point
 					'scale'          => $column->getScale(),
+					
+					// Whether column allows negative values (converted from signed to unsigned)
 					'unsigned'       => !$column->getSigned(),
+					
+					// For generated columns (computed values based on expressions)
 					'generated'      => $column->getGenerated(),
-					'auto_increment' => $column->getIdentity(), // Auto-increment/identity property
-					'primary_key'    => in_array($column->getName(), $primaryKey), // Is part of primary key
+					
+					// Whether column auto-increments (typically for primary keys)
+					'identity'       => $column->getIdentity(),
+					
+					// Whether this column is part of the primary key
+					'primary_key'    => in_array($column->getName(), $primaryKey),
 				];
 			}
 			

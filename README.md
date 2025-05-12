@@ -229,7 +229,7 @@ Entities are recognized by the `@Orm\Table` annotation:
 class ProductEntity {
     /**
      * @Orm\Column(name="product_id", type="int", length=11, primary_key=true)
-     * @Orm\PrimaryKeyStrategy(strategy="auto_increment")
+     * @Orm\PrimaryKeyStrategy(strategy="identity")
      */
     private int $productId;
 
@@ -255,10 +255,10 @@ Each database/entity property is marked by an @Orm\Column annotation. This annot
 
 For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation to define how key values are generated. ObjectQuel supports the following strategies:
 
-| Strategy | Description |
-|----------|-------------|
-| **auto_increment** | Automatically increments values (default strategy) |
-| **uuid** | Generates a unique UUID for each new record |
+| Strategy     | Description |
+|--------------|-------------|
+| **identity** | Automatically increments values (default strategy) |
+| **uuid**     | Generates a unique UUID for each new record |
 | **sequence** | Uses a select query to determine the next value in the sequence |
 
 ## The ObjectQuel Language

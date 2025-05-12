@@ -92,69 +92,6 @@
 		}
 		
 		/**
-		 * Returns the next auto increment key
-		 * @param string $table
-		 * @return int|null
-		 */
-		public function getNextAutoIncrementKey(string $table): ?int {
-			$rs = $this->execute("
-                SELECT
-                    AUTO_INCREMENT
-                FROM information_schema.tables
-                WHERE `table_name`=?
-            ", [$table]);
-			
-			if (!$rs) {
-				return null;
-			}
-			
-			$row = $rs->fetch('assoc');
-			return $row["AUTO_INCREMENT"] ?? null;
-		}
-		
-		/**
-		 * Returns the number of columns present in the given table
-		 * @param string $tableName
-		 * @return int
-		 */
-		public function getColumnCount(string $tableName): int {
-			$rs = $this->execute("
-                SELECT
-                    COUNT(*) as c
-                FROM `INFORMATION_SCHEMA`.`COLUMNS`
-                WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`= :tableName
-                LIMIT 1
-            ", [
-				'tableName' => $tableName
-			]);
-			
-			if (!$rs) {
-				return 0;
-			}
-			
-			$row = $rs->fetch('assoc');
-			return $row["c"] ?? 0;
-		}
-		
-		/**
-		 * Returns the table's row format (usually Dynamic)
-		 * @param string $tableName
-		 * @return string|bool
-		 */
-		public function getRowFormat(string $tableName): bool|string {
-			return $this->getOne("
-                SELECT
-                    `row_format`
-                FROM `INFORMATION_SCHEMA`.`TABLES`
-                WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`= :tableName
-            ", [
-				'tableName' => $tableName
-			]);
-		}
-		
-		/**
 		 * Returns the columns in the given table
 		 * @param string $tableName
 		 * @return array
@@ -169,82 +106,6 @@
             ", [
 				'tableName' => $tableName
 			]);
-		}
-		
-		/**
-		 * Returns extended column information for the given table
-		 * @param string $tableName
-		 * @return array
-		 */
-		public function getColumnsEx(string $tableName): array {
-			// Check if column information for this table is already cached
-			if (isset($this->columns_ex_descriptions[$tableName])) {
-				return $this->columns_ex_descriptions[$tableName];
-			}
-			
-			// Retrieve the table definition using SHOW FULL COLUMNS for complete metadata
-			$columns = $this->getAll("SHOW FULL COLUMNS FROM `{$tableName}`");
-			
-			// Return an empty array if no columns found
-			if (empty($columns)) {
-				return [];
-			}
-			
-			// Initialize the result array to store the enhanced column information
-			$result = [];
-			
-			foreach ($columns as $column) {
-				// Parse the column type string to extract type name, size, and additional properties
-				// Example: "int(10) unsigned" -> type="int", size="10", properties=" unsigned"
-				preg_match('/([a-zA-Z\s]*)\((.*)\)(.*)/', $column["Type"], $matches);
-				
-				// Initialize property flags with default values
-				$properties = !empty($matches[3]) ? trim($matches[3]) : "";
-				
-				// Extract default value using regex if present
-				// Matches formats like: default 'value', default "value", or default value
-				if (!empty($properties) && preg_match('/default\s+([\'"]?)(.+?)\1(\s|$)/i', $properties, $defaultMatches)) {
-					$default_value = $defaultMatches[2];
-				} else {
-					$default_value = null;
-				}
-				
-				// Check various placed where auto_increment can be defined
-				if ($column["Extra"] === "auto_increment") {
-					$autoIncrement = true;
-				} elseif (stripos($properties, 'auto_increment') !== false) {
-					$autoIncrement = true;
-				} else {
-					$autoIncrement = false;
-				}
-				
-				// Build the comprehensive column information array
-				$result[$column["Field"]] = [
-					'type'           => $matches[1] ?? $column["Type"], // Column data type (int, varchar, etc.)
-					'size'           => $matches[2] ?? null,            // Size/length parameter if applicable
-					'collation'      => $column["Collation"],           // Character set collation for text types
-					'nullable'       => $column["Null"] == "YES",       // Whether NULL values are allowed
-					'key'            => $column["Key"],                 // Key type (PRI, UNI, MUL, etc.)
-					'primary_key'    => $column["Key"] === "PRI",
-					'auto_increment' => $autoIncrement,                                        // Flag for auto-incrementing columns
-					'default'        => $column["Default"],             // Default value from SHOW COLUMNS
-					'unsigned'       => stripos($properties, 'unsigned') !== false,     // Flag for unsigned numeric types
-					'extra'          => $column["Extra"],               // Extra information (auto_increment, etc.)
-					'privileges'     => $column["Privileges"],          // Access privileges for the column
-					'comment'        => $column["Comment"],             // User-defined column comment
-					'attributes'     => [
-						'not_null'      => stripos($properties, 'not null') !== false,     // Flag for NOT NULL constraint
-						'zerofill'      => stripos($properties, 'zerofill') !== false,     // Flag for zero-filled display
-						'default_value' => $default_value,                                        // Extracted default value from properties
-					]
-				];
-			}
-			
-			// Cache the processed column information for future calls
-			$this->columns_ex_descriptions[$tableName] = $result;
-			
-			// Return the enhanced column metadata
-			return $result;
 		}
 		
 		/**
@@ -366,29 +227,6 @@
 		}
 		
 		/**
-		 * Returns the type and size of the given table column
-		 * @param string $table
-		 * @param string $column
-		 * @return array
-		 */
-		public function getColumnType(string $table, string $column): array {
-			$description = $this->getTableDescription($table);
-			$index = array_search($column, array_column($description, "Field"));
-			
-			if ($index === false) {
-				return ['type' => null, 'size' => null];
-			}
-			
-			preg_match('/([a-zA-Z\s]*)\((.*)\)$/', $description[$index]["Type"], $matches);
-			
-			if (isset($matches[1])) {
-				return ['type' => $matches[1], 'size' => $matches[2] ?? null];
-			} else {
-				return ['type' => $description[$index]["Type"], 'size' => null];
-			}
-		}
-		
-		/**
 		 * Haalt indexinformatie op voor een gegeven tabel.
 		 * @param string $tableName Naam van de tabel waarvoor indexinformatie nodig is.
 		 * @return array Een array met indexinformatie voor de opgegeven tabel.
@@ -427,18 +265,6 @@
 			
 			// Retourneer de opgeslagen indexinformatie voor de opgegeven tabel
 			return $this->indexes[$tableName];
-		}
-		
-		/**
-		 * Haalt indexinformatie op voor een specifieke kolom in een gegeven tabel.
-		 * @param string $tableName De naam van de tabel waarin de kolom zich bevindt.
-		 * @param string $column De naam van de kolom waarvoor indexinformatie nodig is.
-		 * @return array Een array met indexinformatie specifiek voor de opgegeven kolom.
-		 */
-		public function getIndexesOnColumn(string $tableName, string $column): array {
-			return array_values(array_filter($this->getIndexes($tableName), function ($e) use ($column) {
-				return $e["column"] == $column;
-			}));
 		}
 		
 		/**

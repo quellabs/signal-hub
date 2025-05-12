@@ -142,8 +142,8 @@
 				$output .= $this->getColumnAnnotationDetails($column);
 				$output .= ")\n";
 				
-				if ($column["primary_key"] && $column["auto_increment"]) {
-					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"auto_increment\")\n";
+				if ($column["primary_key"] && $column["identity"]) {
+					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"identity\")\n";
 				}
 
 				$output .= "         */\n";
