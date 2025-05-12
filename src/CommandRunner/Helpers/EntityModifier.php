@@ -791,7 +791,7 @@
 				// If a constructor exists, we need to modify it to include our collection initializations
 				// without disrupting any existing code in the constructor
 				// This approach preserves existing constructor logic while adding new initializations
-				return $this->updateExistingConstructorWithReflection($content, $oneToManyProperties);
+				return $this->updateExistingConstructor($content, $oneToManyProperties);
 			} else {
 				// If no constructor exists, we need to create a new one from scratch
 				// The new constructor will contain only the collection initializations
@@ -813,75 +813,151 @@
 		 */
 		protected function constructorExists(string $content): bool {
 			// Use regular expression to search for constructor method signature
-			// Pattern matches constructors with any visibility modifier (public, private, protected)
-			// or with no visibility modifier at all
-			return preg_match('/\s+(?:public|private|protected)?\s*function\s+__construct\s*\(\s*\)\s*\{/i', $content) === 1;
+			return preg_match('/\s+((?:public|private|protected)\s+)?function\s+__construct\s*\(/i', $content) === 1;
+		}
+		
+		/**
+		 * Locates the starting character position of a constructor method within class content
+		 * This function scans the provided PHP code to find the exact position where
+		 * the constructor method declaration begins. It supports finding constructors
+		 * with any visibility modifier (public, protected, private) or no modifier.
+		 * @param string $content The complete PHP file content containing the entity class
+		 * @return int|null The character position where constructor starts (pointing to the whitespace
+		 *                  before visibility or function keyword), or null if no constructor exists
+		 */
+		protected function getConstructorStartPos(string $content): ?int {
+			// Attempt to locate constructor method using regex pattern
+			if (!preg_match('/\s+((?:public|private|protected)\s+)?function\s+__construct\s*\(/i', $content, $constructorMatch, PREG_OFFSET_CAPTURE)) {
+				return null;
+			}
+			
+			// Return the precise character position where the constructor match begins
+			// This corresponds to the whitespace before the method declaration
+			return $constructorMatch[0][1];
 		}
 		
 		/**
 		 * Updates an existing constructor to initialize OneToMany collections
-		 * This function uses Reflection to modify a class constructor
+		 * This function modifies a class constructor that already exists in the entity
 		 * by adding collection initializations for OneToMany relationships
-		 * @param string $className Fully qualified class name of the entity
-		 * @param array $oneToManyProperties OneToMany properties to initialize
-		 * @return string Updated PHP code with constructor updated
+		 * @param string $content Entity file content - the full PHP class definition as a string
+		 * @param array $oneToManyProperties OneToMany properties to initialize - array of property details
+		 * @return string Updated content - the modified class content with constructor updated
 		 */
-		protected function updateExistingConstructorWithReflection(string $className, array $oneToManyProperties): string {
-			// Load the class using reflection
-			$reflectionClass = new \ReflectionClass($className);
+		protected function updateExistingConstructor(string $content, array $oneToManyProperties): string {
+			// Extract the position where the constructor method signature was found
+			$constructorStart = $this->getConstructorStartPos($content);
 			
-			// Get the current constructor or null if it doesn't exist
-			$constructor = $reflectionClass->getConstructor();
+			// Find the position of the opening brace that starts the constructor body
+			$openBracePos = strpos($content, '{', $constructorStart);
 			
-			// Get the source file
-			$fileName = $reflectionClass->getFileName();
-			$content = file_get_contents($fileName);
-			
-			if ($constructor) {
-				// Get constructor start and end line
-				$startLine = $constructor->getStartLine();
-				$endLine = $constructor->getEndLine();
-				
-				// Get constructor body
-				$fileLines = file($fileName);
-				$constructorLines = array_slice($fileLines, $startLine - 1, $endLine - $startLine + 1);
-				$constructorBody = implode('', $constructorLines);
-				
-				// Find the position to insert collection initializations (before the closing brace)
-				$lastBracePos = strrpos($constructorBody, '}');
-				
-				// Create the initialization code for collections
-				$collectionInit = $this->generateCollectionInitCode($oneToManyProperties);
-				
-				// Insert the initialization code before the last brace
-				$updatedConstructor = substr_replace(
-					$constructorBody,
-					"\n        " . $collectionInit . "\n    ",
-					$lastBracePos - 1,
-					0
-				);
-				
-				// Replace the old constructor with the updated one
-				return str_replace($constructorBody, $updatedConstructor, $content);
+			// Safety check - if no opening brace found, return original content
+			if ($openBracePos === false) {
+				// Something wrong with the constructor format
+				// This should rarely happen as the regex already matched a brace,
+				// but provides a fallback for malformed code
+				return $content;
 			}
 			
-			// If no constructor exists, we'd need different logic to add one
+			// Find the matching closing brace that ends the constructor body
+			// This uses our specialized brace-matching function to handle nested braces
+			$constructorEnd = $this->findClosingBrace($content, $openBracePos);
+			
+			// Safety check - if no closing brace found, return original content
+			if ($constructorEnd === null) {
+				// Failed to find constructor end
+				// Could happen with syntax errors or incomplete code
+				return $content;
+			}
+			
+			// Generate the code needed to initialize collections
+			// The function checks which properties need initialization (avoiding duplicates)
+			$initCode = $this->generateCollectionInitializations($content, $oneToManyProperties);
+			
+			// Only modify the constructor if we have new initializations to add
+			if (!empty($initCode)) {
+				// Insert the initialization code just before the constructor's closing brace
+				// Maintaining proper indentation with a newline and tab
+				return substr($content, 0, $constructorEnd) . $initCode . "\n\t" . substr($content, $constructorEnd);
+			}
+			
+			// If no new initializations needed, return the original content unchanged
 			return $content;
 		}
 		
 		/**
-		 * Generates the PHP code for initializing collections
-		 * @param array $oneToManyProperties
-		 * @return string
+		 * Finds the position of a closing brace that matches the opening brace at given position
+		 * This function implements a brace-matching algorithm to locate the correct closing brace
+		 * that corresponds to a specific opening brace, accounting for nested braces
+		 * @param string $content Content to search in - the source code as a string
+		 * @param int $openBracePos Position of the opening brace - the character index of '{'
+		 * @return int|null Position of the closing brace or null if not found - returns character index of matching '}'
 		 */
-		private function generateCollectionInitCode(array $oneToManyProperties): string {
-			$code = '';
+		protected function findClosingBrace(string $content, int $openBracePos): ?int {
+			// Start searching from the character after the opening brace
+			$offset = $openBracePos + 1;
 			
-			foreach ($oneToManyProperties as $property) {
-				$code .= "\$this->{$property['name']} = new ArrayCollection();\n        ";
+			// Initialize brace level counter to track nesting depth
+			// Starting at 1 because we've already encountered the opening brace
+			$braceLevel = 1;
+			
+			// Continue searching until we reach the end of content or find the matching brace
+			while ($offset < strlen($content) && $braceLevel > 0) {
+				// Check current character
+				if ($content[$offset] === '{') {
+					// Found another opening brace, increase nesting level
+					$braceLevel++;
+				} elseif ($content[$offset] === '}') {
+					// Found a closing brace, decrease nesting level
+					$braceLevel--;
+					
+					// If we've returned to level 0, we've found our matching closing brace
+					if ($braceLevel === 0) {
+						// Return the position of the matching closing brace
+						return $offset;
+					}
+				}
+				
+				// Move to next character
+				$offset++;
 			}
 			
-			return rtrim($code);
+			// If we've reached the end of the content without finding a matching brace
+			// or if braceLevel is still > 0, then return null to indicate no match found
+			return null;
+		}
+		
+		/**
+		 * Generates code for collection initializations
+		 * This function creates the PHP code statements needed to initialize Collection objects
+		 * for entity OneToMany relationships, avoiding duplicate initializations
+		 * @param string $content Entity file content - the full PHP class definition as a string
+		 * @param array $oneToManyProperties OneToMany properties to initialize - array of property details
+		 * @return string Code for initializing collections - PHP statements as a string, ready to be inserted
+		 */
+		protected function generateCollectionInitializations(string $content, array $oneToManyProperties): string {
+			// Initialize empty string to store the collection initialization code
+			$initCode = '';
+			
+			// Process each OneToMany property from the provided array
+			foreach ($oneToManyProperties as $property) {
+				// Extract the property name from the property details array
+				$propertyName = $property['name'];
+				
+				// Check if this collection is already initialized in constructor.
+				// Using regex to find any existing initialization for this specific property.
+				// Format searched: $this->propertyName = new Collection()
+				// preg_quote ensures special characters in property names are escaped properly
+				if (!preg_match('/\$this->' . preg_quote($propertyName, '/') . '\s*=\s*new\s+Collection\(\)/', $content)) {
+					// Only add initialization if not already present
+					// Maintains proper indentation with tabs for code readability
+					$initCode .= "\n\t\t\$this->{$propertyName} = new Collection();";
+				}
+			}
+			
+			// Return the complete initialization code block
+			// If no new initializations needed, returns empty string
+			return $initCode;
 		}
 		
 		/**
