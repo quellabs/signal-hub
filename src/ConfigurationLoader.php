@@ -186,20 +186,12 @@
 			if (isset($configArray['cache'])) {
 				$cache = $configArray['cache'];
 				
+				if (isset($cache['enabled'])) {
+					$config->setUseMetadataCache((bool)$cache['enabled']);
+				}
+				
 				if (isset($cache['path'])) {
 					$config->setMetadataCachePath($cache['path']);
-				}
-				
-				if (isset($cache['metadata_path'])) {
-					$config->setMetadataCachePath($cache['metadata_path']);
-				}
-				
-				if (isset($cache['metadata_enabled'])) {
-					$config->setUseMetadataCache((bool)$cache['metadata_enabled']);
-				}
-				
-				if (isset($cache['annotation_enabled'])) {
-					$config->setUseMetadataCache((bool)$cache['annotation_enabled']);
 				}
 			}
 			

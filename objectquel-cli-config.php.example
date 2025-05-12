@@ -23,17 +23,15 @@ return [
 
     // Proxy configuration
     'proxy' => [
+        'enabled'   => true,
         'dir'       => __DIR__ . '/var/cache/objectquel/proxies',
         'namespace' => 'Proxies\\ObjectQuel',
-        'enabled'   => true,
     ],
 
     // Cache configuration
     'cache' => [
+        'enabled'  => true,
         'path'              => __DIR__ . '/var/cache/objectquel',
-        'annotation_path'   => __DIR__ . '/var/cache/objectquel/annotations',
-        'metadata_enabled'  => true,
-        'annotation_enabled' => true,
     ],
 
     // Migrations configuration
