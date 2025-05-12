@@ -274,20 +274,25 @@
 			
 			// Generate getter and setter for each property
 			foreach ($properties as $property) {
+				// Skip getter/setter for OneToMany relationships
+				$isOneToMany = isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany';
+				
 				// Skip if getter/setter already exists
 				$getterName = 'get' . ucfirst($property['name']);
 				$setterName = 'set' . ucfirst($property['name']);
 				
-				if (!preg_match('/function\s+' . $getterName . '\s*\(/i', $content)) {
+				// Only generate getter if not OneToMany and doesn't already exist
+				if (!$isOneToMany && !preg_match('/function\s+' . $getterName . '\s*\(/i', $content)) {
 					$methodsToAdd .= $this->generateGetter($property);
 				}
 				
-				if (!preg_match('/function\s+' . $setterName . '\s*\(/i', $content)) {
+				// Only generate setter if not OneToMany and doesn't already exist
+				if (!$isOneToMany && !preg_match('/function\s+' . $setterName . '\s*\(/i', $content)) {
 					$methodsToAdd .= $this->generateSetter($property);
 				}
 				
 				// For OneToMany relationships, add additional methods for collection management
-				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+				if ($isOneToMany) {
 					$singularName = $this->getSingularName($property['name']);
 					$addMethodName = 'add' . ucfirst($singularName);
 					$removeMethodName = 'remove' . ucfirst($singularName);
@@ -383,11 +388,17 @@
 			
 			// Add getters and setters
 			foreach ($properties as $property) {
-				$content .= $this->generateGetter($property);
-				$content .= $this->generateSetter($property);
+				// Skip adding getter/setter for OneToMany relationships
+				$isOneToMany = isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany';
+
+				// Add getter and setter only if not a OneToMany relationship
+				if (!$isOneToMany) {
+					$content .= $this->generateGetter($property);
+					$content .= $this->generateSetter($property);
+				}
 				
 				// For OneToMany relationships, add additional methods
-				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
+				if ($isOneToMany) {
 					$content .= $this->generateCollectionAdder($property, $entityName);
 					$content .= $this->generateCollectionRemover($property, $entityName);
 				}
