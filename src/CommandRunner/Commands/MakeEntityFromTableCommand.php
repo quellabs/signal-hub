@@ -304,6 +304,7 @@
 			}
 			
 			// Extract all necessary data from the table
+			// @TODO convert this to phinx
 			$tableCamelCase = $this->camelCase($table);
 			$tableDescription = $this->tableInfo->extract($table);
 			
