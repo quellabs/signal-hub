@@ -122,14 +122,31 @@
 				return false;
 			}
 			
-			// Extract sections
+			// Extract class body
 			$classBody = substr($content, $classStartPos, $lastBracePos - $classStartPos);
 			
+			// Identify property section (ends at the first method declaration)
+			// Methods start with: any visibility, then "function", then a name
+			$methodPattern = '/\s*(public|protected|private)?\s+function\s+\w+/';
+			
 			// Split into properties and methods sections
-			$methodPattern = '/\s*(public|protected|private)\s+function\s+\w+/';
-			$firstMethodPos = preg_match($methodPattern, $classBody, $methodMatch, PREG_OFFSET_CAPTURE) ? $methodMatch[0][1] : strlen($classBody);
-			$propertiesSection = trim(substr($classBody, 0, $firstMethodPos));
-			$methodsSection = trim(substr($classBody, $firstMethodPos));
+			if (preg_match($methodPattern, $classBody, $methodMatch, PREG_OFFSET_CAPTURE)) {
+				$firstMethodPos = $methodMatch[0][1];
+				// Find the beginning of the method or its docblock
+				$potentialDocBlockStart = strrpos(substr($classBody, 0, $firstMethodPos), '/**');
+				
+				if ($potentialDocBlockStart !== false && ($firstMethodPos - $potentialDocBlockStart) < 100) {
+					// There's a docblock before this method, adjust firstMethodPos
+					$firstMethodPos = $potentialDocBlockStart;
+				}
+				
+				$propertiesSection = trim(substr($classBody, 0, $firstMethodPos));
+				$methodsSection = trim(substr($classBody, $firstMethodPos));
+			} else {
+				// No methods found
+				$propertiesSection = trim($classBody);
+				$methodsSection = '';
+			}
 			
 			return [
 				'header'     => substr($content, 0, $classStartPos),
@@ -149,6 +166,7 @@
 			$propertyCode = $classContent['properties'];
 			
 			// Add each new property
+			$newProperties = '';
 			foreach ($properties as $property) {
 				// Skip if property already exists
 				$propertyName = $property['name'];
@@ -162,10 +180,13 @@
 				
 				$propertyDefinition = $this->generatePropertyDefinition($property);
 				
-				$propertyCode .= "\n\n\t" . $docComment . "\n\t" . $propertyDefinition;
+				$newProperties .= "\n\n\t" . $docComment . "\n\t" . $propertyDefinition;
 			}
 			
-			return $classContent['header'] . $propertyCode . "\n\n\t" . $classContent['methods'] . $classContent['footer'];
+			// Add the new properties at the end of the properties section
+			$updatedPropertyCode = $propertyCode . $newProperties;
+			
+			return $classContent['header'] . $updatedPropertyCode . "\n\n\t" . $classContent['methods'] . $classContent['footer'];
 		}
 		
 		/**

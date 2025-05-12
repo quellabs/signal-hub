@@ -52,7 +52,6 @@
 		
 		/**
 		 * Gets the target entity and reference field information for a relationship
-		 *
 		 * @param array $availableEntities List of available entities
 		 * @return array Associative array with targetEntity, referencedField, and referencedColumnName
 		 */
