@@ -517,16 +517,17 @@
 					    
 					    // Gather property info
 					    $result[$columnName] = [
-						    'property_name'  => $property->getName(),
-						    'type'           => $columnAnnotation->getType(),
-						    'limit'          => $columnAnnotation->getLimit(),
-						    'nullable'       => $columnAnnotation->isNullable(),
-						    'unsigned'       => $columnAnnotation->isUnsigned(),
-						    'default'        => $columnAnnotation->getDefault(),
-						    'primary_key'    => $columnAnnotation->isPrimaryKey(),
-						    'scale'          => $columnAnnotation->getScale(),
-						    'precision'      => $columnAnnotation->getPrecision(),
-						    'identity'       => $this->isIdentityColumn($propertyAnnotations),
+						    'property_name' => $property->getName(),
+						    'type'          => $columnAnnotation->getType(),
+						    'php_type'      => $property->getType(),
+						    'limit'         => $columnAnnotation->getLimit(),
+						    'nullable'      => $columnAnnotation->isNullable(),
+						    'unsigned'      => $columnAnnotation->isUnsigned(),
+						    'default'       => $columnAnnotation->getDefault(),
+						    'primary_key'   => $columnAnnotation->isPrimaryKey(),
+						    'scale'         => $columnAnnotation->getScale(),
+						    'precision'     => $columnAnnotation->getPrecision(),
+						    'identity'      => $this->isIdentityColumn($propertyAnnotations),
 					    ];
 				    }
 			    }

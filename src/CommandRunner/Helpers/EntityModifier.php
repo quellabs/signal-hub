@@ -345,12 +345,12 @@
 			
 			// Add primary key property
 			$content .= "
-			/**
-			 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
-			 * @Orm\PrimaryKeyStrategy(strategy=\"identity\")
-			 */
-			protected int \$id;
-		";
+				/**
+				 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
+				 * @Orm\PrimaryKeyStrategy(strategy=\"identity\")
+				 */
+				protected int \$id;
+			";
 			
 			// Add constructor for OneToMany relationships initialization
 			$hasOneToMany = false;
@@ -389,7 +389,7 @@
 			}
 			
 			// Add getter for primary id
-			$content .= $this->generateGetter(['name' => 'id', 'type' => 'int']);
+			$content .= $this->generateGetter(['name' => 'id', 'type' => 'integer']);
 			
 			// Add getters and setters
 			foreach ($properties as $property) {
