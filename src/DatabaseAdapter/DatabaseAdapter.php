@@ -112,10 +112,14 @@
 			// Phinx seems to sometimes return precision for integer fields which is incorrect
 			$decimalTypes = ['decimal', 'numeric', 'float', 'double'];
 			
+			// Column types that support limit - primarily string and binary types
+			$limitSupportedTypes = ['string', 'char', 'varchar', 'binary', 'varbinary', 'blob', 'text'];
+			
 			// Fetch and process each column in the table
 			foreach ($phinxAdapter->getColumns($tableName) as $column) {
 				$columnType = $column->getType();
 				$isOfDecimalType = in_array(strtolower($columnType), $decimalTypes);
+				$supportsLimit = in_array(strtolower($columnType), $limitSupportedTypes);
 				
 				$result[$column->getName()] = [
 					// Basic column type (integer, string, decimal, etc.)
@@ -125,7 +129,8 @@
 					'php_type'       => $typeMapper->phinxTypeToPhpType($columnType),
 					
 					// Maximum length for string types or display width for numeric types
-					'limit'          => $column->getLimit(),
+					// Only apply if the column type supports limits
+					'limit'          => $supportsLimit ? $column->getLimit() : null,
 					
 					// Default value for the column if not specified during insert
 					'default'        => $column->getDefault(),
