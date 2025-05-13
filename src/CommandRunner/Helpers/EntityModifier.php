@@ -132,8 +132,8 @@
 				return false;
 			}
 			
-			// Analyze the properties to determine if we need to handle OneToMany relationships
-			// OneToMany relationships require special handling for collection initialization
+			// Analyze the properties to determine if we need to handle OneToMany relationships.
+			// OneToMany relationships require special handling for collection initialization.
 			$hasNewOneToMany = false;
 			$oneToManyProperties = [];
 			
@@ -142,6 +142,7 @@
 				if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
 					// Flag that we need constructor updates
 					$hasNewOneToMany = true;
+					
 					// Track the OneToMany properties for constructor initialization
 					$oneToManyProperties[] = $property;
 				}
@@ -202,6 +203,7 @@
 			// Split into properties and methods sections
 			if (preg_match($methodPattern, $classBody, $methodMatch, PREG_OFFSET_CAPTURE)) {
 				$firstMethodPos = $methodMatch[0][1];
+				
 				// Find the beginning of the method or its docblock
 				$potentialDocBlockStart = strrpos(substr($classBody, 0, $firstMethodPos), '/**');
 				

@@ -22,6 +22,7 @@
     use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
+    use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
     use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     use Quellabs\ObjectQuel\ProxyGenerator\ProxyGenerator;
     use Quellabs\ObjectQuel\ReflectionManagement\EntityLocator;
@@ -480,8 +481,62 @@
 		    $identifierKeys = $this->getIdentifierKeys($entityType);
 		    return [$identifierKeys[0] => $primaryKey];
 	    }
-
+	    
 	    /**
+	     * Get entity property definitions from annotations
+	     * @param string $className Entity class name
+	     * @return array Array of property definitions
+	     */
+	    public function extractEntityColumnDefinitions(string $className): array {
+		    $result = [];
+		    
+		    try {
+			    $reflection = new \ReflectionClass($className);
+			    
+			    foreach ($reflection->getProperties() as $property) {
+				    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
+				    
+				    // Look for Column annotation
+				    $columnAnnotation = null;
+				    
+				    foreach ($propertyAnnotations as $annotation) {
+					    if ($annotation instanceof Column) {
+						    $columnAnnotation = $annotation;
+						    break;
+					    }
+				    }
+				    
+				    if ($columnAnnotation) {
+					    // Use the column name from the annotation, not the property name
+					    $columnName = $columnAnnotation->getName();
+					    
+					    // If no column name found, skip this property
+					    if (empty($columnName)) {
+						    continue;
+					    }
+					    
+					    // Gather property info
+					    $result[$columnName] = [
+						    'property_name'  => $property->getName(),
+						    'type'           => $columnAnnotation->getType(),
+						    'limit'          => $columnAnnotation->getLimit(),
+						    'nullable'       => $columnAnnotation->isNullable(),
+						    'unsigned'       => $columnAnnotation->isUnsigned(),
+						    'default'        => $columnAnnotation->getDefault(),
+						    'primary_key'    => $columnAnnotation->isPrimaryKey(),
+						    'scale'          => $columnAnnotation->getScale(),
+						    'precision'      => $columnAnnotation->getPrecision(),
+						    'identity'       => $this->isIdentityColumn($propertyAnnotations),
+					    ];
+				    }
+			    }
+		    } catch (\ReflectionException $e) {
+		    }
+		    
+		    return $result;
+	    }
+		
+		/**
 	     * Initialize entity classes using the EntityLocator.
 	     * This method discovers entity classes, validates them,
 	     * and loads their properties and annotations into memory.
@@ -579,5 +634,41 @@
 		    
 		    $this->dependencies_cache[$md5OfQuery] = $result;
 		    return $result;
+	    }
+	    
+	    /**
+	     * Determines if a property represents an auto-increment column.
+	     * A column is considered auto-increment if it has both:
+	     * 1. A Column annotation marked as primary key
+	     * 2. A PrimaryKeyStrategy annotation with value 'identity'
+	     * @param array $propertyAnnotations The annotations attached to the property
+	     * @return bool Returns true if the property is an auto-increment column, false otherwise
+	     */
+	    private function isIdentityColumn(array $propertyAnnotations): bool {
+		    // First condition: verify the property has a Column annotation that is a primary key
+		    // If any Column annotation is not a primary key, return false immediately
+		    foreach ($propertyAnnotations as $annotation) {
+			    if ($annotation instanceof Column) {
+				    if (!$annotation->isPrimaryKey()) {
+					    // If the property has a Column annotation, but it's not a primary key,
+					    // then it cannot be an auto-increment column
+					    return false;
+				    }
+			    }
+		    }
+		    
+		    // Second condition: verify the property has a PrimaryKeyStrategy annotation with 'identity' value
+		    // If any PrimaryKeyStrategy annotation does not have 'identity' value, return false immediately
+		    foreach ($propertyAnnotations as $annotation) {
+			    if ($annotation instanceof PrimaryKeyStrategy) {
+				    if ($annotation->getValue() !== 'identity') {
+					    return false;
+				    }
+			    }
+		    }
+		    
+		    // If we reach this point, both conditions are satisfied (or no relevant annotations were found)
+		    // Note: This assumes that at least one Column and one PrimaryKeyStrategy annotation exist
+		    return true;
 	    }
     }

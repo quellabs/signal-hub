@@ -6,6 +6,7 @@
 	 * Import required classes for entity management and console interaction
 	 */
 	
+	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\ObjectQuel\CommandRunner\Command;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
 	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
@@ -22,7 +23,7 @@
 	 */
 	class MakeEntityFromTableCommand extends Command {
 		private DatabaseAdapter $connection;
-		private TableInfo $tableInfo;
+		private AdapterInterface $phinxAdapter;
 		private string $entityNamespace;
 		
 		/**
@@ -38,7 +39,7 @@
 		) {
 			parent::__construct($input, $output, $configuration);
 			$this->connection = new DatabaseAdapter($configuration);
-			$this->tableInfo = new TableInfo($this->connection);
+			$this->phinxAdapter = $this->connection->getPhinxAdapter();
 			$this->entityNamespace = $configuration->getEntityNameSpace();
 		}
 		
@@ -105,7 +106,7 @@
 		private function promptForTable(): string {
 			return $this->input->choice(
 				"Select a database table to generate an entity class from:",
-				$this->tableInfo->getTables()
+				$this->connection->getTables()
 			);
 		}
 		
@@ -133,12 +134,12 @@
 		private function generateMemberVariables(array $tableDescription): string {
 			$output = "";
 			
-			foreach($tableDescription as $column) {
-				$columnCamelCase = lcfirst($this->camelCase($column["name"]));
+			foreach($tableDescription as $columnName => $column) {
+				$columnCamelCase = lcfirst($this->camelCase($columnName));
 				$acceptType = $this->getColumnType($column);
 				
 				$output .= "        /**\n";
-				$output .= "         * @Orm\Column(name=\"{$column["name"]}\", type=\"{$column["type"]}\"";
+				$output .= "         * @Orm\Column(name=\"{$columnName}\", type=\"{$column["type"]}\"";
 				$output .= $this->getColumnAnnotationDetails($column);
 				$output .= ")\n";
 				
@@ -161,7 +162,11 @@
 		 * @return string The PHP type for the column
 		 */
 		private function getColumnType(array $column): string {
-			return $column["nullable"] ? "?{$column["php_type"]}" : $column["php_type"];
+			if ($column["nullable"] && $column["php_type"] !== 'mixed') {
+				return "?{$column["php_type"]}";
+			} else {
+				return $column["php_type"];
+			}
 		}
 		
 		/**
@@ -170,29 +175,48 @@
 		 * @return string The column annotation details
 		 */
 		private function getColumnAnnotationDetails(array $column): string {
-			$details = "";
+			// Initialize an empty array to collect annotation details
+			$details = [];
 			
-			if (!empty($column["length"])) {
-				if (is_numeric($column["length"])) {
-					$details .= ", length={$column["length"]}";
+			// Add limit annotation if specified
+			if (!empty($column["limit"])) {
+				if (is_numeric($column["limit"])) {
+					// For numeric limits, don't use quotes
+					$details[] = "limit={$column["limit"]}";
 				} else {
-					$details .= ", length=\"{$column["length"]}\"";
+					// For non-numeric limits, use quotes
+					$details[] = "limit=\"{$column["limit"]}\"";
 				}
 			}
 			
+			// Add nullable annotation if the column is nullable
 			if ($column["nullable"]) {
-				$details .= ", nullable=true";
+				$details[] = "nullable=true";
 			}
 			
+			// Add primary key annotation if the column is a primary key
 			if ($column["primary_key"]) {
-				$details .= ", primary_key=true";
+				$details[] = "primary_key=true";
 			}
 			
+			// Add default value annotation if specified
 			if (!empty($column["default"])) {
-				$details .= ", default=\"{$column["default"]}\"";
+				$details[] = "default=\"{$column["default"]}\"";
 			}
 			
-			return $details;
+			// Add precision annotation for decimal/numeric columns if specified
+			if (!empty($column["precision"])) {
+				$details[] = "precision={$column["precision"]}";
+			}
+			
+			// Add scale annotation for decimal/numeric columns if specified
+			if (!empty($column["scale"])) {
+				$details[] = "scale={$column["scale"]}";
+			}
+			
+			// Implode the array with comma separator and prepend a comma if details exist
+			// If no details found, return an empty string
+			return !empty($details) ? ", " . implode(", ", $details) : "";
 		}
 		
 		/**
@@ -221,8 +245,8 @@
 		private function generateGettersAndSetters(array $tableDescription, string $tableCamelCase): string {
 			$output = "";
 			
-			foreach($tableDescription as $column) {
-				$fieldCamelCase = $this->camelCase($column["name"]);
+			foreach($tableDescription as $columnName => $column) {
+				$fieldCamelCase = $this->camelCase($columnName);
 				$variableCamelCase = lcfirst($fieldCamelCase);
 				$acceptType = $this->getColumnType($column);
 				
@@ -268,7 +292,7 @@
 			$output = "\n";
 			
 			// Only generate setters for non-autoincrement primary keys
-			if (!$column["primary_key"] || !$column["auto_increment"]) {
+			if (!$column["primary_key"] || !$column["identity"]) {
 				$output .= "        public function set{$fieldCamelCase}({$acceptType} \$value): {$tableCamelCase}Entity {\n";
 				$output .= "            \$this->{$variableCamelCase} = \$value;\n";
 				$output .= "            return \$this;\n";
@@ -304,9 +328,8 @@
 			}
 			
 			// Extract all necessary data from the table
-			// @TODO convert this to phinx
 			$tableCamelCase = $this->camelCase($table);
-			$tableDescription = $this->tableInfo->extract($table);
+			$tableDescription = $this->connection->getColumns($table);
 			
 			if (empty($tableDescription)) {
 				$this->output->writeLn("Could not extract table description for {$table}.");

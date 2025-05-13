@@ -92,20 +92,68 @@
 		}
 		
 		/**
-		 * Returns the columns in the given table
-		 * @param string $tableName
-		 * @return array
+		 * Retrieves and formats column definitions from the database table
+		 * @param string $tableName Name of the table to analyze
+		 * @return array Associative array of column definitions indexed by column name
 		 */
 		public function getColumns(string $tableName): array {
-			return $this->getCol("
-                SELECT
-                    COLUMN_NAME
-                FROM `INFORMATION_SCHEMA`.`COLUMNS`
-                WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_name`=:tableName
-            ", [
-				'tableName' => $tableName
-			]);
+			$result = [];
+			
+			// Fetch the Phinx adapter
+			$phinxAdapter = $this->getPhinxAdapter();
+			
+			// Fetch the type mapper
+			$typeMapper = new TypeMapper();
+			
+			// Get primary key columns first so we can mark them in column definitions
+			$primaryKey = $phinxAdapter->getPrimaryKey($tableName);
+			
+			// Keep a list of decimal types for precision/scale inclusion
+			// Phinx seems to sometimes return precision for integer fields which is incorrect
+			$decimalTypes = ['decimal', 'numeric', 'float', 'double'];
+			
+			// Fetch and process each column in the table
+			foreach ($phinxAdapter->getColumns($tableName) as $column) {
+				$columnType = $column->getType();
+				$isOfDecimalType = in_array(strtolower($columnType), $decimalTypes);
+				
+				$result[$column->getName()] = [
+					// Basic column type (integer, string, decimal, etc.)
+					'type'           => $columnType,
+					
+					// PHP type of this column
+					'php_type'       => $typeMapper->phinxTypeToPhpType($columnType),
+					
+					// Maximum length for string types or display width for numeric types
+					'limit'          => $column->getLimit(),
+					
+					// Default value for the column if not specified during insert
+					'default'        => $column->getDefault(),
+					
+					// Whether NULL values are allowed in this column
+					'nullable'       => $column->getNull(),
+					
+					// For numeric types: total number of digits (precision)
+					'precision'      => $isOfDecimalType ? $column->getPrecision() : null,
+					
+					// For decimal types: number of digits after decimal point
+					'scale'          => $isOfDecimalType ? $column->getScale() : null,
+					
+					// Whether column allows negative values (converted from signed to unsigned)
+					'unsigned'       => !$column->getSigned(),
+					
+					// For generated columns (computed values based on expressions)
+					'generated'      => $column->getGenerated(),
+					
+					// Whether column auto-increments (typically for primary keys)
+					'identity'       => $column->getIdentity(),
+					
+					// Whether this column is part of the primary key
+					'primary_key'    => in_array($column->getName(), $primaryKey["columns"]),
+				];
+			}
+			
+			return $result;
 		}
 		
 		/**
@@ -131,63 +179,8 @@
 		 * @return array
 		 */
 		public function getTables(): array {
-			return $this->getCol("
-                SELECT
-                    `table_name`
-                FROM `INFORMATION_SCHEMA`.`TABLES`
-                WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_type`='BASE TABLE'
-            ");
-		}
-		
-		/**
-		 * Fetch a list of views
-		 * @return array
-		 */
-		public function getViews(): array {
-			return $this->getCol("
-                SELECT
-                    `table_name`
-                FROM INFORMATION_SCHEMA.TABLES
-                WHERE `table_schema` IN(SELECT DATABASE()) AND
-                      `table_type`='VIEW'
-            ");
-		}
-		
-		/**
-		 * Returns the collation of the given table
-		 * @param string $tableName
-		 * @return mixed
-		 */
-		public function getTableCharacterSet(string $tableName): mixed {
-			return $this->getOne("
-                SELECT
-                    `CCSA`.`character_set_name`
-                FROM `information_schema`.`TABLES` `T`,
-                     `information_schema`.`COLLATION_CHARACTER_SET_APPLICABILITY` `CCSA`
-                WHERE `CCSA`.`collation_name` = `T`.`table_collation`
-                  AND `T`.`table_schema` IN(SELECT DATABASE())
-                  AND `T`.`table_name` = :tableName
-            ", [
-				'tableName' => $tableName
-			]);
-		}
-		
-		/**
-		 * Returns the collation of the given table
-		 * @param string $tableName
-		 * @return mixed
-		 */
-		public function getTableCollation(string $tableName): mixed {
-			return $this->getOne("
-                SELECT
-                    `TABLE_COLLATION`
-                FROM `INFORMATION_SCHEMA`.`TABLES`
-                WHERE `TABLE_SCHEMA` IN(SELECT DATABASE()) AND
-                      `TABLE_NAME` = :tableName
-            ", [
-				'tableName' => $tableName
-			]);
+			$schemaCollection = $this->getSchemaCollection();
+			return $schemaCollection->listTablesWithoutViews();
 		}
 		
 		/**
@@ -211,19 +204,6 @@
 			
 			// Retourneer de standaardwaarde als de query mislukt of de "Value" kolom niet bestaat
 			return 16777216;  // default value
-		}
-		
-		/**
-		 * Returns the table description for the given table
-		 * @param string $table
-		 * @return array|bool
-		 */
-		public function getTableDescription(string $table): bool|array {
-			if (!isset($this->descriptions[$table])) {
-				$this->descriptions[$table] = $this->getAll("DESCRIBE `{$table}`");
-			}
-			
-			return $this->descriptions[$table];
 		}
 		
 		/**
