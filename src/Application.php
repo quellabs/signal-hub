@@ -80,6 +80,49 @@
 		}
 		
 		/**
+		 * Automatically finds and registers all command classes in the built-in
+		 * Commands directory. This provides the core functionality of the framework.
+		 * @return void
+		 */
+		public function discoverInternalCommands(): void {
+			// Define the namespace prefix for internal commands
+			$namespace = 'Quellabs\\Sculpt\\Commands\\';
+			
+			// Get the absolute path to the commands directory
+			$commandsDir = $this->basePath . '/src/Commands';
+			
+			// Handle gracefully if the directory doesn't exist
+			// This prevents errors if the directory structure changes
+			if (!is_dir($commandsDir)) {
+				return;
+			}
+			
+			// Iterate through files in the commands directory
+			foreach (new \DirectoryIterator($commandsDir) as $file) {
+				// Skip directory navigation entries (. and ..), subdirectories, and non-PHP files
+				// This ensures we only process actual command class files
+				if ($file->isDot() || $file->isDir() || $file->getExtension() !== 'php') {
+					continue;
+				}
+				
+				// Construct the fully qualified class name
+				// Combines the namespace prefix with the filename (without extension)
+				$className = $namespace . pathinfo($file->getFilename(), PATHINFO_FILENAME);
+				
+				// Instantiate and register command classes that implement CommandInterface
+				// This validation ensures only proper command classes are registered
+				if (class_exists($className) && is_subclass_of($className, CommandInterface::class)) {
+					// Create a new instance of the command with required dependencies
+					$command = new $className($this->input, $this->output, $this);
+					
+					// Register the command in the commands collection using its signature as the key
+					// This allows commands to be looked up by their signature (e.g., "db:migrate")
+					$this->commands[$command->getSignature()] = $command;
+				}
+			}
+		}
+		
+		/**
 		 * Discover and register service providers from installed packages
 		 * @return void
 		 */
@@ -148,50 +191,7 @@
 			$command = $this->commands[$commandName];
 			return $command->execute(array_slice($args, 2));
 		}
-		
-		/**
-		 * Automatically finds and registers all command classes in the built-in
-		 * Commands directory. This provides the core functionality of the framework.
-		 * @return void
-		 */
-		protected function discoverInternalCommands(): void {
-			// Define the namespace prefix for internal commands
-			$namespace = 'Quellabs\\Sculpt\\Commands\\';
-			
-			// Get the absolute path to the commands directory
-			$commandsDir = $this->basePath . '/src/Commands';
-			
-			// Handle gracefully if the directory doesn't exist
-			// This prevents errors if the directory structure changes
-			if (!is_dir($commandsDir)) {
-				return;
-			}
-			
-			// Iterate through files in the commands directory
-			foreach (new \DirectoryIterator($commandsDir) as $file) {
-				// Skip directory navigation entries (. and ..), subdirectories, and non-PHP files
-				// This ensures we only process actual command class files
-				if ($file->isDot() || $file->isDir() || $file->getExtension() !== 'php') {
-					continue;
-				}
-				
-				// Construct the fully qualified class name
-				// Combines the namespace prefix with the filename (without extension)
-				$className = $namespace . pathinfo($file->getFilename(), PATHINFO_FILENAME);
-				
-				// Instantiate and register command classes that implement CommandInterface
-				// This validation ensures only proper command classes are registered
-				if (class_exists($className) && is_subclass_of($className, CommandInterface::class)) {
-					// Create a new instance of the command with required dependencies
-					$command = new $className($this->input, $this->output, $this);
-					
-					// Register the command in the commands collection using its signature as the key
-					// This allows commands to be looked up by their signature (e.g., "db:migrate")
-					$this->commands[$command->getSignature()] = $command;
-				}
-			}
-		}
-		
+
 		/**
 		 * Displays a formatted list of all registered commands, grouped by their namespace.
 		 * This is shown when no command is specified or when an invalid command is used.
