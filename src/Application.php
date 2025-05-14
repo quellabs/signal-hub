@@ -14,6 +14,11 @@
 	class Application {
 		
 		/**
+		 * @var mixed|string
+		 */
+		private ?string $basePath;
+		
+		/**
 		 * Array of registered service provider instances
 		 * These providers extend the application functionality
 		 */
@@ -39,11 +44,20 @@
 		 * Application constructor
 		 * @param ConsoleInput $input Handler for reading from console
 		 * @param ConsoleOutput $output Handler for writing to console
+		 * @param string|null $basePath
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output) {
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?string $basePath = null) {
 			// Store input and output classes
 			$this->input = $input;
 			$this->output = $output;
+
+			// Set base path (where src directory is located)
+			if ($basePath === null) {
+				// Default to 2 directories up from this file (assuming this file is in src/Application.php)
+				$this->basePath = dirname(__DIR__);
+			} else {
+				$this->basePath = $basePath;
+			}
 			
 			// Register internal commands
 			$this->discoverInternalCommands();
@@ -166,8 +180,13 @@
 		 * @return void
 		 */
 		protected function discoverInternalCommands(): void {
-			$commandsDir = __DIR__ . '/Commands';
 			$namespace = 'Quellabs\\Sculpt\\Commands\\';
+			$commandsDir = $this->basePath . '/src/Commands';
+			
+			// Handle gracefully if the directory doesn't exist
+			if (!is_dir($commandsDir)) {
+				return;
+			}
 			
 			// Iterate through files in the commands directory
 			foreach (new \DirectoryIterator($commandsDir) as $file) {
