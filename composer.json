@@ -23,9 +23,6 @@
     "docs": "https://objectquel.quellabs.com/docs",
     "source": "https://github.com/quellabs/objectquel"
   },
-  "bin": [
-    "src/bin/sculpt"
-  ],
   "require": {
     "php": ">=8.3",
     "ext-json": "*",
@@ -36,6 +33,7 @@
     "ext-fileinfo": "*",
     "quellabs/signal-hub": "1.*",
     "quellabs/annotation-reader": "1.*",
+    "quellabs/sculpt": "dev-main",
     "robmorgan/phinx": "^0.13.4",
     "cakephp/database": "^4.4",
     "softcreatr/jsonpath": "*"
@@ -43,6 +41,11 @@
   "autoload": {
     "psr-4": {
       "Quellabs\\ObjectQuel\\": "src/"
+    }
+  },
+  "extra": {
+    "sculpt": {
+      "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
     }
   }
 }

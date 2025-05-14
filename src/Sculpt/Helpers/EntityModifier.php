@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
+	namespace Quellabs\ObjectQuel\Sculpt\Helpers;
 	
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;

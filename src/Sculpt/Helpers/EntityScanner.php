@@ -1,12 +1,12 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\CommandRunner\Helpers;
+	namespace Quellabs\ObjectQuel\Sculpt\Helpers;
 	
+	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\ObjectQuel\Annotations\Orm\Table;
 	use RecursiveDirectoryIterator;
 	use RecursiveIteratorIterator;
 	use ReflectionClass;
-	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\ObjectQuel\Annotations\Orm\Table;
 	
 	/**
 	 * EntityScanner - Identifies entity classes with Table annotations in a specified directory

@@ -1,24 +1,19 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
+	namespace Quellabs\ObjectQuel\Sculpt\Commands;
 	
 	/**
 	 * Import required classes for migration generation and entity analysis
 	 */
 	
-	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
-	use Quellabs\ObjectQuel\CommandRunner\Command;
-	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
-	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
-	use Quellabs\ObjectQuel\CommandRunner\Helpers\EntityScanner;
-	use Quellabs\ObjectQuel\CommandRunner\Helpers\SchemaComparator;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
-	use Quellabs\ObjectQuel\Annotations\Orm\Column;
 	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	use Quellabs\ObjectQuel\EntityStore;
+	use Quellabs\ObjectQuel\Sculpt\Helpers\EntityScanner;
+	use Quellabs\ObjectQuel\Sculpt\Helpers\SchemaComparator;
+	use Quellabs\Sculpt\CommandBase;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -28,7 +23,7 @@
 	 * It tracks added, modified, or removed fields and relationships to generate
 	 * the appropriate SQL commands for schema updates.
 	 */
-	class MakeMigrationsCommand extends Command {
+	class MakeMigrationsCommand extends CommandBase {
 		private DatabaseAdapter $connection;
 		private string $entityPath;
 		private AnnotationReader $annotationReader;
@@ -37,20 +32,16 @@
 		private SchemaComparator $schemaComparator;
 		private TypeMapper $phinxTypeMapper;
 		private EntityStore $entityStore;
+		private Configuration $configuration;
 		
 		/**
-		 * Constructor
-		 * @param ConsoleInput $input Command line input interface
-		 * @param ConsoleOutput $output Command line output interface
-		 * @param Configuration $configuration Application configuration
+		 * This is called after all commands were instantiated
+		 * @param Configuration $configuration
+		 * @return void
 		 */
-		public function __construct(
-			ConsoleInput  $input,
-			ConsoleOutput $output,
-			Configuration $configuration
-		) {
-			parent::__construct($input, $output, $configuration);
-			
+		public function boot(Configuration $configuration): void {
+			$this->configuration = $configuration;
+
 			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
 			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
 			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
@@ -64,7 +55,7 @@
 			$this->phinxTypeMapper = new TypeMapper();
 			$this->entityStore = new EntityStore($configuration);
 		}
-		
+
 		/**
 		 * Execute the command
 		 * @param array $parameters Optional parameters passed to the command
@@ -117,6 +108,30 @@
 			return $success ? 0 : 1;
 		}
 		
+		/**
+		 * Get the command signature/name for registration in the CLI
+		 * @return string Command signature
+		 */
+		public function getSignature(): string {
+			return "make:migrations";
+		}
+		
+		/**
+		 * Get a short description of what the command does
+		 * @return string Command description
+		 */
+		public function getDescription(): string {
+			return "Generate database migrations based on entity changes";
+		}
+		
+		/**
+		 * Get detailed help information for the command
+		 * @return string Command help text
+		 */
+		public function getHelp(): string {
+			return "Creates a new database migration file by comparing entity definitions with current database schema to synchronize changes.";
+		}
+
 		/**
 		 * Generate Phinx migration file
 		 * @param array $allChanges Changes for all tables
@@ -413,29 +428,5 @@ PHP;
 			}
 			
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
-		}
-		
-		/**
-		 * Get the command signature/name for registration in the CLI
-		 * @return string Command signature
-		 */
-		public static function getSignature(): string {
-			return "make:migrations";
-		}
-		
-		/**
-		 * Get a short description of what the command does
-		 * @return string Command description
-		 */
-		public static function getDescription(): string {
-			return "Generate database migrations based on entity changes";
-		}
-		
-		/**
-		 * Get detailed help information for the command
-		 * @return string Command help text
-		 */
-		public static function getHelp(): string {
-			return "Creates a new database migration file by comparing entity definitions with current database schema to synchronize changes.";
 		}
 	}

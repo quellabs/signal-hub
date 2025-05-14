@@ -1,18 +1,14 @@
 <?php
 	
-	namespace Quellabs\ObjectQuel\CommandRunner\Commands;
+	namespace Quellabs\ObjectQuel\Sculpt\Commands;
 	
 	/**
 	 * Import required classes for entity management and console interaction
 	 */
-	
 	use Phinx\Db\Adapter\AdapterInterface;
-	use Quellabs\ObjectQuel\CommandRunner\Command;
-	use Quellabs\ObjectQuel\CommandRunner\ConsoleInput;
-	use Quellabs\ObjectQuel\CommandRunner\ConsoleOutput;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
-	use Quellabs\ObjectQuel\DatabaseAdapter\TableInfo;
+	use Quellabs\Sculpt\CommandBase;
 	
 	/**
 	 * MakeEntityFromTableCommand - CLI command for creating or updating entity classes
@@ -21,28 +17,85 @@
 	 * through a command-line interface, collecting properties with their types
 	 * and constraints, including relationship definitions with primary key selection.
 	 */
-	class MakeEntityFromTableCommand extends Command {
+	class MakeEntityFromTableCommand extends CommandBase {
 		private DatabaseAdapter $connection;
 		private AdapterInterface $phinxAdapter;
 		private string $entityNamespace;
+		private Configuration $configuration;
 		
 		/**
-		 * Constructor
-		 * @param ConsoleInput $input Command line input interface
-		 * @param ConsoleOutput $output Command line output interface
-		 * @param Configuration $configuration Application configuration
+		 * This is called after all commands were instantiated
+		 * @param Configuration $configuration
+		 * @return void
 		 */
-		public function __construct(
-			ConsoleInput  $input,
-			ConsoleOutput $output,
-			Configuration $configuration
-		) {
-			parent::__construct($input, $output, $configuration);
+		public function boot(Configuration $configuration): void {
+			$this->configuration = $configuration;
 			$this->connection = new DatabaseAdapter($configuration);
 			$this->phinxAdapter = $this->connection->getPhinxAdapter();
 			$this->entityNamespace = $configuration->getEntityNameSpace();
 		}
 		
+		/**
+		 * Execute the command
+		 * @param array $parameters Optional parameters passed to the command
+		 * @return int Exit code (0 for success)
+		 */
+		public function execute(array $parameters = []): int {
+			// Prompt the user to select which database table they would like to create a new entity for
+			$table = $this->promptForTable();
+			
+			if (empty($table)) {
+				return 0;
+			}
+			
+			// Extract all necessary data from the table
+			$tableCamelCase = $this->camelCase($table);
+			$tableDescription = $this->connection->getColumns($table);
+			
+			if (empty($tableDescription)) {
+				$this->output->writeLn("Could not extract table description for {$table}.");
+				return 0;
+			}
+			
+			// Generate namespace and imports
+			$entityCode = "<?php\n";
+			$entityCode .= $this->generateNamespace();
+			$entityCode .= $this->generateImports();
+			$entityCode .= $this->generateClassDocBlock($table, $tableCamelCase);
+			$entityCode .= $this->generateEntityCode($table, $tableCamelCase, $tableDescription);
+			
+			// Store the file
+			$this->saveEntityFile($tableCamelCase, $entityCode);
+			
+			// Output message
+			$this->output->writeLn("Entity class {$tableCamelCase}Entity successfully created.");
+			return 0;
+		}
+		
+		/**
+		 * Get the command signature/name for registration in the CLI
+		 * @return string Command signature
+		 */
+		public function getSignature(): string {
+			return "make:entity-from-table";
+		}
+		
+		/**
+		 * Get a short description of what the command does
+		 * @return string Command description
+		 */
+		public function getDescription(): string {
+			return "Generate entity classes from existing database table structures";
+		}
+		
+		/**
+		 * Get detailed help information for the command
+		 * @return string Command help text
+		 */
+		public function getHelp(): string {
+			return "Generates entity classes by mapping database tables to object-oriented entities.";
+		}
+
 		/**
 		 * Convert a string to camelcase
 		 * @param string $input
@@ -312,66 +365,5 @@
 			$path = $this->configuration->getEntityPath();
 			$filename = "{$path}/{$tableCamelCase}Entity.php";
 			file_put_contents($filename, $entityCode);
-		}
-		
-		/**
-		 * Execute the command
-		 * @param array $parameters Optional parameters passed to the command
-		 * @return int Exit code (0 for success)
-		 */
-		public function execute(array $parameters = []): int {
-			// Prompt the user to select which database table they would like to create a new entity for
-			$table = $this->promptForTable();
-			
-			if (empty($table)) {
-				return 0;
-			}
-			
-			// Extract all necessary data from the table
-			$tableCamelCase = $this->camelCase($table);
-			$tableDescription = $this->connection->getColumns($table);
-			
-			if (empty($tableDescription)) {
-				$this->output->writeLn("Could not extract table description for {$table}.");
-				return 0;
-			}
-			
-			// Generate namespace and imports
-			$entityCode = "<?php\n";
-			$entityCode .= $this->generateNamespace();
-			$entityCode .= $this->generateImports();
-			$entityCode .= $this->generateClassDocBlock($table, $tableCamelCase);
-			$entityCode .= $this->generateEntityCode($table, $tableCamelCase, $tableDescription);
-			
-			// Store the file
-			$this->saveEntityFile($tableCamelCase, $entityCode);
-			
-			// Output message
-			$this->output->writeLn("Entity class {$tableCamelCase}Entity successfully created.");
-			return 0;
-		}
-		
-		/**
-		 * Get the command signature/name for registration in the CLI
-		 * @return string Command signature
-		 */
-		public static function getSignature(): string {
-			return "make:entity-from-table";
-		}
-		
-		/**
-		 * Get a short description of what the command does
-		 * @return string Command description
-		 */
-		public static function getDescription(): string {
-			return "Generate entity classes from existing database table structures";
-		}
-		
-		/**
-		 * Get detailed help information for the command
-		 * @return string Command help text
-		 */
-		public static function getHelp(): string {
-			return "Generates entity classes by mapping database tables to object-oriented entities.";
 		}
 	}
