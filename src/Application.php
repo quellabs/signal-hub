@@ -299,21 +299,34 @@
 		}
 		
 		protected function getProjectComposerPath(): ?string {
-			// When sculpt is installed as a dependency, find the parent project's composer.json
-			$vendorDir = dirname($this->basePath, 3);
+			// When sculpt is installed as a dependency in vendor/quellabs/sculpt,
+			// the project's composer.json is at the project root, which is 4 levels up from sculpt's basePath
 			
-			$possiblePaths = [
-				// Standard location for project's composer.json
-				$vendorDir . '/composer.json',
+			// First, figure out if we're running from vendor/bin or directly
+			if (str_contains($this->basePath, '/vendor/')) {
+				// We're running as a dependency
+				// Find the project root (where vendor directory is)
+				$path = $this->basePath;
 				
-				// Go one level up if we're in vendor/bin
-				dirname($vendorDir) . '/composer.json'
-			];
-			
-			foreach ($possiblePaths as $path) {
-				if (file_exists($path)) {
-					return $path;
+				// Keep going up until we find the vendor directory
+				while ($path !== '/' && basename(dirname($path)) !== 'vendor') {
+					$path = dirname($path);
 				}
+				
+				// Now go up one more level to get to the project root
+				$projectRoot = dirname($path, 2);
+				
+				// The composer.json should be in the project root
+				$composerPath = $projectRoot . '/composer.json';
+				
+			} else {
+				// We're running directly in development mode
+				// The composer.json should be in the package root
+				$composerPath = $this->basePath . '/composer.json';
+			}
+			
+			if (file_exists($composerPath)) {
+				return $composerPath;
 			}
 			
 			return null;
