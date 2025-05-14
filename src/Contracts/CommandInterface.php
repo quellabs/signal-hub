@@ -1,6 +1,9 @@
 <?php
 	
-	namespace Quellabs\Sculpt;
+	namespace Quellabs\Sculpt\Contracts;
+	
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
 	
 	/**
 	 * CommandInterface

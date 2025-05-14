@@ -1,7 +1,7 @@
 <?php
 	
 	
-	namespace Quellabs\Sculpt;
+	namespace Quellabs\Sculpt\Console;
 	
 	class ConsoleOutput {
 		

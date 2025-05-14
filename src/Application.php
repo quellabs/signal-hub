@@ -2,13 +2,14 @@
 	
 	namespace Quellabs\Sculpt;
 	
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Sculpt\Contracts\CommandInterface;
+	
 	/**
-	 * Core class for the Sculpt framework that manages service providers, commands,
-	 * dependency bindings, and handles the application lifecycle.
-	 *
 	 * This is the main entry point for the Sculpt CLI application, responsible for
 	 * discovering and registering service providers from installed packages,
-	 * registering and executing commands, and managing the dependency injection container.
+	 * registering and executing commands.
 	 */
 	class Application {
 		
@@ -23,12 +24,6 @@
 		 * Commands are the primary way users interact with the application
 		 */
 		protected array $commands = [];
-		
-		/**
-		 * Service container bindings for dependency injection
-		 * Maps abstract names to concrete implementations or factory closures
-		 */
-		protected array $bindings = [];
 		
 		/**
 		 * Console input handler for reading user input
@@ -104,32 +99,6 @@
 		}
 		
 		/**
-		 * Associates an abstract identifier with a concrete implementation or factory.
-		 * This is part of the dependency injection system.
-		 * @param string $abstract The abstract identifier or interface name
-		 * @param mixed $concrete The concrete implementation or factory closure
-		 */
-		public function bind(string $abstract, $concrete): void {
-			$this->bindings[$abstract] = $concrete;
-		}
-		
-		/**
-		 * Allows modifying or decorating an existing service binding.
-		 * The extender receives the original implementation and returns the modified version.
-		 * @param string $abstract The abstract identifier of the service to extend
-		 * @param callable $extender A function that receives the original implementation and returns the modified version
-		 */
-		public function extend(string $abstract, callable $extender): void {
-			if (isset($this->bindings[$abstract])) {
-				$original = $this->bindings[$abstract];
-				
-				$this->bindings[$abstract] = function ($app) use ($extender, $original) {
-					return $extender($original instanceof \Closure ? $original($app) : $original);
-				};
-			}
-		}
-		
-		/**
 		 * Verifies if a command with the given signature is registered in the application.
 		 * @param string $name The command signature to check
 		 * @return bool True if the command exists, false otherwise
@@ -143,7 +112,7 @@
 		 * @param string $name The command signature
 		 * @return CommandInterface|null The command instance or null if not found
 		 */
-		public function getCommand(string $name) {
+		public function getCommand(string $name): ?CommandInterface {
 			return $this->commands[$name] ?? null;
 		}
 		

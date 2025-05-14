@@ -46,7 +46,7 @@ Sculpt uses a service provider pattern to discover and register commands from ot
 namespace Your\Package;
 
 use Quellabs\Sculpt\Application;
-use Quellabs\Sculpt\ServiceProvider;
+use Quellabs\Sculpt\Contracts\ServiceProvider;
 
 class SculptServiceProvider extends ServiceProvider {
     /**

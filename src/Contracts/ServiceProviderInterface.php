@@ -1,6 +1,8 @@
 <?php
 	
-	namespace Quellabs\Sculpt;
+	namespace Quellabs\Sculpt\Contracts;
+	
+	use Quellabs\Sculpt\Application;
 	
 	interface ServiceProviderInterface {
 		

@@ -5,8 +5,8 @@
 	include_once __DIR__ . '/../../vendor/autoload.php';
 	
 	use Quellabs\Sculpt\Application;
-	use Quellabs\Sculpt\ConsoleInput;
-	use Quellabs\Sculpt\ConsoleOutput;
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
 	
 	// Bootstrap the application
 	$output = new ConsoleOutput();
