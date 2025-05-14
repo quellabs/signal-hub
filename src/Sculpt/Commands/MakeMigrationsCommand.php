@@ -30,8 +30,8 @@
 	 */
 	class MakeMigrationsCommand extends CommandBase {
 		private ?DatabaseAdapter $connection = null;
-		private ?AnnotationReader $annotationReader;
-		private ?EntityStore $entityStore;
+		private ?AnnotationReader $annotationReader = null;
+		private ?EntityStore $entityStore = null;
 		private string $entityPath;
 		private string $migrationsPath;
 		private TypeMapper $phinxTypeMapper;
@@ -146,7 +146,7 @@
 			// Create timestamp and name components for the migration file
 			$timestamp = time();
 			$migrationName = 'EntitySchemaMigration' . date('YmdHis', $timestamp);
-			$className = 'Migration' . date('YmdHis', $timestamp);
+			$className = '"EntitySchemaMigration' . date('YmdHis', $timestamp);
 			
 			// Construct the full filepath for the migration
 			$filename = $this->migrationsPath . '/' . date('YmdHis', $timestamp) . '_' . $migrationName . '.php';
