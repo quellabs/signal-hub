@@ -88,7 +88,7 @@
 		public function getServiceDiscoverer(): ServiceDiscoverer {
 			return $this->serviceDiscoverer;
 		}
-
+		
 		/**
 		 * Returns the base path of the application
 		 * @return string
@@ -192,6 +192,20 @@
 				return $this->listCommands();
 			}
 			
+			// Check for help command format: "help command:x"
+			if ($commandName === 'help' && isset($args[2])) {
+				$targetCommandName = $args[2];
+				
+				// Check if the target command exists
+				if (!$this->hasCommand($targetCommandName)) {
+					$this->output->warning("Command '{$targetCommandName}' not found.");
+					return $this->listCommands();
+				}
+				
+				// Display help for the target command
+				return $this->displayCommandHelp($targetCommandName);
+			}
+			
 			// Check if command exists
 			if (!$this->hasCommand($commandName)) {
 				$this->output->warning("Command '{$commandName}' not found.");
@@ -213,6 +227,32 @@
 				$this->output->error($e->getMessage());
 				return 1;
 			}
+		}
+		
+		/**
+		 * Display detailed help for a specific command
+		 * @param string $commandName The command signature
+		 * @return int Exit code
+		 */
+		protected function displayCommandHelp(string $commandName): int {
+			$command = $this->commands[$commandName];
+			
+			// Display command header
+			$this->output->writeLn("\n<bold><white>Help: {$commandName}</white></bold>");
+			$this->output->writeLn("<dim>{$command->getDescription()}</dim>\n");
+			
+			// Display help text from the command's getHelp() method
+			$helpText = $command->getHelp();
+			
+			if (!empty($helpText)) {
+				$this->output->writeLn($helpText);
+			} else {
+				$this->output->writeLn("No detailed help available for this command.");
+			}
+			
+			$this->output->writeLn(''); // Add a blank line at the end
+			
+			return 0;
 		}
 		
 		/**
