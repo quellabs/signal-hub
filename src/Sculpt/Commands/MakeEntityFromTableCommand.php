@@ -22,9 +22,8 @@
 	 * and constraints, including relationship definitions with primary key selection.
 	 */
 	class MakeEntityFromTableCommand extends CommandBase {
-		private DatabaseAdapter $connection;
-		private string $entityNamespace;
 		private Configuration $configuration;
+		private ?DatabaseAdapter $connection = null;
 		
 		/**
 		 * MakeEntityFromTableCommand constructor
@@ -36,8 +35,6 @@
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
-			$this->connection = new DatabaseAdapter($this->configuration);
-			$this->entityNamespace = $this->configuration->getEntityNameSpace();
 		}
 		
 		/**
@@ -55,7 +52,7 @@
 			
 			// Extract all necessary data from the table
 			$tableCamelCase = $this->camelCase($table);
-			$tableDescription = $this->connection->getColumns($table);
+			$tableDescription = $this->getConnection()->getColumns($table);
 			
 			if (empty($tableDescription)) {
 				$this->output->writeLn("Could not extract table description for {$table}.");
@@ -118,7 +115,7 @@
 		 * @return string
 		 */
 		private function generateNamespace(): string {
-			return "    namespace {$this->entityNamespace};\n\n";
+			return "    namespace {$this->configuration->getEntityNameSpace()};\n\n";
 		}
 		
 		/**
@@ -150,7 +147,7 @@
 			$output = "";
 			$output .= "    /**\n";
 			$output .= "     * Class {$tableCamelCase}Entity\n";
-			$output .= "     * @package {$this->entityNamespace}\n";
+			$output .= "     * @package {$this->configuration->getEntityNameSpace()}\n";
 			$output .= "     * @Orm\Table(name=\"{$table}\")\n";
 			$output .= "     */\n";
 			
@@ -164,7 +161,7 @@
 		private function promptForTable(): string {
 			return $this->input->choice(
 				"Select a database table to generate an entity class from:",
-				$this->connection->getTables()
+				$this->getConnection()->getTables()
 			);
 		}
 		
@@ -370,5 +367,17 @@
 			$path = $this->configuration->getEntityPath();
 			$filename = "{$path}/{$tableCamelCase}Entity.php";
 			file_put_contents($filename, $entityCode);
+		}
+		
+		/**
+		 * Returns the database connector
+		 * @return DatabaseAdapter
+		 */
+		private function getConnection(): DatabaseAdapter {
+			if ($this->connection === null) {
+				$this->connection = new DatabaseAdapter($this->configuration);
+			}
+			
+			return $this->connection;
 		}
 	}

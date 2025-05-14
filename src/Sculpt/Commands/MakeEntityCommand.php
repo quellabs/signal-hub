@@ -32,9 +32,9 @@
 		
 		/**
 		 * Entity store for handling entity metadata
-		 * @var EntityStore
+		 * @var EntityStore|null
 		 */
-		private EntityStore $entityStore;
+		private ?EntityStore $entityStore;
 		
 		/**
 		 * @var Configuration
@@ -51,8 +51,30 @@
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
-			$this->entityStore = new EntityStore($this->configuration);
-			$this->entityModifier = new EntityModifier($this->configuration);
+		}
+		
+		/**
+		 * Returns the EntityStore object
+		 * @return EntityStore
+		 */
+		private function getEntityStore(): EntityStore {
+			if ($this->entityStore === null) {
+				$this->entityStore = new EntityStore($this->configuration);
+			}
+			
+			return $this->entityStore;
+		}
+		
+		/**
+		 * Returns the EntityModifier object
+		 * @return EntityModifier
+		 */
+		private function getEntityModifier(): EntityModifier {
+			if ($this->entityModifier === null) {
+				$this->entityModifier = new EntityModifier($this->configuration);
+			}
+			
+			return $this->entityModifier;
 		}
 		
 		/**
@@ -73,7 +95,7 @@
 			$entityNamePlus = $entityName . "Entity";
 			$entityPath = realpath($this->configuration->getEntityPath());
 			
-			if (!$this->entityModifier->entityExists($entityNamePlus)) {
+			if (!$this->getEntityModifier()->entityExists($entityNamePlus)) {
 				$this->output->writeLn("\nCreating new entity: {$entityPath}/{$entityNamePlus}.php\n");
 			} else {
 				$this->output->writeLn("\nUpdating existing entity: {$entityPath}/{$entityNamePlus}.php\n");
@@ -275,7 +297,7 @@
 			
 			// If properties were defined, create or update the entity
 			if (!empty($properties)) {
-				$this->entityModifier->createOrUpdateEntity($entityName, $properties);
+				$this->getEntityModifier()->createOrUpdateEntity($entityName, $properties);
 				$this->output->writeLn("Entity details written");
 			}
 			
@@ -366,8 +388,8 @@
 			$fullEntityName = $this->configuration->getEntityNameSpace() . '\\' . $entityName . 'Entity';
 			
 			// Use the EntityStore to get primary keys if possible
-			if ($this->entityStore->exists($fullEntityName)) {
-				return $this->entityStore->getIdentifierKeys($fullEntityName);
+			if ($this->getEntityStore()->exists($fullEntityName)) {
+				return $this->getEntityStore()->getIdentifierKeys($fullEntityName);
 			}
 			
 			// Fallback to looking for 'id' property if EntityStore doesn't have the entity
@@ -404,7 +426,7 @@
 			
 			// Get the actual column name for the selected primary key
 			$fullEntityName = $this->configuration->getEntityNameSpace() . '\\' . $targetEntity . 'Entity';
-			$columnMap = $this->entityStore->getColumnMap($fullEntityName);
+			$columnMap = $this->getEntityStore()->getColumnMap($fullEntityName);
 			$result['column'] = $columnMap[$result['field']] ?? $result['field'];
 			
 			$this->output->writeLn("\nUsing primary key: {$result['field']} (DB column: {$result['column']})");
