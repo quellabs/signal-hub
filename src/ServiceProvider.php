@@ -43,7 +43,7 @@
 		 * @param Application $app The application instance
 		 * @param array $commands Array of command class names to register
 		 */
-		protected function commands(Application $app, array $commands): void {
+		protected function registerCommands(Application $app, array $commands): void {
 			foreach ($commands as $command) {
 				// Instantiate the command class and register it with the application
 				$app->registerCommand(new $command($app->getInput(), $app->getOutput(), $this));
