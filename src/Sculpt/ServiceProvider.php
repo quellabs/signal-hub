@@ -17,7 +17,7 @@
 		 * @param Application $app The Sculpt application instance
 		 */
 		public function register(Application $app): void {
-			$this->commands($app, [
+			$this->registerCommands($app, [
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
