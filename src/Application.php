@@ -198,10 +198,21 @@
 				return $this->listCommands();
 			}
 			
-			// Get the command and execute it
-			// Pass remaining arguments to the command
+			// Get the command and remaining arguments
 			$command = $this->commands[$commandName];
-			return $command->execute(array_slice($args, 2));
+			$commandArgs = array_slice($args, 2);
+			
+			// Create a configuration manager with the command arguments
+			$config = new ConfigurationManager($commandArgs);
+			
+			// Execute command with the configuration manager
+			try {
+				return $command->execute($config);
+			} catch (\Exception $e) {
+				// Handle exceptions from command execution
+				$this->output->error($e->getMessage());
+				return 1;
+			}
 		}
 		
 		/**

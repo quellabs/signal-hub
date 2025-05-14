@@ -133,6 +133,16 @@
 		}
 		
 		/**
+		 * Display an error message
+		 * @param string $message
+		 * @return void
+		 */
+		public function error(string $message): void {
+			$prefix = "<bg_red><white>✖ ERROR:</white></bg_red> ";  // White text on red background with error symbol
+			$this->writeLn($prefix . "<red>{$message}</red>");
+		}
+		
+		/**
 		 * Detect if the console supports colors
 		 * @return bool
 		 */
