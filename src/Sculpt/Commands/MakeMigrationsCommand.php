@@ -28,14 +28,12 @@
 	 * the appropriate SQL commands for schema updates.
 	 */
 	class MakeMigrationsCommand extends CommandBase {
-		private DatabaseAdapter $connection;
+		private ?DatabaseAdapter $connection = null;
+		private ?AnnotationReader $annotationReader;
+		private ?EntityStore $entityStore;
 		private string $entityPath;
-		private AnnotationReader $annotationReader;
 		private string $migrationsPath;
-		private EntityScanner $entityScanner;
-		private SchemaComparator $schemaComparator;
 		private TypeMapper $phinxTypeMapper;
-		private EntityStore $entityStore;
 		private Configuration $configuration;
 		
 		/**
@@ -49,20 +47,11 @@
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
 			
-			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
-			$annotationReaderConfiguration->setUseAnnotationCache($this->configuration->useMetadataCache());
-			$annotationReaderConfiguration->setAnnotationCachePath($this->configuration->getMetadataCachePath());
-			
-			$this->connection = new DatabaseAdapter($this->configuration);
 			$this->entityPath = $this->configuration->getEntityPath();
 			$this->migrationsPath = $this->configuration->getMigrationsPath();
-			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
-			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
-			$this->schemaComparator = new SchemaComparator();
 			$this->phinxTypeMapper = new TypeMapper();
-			$this->entityStore = new EntityStore($this->configuration);
 		}
-
+		
 		/**
 		 * Execute the command
 		 * @param array $parameters Optional parameters passed to the command
@@ -72,7 +61,8 @@
 			$this->output->writeLn("Generating database migrations based on entity changes...");
 			
 			// Load all entity classes
-			$entityClasses = $this->entityScanner->scanEntities();
+			$entityScanner = new EntityScanner($this->entityPath, $this->getAnnotationReader());
+			$entityClasses = $entityScanner->scanEntities();
 			
 			if (empty($entityClasses)) {
 				$this->output->writeLn("No entity classes found.");
@@ -80,13 +70,13 @@
 			}
 			
 			// Get existing tables from database
-			$existingTables = $this->connection->getTables();
+			$existingTables = $this->getConnection()->getTables();
 			
 			// Process each entity
 			$allChanges = [];
 			
 			foreach ($entityClasses as $className => $tableName) {
-				$entityProperties = $this->entityStore->extractEntityColumnDefinitions($className);
+				$entityProperties = $this->getEntityStore()->extractEntityColumnDefinitions($className);
 				
 				// Check if table exists
 				if (!in_array($tableName, $existingTables)) {
@@ -99,10 +89,11 @@
 				}
 				
 				// Get table definition from database
-				$tableColumns = $this->connection->getColumns($tableName);
+				$tableColumns = $this->getConnection()->getColumns($tableName);
 				
 				// Compare entity properties with table columns
-				$changes = $this->schemaComparator->analyzeSchemaChanges($entityProperties, $tableColumns);
+				$schemaComparator = new SchemaComparator();
+				$changes = $schemaComparator->analyzeSchemaChanges($entityProperties, $tableColumns);
 				
 				if (!empty($changes['added']) || !empty($changes['modified']) || !empty($changes['deleted'])) {
 					$allChanges[$tableName] = $changes;
@@ -211,7 +202,7 @@
 				// Remove columns
 				if (!empty($changes['deleted'])) {
 					$upMethod[] = $this->buildRemoveColumnsCode($tableName, $changes['deleted']);
-					$downMethod[] = $this->buildAddColumnsCode($tableName, $changes['deleted'], true);
+					$downMethod[] = $this->buildAddColumnsCode($tableName, $changes['deleted']);
 				}
 			}
 			
@@ -435,5 +426,46 @@ PHP;
 			}
 			
 			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->update();";
+		}
+		
+		
+		/**
+		 * Returns the database connector
+		 * @return DatabaseAdapter
+		 */
+		private function getConnection(): DatabaseAdapter {
+			if ($this->connection === null) {
+				$this->connection = new DatabaseAdapter($this->configuration);
+			}
+			
+			return $this->connection;
+		}
+		
+		/**
+		 * Returns the AnnotationReader object
+		 * @return AnnotationReader
+		 */
+		private function getAnnotationReader(): AnnotationReader {
+			if ($this->annotationReader === null) {
+				$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
+				$annotationReaderConfiguration->setUseAnnotationCache($this->configuration->useMetadataCache());
+				$annotationReaderConfiguration->setAnnotationCachePath($this->configuration->getMetadataCachePath());
+				
+				$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
+			}
+			
+			return $this->annotationReader;
+		}
+		
+		/**
+		 * Returns the EntityStore object
+		 * @return EntityStore
+		 */
+		private function getEntityStore(): EntityStore {
+			if ($this->entityStore === null) {
+				$this->entityStore = new EntityStore($this->configuration);
+			}
+			
+			return $this->entityStore;
 		}
 	}
