@@ -228,7 +228,7 @@ Entities are recognized by the `@Orm\Table` annotation:
  */
 class ProductEntity {
     /**
-     * @Orm\Column(name="product_id", type="int", length=11, primary_key=true)
+     * @Orm\Column(name="product_id", type="integer", length=11, primary_key=true)
      * @Orm\PrimaryKeyStrategy(strategy="identity")
      */
     private int $productId;
@@ -241,24 +241,24 @@ class ProductEntity {
 
 Each database/entity property is marked by an @Orm\Column annotation. This annotation supports the following parameters:
 
-| Parameter | Description | Options/Format |
-|-----------|-------------|----------------|
-| **name** | The database column name | Required |
-| **type** | The data type | 'smallint', 'integer', 'float', 'string', 'text', 'guid', 'date', 'datetime' |
-| **length** | The column length | Only relevant for string types |
-| **primary_key** | Define this as a primary key column | true or false |
-| **default** | Default value when database column is NULL | Value |
-| **unsigned** | For unsigned values | true (unsigned) or false (signed, default) |
-| **nullable** | Allow NULL values in the database | true (allow NULL) or false (non-NULL required, default) |
+| Parameter       | Description                                | Options/Format                                          |
+|-----------------|--------------------------------------------|---------------------------------------------------------|
+| **name**        | The database column name                   | Required                                                |
+| **type**        | The data type                              | 'integer', 'string', 'char', 'text', 'datetime', etc.   |
+| **limit**       | The maximum column length                  | Only relevant for string types                          |
+| **primary_key** | Define this as a primary key column        | true or false                                           |
+| **default**     | Default value when database column is NULL | Value                                                   |
+| **unsigned**    | For unsigned values                        | true (unsigned) or false (signed, default)              |
+| **nullable**    | Allow NULL values in the database          | true (allow NULL) or false (non-NULL required, default) |
 
 #### Primary Key Strategies
 
 For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation to define how key values are generated. ObjectQuel supports the following strategies:
 
-| Strategy     | Description |
-|--------------|-------------|
-| **identity** | Automatically increments values (default strategy) |
-| **uuid**     | Generates a unique UUID for each new record |
+| Strategy     | Description                                                     |
+|--------------|-----------------------------------------------------------------|
+| **identity** | Automatically increments values (default strategy)              |
+| **uuid**     | Generates a unique UUID for each new record                     |
 | **sequence** | Uses a select query to determine the next value in the sequence |
 
 ## The ObjectQuel Language
@@ -334,14 +334,14 @@ $name = $results[0]['d.productName'];
 
 ObjectQuel transforms database querying with its expressive, developer-friendly syntax that converts complex search operations into elegant, readable code.
 
-| Operation | Example | Description |
-|-----------|---------|-------------|
-| Exact match | `main.name = "xyz"` | Exact value match |
-| Starts with | `main.name = "xyz*"` | Starts with "xyz" |
-| Pattern | `main.name = "abc*xyz"` | Starts with "abc", ends with "xyz" |
-| Wildcard | `main.name = "h?nk"` | Single character wildcard |
-| Regex | `main.name = /^a/` | Regular expression support |
-| Full-text | `search(main.name, "banana cherry +pear -apple")` | Full-text search with weights |
+| Operation   | Example                                           | Description                        |
+|-------------|---------------------------------------------------|------------------------------------|
+| Exact match | `main.name = "xyz"`                               | Exact value match                  |
+| Starts with | `main.name = "xyz*"`                              | Starts with "xyz"                  |
+| Pattern     | `main.name = "abc*xyz"`                           | Starts with "abc", ends with "xyz" |
+| Wildcard    | `main.name = "h?nk"`                              | Single character wildcard          |
+| Regex       | `main.name = /^a/`                                | Regular expression support         |
+| Full-text   | `search(main.name, "banana cherry +pear -apple")` | Full-text search with weights      |
 
 ### Pagination
 
@@ -367,12 +367,12 @@ ObjectQuel supports five types of relationships:
 private ?CustomerEntity $customer;
 ```
 
-| Parameter | Description                                           |
-|-----------|-------------------------------------------------------|
-| targetEntity | Target entity class                                   |
-| inversedBy | Property in target entity for reverse mapping         |
+| Parameter      | Description                                           |
+|----------------|-------------------------------------------------------|
+| targetEntity   | Target entity class                                   |
+| inversedBy     | Property in target entity for reverse mapping         |
 | relationColumn | Column storing the foreign key                        |
-| fetch | Loading strategy ("EAGER" or "LAZY"; LAZY is default) |
+| fetch          | Loading strategy ("EAGER" or "LAZY"; LAZY is default) |
 
 ### 2. OneToOne (inverse-side)
 
@@ -383,10 +383,10 @@ private ?CustomerEntity $customer;
 private ?CustomerEntity $customer;
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| targetEntity | Target entity class |
-| mappedBy | Property in target entity that holds the foreign key |
+| Parameter      | Description                                                   |
+|----------------|---------------------------------------------------------------|
+| targetEntity   | Target entity class                                           |
+| mappedBy       | Property in target entity that holds the foreign key          |
 | relationColumn | Column in current entity that corresponds to the relationship |
 
 ### 3. ManyToOne (owning-side)
@@ -399,11 +399,11 @@ private ?CustomerEntity $customer;
 private ?CustomerEntity $customer;
 ```
 
-| Parameter | Description                                                                                                                                                                                                  |
-|-----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| targetEntity | Target entity class                                                                                                                                                                                          |
-| inversedBy | Property in target entity for reverse collection mapping                                                                                                                                                     |
-| fetch | Loading strategy ("EAGER" or "LAZY", optional. EAGER is the default)                                                                                                                                         |
+| Parameter    | Description                                                          |
+|--------------|----------------------------------------------------------------------|
+| targetEntity | Target entity class                                                  |
+| inversedBy   | Property in target entity for reverse collection mapping             |
+| fetch        | Loading strategy ("EAGER" or "LAZY", optional. EAGER is the default) |
 
 The annotation `@Orm\RequiredRelation` indicates that the relation can be loaded using an INNER JOIN (rather than the default LEFT JOIN) because it's guaranteed to be present, which improves query performance.
 
@@ -417,11 +417,11 @@ The annotation `@Orm\RequiredRelation` indicates that the relation can be loaded
 public $addresses;
 ```
 
-| Parameter | Description |
-|-----------|-------------|
-| targetEntity | Target entity class |
-| mappedBy | Property in target entity that contains the foreign key |
-| indexBy | Optional property to use as collection index |
+| Parameter    | Description                                             |
+|--------------|---------------------------------------------------------|
+| targetEntity | Target entity class                                     |
+| mappedBy     | Property in target entity that contains the foreign key |
+| indexBy      | Optional property to use as collection index            |
 
 ### 5. ManyToMany
 
@@ -452,7 +452,7 @@ The `@Orm\EntityBridge` pattern extends beyond basic relationship mapping by off
 
 ```php
 // Retrieve an existing entity by its primary key
-// This queries the database for a ProductsAttributesEntity with ID 10
+// This queries the database for a ProductEntity with ID 10
 // The entity is immediately loaded and tracked by the EntityManager
 // IMPORTANT: If no entity with ID 10 exists, this will return NULL, so error handling may be needed
 $entity = $entityManager->find(ProductEntity::class, 10);
@@ -508,7 +508,7 @@ $entityManager->flush();
 
 ```php
 // Retrieve an existing entity by its primary key
-// This queries the database for a SpecialsEntity with ID 1520
+// This queries the database for a ProductEntity with ID 1520
 // The entity is immediately loaded and tracked by the EntityManager
 // If no entity with ID 1520 exists, this will return NULL, so error handling may be needed
 $entity = $entityManager->find(ProductEntity::class, 1520);
@@ -621,14 +621,14 @@ ObjectQuel provides a robust event system that allows you to execute custom logi
 
 Lifecycle events allow you to intercept and respond to key moments in an entity's persistence lifecycle, such as:
 
-| Lifecycle Event | Description | Timing |
-|----------------|-------------|--------|
-| **prePersist** | Triggered before a new entity is inserted | Before INSERT query |
-| **postPersist** | Triggered after a new entity is inserted | After INSERT query |
-| **preUpdate** | Triggered before an existing entity is updated | Before UPDATE query |
-| **postUpdate** | Triggered after an existing entity is updated | After UPDATE query |
-| **preDelete** | Triggered before an entity is deleted | Before DELETE query |
-| **postDelete** | Triggered after an entity is deleted | After DELETE query |
+| Lifecycle Event | Description                                    | Timing              |
+|-----------------|------------------------------------------------|---------------------|
+| **prePersist**  | Triggered before a new entity is inserted      | Before INSERT query |
+| **postPersist** | Triggered after a new entity is inserted       | After INSERT query  |
+| **preUpdate**   | Triggered before an existing entity is updated | Before UPDATE query |
+| **postUpdate**  | Triggered after an existing entity is updated  | After UPDATE query  |
+| **preDelete**   | Triggered before an entity is deleted          | Before DELETE query |
+| **postDelete**  | Triggered after an entity is deleted           | After DELETE query  |
 
 ### Setting Up Lifecycle Callbacks
 
