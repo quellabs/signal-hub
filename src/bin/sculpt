@@ -1,0 +1,20 @@
+#!/usr/bin/env php
+<?php
+	
+	// Include Composer's autoloader
+	include_once __DIR__ . '/../../vendor/autoload.php';
+	
+	use Quellabs\Sculpt\Application;
+	use Quellabs\Sculpt\ConsoleInput;
+	use Quellabs\Sculpt\ConsoleOutput;
+	
+	// Bootstrap the application
+	$output = new ConsoleOutput();
+	$input = new ConsoleInput($output);
+	$app = new Application($input, $output);
+	
+	// Discover and register service providers
+	$app->discoverProviders();
+	
+	// Run the application with command line arguments
+	$app->run($argv);
