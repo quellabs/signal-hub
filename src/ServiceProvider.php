@@ -35,7 +35,7 @@
 		 */
 		public function getDescription(): string {
 			// Default implementation returns a generic description
-			return "Commands for " . $this->getNamespace();
+			return "Commands for " . $this->getNamespace() . ":";
 		}
 		
 		/**

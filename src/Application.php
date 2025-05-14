@@ -258,6 +258,7 @@
 				// Display the provider namespace and description
 				$this->output->writeLn("<bg_cyan><black>[{$namespace}]</black></bg_cyan>");
 				$this->output->writeLn("<dim>{$provider->getDescription()}</dim>");
+				$this->output->writeLn("");
 				
 				// Calculate padding for alignment
 				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($commands)));
