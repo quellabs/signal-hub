@@ -21,6 +21,24 @@
 		}
 		
 		/**
+		 * Get the provider's namespace identifier
+		 * Override this in child classes to provide a custom namespace
+		 * @return string
+		 */
+		public function getNamespace(): string {
+			return 'core'; // Default implementation returns a generic namespace
+		}
+		
+		/**
+		 * Get a description of this provider's functionality
+		 * @return string
+		 */
+		public function getDescription(): string {
+			// Default implementation returns a generic description
+			return "Commands for " . $this->getNamespace();
+		}
+		
+		/**
 		 * Helper method to register multiple commands at once
 		 * @param Application $app The application instance
 		 * @param array $commands Array of command class names to register

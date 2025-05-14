@@ -5,14 +5,28 @@
 	use Quellabs\Sculpt\Application;
 	
 	interface ServiceProviderInterface {
-		
 		/**
-		 * Register services with the Sculpt application
+		 * Register any application services
+		 * @param Application $app
 		 */
 		public function register(Application $app): void;
 		
 		/**
-		 * Bootstrap services after all providers are registered
+		 * Bootstrap any application services
+		 * @param Application $app
 		 */
 		public function boot(Application $app): void;
+		
+		/**
+		 * Get the provider's namespace identifier
+		 * Used for grouping commands in the CLI
+		 * @return string
+		 */
+		public function getNamespace(): string;
+		
+		/**
+		 * Get a description of this provider's functionality
+		 * @return string
+		 */
+		public function getDescription(): string;
 	}

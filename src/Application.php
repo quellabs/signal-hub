@@ -205,52 +205,76 @@
 		}
 		
 		/**
-		 * Displays a formatted list of all registered commands, grouped by their namespace.
-		 * This is shown when no command is specified or when an invalid command is used.
-		 * @return int Exit code (always 0 for this method)
+		 * Displays a formatted list of all registered commands, grouped by provider namespace
+		 * @return int Exit code
 		 */
 		protected function listCommands(): int {
-			// Group commands by namespace
-			$groups = [];
+			// Group commands by provider namespace
+			$providerGroups = [];
 			
-			// Iterate through all registered commands to sort them by namespace
+			// First, collect commands without a provider (internal commands)
+			$internalCommands = [];
+			
 			foreach ($this->commands as $signature => $command) {
-				// Split command signature into group and name (group:name format)
-				// The + [1 => ''] provides a default value for $name if the command doesn't follow group:name format
-				[$group, $name] = explode(':', $signature) + [1 => ''];
+				$provider = $command->getProvider();
 				
-				// Store command information in the corresponding group
-				$groups[$group][] = [
-					'signature'   => $signature,        // Full command signature (e.g. "db:migrate")
-					'description' => $command->getDescription()  // Command description from the command class
-				];
+				if ($provider === null) {
+					$internalCommands[$signature] = $command;
+				} else {
+					$namespace = $provider->getNamespace();
+					$providerGroups[$namespace]['provider'] = $provider;
+					$providerGroups[$namespace]['commands'][$signature] = $command;
+				}
 			}
 			
 			// Begin output with a header
-			$this->output->writeLn("\nAvailable Commands:\n");
+			$this->output->writeLn("\n<bold><white>Sculpt CLI</white></bold> - Command Line Interface\n");
 			
-			// Loop through each group to display its commands
-			foreach ($groups as $group => $commands) {
-				// Display the group/namespace name
-				$this->output->writeLn("[{$group}]");
+			// First display internal commands if there are any
+			if (!empty($internalCommands)) {
+				$this->output->writeLn("<bg_cyan><black>[core]</black></bg_cyan>");
 				
-				// Calculate padding for alignment based on the longest command signature
-				// This ensures that all command descriptions are aligned vertically
-				$maxLength = max(array_map(fn($cmd) => strlen($cmd['signature']), $commands));
+				// Calculate padding for alignment
+				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($internalCommands)));
 				
-				// Display each command in the current group with proper formatting
-				foreach ($commands as $command) {
-					// Create spacing between command name and description for consistent alignment
-					$padding = str_repeat(' ', $maxLength - strlen($command['signature']) + 4);
-					$this->output->writeLn("  {$command['signature']}{$padding}{$command['description']}");
+				// Display each command in the core group
+				foreach ($internalCommands as $signature => $command) {
+					$padding = str_repeat(' ', $maxLength - strlen($signature) + 4);
+					$this->output->writeLn("  <green>{$signature}</green>{$padding}{$command->getDescription()}");
 				}
 				
-				// Add blank line after each group for better readability
+				// Add blank line after the group
+				$this->output->writeLn("");
+			}
+			
+			// Sort provider groups alphabetically by namespace
+			ksort($providerGroups);
+			
+			// Display commands for each provider group
+			foreach ($providerGroups as $namespace => $group) {
+				$provider = $group['provider'];
+				$commands = $group['commands'];
+				
+				// Display the provider namespace and description
+				$this->output->writeLn("<bg_cyan><black>[{$namespace}]</black></bg_cyan> <dim>{$provider->getDescription()}</dim>");
+				
+				// Calculate padding for alignment
+				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($commands)));
+				
+				// Display each command in the current provider group
+				foreach ($commands as $signature => $command) {
+					$padding = str_repeat(' ', $maxLength - strlen($signature) + 4);
+					$this->output->writeLn("  <green>{$signature}</green>{$padding}{$command->getDescription()}");
+				}
+				
+				// Add blank line after each provider group
 				$this->output->writeLn("");
 			}
 			
 			// Display usage instructions at the end
-			$this->output->writeLn("To run a command: sculpt command [arguments]");
+			$this->output->writeLn("<bold>Usage:</bold>");
+			$this->output->writeLn("  sculpt <green>command</green> [arguments]");
+			$this->output->writeLn("  sculpt <green>help</green> command   <dim>(for detailed help)</dim>");
 			
 			// Return success code
 			return 0;
