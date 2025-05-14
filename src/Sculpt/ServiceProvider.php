@@ -20,7 +20,8 @@
 			$this->commands($app, [
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class
+				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
+				\Quellabs\ObjectQuel\Sculpt\Commands\ExecuteMigrationsCommand::class
 			]);
 		}
 		
