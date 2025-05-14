@@ -14,7 +14,7 @@
 	class Application {
 		
 		/**
-		 * @var mixed|string
+		 * @var string|null
 		 */
 		private ?string $basePath;
 		
@@ -145,7 +145,7 @@
 		 * @return void
 		 */
 		public function discoverProviders(): void {
-			// Delegate to the provider manager
+			// Delegate to the service discoverer
 			$this->getServiceDiscoverer()->discoverProviders();
 		}
 		

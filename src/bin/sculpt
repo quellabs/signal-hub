@@ -30,9 +30,6 @@
 	$input = new ConsoleInput($output);
 	$app = new Application($input, $output, $packageBasePath);
 	
-    // Discover internal commands
-	$app->discoverInternalCommands();
- 
 	// Discover and register service providers
 	$app->discoverProviders();
 	
