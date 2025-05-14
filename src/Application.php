@@ -146,7 +146,7 @@
 		 */
 		public function discoverProviders(): void {
 			// Delegate to the provider manager
-			$this->serviceDiscoverer->discoverProviders();
+			$this->getServiceDiscoverer()->discoverProviders();
 		}
 		
 		/**
