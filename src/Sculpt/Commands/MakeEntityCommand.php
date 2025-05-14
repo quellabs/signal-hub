@@ -11,6 +11,7 @@
 	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\ObjectQuel\Sculpt\Helpers\EntityModifier;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
@@ -79,10 +80,10 @@
 		
 		/**
 		 * Execute the command
-		 * @param array $parameters Optional parameters passed to the command
+		 * @param ConfigurationManager $config Parameters passed to the command
 		 * @return int Exit code (0 for success)
 		 */
-		public function execute(array $parameters = []): int {
+		public function execute(ConfigurationManager $config): int {
 			// Ask for entity name
 			$entityName = $this->input->ask("Class name of the entity to create or update (e.g. AgreeableElephant)");
 			

@@ -7,9 +7,11 @@
 	 */
 	
 	use Phinx\Config\Config;
+	use Phinx\Migration\Manager;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
@@ -42,10 +44,10 @@
 		
 		/**
 		 * Execute the command
-		 * @param array $parameters Optional parameters passed to the command
+		 * @param ConfigurationManager $config Optional parameters passed to the command
 		 * @return int Exit code (0 for success)
 		 */
-		public function execute(array $parameters = []): int {
+		public function execute(ConfigurationManager $config): int {
 			$connectionParams = $this->configuration->getConnectionParams();
 			
 			$configArray = [
@@ -67,13 +69,13 @@
 				],
 			];
 			
-			$config = new Config($configArray);
+			$phinxConfig = new Config($configArray);
 			$input = new ArrayInput([]); // Empty input
 			$phinxOutput = new BufferedOutput(); // Or you can map it to your ConsoleOutput
 			
 			try {
 				$this->output->writeln('<info>Running migrations...</info>');
-				$manager = new \Phinx\Migration\Manager($config, $input, $phinxOutput);
+				$manager = new Manager($phinxConfig, $input, $phinxOutput);
 				$manager->migrate('development');
 			} catch (\Exception $e) {
 				$this->output->writeln('<error>Error: ' . $e->getMessage() . '</error>');

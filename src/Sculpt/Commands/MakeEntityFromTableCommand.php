@@ -10,6 +10,7 @@
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
@@ -39,10 +40,10 @@
 		
 		/**
 		 * Execute the command
-		 * @param array $parameters Optional parameters passed to the command
+		 * @param ConfigurationManager $config Parameters passed to the command
 		 * @return int Exit code (0 for success)
 		 */
-		public function execute(array $parameters = []): int {
+		public function execute(ConfigurationManager $config): int {
 			// Prompt the user to select which database table they would like to create a new entity for
 			$table = $this->promptForTable();
 			
