@@ -58,11 +58,6 @@ class SculptServiceProvider extends ServiceProvider {
             \Your\Package\Commands\YourCommand::class,
             \Your\Package\Commands\AnotherCommand::class
         ]);
-        
-        // Register services your commands might need
-        $app->bind('your-package.service', function() {
-            return new \Your\Package\Service();
-        });
     }
     
     /**
@@ -103,10 +98,9 @@ Commands should implement the `Quellabs\Sculpt\Command` interface or extend the 
 
 namespace Your\Package\Commands;
 
-use Quellabs\Sculpt\BaseCommand;
+use Quellabs\Sculpt\Contracts\CommandInterface;
 
-class YourCommand extends BaseCommand
-{
+class YourCommand implements CommandInterface {
     /**
      * Get signature of this command
      */

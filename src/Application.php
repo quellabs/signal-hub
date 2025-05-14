@@ -50,6 +50,22 @@
 		}
 		
 		/**
+		 * Returns the input class
+		 * @return ConsoleInput
+		 */
+		public function getInput(): ConsoleInput {
+			return $this->input;
+		}
+		
+		/**
+		 * Returns the output class
+		 * @return ConsoleOutput
+		 */
+		public function getOutput(): ConsoleOutput {
+			return $this->output;
+		}
+		
+		/**
 		 * Discover and register service providers from installed packages
 		 *
 		 * Reads the Composer's installed.json file to find packages that have
@@ -76,7 +92,7 @@
 				$providerClass = $package['extra']['sculpt']['provider'];
 				
 				if (class_exists($providerClass)) {
-					$provider = new $providerClass();
+					$provider = new $providerClass($this);
 					$this->serviceProviders[] = $provider;
 					$provider->register($this);
 				}
@@ -163,7 +179,7 @@
 				
 				// Instantiate and register command classes that implement CommandInterface
 				if (class_exists($className) && is_subclass_of($className, CommandInterface::class)) {
-					$command = new $className($this->input, $this->output);
+					$command = new $className($this->input, $this->output, $this);
 					$this->commands[$command->getSignature()] = $command;
 				}
 			}

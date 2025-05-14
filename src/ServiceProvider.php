@@ -28,7 +28,7 @@
 		protected function commands(Application $app, array $commands): void {
 			foreach ($commands as $command) {
 				// Instantiate the command class and register it with the application
-				$app->registerCommand(new $command());
+				$app->registerCommand(new $command($app->getInput(), $app->getOutput(), $this));
 			}
 		}
 	}

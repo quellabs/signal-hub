@@ -20,15 +20,15 @@
 		
 		/**
 		 * Command constructor
-		 *
-		 * Initializes a new command with input and output handlers.
-		 * These handlers allow the command to interact with the console by
-		 * reading user input and displaying output.
-		 *
 		 * @param ConsoleInput $input Provides methods to read user input from the console
 		 * @param ConsoleOutput $output Provides methods to write output to the console
+		 * @param ServiceProviderInterface|null $provider Reference to provider that created this command
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output);
+		public function __construct(
+			ConsoleInput $input,
+			ConsoleOutput $output,
+			?ServiceProviderInterface $provider=null
+		);
 		
 		/**
 		 * Execute the command
