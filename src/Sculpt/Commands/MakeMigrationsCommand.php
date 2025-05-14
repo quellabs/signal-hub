@@ -146,7 +146,7 @@
 			// Create timestamp and name components for the migration file
 			$timestamp = time();
 			$migrationName = 'EntitySchemaMigration' . date('YmdHis', $timestamp);
-			$className = '"EntitySchemaMigration' . date('YmdHis', $timestamp);
+			$className = 'EntitySchemaMigration' . date('YmdHis', $timestamp);
 			
 			// Construct the full filepath for the migration
 			$filename = $this->migrationsPath . '/' . date('YmdHis', $timestamp) . '_' . $migrationName . '.php';
@@ -261,32 +261,61 @@ PHP;
 		 */
 		private function buildCreateTableCode(string $tableName, array $entityColumns): string {
 			$columnDefs = [];
+			$primaryKeys = [];
+			$hasAutoIncrement = false;
 			
 			foreach ($entityColumns as $columnName => $definition) {
 				// Map the entity type to a valid Phinx type
 				$type = $definition['type'];
 				$options = $this->buildColumnOptions($definition);
 				
-				if (!empty($definition['primary_key'])) {
-					$options[] = "'primary' => true";
-				}
-				
+				// Check if this is an auto-increment column
 				if (!empty($definition['identity'])) {
 					$options[] = "'identity' => true";
+					$hasAutoIncrement = true;
+					
+					// If it's an auto-increment column, make sure it's part of the primary key
+					if (empty($definition['primary_key'])) {
+						$primaryKeys[] = $columnName;
+					}
+				}
+				
+				// Collect primary key columns separately
+				if (!empty($definition['primary_key'])) {
+					$primaryKeys[] = $columnName;
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
 			}
 			
-			// Add an index for auto-increment primary key columns
-			foreach ($entityColumns as $columnName => $columnDef) {
-				if ($columnDef['primary_key'] && $columnDef['identity']) {
-					$columnDefs[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
+			// If we have an auto-increment column but no primary keys, use that column as primary key
+			if ($hasAutoIncrement && empty($primaryKeys)) {
+				foreach ($entityColumns as $columnName => $definition) {
+					if (!empty($definition['identity'])) {
+						$primaryKeys[] = $columnName;
+						break; // Only need the first auto-increment column
+					}
 				}
 			}
 			
-			return "        \$this->table('$tableName')\n" . implode("\n", $columnDefs) . "\n            ->create();";
+			// For MySQL, specify the primary key in the table options
+			$primaryKeyOption = "";
+			if (!empty($primaryKeys)) {
+				$primaryKeysList = "'" . implode("', '", $primaryKeys) . "'";
+				$primaryKeyOption = ", 'primary_key' => [$primaryKeysList]";
+			}
+			
+			// Start with a table that doesn't auto-create an ID column, but specifies primary keys
+			$tableStart = "        \$this->table('$tableName', ['id' => false$primaryKeyOption])";
+			
+			// Add columns
+			$tableCode = $tableStart . "\n" . implode("\n", $columnDefs);
+			
+			// Close the table creation
+			$tableCode .= "\n            ->create();";
+			
+			return $tableCode;
 		}
 		
 		/**
@@ -297,31 +326,49 @@ PHP;
 		 */
 		private function buildAddColumnsCode(string $tableName, array $entityColumns): string {
 			$result = [];
+			$primaryKeys = [];
+			$hasAutoIncrement = false;
 			
 			foreach ($entityColumns as $columnName => $columnDef) {
 				$type = $columnDef['type'];
 				$options = $this->buildColumnOptions($columnDef);
 				
-				if (!empty($columnDef['primary_key'])) {
-					$options[] = "'primary' => true";
-				}
-				
+				// Check if this is an auto-increment column
 				if (!empty($columnDef['identity'])) {
 					$options[] = "'identity' => true";
+					$hasAutoIncrement = true;
+					
+					// If it's an auto-increment column, make sure it's part of the primary key
+					if (empty($columnDef['primary_key'])) {
+						$primaryKeys[] = $columnName;
+					}
+				}
+				
+				// Collect primary key columns separately
+				if (!empty($columnDef['primary_key'])) {
+					$primaryKeys[] = $columnName;
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$result[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
 			}
 			
-			// Add an index for auto-increment primary key columns
-			foreach ($entityColumns as $columnName => $columnDef) {
-				if ($columnDef['primary_key'] && $columnDef['identity']) {
-					$result[] = "            ->addIndex(['$columnName'], ['unique' => true, 'name' => 'primary_$columnName'])";
-				}
+			// Start with the table
+			$tableCode = "        \$this->table('$tableName')";
+			
+			// Add columns
+			$tableCode .= "\n" . implode("\n", $result);
+			
+			// Add primary key for auto-increment columns
+			if (!empty($primaryKeys)) {
+				$primaryKeysStr = implode("', '", $primaryKeys);
+				$tableCode .= "\n            ->addIndex(['$primaryKeysStr'], ['unique' => true, 'name' => 'pk_" . $tableName . "', 'primary' => true])";
 			}
 			
-			return "        \$this->table('$tableName')\n" . implode("\n", $result) . "\n            ->update();";
+			// Close the table update
+			$tableCode .= "\n            ->update();";
+			
+			return $tableCode;
 		}
 		
 		/**
