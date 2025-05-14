@@ -263,40 +263,38 @@ PHP;
 			$columnDefs = [];
 			$primaryKeys = [];
 			$hasAutoIncrement = false;
+			$autoIncrementColumn = null;
 			
+			// First pass - identify primary keys and auto-increment columns
+			foreach ($entityColumns as $columnName => $definition) {
+				if (!empty($definition['primary_key'])) {
+					$primaryKeys[] = $columnName;
+				}
+				
+				if (!empty($definition['identity'])) {
+					$hasAutoIncrement = true;
+					$autoIncrementColumn = $columnName;
+				}
+			}
+			
+			// MySQL can only have one auto-increment column, and it must be a key
+			// If we have an auto-increment column but it's not in the primary key list,
+			// we need to ensure it's part of a unique index
+			$needsUniqueIndex = $hasAutoIncrement && !in_array($autoIncrementColumn, $primaryKeys);
+			
+			// Second pass - build column definitions
 			foreach ($entityColumns as $columnName => $definition) {
 				// Map the entity type to a valid Phinx type
 				$type = $definition['type'];
 				$options = $this->buildColumnOptions($definition);
 				
-				// Check if this is an auto-increment column
+				// Add identity option
 				if (!empty($definition['identity'])) {
 					$options[] = "'identity' => true";
-					$hasAutoIncrement = true;
-					
-					// If it's an auto-increment column, make sure it's part of the primary key
-					if (empty($definition['primary_key'])) {
-						$primaryKeys[] = $columnName;
-					}
-				}
-				
-				// Collect primary key columns separately
-				if (!empty($definition['primary_key'])) {
-					$primaryKeys[] = $columnName;
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
 				$columnDefs[] = "            ->addColumn('$columnName', '$type'$optionsStr)";
-			}
-			
-			// If we have an auto-increment column but no primary keys, use that column as primary key
-			if ($hasAutoIncrement && empty($primaryKeys)) {
-				foreach ($entityColumns as $columnName => $definition) {
-					if (!empty($definition['identity'])) {
-						$primaryKeys[] = $columnName;
-						break; // Only need the first auto-increment column
-					}
-				}
 			}
 			
 			// For MySQL, specify the primary key in the table options
@@ -311,6 +309,12 @@ PHP;
 			
 			// Add columns
 			$tableCode = $tableStart . "\n" . implode("\n", $columnDefs);
+			
+			// If we have an auto-increment column that's not part of the primary key,
+			// add a unique index for it
+			if ($needsUniqueIndex) {
+				$tableCode .= "\n            ->addIndex(['$autoIncrementColumn'], ['unique' => true, 'name' => 'uidx_{$tableName}_{$autoIncrementColumn}'])";
+			}
 			
 			// Close the table creation
 			$tableCode .= "\n            ->create();";
@@ -328,25 +332,32 @@ PHP;
 			$result = [];
 			$primaryKeys = [];
 			$hasAutoIncrement = false;
+			$autoIncrementColumn = null;
 			
+			// First pass - identify primary keys and auto-increment columns
+			foreach ($entityColumns as $columnName => $columnDef) {
+				if (!empty($columnDef['primary_key'])) {
+					$primaryKeys[] = $columnName;
+				}
+				
+				if (!empty($columnDef['identity'])) {
+					$hasAutoIncrement = true;
+					$autoIncrementColumn = $columnName;
+				}
+			}
+			
+			// MySQL can only have one auto-increment column, and it must be a key
+			// If we have an auto-increment column but it's not in the primary key list,
+			// we need to ensure it's part of a unique index
+			$needsUniqueIndex = $hasAutoIncrement && !in_array($autoIncrementColumn, $primaryKeys);
+			
+			// Second pass - build column definitions
 			foreach ($entityColumns as $columnName => $columnDef) {
 				$type = $columnDef['type'];
 				$options = $this->buildColumnOptions($columnDef);
 				
-				// Check if this is an auto-increment column
 				if (!empty($columnDef['identity'])) {
 					$options[] = "'identity' => true";
-					$hasAutoIncrement = true;
-					
-					// If it's an auto-increment column, make sure it's part of the primary key
-					if (empty($columnDef['primary_key'])) {
-						$primaryKeys[] = $columnName;
-					}
-				}
-				
-				// Collect primary key columns separately
-				if (!empty($columnDef['primary_key'])) {
-					$primaryKeys[] = $columnName;
 				}
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
@@ -359,10 +370,20 @@ PHP;
 			// Add columns
 			$tableCode .= "\n" . implode("\n", $result);
 			
-			// Add primary key for auto-increment columns
+			// Add primary key for existing tables - use Phinx's methods
 			if (!empty($primaryKeys)) {
+				// For Phinx, we add a unique index with a special name
 				$primaryKeysStr = implode("', '", $primaryKeys);
-				$tableCode .= "\n            ->addIndex(['$primaryKeysStr'], ['unique' => true, 'name' => 'pk_" . $tableName . "', 'primary' => true])";
+				// Since we're modifying an existing table, we need to use resetIndexes
+				// to remove existing indexes on these columns first
+				$tableCode .= "\n            ->removeIndex(['$primaryKeysStr'])\n";
+				$tableCode .= "            ->addIndex(['$primaryKeysStr'], ['unique' => true, 'name' => 'PRIMARY'])";
+			}
+			
+			// If we have an auto-increment column that's not part of the primary key,
+			// add a unique index for it
+			if ($needsUniqueIndex) {
+				$tableCode .= "\n            ->addIndex(['$autoIncrementColumn'], ['unique' => true, 'name' => 'uidx_{$tableName}_{$autoIncrementColumn}'])";
 			}
 			
 			// Close the table update
@@ -413,9 +434,11 @@ PHP;
 				$result[] = "'default' => " . $this->phinxTypeMapper->formatValue($propertyDef['default']);
 			}
 			
-			// Set whether column allows NULL values
-			if (!empty($propertyDef['nullable'])) {
+			// Set whether column allows NULL values - default to NOT NULL unless explicitly set nullable
+			if (isset($propertyDef['nullable'])) {
 				$result[] = "'null' => " . ($propertyDef['nullable'] ? 'true' : 'false');
+			} else {
+				$result[] = "'null' => false";  // Default to NOT NULL
 			}
 			
 			// Set precision for numeric types (total digits)
