@@ -1,0 +1,69 @@
+<?php
+	
+	namespace Quellabs\Sculpt;
+	
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Sculpt\Contracts\CommandInterface;
+	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
+	
+	/**
+	 * Abstract base class for all command implementations
+	 *
+	 * Provides core functionality and property management for console commands.
+	 * All concrete command classes should extend this class and implement
+	 * required methods from CommandInterface.
+	 */
+	abstract class CommandBase implements CommandInterface {
+		
+		/**
+		 * @var ConsoleInput Input handler for the command
+		 */
+		protected ConsoleInput $input;
+		
+		/**
+		 * @var ConsoleOutput Output handler for the command
+		 */
+		protected ConsoleOutput $output;
+		
+		/**
+		 * @var ServiceProviderInterface|null Optional service provider for dependency injection
+		 */
+		protected ?ServiceProviderInterface $provider;
+		
+		/**
+		 * Initialize a new command instance
+		 * @param ConsoleInput $input Input handler to process command arguments and options
+		 * @param ConsoleOutput $output Output handler to display results and messages
+		 * @param ServiceProviderInterface|null $provider Optional service provider for dependency injection
+		 */
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+			$this->input = $input;
+			$this->output = $output;
+			$this->provider = $provider;
+		}
+		
+		/**
+		 * Get the input handler instance
+		 * @return ConsoleInput The input handler for this command
+		 */
+		public function getInput(): ConsoleInput {
+			return $this->input;
+		}
+		
+		/**
+		 * Get the output handler instance
+		 * @return ConsoleOutput The output handler for this command
+		 */
+		public function getOutput(): ConsoleOutput {
+			return $this->output;
+		}
+		
+		/**
+		 * Get the service provider instance if set
+		 * @return ServiceProviderInterface|null The service provider or null if not set
+		 */
+		public function getProvider(): ?ServiceProviderInterface {
+			return $this->provider;
+		}
+	}
