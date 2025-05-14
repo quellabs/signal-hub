@@ -8,6 +8,43 @@
 		protected $output;
 		
 		/**
+		 * ANSI color and style codes
+		 */
+		protected array $styles = [
+			// Colors
+			'black'      => "\033[30m",
+			'red'        => "\033[31m",
+			'green'      => "\033[32m",
+			'yellow'     => "\033[33m",
+			'blue'       => "\033[34m",
+			'magenta'    => "\033[35m",
+			'cyan'       => "\033[36m",
+			'white'      => "\033[37m",
+			
+			// Background colors
+			'bg_black'   => "\033[40m",
+			'bg_red'     => "\033[41m",
+			'bg_green'   => "\033[42m",
+			'bg_yellow'  => "\033[43m",
+			'bg_blue'    => "\033[44m",
+			'bg_magenta' => "\033[45m",
+			'bg_cyan'    => "\033[46m",
+			'bg_white'   => "\033[47m",
+			
+			// Formatting
+			'bold'       => "\033[1m",
+			'dim'        => "\033[2m",
+			'italic'     => "\033[3m",
+			'underline'  => "\033[4m",
+			'blink'      => "\033[5m",
+			'reverse'    => "\033[7m",
+			'hidden'     => "\033[8m",
+			
+			// Reset
+			'reset'      => "\033[0m",
+		];
+		
+		/**
 		 * ConsoleOutput Constructor
 		 */
 		public function __construct() {
@@ -73,16 +110,16 @@
 		 * @return void
 		 */
 		public function write(string $message): void {
-			fwrite($this->output, $message);
+			fwrite($this->output, $this->format($message));
 		}
-
+		
 		/**
 		 * Output text + newline
 		 * @param string $message
 		 * @return void
 		 */
 		public function writeLn(string $message): void {
-			fwrite($this->output, $message . "\n");
+			fwrite($this->output, $this->format($message) . "\n");
 		}
 		
 		/**
@@ -91,7 +128,41 @@
 		 * @return void
 		 */
 		public function warning(string $message): void {
-			$prefix = "\033[33m⚠ WARNING:\033[0m ";  // Yellow color with warning symbol
+			$prefix = "<yellow>⚠ WARNING:</yellow>";  // Yellow color with warning symbol
 			$this->writeLn($prefix . $message);
+		}
+		
+		/**
+		 * Detect if the console supports colors
+		 * @return bool
+		 */
+		protected function supportsColors(): bool {
+			// Windows detection
+			if (DIRECTORY_SEPARATOR === '\\') {
+				return false !== getenv('ANSICON') || 'ON' === getenv('ConEmuANSI') || 'xterm' === getenv('TERM');
+			}
+			
+			// Linux/macOS detection
+			return function_exists('posix_isatty') && @posix_isatty(STDOUT);
+		}
+		
+		/**
+		 * Format a string by replacing style tags with ANSI codes
+		 * @param string $text Text with style tags
+		 * @return string Formatted text with ANSI codes
+		 */
+		protected function format(string $text): string {
+			// Skip formatting if colors are not supported
+			if (!$this->supportsColors()) {
+				return preg_replace('/<[^>]+>/', '', $text);
+			}
+			
+			// Replace opening style tags with ANSI codes
+			foreach ($this->styles as $style => $code) {
+				$text = str_replace("<{$style}>", $code, $text);
+			}
+			
+			// Replace all closing tags with reset code
+			return preg_replace('/<\/[^>]+>/', $this->styles['reset'], $text);
 		}
 	}
