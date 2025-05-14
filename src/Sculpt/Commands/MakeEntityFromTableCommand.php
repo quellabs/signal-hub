@@ -23,7 +23,6 @@
 	 */
 	class MakeEntityFromTableCommand extends CommandBase {
 		private DatabaseAdapter $connection;
-		private AdapterInterface $phinxAdapter;
 		private string $entityNamespace;
 		private Configuration $configuration;
 		
@@ -38,7 +37,6 @@
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
 			$this->connection = new DatabaseAdapter($this->configuration);
-			$this->phinxAdapter = $this->connection->getPhinxAdapter();
 			$this->entityNamespace = $this->configuration->getEntityNameSpace();
 		}
 		
