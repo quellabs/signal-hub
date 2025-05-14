@@ -1,8 +1,37 @@
 #!/usr/bin/env php
 <?php
 	
-	// Include Composer's autoloader
-	include_once __DIR__ . '/../../vendor/autoload.php';
+	// Find the vendor directory by looking for autoload.php
+	$dir = __DIR__;
+	$autoloadPath = null;
+	
+	// Try to find the autoload.php file by traversing up the directory tree
+	while ($dir !== '/' && $dir !== '' && $dir !== false && $dir !== '\\') {
+		// Check if we're in a vendor/package/... path
+		if (basename(dirname($dir, 2)) === 'vendor') {
+			// We're installed as a dependency
+			$autoloadPath = dirname($dir, 3) . '/autoload.php';
+   
+			if (file_exists($autoloadPath)) {
+				break;
+			}
+		}
+		
+		// Check if the current directory has vendor/autoload.php
+		if (file_exists($dir . '/vendor/autoload.php')) {
+			$autoloadPath = $dir . '/vendor/autoload.php';
+			break;
+		}
+		
+		$dir = dirname($dir);
+	}
+	
+	if ($autoloadPath === null || !file_exists($autoloadPath)) {
+		fwrite(STDERR, "Unable to locate autoload.php. Make sure Composer dependencies are installed.\n");
+		exit(1);
+	}
+	
+	require_once $autoloadPath;
 	
 	use Quellabs\Sculpt\Application;
 	use Quellabs\Sculpt\Console\ConsoleInput;
