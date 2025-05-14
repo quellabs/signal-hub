@@ -48,22 +48,32 @@
 			// Create a Phinx configuration
 			$phinxConfig = $this->createPhinxConfig();
 			
-			// Create the manager
-			$env = $config->get('environment', 'development');
+			// Create the manager with buffered output to capture all output
+			// Always use the 'development' environment since that's all our config supports
+			$env = 'development';
 			$inputArgs = $this->prepareInputArgs($config);
 			$input = new ArrayInput($inputArgs);
-			$output = new BufferedOutput();
-			$manager = new Manager($phinxConfig, $input, $output);
+			$bufferedOutput = new BufferedOutput();
+			$manager = new Manager($phinxConfig, $input, $bufferedOutput);
 			
 			try {
 				// Determine which operation to perform based on flags
 				if ($config->hasFlag('rollback')) {
-					return $this->performRollback($manager, $env, $config);
+					$result = $this->performRollback($manager, $env, $config);
 				} elseif ($config->hasFlag('status')) {
-					return $this->showStatus($manager, $env);
+					$result = $this->showStatus($manager, $env);
 				} else {
-					return $this->runMigrations($manager, $env, $config);
+					$result = $this->runMigrations($manager, $env, $config);
 				}
+				
+				// Get any output from the buffered output and display it
+				$outputContent = $bufferedOutput->fetch();
+				
+				if (!empty($outputContent)) {
+					$this->output->write($outputContent);
+				}
+				
+				return $result;
 			} catch (\Exception $e) {
 				$this->output->error("Migration error: " . $e->getMessage());
 				return 1;
@@ -180,7 +190,10 @@
 		 */
 		private function showStatus(Manager $manager, string $env): int {
 			$this->output->writeLn("<info>Migration Status:</info>");
+			
+			// Instead of printing directly, capture the output from Phinx
 			$manager->printStatus($env);
+			
 			return 0;
 		}
 		
@@ -189,7 +202,7 @@
 		 * @return string Command signature
 		 */
 		public function getSignature(): string {
-			return "migrate:run";
+			return "quel:migrate";
 		}
 		
 		/**
@@ -206,26 +219,25 @@
 		 */
 		public function getHelp(): string {
 			return <<<HELP
-Manages database migrations for your application.
+Manages database migrations for your application. Makes use of Phinx under the hood.
 
 Usage:
-  migrate:run [options]
+  quel:migrate [options]
 
 Options:
   --rollback           Roll back migrations instead of running them
   --status             Show migration status instead of running migrations
   --target=<version>   Target a specific migration version
   --steps=<number>     Number of migrations to roll back (default: 1)
-  --environment=<env>  Specify the environment (default: development)
   --dry-run, -d        Run in dry-run mode without making actual database changes
 
 Examples:
-  php cli.php migrate:run                          # Run all pending migrations
-  php cli.php migrate:run --rollback               # Roll back the most recent migration
-  php cli.php migrate:run --rollback --steps=3     # Roll back the last 3 migrations
-  php cli.php migrate:run --status                 # Show migration status
-  php cli.php migrate:run --target=20230415000000  # Migrate to a specific version
-  php cli.php migrate:run --dry-run                # Preview migrations without applying them
+  vendor/bin/sculpt quel:migrate                          # Run all pending migrations
+  vendor/bin/sculpt quel:migrate --rollback               # Roll back the most recent migration
+  vendor/bin/sculpt quel:migrate --rollback --steps=3     # Roll back the last 3 migrations
+  vendor/bin/sculpt quel:migrate --status                 # Show migration status
+  vendor/bin/sculpt quel:migrate --target=20230415000000  # Migrate to a specific version
+  vendor/bin/sculpt quel:migrate --dry-run                # Preview migrations without applying them
 HELP;
 		}
 	}
