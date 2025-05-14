@@ -2,7 +2,7 @@
 <?php
 	
 	// Include Composer's autoloader
-	include_once __DIR__ . '/../vendor/autoload.php';
+	include_once __DIR__ . '/../../vendor/autoload.php';
 	
 	use Quellabs\Sculpt\Application;
 	use Quellabs\Sculpt\Console\ConsoleInput;
