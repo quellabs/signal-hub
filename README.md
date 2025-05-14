@@ -16,8 +16,8 @@ composer require quellabs/sculpt
 - **Unified Command Interface:** Access commands from across the Quellabs ecosystem through a single CLI tool
 - **Service Provider Architecture:** Robust plugin system allowing packages to register commands and services
 - **Extensible Design:** Built from the ground up for customization and extension
-- **Smart Discovery:** Automatically detects and loads commands from installed packages
-- **Cross-Package Integration:** Enables seamless interaction between ObjectQuel, Quarry and other components
+- **Smart Discovery:** Automatically detects and loads commands from installed packages and the local composer.json
+- **Cross-Package Integration:** Enables seamless interaction between ObjectQuel and other components
 - **Developer-Friendly:** Intuitive command structure with helpful documentation and auto-completion
 
 ## Usage
@@ -91,16 +91,16 @@ In your package's composer.json, add the following to enable Sculpt to discover 
 
 ### 3. Creating Commands
 
-Commands should implement the `Quellabs\Sculpt\Command` interface or extend the `Quellabs\Sculpt\BaseCommand` class:
+Commands should implement the `Quellabs\Sculpt\Command` interface or extend the `Quellabs\Sculpt\CommandBase` class:
 
 ```php
 <?php
 
 namespace Your\Package\Commands;
 
-use Quellabs\Sculpt\Contracts\CommandInterface;
+use Quellabs\Sculpt\CommandBase;
 
-class YourCommand implements CommandInterface {
+class YourCommand extends CommandBase {
     /**
      * Get signature of this command
      */
