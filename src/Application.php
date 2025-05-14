@@ -93,7 +93,25 @@
 		public function discoverProviders(): void {
 			// Get the Composer's installed packages list
 			$composerFile = $this->getComposerInstalledPath();
-			$packages = json_decode(file_get_contents($composerFile), true);
+			
+			if (!$composerFile || !file_exists($composerFile)) {
+				// If we can't find the composer file, log a warning but continue
+				// This allows core functionality to work even without providers
+				return;
+			}
+			
+			$packagesJson = file_get_contents($composerFile);
+			
+			if (!$packagesJson) {
+				return;
+			}
+			
+			$packages = json_decode($packagesJson, true);
+			
+			if (!$packages) {
+				return;
+			}
+			
 			$packagesList = $packages['packages'] ?? $packages;
 			
 			// First register all providers
@@ -246,11 +264,30 @@
 		}
 		
 		/**
-		 * Helper method to locate the Composer metadata file containing
-		 * information about installed packages.
-		 * @return string Absolute path to installed.json
+		 * Get the path to the Composer's installed.json file
+		 * Handles both direct usage and installation as a dependency
+		 * @return string|null Path to the installed.json file or null if not found
 		 */
-		protected function getComposerInstalledPath(): string {
-			return dirname(__FILE__, 2) . '/vendor/composer/installed.json';
+		protected function getComposerInstalledPath(): ?string {
+			// Possible locations of the installed.json file
+			$possiblePaths = [
+				// When installed as a dependency (package inside vendor dir)
+				dirname($this->basePath, 2) . '/composer/installed.json',
+				
+				// When running directly (development mode)
+				$this->basePath . '/vendor/composer/installed.json',
+				
+				// When running in a project that uses the package
+				dirname($this->basePath, 3) . '/composer/installed.json'
+			];
+			
+			// Return the first path that exists
+			foreach ($possiblePaths as $path) {
+				if (file_exists($path)) {
+					return $path;
+				}
+			}
+			
+			return null;
 		}
 	}
