@@ -8,7 +8,11 @@
 	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
+	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	
 	/**
 	 * MakeEntityFromTableCommand - CLI command for creating or updating entity classes
@@ -24,15 +28,18 @@
 		private Configuration $configuration;
 		
 		/**
-		 * This is called after all commands were instantiated
-		 * @param Configuration $configuration
-		 * @return void
+		 * MakeEntityFromTableCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ServiceProviderInterface|null $provider
+		 * @throws OrmException
 		 */
-		public function boot(Configuration $configuration): void {
-			$this->configuration = $configuration;
-			$this->connection = new DatabaseAdapter($configuration);
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+			parent::__construct($input, $output, $provider);
+			$this->configuration = $provider->getConfiguration();
+			$this->connection = new DatabaseAdapter($this->configuration);
 			$this->phinxAdapter = $this->connection->getPhinxAdapter();
-			$this->entityNamespace = $configuration->getEntityNameSpace();
+			$this->entityNamespace = $this->configuration->getEntityNameSpace();
 		}
 		
 		/**

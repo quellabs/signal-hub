@@ -11,9 +11,13 @@
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	use Quellabs\ObjectQuel\EntityStore;
+	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\ObjectQuel\Sculpt\Helpers\EntityScanner;
 	use Quellabs\ObjectQuel\Sculpt\Helpers\SchemaComparator;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -35,25 +39,28 @@
 		private Configuration $configuration;
 		
 		/**
-		 * This is called after all commands were instantiated
-		 * @param Configuration $configuration
-		 * @return void
+		 * MakeEntityCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ServiceProviderInterface|null $provider
+		 * @throws OrmException
 		 */
-		public function boot(Configuration $configuration): void {
-			$this->configuration = $configuration;
-
-			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
-			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
-			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+			parent::__construct($input, $output, $provider);
+			$this->configuration = $provider->getConfiguration();
 			
-			$this->connection = new DatabaseAdapter($configuration);
-			$this->entityPath = $configuration->getEntityPath();
-			$this->migrationsPath = $configuration->getMigrationsPath();
+			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
+			$annotationReaderConfiguration->setUseAnnotationCache($this->configuration->useMetadataCache());
+			$annotationReaderConfiguration->setAnnotationCachePath($this->configuration->getMetadataCachePath());
+			
+			$this->connection = new DatabaseAdapter($this->configuration);
+			$this->entityPath = $this->configuration->getEntityPath();
+			$this->migrationsPath = $this->configuration->getMigrationsPath();
 			$this->annotationReader = new AnnotationReader($annotationReaderConfiguration);
 			$this->entityScanner = new EntityScanner($this->entityPath, $this->annotationReader);
 			$this->schemaComparator = new SchemaComparator();
 			$this->phinxTypeMapper = new TypeMapper();
-			$this->entityStore = new EntityStore($configuration);
+			$this->entityStore = new EntityStore($this->configuration);
 		}
 
 		/**

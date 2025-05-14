@@ -8,8 +8,12 @@
 	
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityStore;
+	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\ObjectQuel\Sculpt\Helpers\EntityModifier;
 	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\Console\ConsoleInput;
+	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	
 	/**
 	 * MakeEntityCommand - CLI command for creating or updating entity classes
@@ -38,14 +42,17 @@
 		private Configuration $configuration;
 		
 		/**
-		 * This is called after all commands were instantiated
-		 * @param Configuration $configuration
-		 * @return void
+		 * MakeEntityCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ServiceProviderInterface|null $provider
+		 * @throws OrmException
 		 */
-		public function boot(Configuration $configuration): void {
-			$this->configuration = $configuration;
-			$this->entityStore = new EntityStore($configuration);
-			$this->entityModifier = new EntityModifier($configuration);
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+			parent::__construct($input, $output, $provider);
+			$this->configuration = $provider->getConfiguration();
+			$this->entityStore = new EntityStore($this->configuration);
+			$this->entityModifier = new EntityModifier($this->configuration);
 		}
 		
 		/**
