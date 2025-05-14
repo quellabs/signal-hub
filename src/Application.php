@@ -91,12 +91,44 @@
 		 * between providers.
 		 */
 		public function discoverProviders(): void {
-			// Get the Composer's installed packages list
+			// First try to find providers in the parent project's composer.json
+			$projectComposerPath = $this->getProjectComposerPath();
+			$projectProviders = [];
+			
+			if ($projectComposerPath && file_exists($projectComposerPath)) {
+				$projectComposer = json_decode(file_get_contents($projectComposerPath), true);
+				
+				// Debug
+				$this->output->writeLn("Looking for providers in parent project: " . $projectComposerPath);
+				
+				// Check if the project has defined sculpt providers or sculpt provider
+				if (isset($projectComposer['extra']['sculpt']['providers']) && is_array($projectComposer['extra']['sculpt']['providers'])) {
+					$projectProviders = $projectComposer['extra']['sculpt']['providers'];
+				} elseif (isset($projectComposer['extra']['sculpt']['provider'])) {
+					$projectProviders = [$projectComposer['extra']['sculpt']['provider']];
+				}
+				
+				// Register providers from parent project
+				foreach ($projectProviders as $providerClass) {
+					$this->output->writeLn("Found project provider: $providerClass");
+					if (class_exists($providerClass)) {
+						$provider = new $providerClass($this);
+						$this->serviceProviders[] = $provider;
+						$provider->register($this);
+					} else {
+						$this->output->warning("Provider class not found: $providerClass");
+					}
+				}
+			}
+			
+			// Then look for providers in installed packages (original method)
 			$composerFile = $this->getComposerInstalledPath();
 			
 			if (!$composerFile || !file_exists($composerFile)) {
-				// If we can't find the composer file, log a warning but continue
-				// This allows core functionality to work even without providers
+				// If no installed.json and no project providers, we're done
+				if (empty($projectProviders)) {
+					$this->output->warning("No providers found in project or installed packages");
+				}
 				return;
 			}
 			
@@ -114,14 +146,18 @@
 			
 			$packagesList = $packages['packages'] ?? $packages;
 			
-			// First register all providers
-			// This phase allows providers to register bindings and services
+			// Register providers from installed packages
 			foreach ($packagesList as $package) {
 				if (!isset($package['extra']['sculpt']['provider'])) {
 					continue;
 				}
 				
 				$providerClass = $package['extra']['sculpt']['provider'];
+				
+				// Skip if already registered from project
+				if (in_array($providerClass, $projectProviders)) {
+					continue;
+				}
 				
 				if (class_exists($providerClass)) {
 					$provider = new $providerClass($this);
@@ -130,8 +166,7 @@
 				}
 			}
 			
-			// Then boot all providers after registration is complete
-			// This ensures all dependencies are available during the boot phase
+			// Boot all registered providers
 			foreach ($this->serviceProviders as $provider) {
 				$provider->boot($this);
 			}
@@ -261,6 +296,27 @@
 			$this->output->writeLn("To run a command: sculpt command [arguments]");
 			
 			return 0;
+		}
+		
+		protected function getProjectComposerPath(): ?string {
+			// When sculpt is installed as a dependency, find the parent project's composer.json
+			$vendorDir = dirname($this->basePath, 3);
+			
+			$possiblePaths = [
+				// Standard location for project's composer.json
+				$vendorDir . '/composer.json',
+				
+				// Go one level up if we're in vendor/bin
+				dirname($vendorDir) . '/composer.json'
+			];
+			
+			foreach ($possiblePaths as $path) {
+				if (file_exists($path)) {
+					return $path;
+				}
+			}
+			
+			return null;
 		}
 		
 		/**
