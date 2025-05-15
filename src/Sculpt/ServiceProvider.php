@@ -26,14 +26,6 @@
 		}
 		
 		/**
-		 * Returns the namespace of this Service Provider
-		 * @return string
-		 */
-		public function getNamespace(): string {
-			return "objectquel";
-		}
-		
-		/**
 		 * Load and return the ObjectQuel CLI configuration
 		 * @return Configuration The ObjectQuel configuration for CLI operations
 		 * @throws OrmException If the configuration cannot be loaded
