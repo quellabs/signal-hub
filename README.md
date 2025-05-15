@@ -1043,14 +1043,6 @@ php bin/sculpt help quel:migrate
 > wrapper. If you need these advanced capabilities, you can use Phinx directly. For more information on using
 > Phinx's full feature set, refer to the [Phinx documentation](https://book.cakephp.org/phinx/0/en/index.html).
 
-### Best Practices
-
-- Always back up your database before running migrations in production
-- Test migrations in development/staging environments first
-- Write migrations that can be safely rolled back when possible
-- Use descriptive names for your migration files
-- Keep migrations small and focused on related changes
-- 
 ## Query Optimization
 
 ### Query Flags
