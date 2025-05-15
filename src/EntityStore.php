@@ -508,18 +508,17 @@
 			    
 			    // Iterate through all properties of the class
 			    foreach ($reflection->getProperties() as $property) {
-				    // Retrieve all annotations for the current property
 				    try {
-					    // Look for Column annotation among all property annotations
-					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName(), Column::class);
+					    // Retrieve all annotations for the current property
+					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
 						
-						// If none found, go to the next property
-					    if (empty($propertyAnnotations)) {
-							continue;
+						// Find the @Orm\Column annotation
+					    $columnAnnotation = $this->getColumnAnnotation($propertyAnnotations);
+					    
+					    // If not found, go to the next property
+					    if ($columnAnnotation === null) {
+						    continue;
 					    }
-
-						// Store annotation
-					    $columnAnnotation = $propertyAnnotations[array_key_first($propertyAnnotations)];
 					    
 					    // Use the column name from the annotation, not the property name
 					    $columnName = $columnAnnotation->getName();
@@ -688,16 +687,18 @@
 			    if ($annotation instanceof PrimaryKeyStrategy) {
 				    $hasStrategy = true;
 				    
-				    // Check if the strategy is specifically 'identity'
 				    if ($annotation->getValue() === 'identity') {
 					    $isIdentityStrategy = true;
 				    }
 			    }
 		    }
 		    
+		    // Return true if:
+		    // 1. It's a primary key, AND
+		    // 2. EITHER it has an identity strategy OR it has no strategy at all
 		    return $isPrimaryKey && ($isIdentityStrategy || !$hasStrategy);
 	    }
-	    
+		
 	    /**
 	     * This method finds primary key columns that are configured to receive
 	     * database-generated values, which are either:
@@ -763,5 +764,24 @@
 		 
 			// Cache and return result
 		    return $this->index_cache[$owningTable] = $filteredResults;
+	    }
+	    
+	    /**
+	     * Retrieves the Column annotation from an array of property annotations.
+	     * @param array $propertyAnnotations An array of annotations attached to a property
+	     * @return Column|null Returns the Column annotation if found, null otherwise
+	     */
+	    protected function getColumnAnnotation(array $propertyAnnotations): ?Column {
+		    // Iterate through each annotation for this property
+		    foreach ($propertyAnnotations as $property => $annotation) {
+			    // Check if the current annotation is an instance of Column
+			    if ($annotation instanceof Column) {
+				    // Return the first Column annotation found
+				    return $annotation;
+			    }
+		    }
+		    
+		    // If no Column annotation was found, return null
+		    return null;
 	    }
     }

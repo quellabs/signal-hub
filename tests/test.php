@@ -23,13 +23,6 @@
 	);
 	
 	$entityManager = new EntityManager($config);
-	$connection = $entityManager->getConnection();
-	$entityStore = $entityManager->getEntityStore();
-	
-	$compare = new \Quellabs\ObjectQuel\Sculpt\Helpers\IndexComparator($connection, $entityStore);
-	
-	$result = $compare->compareIndexes(HamsterEntity::class);
-	
 	
 	/**
 	$result = $entityManager->executeQuery("

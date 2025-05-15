@@ -444,6 +444,7 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$type = $changes['to']['type'];
+				
 				$options = $this->buildColumnOptions($changes['to']);
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
@@ -464,6 +465,7 @@ PHP;
 			
 			foreach ($modifiedColumns as $columnName => $changes) {
 				$type = $changes['from']['type'];
+				
 				$options = $this->buildColumnOptions($changes['from']);
 				
 				$optionsStr = empty($options) ? "" : ", [" . implode(", ", $options) . "]";
