@@ -994,16 +994,71 @@ class AddProductIndices extends AbstractMigration
 }
 ```
 
-### Running Migrations
+## Running Database Migrations
 
-To apply your migrations to the database, use:
+Database migrations allow you to manage and version your database schema changes alongside your application code. This guide covers how to run, rollback, and manage migrations effectively.
+
+### Applying Migrations
+
+To apply all pending migrations to your database:
 
 ```bash
-php bin/sculpt migrations:migrate
+php bin/sculpt quel:migrate
 ```
 
-This command will execute all pending migrations in sequence, applying the database schema changes defined in your entity annotations.
+This command will:
+- Identify all pending migrations that haven't been applied yet
+- Execute them in sequence (ordered by creation date)
+- Apply the database schema changes defined in your entity annotations
+- Record the migration in the migrations table (`phinxlog`) to track what's been applied
 
+### Rolling Back Migrations
+
+If you need to undo the most recent migration:
+
+```bash
+php bin/sculpt quel:migrate rollback
+```
+
+To roll back multiple migrations at once, specify the number to rollback:
+
+```bash
+php bin/sculpt quel:migrate rollback --steps=3
+```
+
+### Additional Migration Commands
+
+View the migration status:
+```bash
+php bin/sculpt quel:migrate:status
+```
+
+Generate a new migration file:
+```bash
+php bin/sculpt quel:migration:create "AddUserTimestamps"
+```
+
+Run migrations in a dry-run mode (preview changes without applying them):
+```bash
+php bin/sculpt quel:migrate --dry-run
+```
+
+### Command Help
+
+For a complete list of migration options and detailed help:
+
+```bash
+php bin/sculpt help quel:migrate
+```
+
+### Best Practices
+
+- Always back up your database before running migrations in production
+- Test migrations in development/staging environments first
+- Write migrations that can be safely rolled back when possible
+- Use descriptive names for your migration files
+- Keep migrations small and focused on related changes
+- 
 ## Query Optimization
 
 ### Query Flags
