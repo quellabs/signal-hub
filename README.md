@@ -514,7 +514,7 @@ Here's an example of how to use both index types on an entity:
 /**
  * @Orm\Table(name="hamster")
  * @Orm\Index(name="idx_hamster_search", columns={"name", "color"})
- * @Orm\UniqueIndex(name="idx_unique_code", columns={"registration_code"})
+ * @Orm\UniqueIndex(name="idx_unique_code", columns={"registrationCode"})
  */
 class HamsterEntity {
     /**
