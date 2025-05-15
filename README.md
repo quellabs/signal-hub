@@ -1018,13 +1018,13 @@ This command will:
 If you need to undo the most recent migration:
 
 ```bash
-php bin/sculpt quel:migrate rollback
+php bin/sculpt quel:migrate --rollback
 ```
 
 To roll back multiple migrations at once, specify the number to rollback:
 
 ```bash
-php bin/sculpt quel:migrate rollback --steps=3
+php bin/sculpt quel:migrate --rollback --steps=3
 ```
 
 ### Command Help
