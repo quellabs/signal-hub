@@ -256,71 +256,48 @@
 		}
 		
 		/**
-		 * Displays a formatted list of all registered commands, grouped by provider namespace
+		 * Displays a formatted list of all registered commands, grouped by command namespace
+		 * (the part before the colon in the command signature)
 		 * @return int Exit code
 		 */
 		protected function listCommands(): int {
-			// Group commands by provider namespace
-			$providerGroups = [];
+			// Group commands by command namespace (part before the colon)
+			$namespaceGroups = [];
 			
-			// First, collect commands without a provider (internal commands)
-			$internalCommands = [];
-			
+			// First collect all commands and organize them by namespace
 			foreach ($this->commands as $signature => $command) {
-				$provider = $command->getProvider();
+				// Split signature by colon to get the namespace part
+				$parts = explode(':', $signature, 2);
+				$namespace = $parts[0];
 				
-				if ($provider === null) {
-					$internalCommands[$signature] = $command;
-				} else {
-					$namespace = $provider->getNamespace();
-					$providerGroups[$namespace]['provider'] = $provider;
-					$providerGroups[$namespace]['commands'][$signature] = $command;
-				}
+				// Add command to its namespace group
+				$namespaceGroups[$namespace][$signature] = $command;
 			}
+			
+			// Sort namespace groups alphabetically
+			ksort($namespaceGroups);
 			
 			// Begin output with a header
 			$this->output->writeLn("\n<bold><white>Sculpt CLI</white></bold> - Command Line Interface\n");
 			
-			// First display internal commands if there are any
-			if (!empty($internalCommands)) {
-				$this->output->writeLn("<bg_cyan><black>[core]</black></bg_cyan>");
-				
-				// Calculate padding for alignment
-				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($internalCommands)));
-				
-				// Display each command in the core group
-				foreach ($internalCommands as $signature => $command) {
-					$padding = str_repeat(' ', $maxLength - strlen($signature) + 4);
-					$this->output->writeLn("  <green>{$signature}</green>{$padding}{$command->getDescription()}");
-				}
-				
-				// Add blank line after the group
-				$this->output->writeLn("");
-			}
-			
-			// Sort provider groups alphabetically by namespace
-			ksort($providerGroups);
-			
-			// Display commands for each provider group
-			foreach ($providerGroups as $namespace => $group) {
-				$provider = $group['provider'];
-				$commands = $group['commands'];
-				
-				// Display the provider namespace and description
+			// Display commands for each namespace group
+			foreach ($namespaceGroups as $namespace => $commands) {
+				// Display the namespace header
 				$this->output->writeLn("<bg_cyan><black>[{$namespace}]</black></bg_cyan>");
-				$this->output->writeLn("<dim>{$provider->getDescription()}</dim>");
-				$this->output->writeLn("");
 				
 				// Calculate padding for alignment
 				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($commands)));
 				
-				// Display each command in the current provider group
+				// Sort commands within each namespace group
+				ksort($commands);
+				
+				// Display each command in the current namespace group
 				foreach ($commands as $signature => $command) {
 					$padding = str_repeat(' ', $maxLength - strlen($signature) + 4);
 					$this->output->writeLn("  <green>{$signature}</green>{$padding}{$command->getDescription()}");
 				}
 				
-				// Add blank line after each provider group
+				// Add blank line after each namespace group
 				$this->output->writeLn("");
 			}
 			
