@@ -80,7 +80,7 @@
 		 */
 		public function getHelp(): string {
 			return <<<EOT
-The <info>quel:phinx:config</info> command generates a Phinx configuration file that allows
+The <info>quel:export-phinx</info> command generates a Phinx configuration file that allows
 you to use Phinx's command-line tools directly for advanced migration features.
 
 <comment>Why use this command:</comment>
@@ -91,7 +91,7 @@ you to use Phinx's command-line tools directly for advanced migration features.
 
 <comment>Example usage:</comment>
   1. Generate the configuration file:
-     <info>php bin/sculpt quel:phinx:config</info>
+     <info>php bin/sculpt quel:export-phinx</info>
   
   2. Use Phinx commands directly:
      <info>vendor/bin/phinx status</info>
