@@ -584,7 +584,7 @@ class EntitySchemaMigration20250515124653 extends AbstractMigration {
 
 When defining indexes, consider these best practices:
 
-- Create indexes only on columns frequently used in WHERE clauses, JOIN conditions, or ORDER BY clauses
+- Create indexes only on columns frequently used in WHERE clauses, RANGE conditions, or SORT BY clauses
 - Limit the number of indexes per table to minimize storage overhead and INSERT/UPDATE performance impact
 - Place the most selective columns first in composite indexes
 - Consider database-specific limitations on index sizes and types
