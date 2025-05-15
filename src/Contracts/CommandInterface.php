@@ -15,12 +15,6 @@
 		public function getSignature(): string;
 		
 		/**
-		 * Returns a short description of what the command does
-		 * @return string
-		 */
-		public function getDescription(): string;
-		
-		/**
 		 * Executes the command with the given arguments
 		 * @param ConfigurationManager $config
 		 * @return int Exit code
