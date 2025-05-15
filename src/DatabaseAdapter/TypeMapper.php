@@ -34,27 +34,6 @@
 		}
 		
 		/**
-		 * Normalize a column limit based on the column type
-		 * @param string $type Column type
-		 * @param mixed $reportedLimit The limit reported by the database
-		 * @return int|array|null The normalized limit
-		 */
-		public function normalizeLimit(string $type, mixed $reportedLimit): int|array|null {
-			// If the database reported a limit, use it
-			if (!is_null($reportedLimit)) {
-				return $reportedLimit;
-			}
-			
-			// For types that should have a default limit, return it
-			if (isset($this->defaultLimits[$type])) {
-				return $this->defaultLimits[$type];
-			}
-			
-			// For types that don't have a limit concept, return null
-			return null;
-		}
-		
-		/**
 		 * Convert a Phinx column type to a corresponding PHP type
 		 * @param string $phinxType The Phinx column type
 		 * @return string The corresponding PHP type
