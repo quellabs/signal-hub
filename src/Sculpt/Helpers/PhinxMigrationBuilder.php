@@ -197,29 +197,58 @@ PHP;
 		
 		/**
 		 * Analyze column definitions to extract primary keys and auto-increment information
-		 * @param array $entityColumns Column definitions
-		 * @return array Information about primary keys and auto-increment
+		 *
+		 * This method examines the entity columns to identify specific characteristics needed for
+		 * proper database table generation:
+		 * 1. Which columns form the primary key(s)
+		 * 2. Whether any column is an auto-increment column
+		 * 3. The name of the auto-increment column (if any)
+		 *
+		 * These details are crucial for creating appropriate table structures and indexes in the
+		 * migration code, as database systems like MySQL have specific requirements for primary keys
+		 * and auto-increment columns.
+		 *
+		 * @param array $entityColumns Column definitions from the entity schema
+		 * @return array Information about primary keys and auto-increment with the following keys:
+		 *               - primaryKeys: array of column names that are part of the primary key
+		 *               - hasAutoIncrement: boolean indicating if any column has auto-increment
+		 *               - autoIncrementColumn: string name of the auto-increment column (or null)
 		 */
 		private function analyzeColumns(array $entityColumns): array {
+			// Track columns that are marked as primary keys
 			$primaryKeys = [];
+			
+			// Track whether we have an auto-increment column
+			// MySQL only allows one auto-increment column per table
 			$hasAutoIncrement = false;
+			
+			// Store the name of the auto-increment column (if any)
 			$autoIncrementColumn = null;
 			
+			// Examine each column definition to identify special characteristics
 			foreach ($entityColumns as $columnName => $definition) {
+				// Check if this column is part of the primary key
+				// Primary keys are essential for uniquely identifying rows in the table
 				if (!empty($definition['primary_key'])) {
 					$primaryKeys[] = $columnName;
 				}
 				
+				// Check if this column is an auto-increment column
+				// Auto-increment columns automatically generate sequential values for new rows
+				// Most databases only support one auto-increment column per table
 				if (!empty($definition['identity'])) {
 					$hasAutoIncrement = true;
 					$autoIncrementColumn = $columnName;
 				}
 			}
 			
+			// Return all collected information in a structured array
+			// This will be used by other methods to generate the appropriate
+			// table structure and indexes in the migration code
 			return [
-				'primaryKeys'         => $primaryKeys,
-				'hasAutoIncrement'    => $hasAutoIncrement,
-				'autoIncrementColumn' => $autoIncrementColumn
+				'primaryKeys'         => $primaryKeys,         // Columns that form the primary key
+				'hasAutoIncrement'    => $hasAutoIncrement,    // Whether we have an auto-increment column
+				'autoIncrementColumn' => $autoIncrementColumn  // Name of the auto-increment column (if any)
 			];
 		}
 		
