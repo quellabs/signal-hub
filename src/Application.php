@@ -264,6 +264,9 @@
 			// Group commands by command namespace (part before the colon)
 			$namespaceGroups = [];
 			
+			// Calculate the maximum signature length across ALL commands for consistent alignment
+			$maxSignatureLength = 0;
+			
 			// First collect all commands and organize them by namespace
 			foreach ($this->commands as $signature => $command) {
 				// Split signature by colon to get the namespace part
@@ -272,6 +275,9 @@
 				
 				// Add command to its namespace group
 				$namespaceGroups[$namespace][$signature] = $command;
+				
+				// Track the longest signature for global alignment
+				$maxSignatureLength = max($maxSignatureLength, strlen($signature));
 			}
 			
 			// Sort namespace groups alphabetically
@@ -285,15 +291,13 @@
 				// Display the namespace header
 				$this->output->writeLn("<bg_cyan><black>[{$namespace}]</black></bg_cyan>");
 				
-				// Calculate padding for alignment
-				$maxLength = max(array_map(fn($s) => strlen($s), array_keys($commands)));
-				
 				// Sort commands within each namespace group
 				ksort($commands);
 				
 				// Display each command in the current namespace group
 				foreach ($commands as $signature => $command) {
-					$padding = str_repeat(' ', $maxLength - strlen($signature) + 4);
+					// Use the global max signature length for consistent padding
+					$padding = str_repeat(' ', $maxSignatureLength - strlen($signature) + 4);
 					$this->output->writeLn("  <green>{$signature}</green>{$padding}{$command->getDescription()}");
 				}
 				
