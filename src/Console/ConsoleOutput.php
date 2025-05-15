@@ -123,6 +123,16 @@
 		}
 		
 		/**
+		 * Display a success message
+		 * @param string $message
+		 * @return void
+		 */
+		public function success(string $message): void {
+			$prefix = "<bg_green><white>✓ SUCCESS:</white></bg_green> ";  // White text on green background with checkmark symbol
+			$this->writeLn($prefix . "<green>{$message}</green>");
+		}
+		
+		/**
 		 * Display a warning message
 		 * @param string $message
 		 * @return void
