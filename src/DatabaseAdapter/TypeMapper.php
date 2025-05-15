@@ -33,10 +33,10 @@
 				'boolean'      => 'bool',
 				
 				// Date and time types
-				'date'         => 'string', // Or \DateTime
-				'datetime'     => 'string', // Or \DateTime
-				'time'         => 'string', // Or \DateTime
-				'timestamp'    => 'string', // Or \DateTime
+				'date'         => '\DateTime',
+				'datetime'     => '\DateTime',
+				'time'         => '\DateTime',
+				'timestamp'    => '\DateTime',
 				
 				// Binary type
 				'binary'       => 'string',

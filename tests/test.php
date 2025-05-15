@@ -26,7 +26,7 @@
 	
 	/**
 	$result = $entityManager->executeQuery("
-		range of main is HamsterEntity
+		range of main is HamsterEntit
 		retrieve (main) where main.woopie = /^hallo/
 	");
 	 */

@@ -187,71 +187,7 @@
 			$schemaCollection = $this->getSchemaCollection();
 			return $schemaCollection->listTablesWithoutViews();
 		}
-		
-		/**
-		 * Returns the max allowed package size
-		 * @url https://stackoverflow.com/questions/5688403/how-to-check-and-set-max-allowed-packet-mysql-variable
-		 * @return int
-		 */
-		public function getMaxPackageSize(): int {
-			// Voer de query uit om de max_allowed_packet waarde op te halen
-			$rs = $this->execute("SHOW VARIABLES LIKE 'max_allowed_packet'");
 			
-			// Als de query succesvol is en er is ten minste één record
-			if ($rs) {
-				$row = $rs->fetch('assoc');
-				
-				// Als de "Value" kolom bestaat, retourneer de waarde
-				if (isset($row["Value"])) {
-					return (int)$row["Value"];
-				}
-			}
-			
-			// Retourneer de standaardwaarde als de query mislukt of de "Value" kolom niet bestaat
-			return 16777216;  // default value
-		}
-		
-		/**
-		 * Haalt indexinformatie op voor een gegeven tabel.
-		 * @param string $tableName Naam van de tabel waarvoor indexinformatie nodig is.
-		 * @return array Een array met indexinformatie voor de opgegeven tabel.
-		 */
-		public function getIndexes(string $tableName): array {
-			// Controleer of de indexinformatie al eerder opgehaald en opgeslagen is
-			if (!isset($this->indexes[$tableName])) {
-				// Voer de SQL-query uit om indexinformatie van de tabel te krijgen
-				$rs = $this->execute("SHOW INDEXES FROM `{$tableName}`");
-				
-				// Controleer of de query succesvol was en of er resultaten zijn
-				if (!$rs) {
-					// Geen resultaten, retourneer een lege array
-					return [];
-				}
-				
-				// Bereid de array voor om de indexinformatie op te slaan
-				$this->indexes[$tableName] = [];
-				
-				// Verwerk elk resultaat en sla de indexgegevens op in de array
-				while ($row = $rs->fetch('assoc')) {
-					$this->indexes[$tableName][] = [
-						'key'           => $row["Key_name"],        // Naam van de key
-						'column'        => $row["Column_name"],     // Naam van de kolom
-						'type'          => $row["Index_type"],      // Type van de index
-						'seq_in_index'  => $row["Seq_in_index"],    // Volgorde van de kolom in de index
-						'unique'        => !$row["Non_unique"],     // Geeft aan of de index uniek is
-						'nullable'      => $row["Null"],            // Geeft aan of de kolom null-waarden kan hebben
-						'cardinality'   => $row["Cardinality"],     // Het aantal unieke waarden in de index. Hoger is beter
-						'collation'     => $row["Collation"],       // Collatie van de index
-						'comment'       => $row["Comment"],         // Commentaar bij de index
-						'index_comment' => $row["Index_comment"],   // Algemeen commentaar bij de index
-					];
-				}
-			}
-			
-			// Retourneer de opgeslagen indexinformatie voor de opgegeven tabel
-			return $this->indexes[$tableName];
-		}
-		
 		/**
 		 * Begin a new transaction.
 		 * @return void
@@ -390,46 +326,6 @@
 		}
 		
 		/**
-		 * Haalt de maximale waarde van prepared statements op die toegestaan zijn in de MySQL-database.
-		 * @return int De maximale hoeveelheid prepared statements die toegestaan zijn.
-		 */
-		public function getMaxPreparedStatementCount(): int {
-			// Uitvoeren van de query om de systeemvariabele 'max_prepared_stmt_count' op te halen
-			$rs = $this->execute("SHOW VARIABLES LIKE 'max_prepared_stmt_count'");
-			
-			// Controleer of de query succesvol was, zo niet, retourneer standaardwaarde
-			if (!$rs) {
-				return 16382;
-			}
-			
-			// Ophalen van het resultaat van de query
-			$row = $rs->fetch('assoc');
-			
-			// De opgehaalde waarde retourneren als een integer
-			return isset($row['Value']) ? (int)$row['Value'] : 16382;
-		}
-		
-		/**
-		 * Retourneert 'true' als de table is gevuld met data, 'false' als dat niet zo is.
-		 * @param string $tableName
-		 * @return bool
-		 */
-		public function isPopulated(string $tableName): bool {
-			$rs = $this->execute("
-				SELECT
-					COUNT(*) as c
-				FROM `{$tableName}`
-			");
-			
-			if (!$rs) {
-				return false;
-			}
-			
-			$row = $rs->fetch('assoc');
-			return isset($row['c']) && $row['c'] > 0;
-		}
-		
-		/**
 		 * Returns a table's foreign key information
 		 * @param string $tableName
 		 * @return array
@@ -470,7 +366,7 @@
 		
 		/**
 		 * Get a Phinx adapter instance using CakePHP's database connection
-		 * @return \Phinx\Db\Adapter\AdapterInterface
+		 * @return AdapterInterface
 		 */
 		public function getPhinxAdapter(): AdapterInterface {
 			// Get the CakePHP connection

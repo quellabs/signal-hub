@@ -155,7 +155,8 @@
 		protected function getPrimaryKeyStrategy(object $entity, string $primaryKey): string {
 			$table = $this->entity_store->getOwningTable($entity);
 			
-			if ($this->strategy_column_cache["$table.$primaryKey"] !== null) {
+			// Fetch key from cache if present
+			if (array_key_exists("$table.$primaryKey", $this->strategy_column_cache)) {
 				return $this->strategy_column_cache["$table.$primaryKey"];
 			}
 			
@@ -179,7 +180,6 @@
 			}
 			
 			// No PrimaryKeyStrategy annotation found for this primary key
-			$this->strategy_column_cache["$table.$primaryKey"] = "identity";
-			return "identity";
+			return $this->strategy_column_cache["$table.$primaryKey"] = "identity";
 		}
 	}
