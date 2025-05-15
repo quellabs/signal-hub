@@ -21,7 +21,8 @@
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\ExecuteMigrationsCommand::class
+				\Quellabs\ObjectQuel\Sculpt\Commands\QuelMigrateCommand::class,
+				\Quellabs\ObjectQuel\Sculpt\Commands\QuelCreatePhinxConfigCommand::class,
 			]);
 		}
 		
@@ -43,20 +44,21 @@
 			$connectionParams = $configuration->getConnectionParams();
 			
 			return [
-				'paths' => [
+				'paths'        => [
 					'migrations' => $configuration->getMigrationsPath(),
 				],
 				'environments' => [
 					'default_migration_table' => 'phinxlog',
-					'default_environment' => 'development',
-					'development' => [
-						'adapter' => $connectionParams['driver'],
-						'host' => $connectionParams['host'],
-						'name' => $connectionParams['database'],
-						'user' => $connectionParams['username'],
-						'pass' => $connectionParams['password'],
-						'port' => $connectionParams['port'],
-						'charset' => $connectionParams['encoding'],
+					'default_environment'     => 'development',
+					'development'             => [
+						'adapter'   => $connectionParams['driver'],
+						'host'      => $connectionParams['host'],
+						'name'      => $connectionParams['database'],
+						'user'      => $connectionParams['username'],
+						'pass'      => $connectionParams['password'],
+						'port'      => $connectionParams['port'] ?? 3306,
+						'charset'   => $connectionParams['encoding'] ?? 'utf8mb4',
+						'collation' => $connectionParams['collation'] ?? 'utf8mb4_unicode_ci',
 					],
 				],
 			];

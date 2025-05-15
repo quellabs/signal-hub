@@ -20,7 +20,7 @@
 	 * This command provides a comprehensive interface to Phinx migrations,
 	 * allowing users to run migrations, roll them back, or check their status.
 	 */
-	class ExecuteMigrationsCommand extends CommandBase {
+	class QuelMigrateCommand extends CommandBase {
 		
 		/**
 		 * @var Configuration ObjectQuel configuration
