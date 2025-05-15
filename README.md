@@ -996,7 +996,8 @@ class AddProductIndices extends AbstractMigration
 
 ## Running Database Migrations
 
-Database migrations allow you to manage and version your database schema changes alongside your application code. This guide covers how to run, rollback, and manage migrations effectively.
+Database migrations allow you to manage and version your database schema changes alongside your application code.
+This guide covers how to run, rollback, and manage migrations effectively.
 
 ### Applying Migrations
 
@@ -1029,10 +1030,18 @@ php bin/sculpt quel:migrate rollback --steps=3
 ### Command Help
 
 For a complete list of migration options and detailed help:
-
+        
 ```bash
 php bin/sculpt help quel:migrate
 ```
+
+### Technology Stack
+
+> **Note:** Our migration system is a wrapper around [Phinx](https://phinx.org), a powerful database migration tool
+> that provides a robust foundation for schema management. While our commands simplify common migration tasks,
+> some advanced Phinx features like database seeding and migration breakpoints are not available through our
+> wrapper. If you need these advanced capabilities, you can use Phinx directly. For more information on using
+> Phinx's full feature set, refer to the [Phinx documentation](https://book.cakephp.org/phinx/0/en/index.html).
 
 ### Best Practices
 
