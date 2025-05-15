@@ -45,6 +45,7 @@
         protected array|null $dependencies;
         protected array $dependencies_cache;
         protected array $completed_entity_name_cache;
+        protected array $auto_increment_column_cache;
 	    
 	    /**
 	     * EntityStore constructor.
@@ -68,6 +69,7 @@
 			$this->dependencies = null;
 			$this->dependencies_cache = [];
 			$this->completed_entity_name_cache = [];
+			$this->auto_increment_column_cache = [];
 
 			// Create the EntityLocator
 			$this->entity_locator = new EntityLocator($configuration, $this->annotation_reader);
@@ -639,37 +641,75 @@
 	    
 	    /**
 	     * Determines if a property represents an auto-increment column.
-	     * A column is considered auto-increment if it has both:
-	     * 1. A Column annotation marked as primary key
-	     * 2. A PrimaryKeyStrategy annotation with value 'identity'
+	     *
+	     * A column is considered auto-increment if it:
+	     * 1. Has a Column annotation marked as primary key, AND
+	     * 2. Either:
+	     *    - Has a PrimaryKeyStrategy annotation with value 'identity', OR
+	     *    - Has no PrimaryKeyStrategy annotation at all (defaulting to auto-increment)
 	     * @param array $propertyAnnotations The annotations attached to the property
 	     * @return bool Returns true if the property is an auto-increment column, false otherwise
 	     */
 	    private function isIdentityColumn(array $propertyAnnotations): bool {
-		    // First condition: verify the property has a Column annotation that is a primary key
-		    // If any Column annotation is not a primary key, return false immediately
-		    foreach ($propertyAnnotations as $annotation) {
-			    if ($annotation instanceof Column) {
-				    if (!$annotation->isPrimaryKey()) {
-					    // If the property has a Column annotation, but it's not a primary key,
-					    // then it cannot be an auto-increment column
-					    return false;
-				    }
-			    }
-		    }
+		    $isPrimaryKey = false;
+		    $hasStrategy = false;
+		    $isIdentityStrategy = false;
 		    
-		    // Second condition: verify the property has a PrimaryKeyStrategy annotation with 'identity' value
-		    // If any PrimaryKeyStrategy annotation does not have 'identity' value, return false immediately
+		    // Check all annotations on this property
 		    foreach ($propertyAnnotations as $annotation) {
+			    // Check if this is a primary key column
+			    if ($annotation instanceof Column && $annotation->isPrimaryKey()) {
+				    $isPrimaryKey = true;
+			    }
+			    
+			    // Check if this has any strategy annotation
 			    if ($annotation instanceof PrimaryKeyStrategy) {
-				    if ($annotation->getValue() !== 'identity') {
-					    return false;
+				    $hasStrategy = true;
+				    
+				    // Check if the strategy is specifically 'identity'
+				    if ($annotation->getValue() === 'identity') {
+					    $isIdentityStrategy = true;
 				    }
 			    }
 		    }
 		    
-		    // If we reach this point, both conditions are satisfied (or no relevant annotations were found)
-		    // Note: This assumes that at least one Column and one PrimaryKeyStrategy annotation exist
-		    return true;
+		    return $isPrimaryKey && ($isIdentityStrategy || !$hasStrategy);
+	    }
+	    
+	    /**
+	     * This method finds primary key columns that are configured to receive
+	     * database-generated values, which are either:
+	     * 1. Primary keys with a PrimaryKeyStrategy annotation set to "identity", or
+	     * 2. Primary keys with no explicitly defined strategy (defaulting to auto-increment)
+	     * @param object $entity The entity to examine
+	     * @return string|null The name of the auto-incrementing primary key field, or null if none found
+	     */
+	    public function findAutoIncrementPrimaryKey(object $entity): ?string {
+		    // Fetch the owning table of this entity
+		    $owningTable = $this->getOwningTable($entity);
+		    
+		    // Return cached result if available to avoid repeated lookups
+		    if (array_key_exists($owningTable, $this->auto_increment_column_cache)) {
+			    return $this->auto_increment_column_cache[$owningTable];
+		    }
+		    
+		    // Get all annotations for the entity from the entity store
+		    $annotations = $this->getAnnotations($entity);
+		    
+		    // Process all fields and their annotations
+		    foreach ($annotations as $fieldName => $annotationSet) {
+			    // Use the isIdentityColumn method to determine if this field
+			    // is a primary key with identity strategy or no strategy
+			    if ($this->isIdentityColumn($annotationSet)) {
+				    // Found an auto-increment primary key - cache and return immediately
+				    return $this->auto_increment_column_cache[$owningTable] = $fieldName;
+			    }
+		    }
+		    
+		    // Cache null result to avoid repeated lookups when no matching key exists
+		    $this->auto_increment_column_cache[$owningTable] = null;
+		    
+		    // If we didn't find any matching primary key, return null
+		    return null;
 	    }
     }

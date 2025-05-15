@@ -25,6 +25,7 @@
 	use Quellabs\ObjectQuel\Persistence\DeletePersister;
 	use Quellabs\ObjectQuel\Persistence\InsertPersister;
 	use Quellabs\ObjectQuel\Persistence\UpdatePersister;
+	use Quellabs\ObjectQuel\PrimaryKeys\PrimaryKeyFactory;
 	use Quellabs\ObjectQuel\ProxyGenerator\ProxyInterface;
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\Serialization\Serializers\SQLSerializer;
@@ -274,7 +275,8 @@
 				
 				if (!empty($sortedEntities)) {
 					// Instantiate helper classes
-					$insertPersister = new InsertPersister($this);
+					$primaryKeyFactory = new PrimaryKeyFactory();
+					$insertPersister = new InsertPersister($this, $primaryKeyFactory);
 					$updatePersister = new UpdatePersister($this);
 					$deletePersister = new DeletePersister($this);
 					

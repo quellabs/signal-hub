@@ -24,17 +24,17 @@
 	
 	$entityManager = new EntityManager($config);
 	
+	/**
 	$result = $entityManager->executeQuery("
 		range of main is HamsterEntity
 		retrieve (main) where main.woopie = /^hallo/
 	");
+	 */
 	
-	/*
 	$hamster = new HamsterEntity();
 	$hamster->setWoopie('hallo2');
 	$entityManager->persist($hamster);
 	$entityManager->flush();
-	*/
 	
 
 	/*
