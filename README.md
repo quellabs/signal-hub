@@ -1026,23 +1026,6 @@ To roll back multiple migrations at once, specify the number to rollback:
 php bin/sculpt quel:migrate rollback --steps=3
 ```
 
-### Additional Migration Commands
-
-View the migration status:
-```bash
-php bin/sculpt quel:migrate:status
-```
-
-Generate a new migration file:
-```bash
-php bin/sculpt quel:migration:create "AddUserTimestamps"
-```
-
-Run migrations in a dry-run mode (preview changes without applying them):
-```bash
-php bin/sculpt quel:migrate --dry-run
-```
-
 ### Command Help
 
 For a complete list of migration options and detailed help:
