@@ -45,23 +45,16 @@
 			// Fetch the owning table of this entity
 			$tableName = $this->entityStore->getOwningTable($entity);
 			
-			// Fetch the column map
-			$columnMap = $this->entityStore->getColumnMap($entity);
-			
 			// Get database indexes
-			$dbIndexes = $this->getTableIndexes($tableName);
+			$tableIndexes = $this->getTableIndexes($tableName);
 			
 			// Get entity indexes
 			$entityIndexes = $this->getEntityIndexes($entity);
-
+			
 			// Early return if both are empty
-			if (empty($dbIndexes) && empty($entityIndexes)) {
+			if (empty($tableIndexes) && empty($entityIndexes)) {
 				return ['added' => [], 'modified' => [], 'deleted' => []];
 			}
-			
-			// Normalize both sets of indexes to a common format for comparison
-			$normalizedDbIndexes = $this->normalizeDbIndexes($dbIndexes);
-			$normalizedEntityIndexes = $this->normalizeEntityIndexes($entityIndexes, $columnMap);
 			
 			// Initialize results arrays
 			$result = [
@@ -70,67 +63,71 @@
 			];
 			
 			// Find missing and modified indexes in one pass through entity indexes
-			foreach ($normalizedEntityIndexes as $name => $config) {
-				if (!isset($normalizedDbIndexes[$name])) {
+			foreach ($entityIndexes as $name => $config) {
+				if (!isset($tableIndexes[$name])) {
 					$result['added'][$name] = $config;
-				} elseif ($this->indexConfigDiffers($normalizedDbIndexes[$name], $config)) {
+				} elseif ($this->indexConfigDiffers($tableIndexes[$name], $config)) {
 					$result['modified'][$name] = [
-						'database' => $normalizedDbIndexes[$name],
+						'database' => $tableIndexes[$name],
 						'entity'   => $config
 					];
 				}
 				
 				// Mark as processed
-				unset($normalizedDbIndexes[$name]);
+				unset($tableIndexes[$name]);
 			}
 			
 			// Any remaining DB indexes must be deleted
-			$result['deleted'] = $normalizedDbIndexes;
+			$result['deleted'] = $tableIndexes;
 			return $result;
 		}
 		
+		
 		/**
-		 * Normalizes database indexes to a common format for comparison
-		 * @param array $dbIndexes Raw database indexes from Phinx
-		 * @return array Normalized indexes
+		 * Retrieves all database indexes defined for a specific table
+		 * @param string $tableName The name of the database table to get indexes for
+		 * @return array Formatted array of database indexes with their configurations
 		 */
-		private function normalizeDbIndexes(array $dbIndexes): array {
-			$result = [];
-			
-			foreach ($dbIndexes as $name => $index) {
-				$result[$name] = [
-					'columns' => $index['columns'],
-					'type'    => $index['type'],
-					'unique'  => strtoupper($index['type']) === 'UNIQUE'
+		public function getTableIndexes(string $tableName): array {
+			return array_map(function ($index) {
+				return [
+					'columns' => $index['columns'],   // Array of column names included in this index
+					'type'    => $index['type'],      // Original index type from database
+					'unique'  => strtoupper($index['type']) === 'UNIQUE'  // Convert type to boolean flag for uniqueness
 				];
-			}
-			
-			return $result;
+			}, $this->connection->getIndexes($tableName));
 		}
 		
 		/**
-		 * Normalizes entity annotation indexes to a common format for comparison
-		 * @param array $entityIndexes Entity annotation indexes
-		 * @param array $columnMap Array mapping property names to database columns
-		 * @return array Normalized indexes
+		 * Retrieves database index configurations for an entity
+		 * @param mixed $entity The entity object or class to get indexes for
+		 * @return array Formatted array of database indexes with their configurations
 		 */
-		private function normalizeEntityIndexes(array $entityIndexes, array $columnMap): array {
-			$result = [];
-			$columnMapKeys = array_keys($columnMap);
+		public function getEntityIndexes(mixed $entity): array {
+			// Fetch the column map
+			$columnMap = $this->entityStore->getColumnMap($entity);
 			
-			foreach ($entityIndexes as $annotation) {
-				$isUnique = $annotation instanceof UniqueIndex;
-				$columns = $annotation->getColumns();
+			// Iterate through all indexes defined for this entity
+			$result = [];
 
+			foreach ($this->entityStore->getIndexes($entity) as $annotation) {
+				// Check if this is a unique index or a regular index
+				$isUnique = $annotation instanceof UniqueIndex;
+				
+				// Get the entity property names that make up this index
+				$columns = $annotation->getColumns();
+				
+				// Convert entity property names to their corresponding database column names
 				$databaseColumns = [];
 				foreach ($columns as $column) {
 					$databaseColumns[] = $columnMap[$column];
 				}
 				
+				// Build the index configuration array
 				$result[$annotation->getName()] = [
-					'columns' => $databaseColumns,
-					'type'    => $isUnique ? 'UNIQUE' : 'INDEX',
-					'unique'  => $isUnique
+					'columns' => $databaseColumns,    // Database column names for this index
+					'type'    => $isUnique ? 'UNIQUE' : 'INDEX',  // Index type identifier
+					'unique'  => $isUnique            // Boolean flag for uniqueness constraint
 				];
 			}
 			
@@ -162,25 +159,5 @@
 			
 			// Direct array comparison is faster than array_diff for sorted arrays
 			return $dbColumns !== $entityColumns;
-		}
-		
-		/**
-		 * Returns a list of indexes for a specified database table
-		 * Just a renamed alias for the existing getIndexes method
-		 * @param string $tableName The name of the table to retrieve indexes from
-		 * @return array An associative array of indexes with their details
-		 */
-		private function getTableIndexes(string $tableName): array {
-			return $this->connection->getIndexes($tableName);
-		}
-		
-		/**
-		 * Retrieves all index annotations defined for a given entity class
-		 * Just a renamed alias for the existing getIndexes method
-		 * @param mixed $entity The entity class to analyze
-		 * @return array An array of Index and UniqueIndex annotation objects
-		 */
-		private function getEntityIndexes(mixed $entity): array {
-			return $this->entityStore->getIndexes($entity);
 		}
 	}
