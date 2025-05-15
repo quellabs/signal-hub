@@ -50,17 +50,25 @@
 		
 		/**
 		 * Gets the column length/size
-		 * @return int|null The length/size of the column
+		 * This method retrieves the defined length or size constraint for a database column
+		 * (e.g., VARCHAR(255) where 255 is the limit)
+		 * @return int|null The length/size of the column or null if not specified or invalid
 		 */
 		public function getLimit(): ?int {
+			// Check if the limit parameter exists or is empty
 			if (empty($this->parameters["limit"])) {
+				// Return null if no limit is defined
 				return null;
 			}
 			
+			// Validate that the limit parameter contains a numeric value
 			if (!is_numeric($this->parameters["limit"])) {
+				// Return null if the limit is not a valid number
 				return null;
 			}
 			
+			// Cast the limit to integer and return it
+			// This ensures the return type matches the method's return type declaration
 			return (int)$this->parameters["limit"];
 		}
 		
