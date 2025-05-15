@@ -238,4 +238,4 @@ Please ensure your code adheres to our coding standards and includes appropriate
 
 ## 📄 License
 
-Sculpt is open-source software licensed under the [MIT license](LICENSE).
+Sculpt is open-source software licensed under the MIT license.
