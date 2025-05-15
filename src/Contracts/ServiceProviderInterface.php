@@ -16,10 +16,4 @@
 		 * @param Application $app
 		 */
 		public function boot(Application $app): void;
-		
-		/**
-		 * Get a description of this provider's functionality
-		 * @return string
-		 */
-		public function getDescription(): string;
 	}
