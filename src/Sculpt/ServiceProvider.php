@@ -33,4 +33,32 @@
 		public function getConfiguration(): Configuration {
 			return ConfigurationLoader::loadCliConfiguration();
 		}
+		
+		/**
+		 * Returns a Phinx configuration array
+		 * @return array
+		 */
+		public function createPhinxConfig(): array {
+			$configuration = $this->getConfiguration();
+			$connectionParams = $configuration->getConnectionParams();
+			
+			return [
+				'paths' => [
+					'migrations' => $configuration->getMigrationsPath(),
+				],
+				'environments' => [
+					'default_migration_table' => 'phinxlog',
+					'default_environment' => 'development',
+					'development' => [
+						'adapter' => $connectionParams['driver'],
+						'host' => $connectionParams['host'],
+						'name' => $connectionParams['database'],
+						'user' => $connectionParams['username'],
+						'pass' => $connectionParams['password'],
+						'port' => $connectionParams['port'],
+						'charset' => $connectionParams['encoding'],
+					],
+				],
+			];
+		}
 	}

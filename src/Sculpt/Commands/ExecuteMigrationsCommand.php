@@ -46,7 +46,7 @@
 		 */
 		public function execute(ConfigurationManager $config): int {
 			// Create a Phinx configuration
-			$phinxConfig = $this->createPhinxConfig();
+			$phinxConfig = new Config($this->getProvider()->createPhinxConfig());
 			
 			// Create the manager with buffered output to capture all output
 			// Always use the 'development' environment since that's all our config supports
@@ -78,33 +78,6 @@
 				$this->output->error("Migration error: " . $e->getMessage());
 				return 1;
 			}
-		}
-		
-		/**
-		 * Create Phinx configuration
-		 * @return Config
-		 */
-		private function createPhinxConfig(): Config {
-			$connectionParams = $this->configuration->getConnectionParams();
-			
-			return new Config([
-				'paths' => [
-					'migrations' => $this->configuration->getMigrationsPath(),
-				],
-				'environments' => [
-					'default_migration_table' => 'phinxlog',
-					'default_environment' => 'development',
-					'development' => [
-						'adapter' => $connectionParams['driver'],
-						'host' => $connectionParams['host'],
-						'name' => $connectionParams['database'],
-						'user' => $connectionParams['username'],
-						'pass' => $connectionParams['password'],
-						'port' => $connectionParams['port'],
-						'charset' => $connectionParams['encoding'],
-					],
-				],
-			]);
 		}
 		
 		/**
