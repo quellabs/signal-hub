@@ -23,10 +23,17 @@
 	);
 	
 	$entityManager = new EntityManager($config);
+	$connection = $entityManager->getConnection();
+	$entityStore = $entityManager->getEntityStore();
+	
+	$compare = new \Quellabs\ObjectQuel\Sculpt\Helpers\IndexComparator($connection, $entityStore);
+	
+	$result = $compare->compareIndexes(HamsterEntity::class);
+	
 	
 	/**
 	$result = $entityManager->executeQuery("
-		range of main is HamsterEntit
+		range of main is HamsterEntity
 		retrieve (main) where main.woopie = /^hallo/
 	");
 	 */

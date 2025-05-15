@@ -187,7 +187,7 @@
 			$schemaCollection = $this->getSchemaCollection();
 			return $schemaCollection->listTablesWithoutViews();
 		}
-			
+		
 		/**
 		 * Begin a new transaction.
 		 * @return void
@@ -362,6 +362,33 @@
 		 */
 		public function getSchemaCollection(): Collection {
 			return $this->connection->getSchemaCollection();
+		}
+		
+		/**
+		 * Returns a list of indexes for a specified database table
+		 * @param string $tableName The name of the table to retrieve indexes from
+		 * @return array An associative array of indexes with their details
+		 */
+		public function getIndexes(string $tableName): array {
+			// Get the schema collection which provides access to database metadata
+			$schemaCollection = $this->getSchemaCollection();
+			
+			// Retrieve the table schema which contains structural information about the table
+			$tableSchema = $schemaCollection->describe($tableName);
+			
+			// Get an array of index names defined on this table
+			$indexes = $tableSchema->indexes();
+			
+			// Iterate through each index name and retrieve its detailed configuration
+			$result = [];
+
+			foreach($indexes as $index) {
+				// Store the index details in the result array, using the index name as key
+				// Index details include columns, type (PRIMARY, UNIQUE, INDEX), and other properties
+				$result[$index] = $tableSchema->getIndex($index);
+			}
+			
+			return $result;
 		}
 		
 		/**

@@ -19,10 +19,12 @@
     
     use Quellabs\AnnotationReader\AnnotationReader;
     use Quellabs\ObjectQuel\Annotations\Orm\Column;
+    use Quellabs\ObjectQuel\Annotations\Orm\Index;
     use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToMany;
     use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
+    use Quellabs\ObjectQuel\Annotations\Orm\UniqueIndex;
     use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     use Quellabs\ObjectQuel\ProxyGenerator\ProxyGenerator;
     use Quellabs\ObjectQuel\ReflectionManagement\EntityLocator;
@@ -46,6 +48,7 @@
         protected array $dependencies_cache;
         protected array $completed_entity_name_cache;
         protected array $auto_increment_column_cache;
+        protected array $index_cache;
 	    
 	    /**
 	     * EntityStore constructor.
@@ -70,6 +73,7 @@
 			$this->dependencies_cache = [];
 			$this->completed_entity_name_cache = [];
 			$this->auto_increment_column_cache = [];
+			$this->index_cache = [];
 
 			// Create the EntityLocator
 			$this->entity_locator = new EntityLocator($configuration, $this->annotation_reader);
@@ -684,7 +688,7 @@
 	     * @param object $entity The entity to examine
 	     * @return string|null The name of the auto-incrementing primary key field, or null if none found
 	     */
-	    public function findAutoIncrementPrimaryKey(object $entity): ?string {
+	    public function findAutoIncrementPrimaryKey(mixed $entity): ?string {
 		    // Fetch the owning table of this entity
 		    $owningTable = $this->getOwningTable($entity);
 		    
@@ -711,5 +715,35 @@
 		    
 		    // If we didn't find any matching primary key, return null
 		    return null;
+	    }
+	    
+	    /**
+	     * Retrieves all index annotations defined for a given entity class
+	     * @param mixed $entity The entity class to analyze (can be string classname or object instance)
+	     * @return array An array of Index and UniqueIndex annotation objects
+	     */
+	    public function getIndexes(mixed $entity): array {
+		    // Fetch the owning table of this entity
+		    $owningTable = $this->getOwningTable($entity);
+		    
+		    // Return cached result if available to avoid repeated lookups
+		    if (array_key_exists($owningTable, $this->index_cache)) {
+			    return $this->index_cache[$owningTable];
+		    }
+		    
+		    // Extract all annotation objects attached to the entity class
+		    $annotations = $this->annotation_reader->getClassAnnotations($entity);
+		    
+		    // Filter annotations to only include Index and UniqueIndex types
+		    $filteredResults = array_filter($annotations, function($annotation) {
+			    // Return true only if the annotation is an index type
+			    // This keeps both regular indexes and unique indexes
+			    return
+				    $annotation instanceof Index ||        // Regular index annotation
+				    $annotation instanceof UniqueIndex;    // Unique constraint index annotation
+		    });
+		 
+			// Cache and return result
+		    return $this->index_cache[$owningTable] = $filteredResults;
 	    }
     }
