@@ -5,6 +5,7 @@
 	
 	// Importeer de vereiste klassen en interfaces
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
+	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstAlias;
 	use Quellabs\ObjectQuel\ObjectQuel\Ast\AstBinaryOperator;
@@ -49,6 +50,7 @@
 		private array $visitedNodes;
 		private array $parameters;
 		private string $partOfQuery;
+		private TypeMapper $typeMapper;
 		
 		/**
 		 * Constructor to initialize the entities array.
@@ -62,6 +64,7 @@
 			$this->entityStore = $store;
 			$this->parameters = &$parameters;
 			$this->partOfQuery = $partOfQuery;
+			$this->typeMapper = new TypeMapper();
 		}
 		
 		/**
@@ -94,12 +97,7 @@
 			// Search for Column annotation to get type
 			foreach ($annotationList[$identifier->getName()] as $annotation) {
 				if ($annotation instanceof Column) {
-					return match ($annotation->getType()) {
-						'varchar' => 'string',
-						'int' => 'integer',
-						'decimal' => 'float',
-						default => $annotation->getType()
-					};
+					return $this->typeMapper->phinxTypeToPhpType($annotation->getType());
 				}
 			}
 			

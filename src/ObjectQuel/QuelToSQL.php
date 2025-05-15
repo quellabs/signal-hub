@@ -27,6 +27,22 @@
 		}
 		
 		/**
+		 * Convert a retrieve statement to SQL
+		 * @param AstRetrieve $retrieve
+		 * @return string
+		 */
+		public function convertToSQL(AstRetrieve $retrieve): string {
+			return sprintf("SELECT %s%s%s %s %s%s",
+				$this->getUnique($retrieve),
+				$this->getFieldNames($retrieve),
+				$this->getFrom($retrieve),
+				$this->getJoins($retrieve),
+				$this->getWhere($retrieve),
+				$this->getSort($retrieve)
+			);
+		}
+
+		/**
 		 * Searches for a range with a specific name in an array of ranges.
 		 * @param array $ranges The list of ranges to search through.
 		 * @param string $rangeName The name of the range being searched for.
@@ -41,67 +57,7 @@
 			
 			return null;
 		}
-		
-		/**
-		 * Checks if a range is already present in the results list.
-		 * @param string $rangeName The name of the range to be checked.
-		 * @param array $result The list of ranges to search in.
-		 * @return bool Returns true if the range is already in the list, otherwise false.
-		 */
-		private function isRangeNameInResult(string $rangeName, array $result): bool {
-			return $this->findRangeByName($result, $rangeName) !== null;
-		}
-		
-		/**
-		 * Retrieve a list of fully qualified field names, along with aliases, from a given AST Entity object.
-		 * @param AstIdentifier $identifier The AST Entity object to analyze.
-		 * @return array An array of fully qualified field names with aliases.
-		 */
-		protected function getFieldNamesFromEntity(AstIdentifier $identifier): array {
-			// Initialize an empty array to hold the result
-			$result = [];
-			
-			// Get the table alias or range from the AST Entity
-			$range = $identifier->getRange()->getName();
-			
-			// Get the actual entity name from the AST Entity
-			$entity = $identifier->getEntityName();
-			
-			// Retrieve the column map for the given entity
-			$columnMap = $this->entityStore->getColumnMap($entity);
-			
-			// Loop through each property and corresponding database column in the column map
-			foreach ($columnMap as $property => $dbColumn) {
-				// Add the fully qualified field name along with an alias to the result array
-				$result[] = "{$range}.{$dbColumn} as {$range}_{$property}";
-			}
-			
-			// Return the array of fully qualified field names with aliases
-			return $result;
-		}
-		
-		/**
-		 * Retrieve the fully qualified field name based on the given AST Identifier.
-		 * @param AstIdentifier $astIdentifier The AST Identifier to analyze.
-		 * @return string The fully qualified field name.
-		 */
-		protected function getFieldNameFromIdentifier(AstIdentifier $astIdentifier): string {
-			// Get the table alias or range from the entity
-			$range = $astIdentifier->getRange()->getName();
-			
-			// Get the entity name
-			$entity = $astIdentifier->getName();
-			
-			// Get the property name from the AST Identifier
-			$propertyName = $astIdentifier->getNext()->getName();
-			
-			// Retrieve the column map based on the entity
-			$columnMap = $this->entityStore->getColumnMap($entity);
-			
-			// Create and return the fully qualified column name
-			return "{$range}.{$columnMap[$propertyName]} as {$range}_{$propertyName}";
-		}
-		
+
 		/**
 		 * Returns the keyword DISTINCT if the query is unique
 		 * @param AstRetrieve $retrieve
@@ -152,7 +108,9 @@
 					}
 					
 					// Add the SQL result to the result array
-					$result[] = $sqlResult;
+					if (!$this->isDuplicateField($result, $sqlResult)) {
+						$result[] = $sqlResult;
+					}
 				}
 			}
 			
@@ -371,18 +329,30 @@
 		}
 		
 		/**
-		 * Convert a retrieve statement to SQL
-		 * @param AstRetrieve $retrieve
-		 * @return string
+		 * Checks if a SQL field name is already present in the list of fields.
+		 * @param array $existingFields Array of existing field names or field groups
+		 * @param string $fieldToCheck Field name to check for duplicates
+		 * @return bool True if the field already exists, false otherwise
 		 */
-		public function convertToSQL(AstRetrieve $retrieve): string {
-			return sprintf("SELECT %s%s%s %s %s%s",
-				$this->getUnique($retrieve),
-				$this->getFieldNames($retrieve),
-				$this->getFrom($retrieve),
-				$this->getJoins($retrieve),
-				$this->getWhere($retrieve),
-				$this->getSort($retrieve)
-			);
+		protected function isDuplicateField(array $existingFields, string $fieldToCheck): bool {
+			// Normalize the field to check (trim whitespace)
+			$fieldToCheck = trim($fieldToCheck);
+			
+			foreach ($existingFields as $existingField) {
+				// Case 1: Direct match with an existing field
+				if ($existingField === $fieldToCheck) {
+					return true;
+				}
+				
+				// Case 2: Field exists in a comma-separated list
+				// Split by comma and check each field
+				$individualFields = array_map('trim', explode(',', $existingField));
+				
+				if (in_array($fieldToCheck, $individualFields, true)) {
+					return true;
+				}
+			}
+			
+			return false;
 		}
 	}
