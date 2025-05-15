@@ -124,7 +124,6 @@
 		
 		/**
 		 * Check if there are any changes for a table
-		 *
 		 * @param array $changes The changes array for a table
 		 * @return bool True if there are changes
 		 */
