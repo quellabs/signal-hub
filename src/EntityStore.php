@@ -510,51 +510,47 @@
 			    foreach ($reflection->getProperties() as $property) {
 				    // Retrieve all annotations for the current property
 				    try {
-					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
-				    } catch (ParserException $e) {
 					    // Look for Column annotation among all property annotations
-					    $columnAnnotation = null;
+					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName(), Column::class);
+						
+						// If none found, go to the next property
+					    if (empty($propertyAnnotations)) {
+							continue;
+					    }
+
+						// Store annotation
+					    $columnAnnotation = $propertyAnnotations[array_key_first($propertyAnnotations)];
 					    
-					    foreach ($propertyAnnotations as $annotation) {
-						    // Check if this annotation is a Column type
-						    if ($annotation instanceof Column) {
-							    $columnAnnotation = $annotation;
-							    break;
-						    }
+					    // Use the column name from the annotation, not the property name
+					    $columnName = $columnAnnotation->getName();
+					    
+					    // Fetch the database column type
+					    $columnType = $columnAnnotation->getType();
+					    
+					    // If no column name found, skip this property
+					    if (empty($columnName)) {
+						    continue;
 					    }
 					    
-					    // Only process properties that have a Column annotation
-					    if ($columnAnnotation) {
-						    // Use the column name from the annotation, not the property name
-						    $columnName = $columnAnnotation->getName();
+					    // Build a comprehensive array of column metadata
+					    $result[$columnName] = [
+						    'property_name' => $property->getName(),               // PHP property name
+						    'type'          => $columnType,                        // Database column type
+						    'php_type'      => $property->getType(),               // PHP type (from reflection)
 						    
-						    // Fetch the database column type
-						    $columnType = $columnAnnotation->getType();
+						    // Get column limit from annotation or use default based on the column type
+						    'limit'         => $columnAnnotation->getLimit() ?? $typeMapper->getDefaultLimit($columnType),
+						    'nullable'      => $columnAnnotation->isNullable(),    // Whether column allows NULL values
+						    'unsigned'      => $columnAnnotation->isUnsigned(),    // Whether numeric column is unsigned
+						    'default'       => $columnAnnotation->getDefault(),    // Default value for the column
+						    'primary_key'   => $columnAnnotation->isPrimaryKey(),  // Whether column is a primary key
+						    'scale'         => $columnAnnotation->getScale(),      // Decimal scale (for numeric types)
+						    'precision'     => $columnAnnotation->getPrecision(),  // Decimal precision (for numeric types)
 						    
-						    // If no column name found, skip this property
-						    if (empty($columnName)) {
-							    continue;
-						    }
-						    
-						    // Build a comprehensive array of column metadata
-						    $result[$columnName] = [
-							    'property_name' => $property->getName(),               // PHP property name
-							    'type'          => $columnType,                        // Database column type
-							    'php_type'      => $property->getType(),               // PHP type (from reflection)
-
-							    // Get column limit from annotation or use default based on the column type
-							    'limit'         => $columnAnnotation->getLimit() ?? $typeMapper->getDefaultLimit($columnType),
-							    'nullable'      => $columnAnnotation->isNullable(),    // Whether column allows NULL values
-							    'unsigned'      => $columnAnnotation->isUnsigned(),    // Whether numeric column is unsigned
-							    'default'       => $columnAnnotation->getDefault(),    // Default value for the column
-							    'primary_key'   => $columnAnnotation->isPrimaryKey(),  // Whether column is a primary key
-							    'scale'         => $columnAnnotation->getScale(),      // Decimal scale (for numeric types)
-							    'precision'     => $columnAnnotation->getPrecision(),  // Decimal precision (for numeric types)
-
-							    // Check if this column is an auto-incrementing identity column
-							    'identity'      => $this->isIdentityColumn($propertyAnnotations),
-						    ];
-					    }
+						    // Check if this column is an auto-incrementing identity column
+						    'identity'      => $this->isIdentityColumn($propertyAnnotations),
+					    ];
+					} catch (ParserException $e) {
 				    }
 			    }
 		    } catch (\ReflectionException $e) {
