@@ -349,7 +349,7 @@
 				 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
 				 * @Orm\PrimaryKeyStrategy(strategy=\"identity\")
 				 */
-				protected int \$id;
+				protected ?int \$id = null;
 			";
 			
 			// Add constructor for OneToMany relationships initialization

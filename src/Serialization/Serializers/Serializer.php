@@ -5,6 +5,7 @@
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\ObjectQuel\Annotations\Orm\Column;
 	use Quellabs\ObjectQuel\Annotations\SerializationGroups;
+	use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\ReflectionManagement\ReflectionHandler;
@@ -21,6 +22,7 @@
 		protected PropertyHandler $propertyHandler;
 		protected ReflectionHandler $reflectionHandler;
 		protected AnnotationReader $annotationReader;
+		protected TypeMapper $typeMapper;
 		
 		/**
 		 * Serializer constructor
@@ -33,6 +35,7 @@
 			$this->propertyHandler = new PropertyHandler();
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
 			$this->annotationReader = $entityStore->getAnnotationReader();
+			$this->typeMapper = new TypeMapper();
 			
 			$this->serialization_group_name = $serializationGroupName;
 			$this->normalizers = [];
@@ -147,19 +150,13 @@
 				return $this->normalizerInstances[$columnType]->normalize();
 			}
 			
-			// For integer column types (int, bigint, smallint, etc.), perform integer casting
-			if ($this->isIntColumnType($columnType)) {
-				return (int)$value;
-			}
-			
-			// For floating point column types (float, double, decimal, etc.), perform float casting
-			if ($this->isFloatColumnType($columnType)) {
-				return (float)$value;
-			}
-			
-			// For all other column types (string, text, etc.), return the value unchanged
-			// No special normalization needed for these types
-			return $value;
+			// Perform casting if needed
+			return match ($this->typeMapper->phinxTypeToPhpType($columnType)) {
+				'int' => (int)$value,
+				'float' => (float)$value,
+				'bool' => (bool)$value,
+				default => $value,
+			};
 		}
 		
 		/**

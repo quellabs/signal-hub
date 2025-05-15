@@ -3,8 +3,7 @@
 	require('../vendor/autoload.php');
 	
 	use Quellabs\ObjectQuel\Configuration;
-	use Quellabs\ObjectQuel\Entity\ProductsDescriptionEntity;
-	use Quellabs\ObjectQuel\Entity\ProductsEntity;
+	use Quellabs\ObjectQuel\Entity\HamsterEntity;
 	use Quellabs\ObjectQuel\EntityManager;
 	
 	$config = new Configuration();
@@ -25,30 +24,26 @@
 	
 	$entityManager = new EntityManager($config);
 	
-	$entity = $entityManager->find(ProductsEntity::class, 1492);
-	$entity->setGuid('xyz');
-	$entityManager->persist($entity);
-	$entityManager->flush($entity);
-	
-	
-	//$result = $entityManager->findBy(ProductsEntity::class, ['guid' => '8ed51c45-e34c-4d5f-b29b-83a5ee0ecbe2']);
+	/*
+	$hamster = new HamsterEntity();
+	$hamster->setWoopie('hallo2');
+	$entityManager->persist($hamster);
+	$entityManager->flush();
+	*/
 	
 
 	/*
-	$result = $entityManager->executeQuery("
-		range of x is ProductsEntity
-		retrieve (x) where x.productsId=1492
-		sort by x.guid
-	");
-	
-	foreach($result as $row) {
-		$descriptions = $row['x']->getDescriptions();
-		
-		foreach($descriptions as $description) {
-			echo $description->getProductsName() ."\n";
-		}
-	}
+	$entity = $entityManager->find(HamsterEntity::class, 1);
+	$entity->setWoopie('xyz');
+	$entityManager->persist($entity);
+	$entityManager->flush($entity);
 	*/
+
+	$entity = $entityManager->find(HamsterEntity::class, 1);
+	$entityManager->remove($entity);
+	$entityManager->flush($entity);
+	
+	
 	
 	
 	
