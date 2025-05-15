@@ -48,18 +48,41 @@
 			$result = [];
 			
 			foreach (array_intersect_key($entityColumns, $tableColumns) as $name => $entityColumn) {
-				// Fetch column information
-				$column = $tableColumns[$name];
+				// Fetch column information from database
+				$tableColumn = $tableColumns[$name];
 				
-				// Compare only the relevant properties for the column type
-				$relevantProperties = $this->typeMapper->getRelevantProperties($entityColumn['type']);
+				// Use the correct column type for comparison - entity's type takes precedence
+				$columnType = $entityColumn['type'] ?? 'string';
+				
+				// Get only the relevant properties for this specific column type
+				$relevantProperties = $this->typeMapper->getRelevantProperties($columnType);
+				
+				// Filter the entity and table columns to include ONLY the relevant properties
+				// This automatically ignores any properties not relevant to this column type
 				$entityCompare = array_intersect_key($entityColumn, array_flip($relevantProperties));
-				$dbCompare = array_intersect_key($column, array_flip($relevantProperties));
+				$tableCompare = array_intersect_key($tableColumn, array_flip($relevantProperties));
+
+				// Normalize entity column definition by adding default limit if missing
+				// This handles cases where the entity relies on database defaults
+				if (!isset($entityCompare['limit'])) {
+					$entityCompare['limit'] = $this->typeMapper->getDefaultLimit($entityCompare['type']);
+				}
+
+				// Normalize database column metadata by adding default limit if missing
+				// This handles cases where database metadata doesn't explicitly report standard limits
+				if (!isset($tableCompare['limit'])) {
+					$tableCompare['limit'] = $this->typeMapper->getDefaultLimit($tableCompare['type']);
+				}
 				
-				if ($entityCompare != $dbCompare) {
+				// Normalize the values for proper comparison
+				$entityCompare = $this->normalizeColumnValues($entityCompare);
+				$tableCompare = $this->normalizeColumnValues($tableCompare);
+				
+				// Only flag as changed if the normalized values differ
+				if ($entityCompare != $tableCompare) {
 					$result[$name] = [
-						'from'       => $column,
-						'to'         => $entityColumn,
+						'from' => $tableColumn,
+						'to'   => $entityColumn,
 					];
 				}
 			}
@@ -67,4 +90,27 @@
 			return $result;
 		}
 		
+		/**
+		 * Normalize column values for consistent comparison
+		 * @param array $columnDefinition The column definition to normalize
+		 * @return array Normalized column definition
+		 */
+		private function normalizeColumnValues(array $columnDefinition): array {
+			$result = $columnDefinition;
+			
+			// Convert numeric values to their appropriate types
+			foreach ($result as $property => $value) {
+				// Convert limit, precision, scale to integers
+				if (in_array($property, ['limit', 'precision', 'scale']) && is_numeric($value)) {
+					$result[$property] = (int)$value;
+				}
+				
+				// Normalize boolean values
+				if (in_array($property, ['null', 'unsigned', 'signed', 'identity'])) {
+					$result[$property] = (bool)$value;
+				}
+			}
+			
+			return $result;
+		}
 	}

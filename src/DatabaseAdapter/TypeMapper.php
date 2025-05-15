@@ -8,6 +8,53 @@
 	class TypeMapper {
 		
 		/**
+		 * Default limits for column types
+		 * @var array
+		 */
+		private array $defaultLimits = [
+			// Integer types
+			'tinyinteger'  => 4,
+			'smallinteger' => 6,
+			'integer'      => 11,
+			'biginteger'   => 20,
+			
+			// String types
+			'string'       => 255,
+			'char'         => 255,
+			'binary'       => 255,
+		];
+		
+		/**
+		 * Get the default limit for a column type
+		 * @param string $type Column type
+		 * @return int|array|null The default limit (null if not applicable)
+		 */
+		public function getDefaultLimit(string $type): int|array|null {
+			return $this->defaultLimits[$type] ?? null;
+		}
+		
+		/**
+		 * Normalize a column limit based on the column type
+		 * @param string $type Column type
+		 * @param mixed $reportedLimit The limit reported by the database
+		 * @return int|array|null The normalized limit
+		 */
+		public function normalizeLimit(string $type, mixed $reportedLimit): int|array|null {
+			// If the database reported a limit, use it
+			if (!is_null($reportedLimit)) {
+				return $reportedLimit;
+			}
+			
+			// For types that should have a default limit, return it
+			if (isset($this->defaultLimits[$type])) {
+				return $this->defaultLimits[$type];
+			}
+			
+			// For types that don't have a limit concept, return null
+			return null;
+		}
+		
+		/**
 		 * Convert a Phinx column type to a corresponding PHP type
 		 * @param string $phinxType The Phinx column type
 		 * @return string The corresponding PHP type
@@ -120,7 +167,7 @@
 			if (is_int($value) || is_float($value)) {
 				return (string)$value;
 			}
-
+			
 			return "'" . addslashes($value) . "'";
 		}
 	}
