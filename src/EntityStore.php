@@ -18,6 +18,7 @@
 	namespace Quellabs\ObjectQuel;
     
     use Quellabs\AnnotationReader\AnnotationReader;
+    use Quellabs\AnnotationReader\Exception\ParserException;
     use Quellabs\ObjectQuel\Annotations\Orm\Column;
     use Quellabs\ObjectQuel\Annotations\Orm\Index;
     use Quellabs\ObjectQuel\Annotations\Orm\ManyToOne;
@@ -25,6 +26,7 @@
     use Quellabs\ObjectQuel\Annotations\Orm\OneToOne;
     use Quellabs\ObjectQuel\Annotations\Orm\PrimaryKeyStrategy;
     use Quellabs\ObjectQuel\Annotations\Orm\UniqueIndex;
+    use Quellabs\ObjectQuel\DatabaseAdapter\TypeMapper;
     use Quellabs\ObjectQuel\ObjectQuel\Ast\AstRetrieve;
     use Quellabs\ObjectQuel\ProxyGenerator\ProxyGenerator;
     use Quellabs\ObjectQuel\ReflectionManagement\EntityLocator;
@@ -489,57 +491,77 @@
 	    }
 	    
 	    /**
-	     * Get entity property definitions from annotations
-	     * @param string $className Entity class name
-	     * @return array Array of property definitions
+	     * Extracts database column definitions from an entity class using reflection and annotations.
+	     * @param string $className The fully qualified class name of the entity
+	     * @return array An associative array of column definitions indexed by column name
 	     */
 	    public function extractEntityColumnDefinitions(string $className): array {
+		    // Initialize an empty result array to store column definitions
 		    $result = [];
 		    
 		    try {
+			    // Initialize type mapper to get default limits for column types
+			    $typeMapper = new TypeMapper();
+			    
+			    // Create a reflection object for the provided class to inspect its properties
 			    $reflection = new \ReflectionClass($className);
 			    
+			    // Iterate through all properties of the class
 			    foreach ($reflection->getProperties() as $property) {
-				    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
-				    
-				    // Look for Column annotation
-				    $columnAnnotation = null;
-				    
-				    foreach ($propertyAnnotations as $annotation) {
-					    if ($annotation instanceof Column) {
-						    $columnAnnotation = $annotation;
-						    break;
-					    }
-				    }
-				    
-				    if ($columnAnnotation) {
-					    // Use the column name from the annotation, not the property name
-					    $columnName = $columnAnnotation->getName();
+				    // Retrieve all annotations for the current property
+				    try {
+					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
+				    } catch (ParserException $e) {
+					    // Look for Column annotation among all property annotations
+					    $columnAnnotation = null;
 					    
-					    // If no column name found, skip this property
-					    if (empty($columnName)) {
-						    continue;
+					    foreach ($propertyAnnotations as $annotation) {
+						    // Check if this annotation is a Column type
+						    if ($annotation instanceof Column) {
+							    $columnAnnotation = $annotation;
+							    break;
+						    }
 					    }
 					    
-					    // Gather property info
-					    $result[$columnName] = [
-						    'property_name' => $property->getName(),
-						    'type'          => $columnAnnotation->getType(),
-						    'php_type'      => $property->getType(),
-						    'limit'         => $columnAnnotation->getLimit(),
-						    'nullable'      => $columnAnnotation->isNullable(),
-						    'unsigned'      => $columnAnnotation->isUnsigned(),
-						    'default'       => $columnAnnotation->getDefault(),
-						    'primary_key'   => $columnAnnotation->isPrimaryKey(),
-						    'scale'         => $columnAnnotation->getScale(),
-						    'precision'     => $columnAnnotation->getPrecision(),
-						    'identity'      => $this->isIdentityColumn($propertyAnnotations),
-					    ];
+					    // Only process properties that have a Column annotation
+					    if ($columnAnnotation) {
+						    // Use the column name from the annotation, not the property name
+						    $columnName = $columnAnnotation->getName();
+						    
+						    // Fetch the database column type
+						    $columnType = $columnAnnotation->getType();
+						    
+						    // If no column name found, skip this property
+						    if (empty($columnName)) {
+							    continue;
+						    }
+						    
+						    // Build a comprehensive array of column metadata
+						    $result[$columnName] = [
+							    'property_name' => $property->getName(),               // PHP property name
+							    'type'          => $columnType,                        // Database column type
+							    'php_type'      => $property->getType(),               // PHP type (from reflection)
+
+							    // Get column limit from annotation or use default based on the column type
+							    'limit'         => $columnAnnotation->getLimit() ?? $typeMapper->getDefaultLimit($columnType),
+							    'nullable'      => $columnAnnotation->isNullable(),    // Whether column allows NULL values
+							    'unsigned'      => $columnAnnotation->isUnsigned(),    // Whether numeric column is unsigned
+							    'default'       => $columnAnnotation->getDefault(),    // Default value for the column
+							    'primary_key'   => $columnAnnotation->isPrimaryKey(),  // Whether column is a primary key
+							    'scale'         => $columnAnnotation->getScale(),      // Decimal scale (for numeric types)
+							    'precision'     => $columnAnnotation->getPrecision(),  // Decimal precision (for numeric types)
+
+							    // Check if this column is an auto-incrementing identity column
+							    'identity'      => $this->isIdentityColumn($propertyAnnotations),
+						    ];
+					    }
 				    }
 			    }
 		    } catch (\ReflectionException $e) {
+			    // Silently handle reflection exceptions
 		    }
 		    
+		    // Return the complete set of column definitions
 		    return $result;
 	    }
 		
