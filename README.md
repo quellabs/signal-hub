@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![Downloads](https://img.shields.io/packagist/dt/quellabs/objectquel.svg)](https://packagist.org/packages/quellabs/objectquel)
 
-ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Data Mapper pattern, offering a clean separation between entities and persistence logic. It combines a purpose-built query language with structured data enrichment and is powered by CakePHP’s robust database foundation under the hood.
+ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Data Mapper pattern, offering a clean separation between entities and persistence logic. It combines a purpose-built query language with structured data enrichment and is powered by CakePHP's robust database foundation under the hood.
 
 ## Table of Contents
 
@@ -18,6 +18,7 @@ ObjectQuel is a powerful Object-Relational Mapping (ORM) system built on the Dat
 - [Working with Entities](#working-with-entities)
 - [The ObjectQuel Language](#the-objectquel-language)
 - [Entity Relationships](#entity-relationships)
+- [Indexing](#indexing)
 - [Saving and Persisting Data](#saving-and-persisting-data)
 - [Using Repositories](#using-repositories)
 - [SignalHub](#signalhub)
@@ -31,7 +32,7 @@ ObjectQuel addresses fundamental design challenges in object-relational mapping 
 
 - **Entity-Based Query Language**: The ObjectQuel language provides an intuitive, object-oriented syntax for database operations that feels natural to developers
 - **Data Mapper Architecture** – Entities remain decoupled from the database, ensuring clean, testable domain logic.
-- **Powered by CakePHP's Database Layer** – Reliable and battle-tested SQL engine under the hood. 
+- **Powered by CakePHP's Database Layer** – Reliable and battle-tested SQL engine under the hood.
 - **Relationship Simplicity**: Work with complex relationships without complex query code
 - **Performance By Design**: Multiple built-in optimization strategies for efficient database interactions
 - **Hybrid Data Sources**: Uniquely combine traditional databases with external JSON data sources
@@ -446,6 +447,150 @@ The `@Orm\EntityBridge` pattern extends beyond basic relationship mapping by off
 - Access and manipulate this contextual data alongside the primary relationship information
 - Maintain comprehensive audit trails and relationship history between associated entities
 
+## Indexing
+
+ObjectQuel provides powerful indexing capabilities through annotations at the entity level. These annotations allow you to define both regular and unique indexes directly in your entity classes, which will be automatically applied to your database during migrations.
+
+### Index Annotations
+
+ObjectQuel supports two types of index annotations:
+
+#### 1. Regular Index (@Orm\Index)
+
+Regular indexes improve query performance for columns frequently used in WHERE clauses, JOIN conditions, or sorting operations.
+
+```php
+/**
+ * @Orm\Table(name="products")
+ * @Orm\Index(name="idx_product_category", columns={"category_id"})
+ */
+class ProductEntity {
+    // Entity properties and methods...
+}
+```
+
+#### 2. Unique Index (@Orm\UniqueIndex)
+
+Unique indexes ensure data integrity by preventing duplicate values in the specified columns, while also providing performance benefits.
+
+```php
+/**
+ * @Orm\Table(name="users")
+ * @Orm\UniqueIndex(name="idx_unique_email", columns={"email"})
+ */
+class UserEntity {
+    // Entity properties and methods...
+}
+```
+
+### Index Annotation Parameters
+
+Both index annotations support the following parameters:
+
+| Parameter   | Description                                                     | Required |
+|-------------|-----------------------------------------------------------------|----------|
+| **name**    | Unique identifier for the index in the database                 | Yes      |
+| **columns** | Array of column names to be included in the index               | Yes      |
+
+### Composite Indexes
+
+You can create indexes on multiple columns to optimize queries that filter or sort by a combination of fields:
+
+```php
+/**
+ * @Orm\Table(name="orders")
+ * @Orm\Index(name="idx_customer_date", columns={"customer_id", "order_date"})
+ */
+class OrderEntity {
+    // Entity properties and methods...
+}
+```
+
+### Example Usage
+
+Here's an example of how to use both index types on an entity:
+
+```php
+/**
+ * @Orm\Table(name="hamster")
+ * @Orm\Index(name="idx_hamster_search", columns={"name", "color"})
+ * @Orm\UniqueIndex(name="idx_unique_code", columns={"registration_code"})
+ */
+class HamsterEntity {
+    /**
+     * @Orm\Column(name="id", type="integer", length=11, primary_key=true)
+     * @Orm\PrimaryKeyStrategy(strategy="identity")
+     */
+    private int $id;
+    
+    /**
+     * @Orm\Column(name="name", type="string", length=100)
+     */
+    private string $name;
+    
+    /**
+     * @Orm\Column(name="color", type="string", length=50)
+     */
+    private string $color;
+    
+    /**
+     * @Orm\Column(name="registration_code", type="string", length=20)
+     */
+    private string $registrationCode;
+    
+    // Getters and setters...
+}
+```
+
+### Integration with Migrations
+
+The index annotations are fully integrated with ObjectQuel's migration system. When you run the `make:migrations` command, the system will:
+
+1. Analyze your entity annotations to identify index definitions
+2. Compare these definitions with the current database schema
+3. Generate appropriate migration scripts to add, modify, or remove indexes
+4. Apply these changes when migrations are executed
+
+Example migration generated from index annotations:
+
+```php
+<?php
+use Phinx\Migration\AbstractMigration;
+
+class AddHamsterIndexes extends AbstractMigration
+{
+    public function change()
+    {
+        $table = $this->table('hamster');
+        
+        // Add regular index
+        $table->addIndex(['name', 'color'], [
+            'name' => 'idx_hamster_search',
+            'unique' => false,
+        ]);
+        
+        // Add unique index
+        $table->addIndex(['registration_code'], [
+            'name' => 'idx_unique_code',
+            'unique' => true,
+        ]);
+        
+        $table->save();
+    }
+}
+```
+
+### Performance Considerations
+
+When defining indexes, consider these best practices:
+
+- Create indexes only on columns frequently used in WHERE clauses, JOIN conditions, or ORDER BY clauses
+- Limit the number of indexes per table to minimize storage overhead and INSERT/UPDATE performance impact
+- Place the most selective columns first in composite indexes
+- Consider database-specific limitations on index sizes and types
+
+Properly designed indexes can dramatically improve query performance while ensuring data integrity through unique constraints.
+
 ## Saving and Persisting Data
 
 ### Updating an Entity
@@ -532,7 +677,7 @@ $entityManager->flush();
 > entities unless you've configured foreign keys in your database engine. If you want child entities
 > to be removed when their parent is deleted, add the @Orm\Cascade annotation to the ManyToOne
 > relationship as shown below:
-> 
+>
 > ```php
 > use Quellabs\ObjectQuel\Annotations\Orm;
 >
@@ -818,6 +963,47 @@ When executed, the sculpt tool analyzes differences between your entity definiti
 
 > **Note:** The system uses CakePHP's Phinx as its migration engine. All generated migrations follow the Phinx format and can be executed using standard Phinx commands.
 
+### Generating Migrations for Index Changes
+
+When you add or modify `@Orm\Index` or `@Orm\UniqueIndex` annotations to your entities, the `make:migrations` command will automatically detect these changes and include them in the generated migration files.
+
+```bash
+php bin/sculpt make:migrations
+```
+
+This will produce migrations for index changes similar to:
+
+```php
+<?php
+use Phinx\Migration\AbstractMigration;
+
+class AddProductIndices extends AbstractMigration
+{
+    public function change()
+    {
+        $table = $this->table('products');
+        
+        // Add a regular index
+        $table->addIndex(['category_id'], [
+            'name' => 'idx_product_category',
+            'unique' => false,
+        ]);
+        
+        $table->save();
+    }
+}
+```
+
+### Running Migrations
+
+To apply your migrations to the database, use:
+
+```bash
+php bin/sculpt migrations:migrate
+```
+
+This command will execute all pending migrations in sequence, applying the database schema changes defined in your entity annotations.
+
 ## Query Optimization
 
 ### Query Flags
@@ -840,7 +1026,7 @@ ObjectQuel is released under the MIT License.
 ```
 MIT License
 
-Copyright (c) 2024-2025 ObjectQuel
+Copyright (c) 2024-2025 Quellabs
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
