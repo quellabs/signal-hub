@@ -211,9 +211,7 @@
 		}
 		
 		/**
-		 * This function creates a complete constructor method implementation that initializes
-		 * entity properties with their default values from the database schema. If no properties
-		 * require initialization, an empty string is returned.
+		 * Generates the constructor method for the entity class.
 		 * @param array $tableDescription An associative array containing column definitions from the database schema
 		 * @return string The complete constructor method code, or an empty string if no initializations are needed
 		 */
@@ -231,13 +229,17 @@
 			
 			// Build and return the complete constructor method with proper indentation
 			return "
-       /**
-		* Constructor - automatically initializes properties with database default values
-		*/
-		public function __construct() {
-			{$initializersImpl};
-		}
-			   
+        /**
+          * Constructor - Initializes entity properties with default values
+          *
+          * Automatically sets default values for properties based on the database schema.
+          * These defaults are directly imported from the column definitions in the database.
+          * This ensures that the entity's initial state matches the database defaults.
+          */
+        public function __construct() {
+            // Initialize properties with database default values
+            {$initializersImpl};
+        }
 		";
 		}
 		
