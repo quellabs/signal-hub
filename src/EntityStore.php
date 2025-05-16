@@ -559,7 +559,78 @@
 		    // Return the complete set of column definitions
 		    return $result;
 	    }
-		
+	    
+	    /**
+	     * This method finds primary key columns that are configured to receive
+	     * database-generated values, which are either:
+	     * 1. Primary keys with a PrimaryKeyStrategy annotation set to "identity", or
+	     * 2. Primary keys with no explicitly defined strategy (defaulting to auto-increment)
+	     * @param object $entity The entity to examine
+	     * @return string|null The name of the auto-incrementing primary key field, or null if none found
+	     */
+	    public function findAutoIncrementPrimaryKey(mixed $entity): ?string {
+		    // Fetch the owning table of this entity
+		    $owningTable = $this->getOwningTable($entity);
+		    
+		    // Return cached result if available to avoid repeated lookups
+		    if (array_key_exists($owningTable, $this->auto_increment_column_cache)) {
+			    return $this->auto_increment_column_cache[$owningTable];
+		    }
+		    
+		    // Get all annotations for the entity from the entity store
+		    $annotations = $this->getAnnotations($entity);
+		    
+		    // Process all fields and their annotations
+		    foreach ($annotations as $fieldName => $annotationSet) {
+			    // Use the isIdentityColumn method to determine if this field
+			    // is a primary key with identity strategy or no strategy
+			    if ($this->isIdentityColumn($annotationSet)) {
+				    // Found an auto-increment primary key - cache and return immediately
+				    return $this->auto_increment_column_cache[$owningTable] = $fieldName;
+			    }
+		    }
+		    
+		    // Cache null result to avoid repeated lookups when no matching key exists
+		    $this->auto_increment_column_cache[$owningTable] = null;
+		    
+		    // If we didn't find any matching primary key, return null
+		    return null;
+	    }
+	    
+	    /**
+	     * Retrieves all index annotations defined for a given entity class
+	     * @param mixed $entity The entity class to analyze (can be string classname or object instance)
+	     * @return array An array of Index and UniqueIndex annotation objects
+	     */
+	    public function getIndexes(mixed $entity): array {
+		    // Fetch the owning table of this entity
+		    $owningTable = $this->getOwningTable($entity);
+		    
+		    // Return cached result if available to avoid repeated lookups
+		    if (array_key_exists($owningTable, $this->index_cache)) {
+			    return $this->index_cache[$owningTable];
+		    }
+		    
+		    try {
+			    // Extract all annotation objects attached to the entity class
+			    $annotations = $this->annotation_reader->getClassAnnotations($entity);
+			    
+			    // Filter annotations to only include Index and UniqueIndex types
+			    $filteredResults = array_filter($annotations, function($annotation) {
+				    // Return true only if the annotation is an index type
+				    // This keeps both regular indexes and unique indexes
+				    return
+					    $annotation instanceof Index ||        // Regular index annotation
+					    $annotation instanceof UniqueIndex;    // Unique constraint index annotation
+			    });
+			    
+			    // Cache and return result
+			    return $this->index_cache[$owningTable] = $filteredResults;
+		    } catch (ParserException $e) {
+			    return [];
+		    }
+	    }
+
 		/**
 	     * Initialize entity classes using the EntityLocator.
 	     * This method discovers entity classes, validates them,
@@ -700,78 +771,11 @@
 	    }
 		
 	    /**
-	     * This method finds primary key columns that are configured to receive
-	     * database-generated values, which are either:
-	     * 1. Primary keys with a PrimaryKeyStrategy annotation set to "identity", or
-	     * 2. Primary keys with no explicitly defined strategy (defaulting to auto-increment)
-	     * @param object $entity The entity to examine
-	     * @return string|null The name of the auto-incrementing primary key field, or null if none found
-	     */
-	    public function findAutoIncrementPrimaryKey(mixed $entity): ?string {
-		    // Fetch the owning table of this entity
-		    $owningTable = $this->getOwningTable($entity);
-		    
-		    // Return cached result if available to avoid repeated lookups
-		    if (array_key_exists($owningTable, $this->auto_increment_column_cache)) {
-			    return $this->auto_increment_column_cache[$owningTable];
-		    }
-		    
-		    // Get all annotations for the entity from the entity store
-		    $annotations = $this->getAnnotations($entity);
-		    
-		    // Process all fields and their annotations
-		    foreach ($annotations as $fieldName => $annotationSet) {
-			    // Use the isIdentityColumn method to determine if this field
-			    // is a primary key with identity strategy or no strategy
-			    if ($this->isIdentityColumn($annotationSet)) {
-				    // Found an auto-increment primary key - cache and return immediately
-				    return $this->auto_increment_column_cache[$owningTable] = $fieldName;
-			    }
-		    }
-		    
-		    // Cache null result to avoid repeated lookups when no matching key exists
-		    $this->auto_increment_column_cache[$owningTable] = null;
-		    
-		    // If we didn't find any matching primary key, return null
-		    return null;
-	    }
-	    
-	    /**
-	     * Retrieves all index annotations defined for a given entity class
-	     * @param mixed $entity The entity class to analyze (can be string classname or object instance)
-	     * @return array An array of Index and UniqueIndex annotation objects
-	     */
-	    public function getIndexes(mixed $entity): array {
-		    // Fetch the owning table of this entity
-		    $owningTable = $this->getOwningTable($entity);
-		    
-		    // Return cached result if available to avoid repeated lookups
-		    if (array_key_exists($owningTable, $this->index_cache)) {
-			    return $this->index_cache[$owningTable];
-		    }
-		    
-		    // Extract all annotation objects attached to the entity class
-		    $annotations = $this->annotation_reader->getClassAnnotations($entity);
-		    
-		    // Filter annotations to only include Index and UniqueIndex types
-		    $filteredResults = array_filter($annotations, function($annotation) {
-			    // Return true only if the annotation is an index type
-			    // This keeps both regular indexes and unique indexes
-			    return
-				    $annotation instanceof Index ||        // Regular index annotation
-				    $annotation instanceof UniqueIndex;    // Unique constraint index annotation
-		    });
-		 
-			// Cache and return result
-		    return $this->index_cache[$owningTable] = $filteredResults;
-	    }
-	    
-	    /**
 	     * Retrieves the Column annotation from an array of property annotations.
 	     * @param array $propertyAnnotations An array of annotations attached to a property
 	     * @return Column|null Returns the Column annotation if found, null otherwise
 	     */
-	    protected function getColumnAnnotation(array $propertyAnnotations): ?Column {
+	    private function getColumnAnnotation(array $propertyAnnotations): ?Column {
 		    // Iterate through each annotation for this property
 		    foreach ($propertyAnnotations as $property => $annotation) {
 			    // Check if the current annotation is an instance of Column
