@@ -276,7 +276,7 @@ represents the state of new, unsaved entities that don't yet have ID values assi
 private ?int $productId = null;  // Nullable in PHP, NOT NULL in database
 ```
 
-This pattern is especially important for auto-increment (identity) primary keys, as new entities won't
+This pattern is especially important for identity (auto-increment) primary keys, as new entities won't
 have an ID until after they're persisted to the database. ObjectQuel's entity manager uses this nullability
 to determine whether an entity is new and requires an INSERT rather than an UPDATE operation.
 
