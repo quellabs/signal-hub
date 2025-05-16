@@ -262,6 +262,24 @@ For primary key properties, you can apply the @Orm\PrimaryKeyStrategy annotation
 | **uuid**     | Generates a unique UUID for each new record                     |
 | **sequence** | Uses a select query to determine the next value in the sequence |
 
+#### Primary Key Properties and Nullability
+
+While primary keys are defined as NOT NULL in the database (a fundamental requirement for primary keys),
+in PHP entity classes they should be declared as nullable types (`?int`, `?string`, etc.). This approach properly
+represents the state of new, unsaved entities that don't yet have ID values assigned:
+
+```php
+/**
+ * @Orm\Column(name="product_id", type="integer", limit=11, primary_key=true)
+ * @Orm\PrimaryKeyStrategy(strategy="identity")
+ */
+private ?int $productId = null;  // Nullable in PHP, NOT NULL in database
+```
+
+This pattern is especially important for auto-increment (identity) primary keys, as new entities won't
+have an ID until after they're persisted to the database. ObjectQuel's entity manager uses this nullability
+to determine whether an entity is new and requires an INSERT rather than an UPDATE operation.
+
 ## The ObjectQuel Language
 
 ObjectQuel draws inspiration from QUEL, a pioneering database query language developed in the 1970s for the Ingres DBMS at UC Berkeley (later acquired by Oracle). While SQL became the industry standard, QUEL's elegant approach to querying has been adapted here for modern entity-based programming:
