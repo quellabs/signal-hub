@@ -64,7 +64,13 @@
 			$entityCode .= $this->generateNamespace();
 			$entityCode .= $this->generateImports();
 			$entityCode .= $this->generateClassDocBlock($table, $tableCamelCase);
-			$entityCode .= $this->generateEntityCode($tableCamelCase, $tableDescription);
+			
+			// Generate entity code
+			$entityCode .= "    class {$tableCamelCase}Entity {\n";
+			$entityCode .= $this->generateMemberVariables($tableDescription);
+			$entityCode .= $this->generateConstructor($tableDescription);
+			$entityCode .= $this->generateGettersAndSetters($tableDescription, $tableCamelCase);
+			$entityCode .= "    }\n"; // Class closing brace
 			
 			// Store the file
 			$this->saveEntityFile($tableCamelCase, $entityCode);
@@ -130,6 +136,8 @@
 			$output .= "    use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
 			$output .= "    use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
 			$output .= "    use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
+			$output .= "    use Quellabs\\ObjectQuel\\Annotations\Orm\Index;\n";
+			$output .= "    use Quellabs\\ObjectQuel\\Annotations\Orm\UniqueIndex;\n";
 			$output .= "    use Quellabs\\ObjectQuel\\Collections\\Collection;\n";
 			$output .= "    use Quellabs\\ObjectQuel\\Collections\\CollectionInterface;\n";
 			$output .= "\n";
@@ -170,22 +178,6 @@
 				"Select a database table to generate an entity class from:",
 				$this->getConnection()->getTables()
 			);
-		}
-		
-		/**
-		 * Generate the entity class code (the content between class braces)
-		 * @param string $tableCamelCase The camelCase version of the table name
-		 * @param array $tableDescription The table description
-		 * @return string The generated entity class code
-		 */
-		private function generateEntityCode(string $tableCamelCase, array $tableDescription): string {
-			$output = "    class {$tableCamelCase}Entity {\n";
-			$output .= $this->generateMemberVariables($tableDescription);
-			$output .= $this->generateConstructor($tableDescription);
-			$output .= $this->generateGettersAndSetters($tableDescription, $tableCamelCase);
-			$output .= "    }\n"; // Class closing brace
-			
-			return $output;
 		}
 		
 		/**
