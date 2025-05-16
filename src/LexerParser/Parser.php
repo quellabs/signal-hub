@@ -47,7 +47,8 @@
 				'license',
 				'package',
 				'template',
-				'url'
+				'url',
+				'note'
 			];
 		}
 		
