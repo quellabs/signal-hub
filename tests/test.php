@@ -31,25 +31,17 @@
 	");
 	 */
 	
+	/*
 	$hamster = new \Quellabs\ObjectQuel\Entity\ProductsEntity();
 	$hamster->setGuid('xyz');
 	$hamster->setProductsQuantity(0);
 	$entityManager->persist($hamster);
 	$entityManager->flush();
+	*/
 	
 
-	/*
-	$entity = $entityManager->find(HamsterEntity::class, 1);
-	$entity->setWoopie('xyz');
+	$entity = $entityManager->find(\Quellabs\ObjectQuel\Entity\ProductsEntity::class, 1452);
+	$entity->setWoocommerceId("hallo");
 	$entityManager->persist($entity);
 	$entityManager->flush($entity);
-	*/
-
-	$entity = $entityManager->find(HamsterEntity::class, 1);
-	$entityManager->remove($entity);
-	$entityManager->flush($entity);
-	
-	
-	
-	
 	

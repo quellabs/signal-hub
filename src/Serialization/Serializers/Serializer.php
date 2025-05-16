@@ -312,12 +312,14 @@
 							$this->methodExistsCache[$methodKey] = method_exists($entity, $setterMethod);
 						}
 						
-						// Set the property using the setter method. If that doesn't exist, use reflection
+						// Set the property using the setter method
 						if ($this->methodExistsCache[$methodKey]) {
 							$entity->$setterMethod($normalizedValue);
-						} else {
-							$this->propertyHandler->set($entity, $property, $normalizedValue);
+							break;
 						}
+						
+						// if no setter method exists, use reflection
+						$this->propertyHandler->set($entity, $property, $normalizedValue);
 						
 						// Skip to the next property
 						break;
