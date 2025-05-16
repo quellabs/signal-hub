@@ -676,8 +676,8 @@
 					$oneToOneDependencies = array_filter($this->getOneToOneDependencies($class), function($e) { return !empty($e->getInversedBy()); });
 					
 					$this->dependencies[$class] = array_unique(array_merge(
-						array_map(function($e) { return $e->getTargetEntity(); }, $manyToOneDependencies),
-						array_map(function($e) { return $e->getTargetEntity(); }, $oneToOneDependencies),
+						array_map(function($e) { return $this->normalizeEntityName($e->getTargetEntity()); }, $manyToOneDependencies),
+						array_map(function($e) { return $this->normalizeEntityName($e->getTargetEntity()); }, $oneToOneDependencies),
 					));
 				}
 			}

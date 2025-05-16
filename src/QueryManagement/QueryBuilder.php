@@ -86,7 +86,9 @@
 			$oneToOneDependencies = $this->entityStore->getOneToOneDependencies($dependentEntityType);
 			$oneToOneDependenciesFiltered = array_filter($oneToOneDependencies, function($e) { return $e->getInversedBy() === null; });
 			$oneToOneDependenciesFiltered = array_filter($oneToOneDependenciesFiltered, function($e) { return $e->getFetch() !== "LAZY"; });
-			$oneToOneDependenciesFiltered = array_filter($oneToOneDependenciesFiltered, function($e) use ($entityType) { return $e->getTargetEntity() === $entityType; });
+			$oneToOneDependenciesFiltered = array_filter($oneToOneDependenciesFiltered, function($e) use ($entityType) {
+				return $this->entityStore->normalizeEntityName($e->getTargetEntity()) === $entityType;
+			});
 			
 			foreach ($oneToOneDependenciesFiltered as $propertyName => $relation) {
 				// Create a unique alias for the range.
@@ -120,7 +122,9 @@
 			// Get all non-LAZY manyToOne dependencies
 			$manyToOneDependencies = $this->entityStore->getManyToOneDependencies($dependentEntityType);
 			$manyToOneDependenciesFiltered = array_filter($manyToOneDependencies, function($e) { return $e->getFetch() !== "LAZY"; });
-			$manyToOneDependenciesFiltered = array_filter($manyToOneDependenciesFiltered, function($e) use ($entityType) { return $e->getTargetEntity() === $entityType; });
+			$manyToOneDependenciesFiltered = array_filter($manyToOneDependenciesFiltered, function($e) use ($entityType) {
+				return $this->entityStore->normalizeEntityName($e->getTargetEntity()) === $entityType;
+			});
 			
 			foreach ($manyToOneDependenciesFiltered as $propertyName => $relation) {
 				// Create a unique alias for the range.

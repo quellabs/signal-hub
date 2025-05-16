@@ -3,7 +3,6 @@
 	require('../vendor/autoload.php');
 	
 	use Quellabs\ObjectQuel\Configuration;
-	use Quellabs\ObjectQuel\Entity\HamsterEntity;
 	use Quellabs\ObjectQuel\EntityManager;
 	
 	$config = new Configuration();
@@ -40,7 +39,7 @@
 	*/
 	
 
-	$entity = $entityManager->find(\Quellabs\ObjectQuel\Entity\ProductsEntity::class, 1452);
+	$entity = $entityManager->find(\Quellabs\ObjectQuel\Entity\ProductsEntity::class, 1492);
 	$entity->setWoocommerceId("hallo");
 	$entityManager->persist($entity);
 	$entityManager->flush($entity);
