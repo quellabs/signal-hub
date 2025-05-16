@@ -520,7 +520,7 @@
 			
 			// Fallback to using the property handler if no getter method exists
 			// This likely accesses properties through alternative means (e.g., reflection)
-			return $this->property_handler->get(get_class($entity), $property);
+			return $this->property_handler->get($entity, $property);
 		}
 		
 		/**
