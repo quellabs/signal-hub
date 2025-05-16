@@ -5,10 +5,12 @@
 	/**
 	 * Import required classes for entity management and console interaction
 	 */
-	use Phinx\Db\Adapter\AdapterInterface;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
+	use Quellabs\ObjectQuel\EntityManager;
+	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
+	use Quellabs\ObjectQuel\Sculpt\Helpers\IndexComparator;
 	use Quellabs\Sculpt\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
@@ -98,7 +100,7 @@
 		public function getHelp(): string {
 			return "Generates entity classes by mapping database tables to object-oriented entities.";
 		}
-
+		
 		/**
 		 * Convert a string to camelcase
 		 * @param string $input
@@ -140,18 +142,25 @@
 		
 		/**
 		 * Generate the class docblock with ORM annotations
-		 * @param string $table The table name
+		 * @param string $tableName The table name
 		 * @param string $tableCamelCase The camelCase version of the table name
 		 * @return string The class docblock
 		 */
-		private function generateClassDocBlock(string $table, string $tableCamelCase): string {
+		private function generateClassDocBlock(string $tableName, string $tableCamelCase): string {
 			$output = "";
 			$output .= "    /**\n";
 			$output .= "     * Class {$tableCamelCase}Entity\n";
 			$output .= "     * @package {$this->configuration->getEntityNameSpace()}\n";
-			$output .= "     * @Orm\Table(name=\"{$table}\")\n";
-			$output .= "     */\n";
+			$output .= "     * @Orm\Table(name=\"{$tableName}\")\n";
 			
+			foreach ($this->getTableIndexes($tableName) as $name => $indexConfig) {
+				$columns = "'" . implode("', '", $indexConfig['columns']) . "'";
+				$annotationType = $indexConfig['unique'] ? "Index" : "UniqueIndex";
+				
+				$output .= "     * @Orm\{$annotationType}(name=\"{$name}\", columns={{$columns}})}\n";
+			}
+			
+			$output .= "     */\n";
 			return $output;
 		}
 		
@@ -190,7 +199,7 @@
 		private function generateMemberVariables(array $tableDescription): string {
 			$output = "";
 			
-			foreach($tableDescription as $columnName => $column) {
+			foreach ($tableDescription as $columnName => $column) {
 				$columnCamelCase = lcfirst($this->camelCase($columnName));
 				$acceptType = $this->getColumnType($column);
 				
@@ -202,7 +211,7 @@
 				if ($column["primary_key"] && $column["identity"]) {
 					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"identity\")\n";
 				}
-
+				
 				$output .= "         */\n";
 				$output .= "        private {$acceptType} \${$columnCamelCase}";
 				$output .= $this->getColumnDefaultValue($column);
@@ -301,7 +310,7 @@
 		private function generateGettersAndSetters(array $tableDescription, string $tableCamelCase): string {
 			$output = "";
 			
-			foreach($tableDescription as $columnName => $column) {
+			foreach ($tableDescription as $columnName => $column) {
 				$fieldCamelCase = $this->camelCase($columnName);
 				$variableCamelCase = lcfirst($fieldCamelCase);
 				$acceptType = $this->getColumnType($column);
@@ -380,5 +389,20 @@
 			}
 			
 			return $this->connection;
+		}
+		
+		/**
+		 * Retrieves all database indexes defined for a specific table
+		 * @param string $tableName The name of the database table to get indexes for
+		 * @return array Formatted array of database indexes with their configurations
+		 */
+		private function getTableIndexes(string $tableName): array {
+			return array_map(function ($index) {
+				return [
+					'columns' => $index['columns'],   // Array of column names included in this index
+					'type'    => $index['type'],      // Original index type from database
+					'unique'  => strtoupper($index['type']) === 'UNIQUE'  // Convert type to boolean flag for uniqueness
+				];
+			}, $this->getConnection()->getIndexes($tableName));
 		}
 	}
