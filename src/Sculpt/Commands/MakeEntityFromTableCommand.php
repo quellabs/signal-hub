@@ -7,10 +7,7 @@
 	 */
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
-	use Quellabs\ObjectQuel\EntityManager;
-	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
-	use Quellabs\ObjectQuel\Sculpt\Helpers\IndexComparator;
 	use Quellabs\Sculpt\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
