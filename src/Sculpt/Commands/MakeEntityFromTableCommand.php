@@ -272,6 +272,11 @@
 				if ($column["primary_key"] && $column["identity"]) {
 					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"identity\")\n";
 				}
+
+				// Add special note for columns that are nullable in PHP but NOT NULL in database
+				if ($this->isNullableInPhpOnly($column)) {
+					$output .= "         * @note Field made nullable in PHP due to missing default value in database\n";
+				}
 				
 				// Close the PHPDoc comment block
 				$output .= "         */\n";
@@ -308,12 +313,10 @@
 		private function getColumnType(array $column): string {
 			// A column should be nullable in PHP if either:
 			// 1. It allows NULL values in the database, OR
-			// 2. It's an auto-increment identity column (which will be NULL for new entities)
-			//
-			// Note: Identity columns are treated as nullable in PHP even though they're NOT NULL
-			// in the database. This is because new entities don't have an ID until after persistence.
+			// 2. It's an auto-increment identity column (which will be NULL for new entities), OR
+			// 3. It's a complex type without a default value (determined by isNullableInPhpOnly)
 			$phpType = $column["php_type"];
-			$nullable = $column["nullable"] || $column["identity"];
+			$nullable = $column["nullable"] || $column["identity"] || $this->isNullableInPhpOnly($column);
 			
 			// For nullable types, prepend a "?" to create a union type with null (PHP 7.4+)
 			// Example: "?int" means "int|null" (can be either an integer or null)
@@ -323,6 +326,25 @@
 			
 			// For non-nullable types or 'mixed' (which is already nullable), return the base PHP type
 			return $phpType;
+		}
+		
+		/**
+		 * Determines if a column should be made nullable in PHP despite being NOT NULL in the database
+		 * This occurs when complex types have no default value but are marked as NOT NULL
+		 * @param array $column Column metadata from database schema
+		 * @return bool True if the column should be made nullable in PHP despite database constraints
+		 */
+		private function isNullableInPhpOnly(array $column): bool {
+			// List of complex types that should be nullable when they lack defaults
+			$complexTypes = ['date', 'datetime', 'json', 'blob', 'text'];
+			
+			// Check if this is a complex type without default value that's marked as NOT NULL
+			return (
+				in_array($column['type'], $complexTypes) &&
+				!$column['nullable'] &&
+				$column['default'] === null &&
+				!$column['identity'] // Exclude identity columns which are handled separately
+			);
 		}
 		
 		/**
