@@ -410,7 +410,7 @@
 				
 				while ($token->getType() !== Token::Eof) {
 					// Skip non-annotation tokens
-					if ($token->getType() != Token::Annotation) {
+					if ($token->getType() !== Token::Annotation) {
 						$token = $this->lexer->get();
 						continue;
 					}

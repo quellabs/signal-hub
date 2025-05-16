@@ -88,6 +88,7 @@
 			
 			class TestClassWithUseStatements {
 			    /**
+                 * Naam met een \' erin
 			     * @TestAnnotation(name="imported via alias")
 			     * @AnotherTest(value=123)
 			     */

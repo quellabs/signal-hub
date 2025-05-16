@@ -16,6 +16,7 @@
 		protected array $single_tokens;
 		protected array $two_char_tokens;
 		protected Token $lookahead;
+		protected bool $annotation_mode = false;
 		
 		/**
 		 * Lexer constructor.
@@ -58,6 +59,7 @@
 				Token::Exclamation      => '!',
 				Token::Question         => '?',
 				Token::Dollar           => '$',
+				Token::Annotation       => '@',
 			];
 			
 			$this->two_char_tokens = [
@@ -133,55 +135,125 @@
 		}
 		
 		/**
+		 * Find the next annotation in the string
+		 * @return bool True if an annotation was found, false otherwise
+		 */
+		protected function findNextAnnotation(): bool {
+			// Reset annotation mode
+			$this->annotation_mode = false;
+			
+			// Find the next @ symbol
+			while ($this->pos < $this->length) {
+				if ($this->string[$this->pos] == '@') {
+					// Found an annotation, set the mode and return true
+					$this->annotation_mode = true;
+					return true;
+				}
+				
+				++$this->pos;
+			}
+			
+			// No more annotations found
+			return false;
+		}
+		
+		/**
+		 * Checks if we've reached the end of an annotation
+		 * This happens when we encounter a newline that's not within a string or parentheses
+		 * @return bool True if we've reached the end of an annotation
+		 */
+		protected function isEndOfAnnotation(): bool {
+			// Return false if we're not in annotation mode
+			if (!$this->annotation_mode) {
+				return false;
+			}
+			
+			// Check if the current character is a newline
+			if ($this->pos < $this->length && $this->string[$this->pos] == "\n") {
+				// Get the rest of the line
+				$nextLinePos = $this->pos + 1;
+				
+				// Skip whitespace and * at the start of the next line
+				while ($nextLinePos < $this->length && (
+					$this->string[$nextLinePos] == ' ' ||
+					$this->string[$nextLinePos] == "\t" ||
+					$this->string[$nextLinePos] == '*'
+				)) {
+					$nextLinePos++;
+				}
+				
+				// If the next non-whitespace character is not @, this is the end of the annotation
+				if ($nextLinePos >= $this->length || $this->string[$nextLinePos] != '@') {
+					return true;
+				}
+			}
+			
+			return false;
+		}
+		
+		/**
 		 * Advance $this->pos to the start of the next token
 		 * This method skips over whitespace, newlines, and comment markers
 		 * to position the cursor at the beginning of the next meaningful token
 		 */
 		protected function advance(): void {
+			// Handle annotation mode first
+			if (!$this->handleAnnotationMode()) {
+				return; // We've reached the end of the string
+			}
+			
+			// Process whitespace, comments, and find the next token
+			$this->skipWhitespaceAndComments();
+		}
+		
+		/**
+		 * Handles annotation mode logic and positioning
+		 *
+		 * @return bool False if we've reached the end of string, true otherwise
+		 */
+		protected function handleAnnotationMode(): bool {
+			// If we're not in annotation mode, try to find the next annotation
+			if (!$this->annotation_mode) {
+				// If we can't find another annotation, advance to the end of the string
+				if (!$this->findNextAnnotation()) {
+					$this->pos = $this->length;
+					return false;
+				}
+			}
+			
+			// Check if we've reached the end of an annotation
+			if ($this->isEndOfAnnotation()) {
+				// Reset annotation_mode flag
+				$this->annotation_mode = false;
+				
+				// Try to find the next annotation
+				if (!$this->findNextAnnotation()) {
+					$this->pos = $this->length;
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		
+		/**
+		 * Skips over whitespace, newlines, and comment markers
+		 */
+		protected function skipWhitespaceAndComments(): void {
 			// Flag to track if we've just seen a newline and should check for a star
-			// This helps with processing doc-block style comments (/* * text * */)
 			$checkStar = false;
 			
 			while ($this->pos < $this->length) {
-				// Handle newlines specifically
-				// After a newline in a doc block, we might have a star '*' that should be ignored
-				if ($this->string[$this->pos] == "\n") {
-					// Set flag to check for star on next character
-					$checkStar = true;
-					++$this->pos;
+				if ($this->handleNewline($checkStar)) {
 					continue;
 				}
 				
-				// Skip whitespace characters and stars after newlines
-				// Whitespace includes: space, newline, carriage return, tab
-				// If checkStar is true, we also skip '*' characters that follow newlines in doc blocks
-				if (in_array($this->string[$this->pos], [" ", "\n", "\r", "\t"]) ||
-					($checkStar && ($this->string[$this->pos] == "*"))) {
-					
-					// If we find and skip a star, reset the checkStar flag
-					if ($this->string[$this->pos] == "*") {
-						$checkStar = false;
-					}
-					
-					++$this->pos;
+				if ($this->skipWhitespaceAndStars($checkStar)) {
 					continue;
 				}
 				
-				// Skip doc block comment markers
-				// This detects the start of a comment block '/' followed by '*'
-				if ($this->string[$this->pos] == '/') {
-					// Reset checkStar flag since we're handling comment start explicitly
+				if ($this->skipDocBlockCommentMarkers()) {
 					$checkStar = false;
-					
-					// Check for the "/*" pattern that begins a doc block
-					// The loop allows skipping multiple consecutive stars after the slash
-					for ($j = 0; $j < 2; ++$j) {
-						if (($this->pos + 1 < $this->length) && $this->string[$this->pos + 1] == '*') {
-							++$this->pos;
-						}
-					}
-					
-					++$this->pos;
 					continue;
 				}
 				
@@ -189,6 +261,94 @@
 				// This should be the start of a token, so exit the loop
 				break;
 			}
+		}
+		
+		/**
+		 * Handles newline characters and sets the checkStar flag
+		 * @param bool &$checkStar Reference to the checkStar flag that tracks if we should look for "*" characters
+		 * @return bool True if a newline was handled, false otherwise
+		 */
+		protected function handleNewline(bool &$checkStar): bool {
+			// Check if the current character is a newline
+			if ($this->string[$this->pos] == "\n") {
+				// In docblock comments, each line often starts with a "*" after a newline
+				// Set flag to true, so we can check for and skip these stars in the next iteration
+				$checkStar = true;
+				
+				// Move the position cursor past the newline character
+				++$this->pos;
+				
+				// Return true to indicate we found and processed a newline
+				return true;
+			}
+			
+			// Return false if the current character is not a newline
+			// This allows the calling method to try other character types
+			return false;
+		}
+		
+		/**
+		 * Skips whitespace characters and stars after newlines
+		 * @param bool &$checkStar Reference to the checkStar flag
+		 * @return bool True if whitespace or star was skipped, false otherwise
+		 */
+		protected function skipWhitespaceAndStars(bool &$checkStar): bool {
+			// Check if current position is beyond string length
+			if ($this->pos >= $this->length) {
+				return false;
+			}
+			
+			// Check for regular whitespace characters (space, newline, carriage return, tab)
+			if (in_array($this->string[$this->pos], [" ", "\n", "\r", "\t"])) {
+				++$this->pos;
+				return true;
+			}
+			
+			// Check for asterisk after newline when checkStar flag is set
+			if ($checkStar && $this->string[$this->pos] == "*") {
+				// Reset the checkStar flag since we've found and handled the star
+				$checkStar = false;
+				++$this->pos;
+				return true;
+			}
+			
+			// No whitespace or relevant star character found
+			return false;
+		}
+		
+		/**
+		 * This method identifies and skips over the beginning of a docblock comment.
+		 * It specifically looks for the pattern "/*" and variations with multiple asterisks.
+		 * The method advances the position pointer past these markers so parsing can continue.
+		 * @return bool True if comment markers were skipped, false otherwise
+		 */
+		protected function skipDocBlockCommentMarkers(): bool {
+			// Check if the current character is a forward slash
+			// This could be the start of a doc block comment "/*"
+			if ($this->string[$this->pos] == '/') {
+				// We found a slash, now look for the asterisk(s) that would make this a doc block
+				// This loop checks for up to 2 consecutive asterisks following the slash
+				// This handles both normal docblocks "/*" and JavaDoc-style "/**" comments
+				for ($j = 0; $j < 2; ++$j) {
+					// Check if there's another character after current position
+					// and if that character is an asterisk
+					if (($this->pos + 1 < $this->length) && $this->string[$this->pos + 1] == '*') {
+						// Move past the asterisk
+						++$this->pos;
+					}
+				}
+				
+				// Move past the last processed character (either the slash or last asterisk)
+				// This ensures we're positioned at the start of the actual comment content
+				++$this->pos;
+				
+				// Return true to indicate we found and processed a comment marker
+				return true;
+			}
+			
+			// Return false if the current character is not a forward slash
+			// This means no comment marker was found at the current position
+			return false;
 		}
 		
 		/**
@@ -242,11 +402,11 @@
 			
 			// Try each token type checker in order
 			$tokenCheckers = [
-				'checkTwoCharToken',
-				'checkNumberToken',
-				'checkSingleCharToken',
-				'checkStringToken',
 				'checkAnnotationToken',
+				'checkTwoCharToken',
+				'checkSingleCharToken',
+				'checkNumberToken',
+				'checkStringToken',
 				'checkIdentifierToken'
 			];
 			
@@ -259,7 +419,7 @@
 			// error - unknown token
 			return new Token(Token::None, $this->string[$this->pos++]);
 		}
-
+		
 		/**
 		 * Check for two-character tokens (e.g., ==, !=, >=, <=, &&, ||, etc.)
 		 * @return Token|null
@@ -339,29 +499,50 @@
 				// Initialize an empty string to build the string content
 				$string = "";
 				
-				// Pre-increment position to skip the opening quote, then continue until matching closing quote
-				while ($this->string[++$this->pos] !== $quote) {
-					// If we reach the end of input before finding the closing quote
-					if ($this->pos == $this->length) {
-						// String is not properly terminated - throw exception
-						throw new LexerException("Unexpected end of data");
-					}
-					
+				// Pre-increment position to skip the opening quote
+				++$this->pos;
+				
+				// Continue until matching closing quote
+				while ($this->pos < $this->length) {
 					// If we encounter a newline character inside the string
 					if ($this->string[$this->pos] == "\n") {
 						// Strings cannot contain newlines - throw exception
 						throw new LexerException("Unexpected newline in string");
 					}
 					
-					// Add current character to the string content
+					// Check for escape sequences
+					if ($this->string[$this->pos] == '\\' && $this->pos + 1 < $this->length) {
+						// Move to the escaped character
+						++$this->pos;
+						
+						// Handle special escape sequences
+						switch ($this->string[$this->pos]) {
+							case 'n': $string .= "\n"; break;
+							case 'r': $string .= "\r"; break;
+							case 't': $string .= "\t"; break;
+							// Most importantly, handle escaped quotes
+							case '"': $string .= '"'; break;
+							case "'": $string .= "'"; break;
+							// Fall back to just adding the character after the backslash
+							default: $string .= $this->string[$this->pos]; break;
+						}
+						++$this->pos;
+						continue;
+					}
+					
+					// Check if we've reached the end of the string
+					if ($this->string[$this->pos] == $quote) {
+						++$this->pos; // Move past the closing quote
+						return new Token(Token::String, $string);
+					}
+					
+					// Add current character to the string content and advance
 					$string .= $this->string[$this->pos];
-				};
+					++$this->pos;
+				}
 				
-				// Increment position to move past the closing quote
-				++$this->pos;
-				
-				// Return a String token with the extracted content (without the quotes)
-				return new Token(Token::String, $string);
+				// If we reached the end of input before finding the closing quote
+				throw new LexerException("Unexpected end of data");
 			}
 			
 			// Return null if no string token was found at current position
