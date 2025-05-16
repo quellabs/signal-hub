@@ -32,7 +32,7 @@
     "ext-gd": "*",
     "ext-fileinfo": "*",
     "quellabs/signal-hub": "1.*",
-    "quellabs/annotation-reader": "dev-main",
+    "quellabs/annotation-reader": "1.*",
     "quellabs/sculpt": "dev-main",
     "robmorgan/phinx": "^0.13.4",
     "cakephp/database": "^4.4",
