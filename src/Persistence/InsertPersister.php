@@ -106,7 +106,9 @@
 					
 					// Update the entity with the newly generated primary key value
 					// Uses the property handler to respect access rules for private/protected properties
-					$this->property_handler->set($entity, $primaryKey, $value);
+					if ($value !== null) {
+						$this->property_handler->set($entity, $primaryKey, $value);
+					}
 				}
 			}
 			

@@ -287,16 +287,42 @@
 		}
 		
 		/**
-		 * Get the column type for PHP
-		 * @param array $column The column description
-		 * @return string The PHP type for the column
+		 * Determines the appropriate PHP type declaration for a database column
+		 *
+		 * This function converts database column metadata into a PHP type declaration string,
+		 * handling nullable columns and identity (auto-increment) primary keys appropriately.
+		 *
+		 * For identity columns (auto-increment primary keys), we always make them nullable in PHP
+		 * even if they can't be NULL in the database. This reflects that new entities will have
+		 * null IDs until they're persisted to the database and receive their auto-generated value.
+		 *
+		 * @param array $column The column description array containing metadata such as:
+		 *                     - php_type: The base PHP type (string, int, float, etc.)
+		 *                     - nullable: Whether the column allows NULL values in the database
+		 *                     - identity: Whether the column is an auto-increment/identity column
+		 *
+		 * @return string The PHP type declaration to use in entity properties:
+		 *                - For nullable or identity columns: "?type" (e.g., "?int", "?string")
+		 *                - For non-nullable regular columns: just the type (e.g., "int", "string")
 		 */
 		private function getColumnType(array $column): string {
-			if ($column["nullable"] && $column["php_type"] !== 'mixed') {
-				return "?{$column["php_type"]}";
-			} else {
-				return $column["php_type"];
+			// A column should be nullable in PHP if either:
+			// 1. It allows NULL values in the database, OR
+			// 2. It's an auto-increment identity column (which will be NULL for new entities)
+			//
+			// Note: Identity columns are treated as nullable in PHP even though they're NOT NULL
+			// in the database. This is because new entities don't have an ID until after persistence.
+			$phpType = $column["php_type"];
+			$nullable = $column["nullable"] || $column["identity"];
+			
+			// For nullable types, prepend a "?" to create a union type with null (PHP 7.4+)
+			// Example: "?int" means "int|null" (can be either an integer or null)
+			if ($nullable && $phpType !== 'mixed') {
+				return "?{$phpType}";
 			}
+			
+			// For non-nullable types or 'mixed' (which is already nullable), return the base PHP type
+			return $phpType;
 		}
 		
 		/**

@@ -109,16 +109,28 @@
 		}
 		
 		/**
-		 * Gets a property value
-		 * @param $object
-		 * @param string $propertyName
-		 * @return mixed
+		 * Gets a property value from an object using reflection
+		 * @param object $object The object instance to get the property from
+		 * @param string $propertyName The name of the property to retrieve
+		 * @return mixed The property value if accessible, null if uninitialized, false on error
 		 */
 		public function get($object, string $propertyName): mixed {
 			try {
+				// Get the reflection property object for the given property name
 				$reflection = $this->getReflectionProperty($object, $propertyName);
+				
+				// Critical check: Determine if the property has been initialized
+				// This prevents the "must not be accessed before initialization" Error
+				// that occurs with typed properties in PHP 7.4+
+				if (!$reflection->isInitialized($object)) {
+					return null;
+				}
+				
+				// Property is initialized, so it's safe to access its value
 				return $reflection->getValue($object);
 			} catch (\ReflectionException $e) {
+				// Property doesn't exist or isn't accessible
+				// In a production system, you might want to log this exception
 				return false;
 			}
 		}

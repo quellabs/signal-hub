@@ -31,8 +31,9 @@
 	");
 	 */
 	
-	$hamster = new HamsterEntity();
-	$hamster->setWoopie('hallo2');
+	$hamster = new \Quellabs\ObjectQuel\Entity\ProductsEntity();
+	$hamster->setGuid('xyz');
+	$hamster->setProductsQuantity(0);
 	$entityManager->persist($hamster);
 	$entityManager->flush();
 	
