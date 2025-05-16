@@ -48,7 +48,16 @@
 				'package',
 				'template',
 				'url',
-				'note'
+				'note',
+				'deprecated',
+				'since',
+				'see',
+				'example',
+				'inheritdoc',
+				'internal',
+				'api',
+				'version',
+				'category'
 			];
 		}
 		
