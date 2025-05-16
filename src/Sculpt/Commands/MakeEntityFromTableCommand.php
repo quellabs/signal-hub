@@ -64,7 +64,7 @@
 			$entityCode .= $this->generateNamespace();
 			$entityCode .= $this->generateImports();
 			$entityCode .= $this->generateClassDocBlock($table, $tableCamelCase);
-			$entityCode .= $this->generateEntityCode($table, $tableCamelCase, $tableDescription);
+			$entityCode .= $this->generateEntityCode($tableCamelCase, $tableDescription);
 			
 			// Store the file
 			$this->saveEntityFile($tableCamelCase, $entityCode);
@@ -154,7 +154,7 @@
 				$columns = "'" . implode("', '", $indexConfig['columns']) . "'";
 				$annotationType = $indexConfig['unique'] ? "Index" : "UniqueIndex";
 				
-				$output .= "     * @Orm\{$annotationType}(name=\"{$name}\", columns={{$columns}})}\n";
+				$output .= "     * @Orm\\{$annotationType}(name=\"{$name}\", columns={{$columns}})\n";
 			}
 			
 			$output .= "     */\n";
@@ -174,14 +174,14 @@
 		
 		/**
 		 * Generate the entity class code (the content between class braces)
-		 * @param string $table The table name
 		 * @param string $tableCamelCase The camelCase version of the table name
 		 * @param array $tableDescription The table description
 		 * @return string The generated entity class code
 		 */
-		private function generateEntityCode(string $table, string $tableCamelCase, array $tableDescription): string {
+		private function generateEntityCode(string $tableCamelCase, array $tableDescription): string {
 			$output = "    class {$tableCamelCase}Entity {\n";
 			$output .= $this->generateMemberVariables($tableDescription);
+			$output .= $this->generateConstructor($tableDescription);
 			$output .= $this->generateGettersAndSetters($tableDescription, $tableCamelCase);
 			$output .= "    }\n"; // Class closing brace
 			
@@ -189,30 +189,104 @@
 		}
 		
 		/**
+		 * This function analyzes table column definitions and creates PHP code statements
+		 * that will properly initialize entity properties with their database default values.
+		 * These statements are intended to be included in the entity class constructor.
+		 * @param array $tableDescription An associative array containing column definitions from the database schema
+		 * @return array List of PHP code statements for initializing properties with default values
+		 */
+		private function buildPropertyDefaultInitializers(array $tableDescription): array {
+			$result = [];
+			
+			// Iterate through each column in the table description
+			foreach ($tableDescription as $columnName => $column) {
+				// Skip columns that don't have specified default values
+				if (!$this->hasColumnDefaultValue($column)) {
+					continue;
+				}
+				
+				// Convert the database column name to camelCase for PHP property naming convention
+				$columnCamelCase = lcfirst($this->camelCase($columnName));
+				
+				// Get the PHP-compatible default value representation for this column
+				$defaultValue = $this->getColumnDefaultValue($column);
+				
+				// Generate the property initialization statement
+				$result[] = "\$this->{$columnCamelCase} = {$defaultValue}";
+			}
+			
+			return $result;
+		}
+		
+		/**
+		 * This function creates a complete constructor method implementation that initializes
+		 * entity properties with their default values from the database schema. If no properties
+		 * require initialization, an empty string is returned.
+		 * @param array $tableDescription An associative array containing column definitions from the database schema
+		 * @return string The complete constructor method code, or an empty string if no initializations are needed
+		 */
+		private function generateConstructor(array $tableDescription): string {
+			// Get the property initialization statements based on column default values
+			$initializers = $this->buildPropertyDefaultInitializers($tableDescription);
+			
+			// If there are no default values to initialize, don't generate a constructor
+			if (empty($initializers)) {
+				return "";
+			}
+			
+			// Join all initialization statements with line breaks for readability
+			$initializersImpl = implode(";\n            ", $initializers);
+			
+			// Build and return the complete constructor method with proper indentation
+			return "
+       /**
+		* Constructor - automatically initializes properties with database default values
+		*/
+		public function __construct() {
+			{$initializersImpl};
+		}
+			   
+		";
+		}
+		
+		/**
 		 * Generate the member variables for the entity class
-		 * @param array $tableDescription The table description
-		 * @return string The generated member variables code
+		 * @param array $tableDescription The table description with column details
+		 * @return string The generated member variables code with proper ORM annotations
 		 */
 		private function generateMemberVariables(array $tableDescription): string {
+			// Initialize empty output string to store the generated code
 			$output = "";
 			
+			// Iterate through each column in the table description
 			foreach ($tableDescription as $columnName => $column) {
+				// Convert the database column name to camelCase for PHP property naming convention
 				$columnCamelCase = lcfirst($this->camelCase($columnName));
+				
+				// Get the PHP type for this column (string, int, \DateTime, etc.)
 				$acceptType = $this->getColumnType($column);
 				
+				// Begin generating the PHPDoc comment block with ORM annotations
 				$output .= "        /**\n";
+				
+				// Add the Column annotation with name and type
 				$output .= "         * @Orm\Column(name=\"{$columnName}\", type=\"{$column["type"]}\"";
 				$output .= $this->getColumnAnnotationDetails($column);
 				$output .= ")\n";
 				
+				// If this is an auto-incrementing primary key, add the PrimaryKeyStrategy annotation
 				if ($column["primary_key"] && $column["identity"]) {
 					$output .= "         * @Orm\PrimaryKeyStrategy(strategy=\"identity\")\n";
 				}
 				
+				// Close the PHPDoc comment block
 				$output .= "         */\n";
-				$output .= "        private {$acceptType} \${$columnCamelCase}";
-				$output .= $this->getColumnDefaultValue($column);
-				$output .= ";\n\n";
+				
+				// Begin the property declaration with its type
+				$output .= "        protected {$acceptType} \${$columnCamelCase};";
+				
+				// Add a blank line for readability
+				$output .= "\n\n";
 			}
 			
 			return $output;
@@ -282,20 +356,43 @@
 		}
 		
 		/**
+		 * Returns true if the column has a default value
+		 * @param array $column The column description
+		 * @return bool
+		 */
+		private function hasColumnDefaultValue(array $column): bool {
+			return $column["default"] !== null && $column["default"] !== '';
+		}
+			
+		/**
 		 * Get the default value for a column
 		 * @param array $column The column description
 		 * @return string The default value expression
 		 */
 		private function getColumnDefaultValue(array $column): string {
-			if (empty($column["default"])) {
-				return "";
+			// Store the default value and type for easier reference
+			$defaultValue = $column["default"];
+			$columnType = $column['type'];
+			
+			// For datetime properties with a default string value
+			// Convert the string to a DateTime object initialization
+			if ($columnType === 'datetime' && is_string($defaultValue)) {
+				return "new \DateTime('{$defaultValue}');";
 			}
 			
-			if (is_numeric($column["default"])) {
-				return " = {$column["default"]}";
-			} else {
-				return " = \"{$column["default"]}\"";
+			// For date properties with a default string value
+			// Convert the string to a DateTime object initialization
+			if ($columnType === 'date' && is_string($defaultValue)) {
+				return "new \DateTime('{$defaultValue} 00:00:00');";
 			}
+			
+			// For numeric values (integers, floats), return as-is without quotes
+			if (is_numeric($defaultValue)) {
+				return $defaultValue;
+			}
+			
+			// For all other values (strings, etc.), wrap in double quotes
+			return "\"{$defaultValue}\"";
 		}
 		
 		/**
