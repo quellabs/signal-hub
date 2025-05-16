@@ -152,7 +152,7 @@
 			
 			foreach ($this->getTableIndexes($tableName) as $name => $indexConfig) {
 				$columns = "'" . implode("', '", $indexConfig['columns']) . "'";
-				$annotationType = $indexConfig['unique'] ? "Index" : "UniqueIndex";
+				$annotationType = $indexConfig['unique'] ? "UniqueIndex" : "Index";
 				
 				$output .= "     * @Orm\\{$annotationType}(name=\"{$name}\", columns={{$columns}})\n";
 			}
