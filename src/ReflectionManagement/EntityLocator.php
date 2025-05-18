@@ -3,13 +3,14 @@
 	namespace Quellabs\ObjectQuel\ReflectionManagement;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
 	 * Responsible for locating and loading entity classes
 	 */
 	class EntityLocator {
-
+		
 		/**
 		 * @var Configuration
 		 */
@@ -26,22 +27,28 @@
 		private array $entityClasses = [];
 		
 		/**
-		 * Constructor
+		 * Initializes the entity locator with the provided configuration
+		 * and annotation reader. If no annotation reader is provided,
+		 * a new one is created with settings derived from the configuration.
 		 * @param Configuration $configuration
 		 * @param AnnotationReader|null $annotationReader
 		 */
 		public function __construct(Configuration $configuration, ?AnnotationReader $annotationReader = null) {
+			// Store the configuration for later use when discovering entities
 			$this->configuration = $configuration;
 			
+			// Create a new configuration for the annotation reader
 			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
 			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
 			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
 			
+			// If no annotation reader was provided, create one with our configuration
+			// Otherwise, use the provided reader instance
 			$this->annotationReader = $annotationReader ?? new AnnotationReader($annotationReaderConfiguration);
 		}
 		
 		/**
-		 * Discover all entity classes in configured paths
+		 * Discover all entity classes in configured paths, including subdirectories
 		 * @return array List of discovered entity class names
 		 */
 		public function discoverEntities(): array {
@@ -54,13 +61,25 @@
 			
 			// Validate the directory exists
 			if (!is_dir($entityDirectory) || !is_readable($entityDirectory)) {
-				throw new \RuntimeException("Entity directory does not exist or is not readable: " . $entityDirectory);
+				throw new \RuntimeException("Entity directory does not exist or is not readable: {$entityDirectory}");
 			}
 			
-			// Get all PHP files in the Entity directory
-			$entityFiles = glob($entityDirectory . DIRECTORY_SEPARATOR . "*.php");
+			// Process the root directory and all subdirectories recursively
+			$this->processDirectory($entityDirectory);
 			
-			// Process each entity file
+			// Return the list
+			return $this->entityClasses;
+		}
+		
+		/**
+		 * Recursively process a directory and its subdirectories for entity files
+		 * @param string $directory The directory path to process
+		 */
+		private function processDirectory(string $directory): void {
+			// Get all PHP files in the current directory
+			$entityFiles = glob($directory . DIRECTORY_SEPARATOR . "*.php");
+			
+			// Process each entity file in the current directory
 			foreach ($entityFiles as $filePath) {
 				// Get the fully qualified class name from the file
 				$entityName = $this->extractEntityNameFromFile($filePath);
@@ -76,7 +95,13 @@
 				}
 			}
 			
-			return $this->entityClasses;
+			// Get all subdirectories
+			$subdirectories = glob($directory . DIRECTORY_SEPARATOR . "*", GLOB_ONLYDIR);
+			
+			// Process each subdirectory recursively
+			foreach ($subdirectories as $subdirectory) {
+				$this->processDirectory($subdirectory);
+			}
 		}
 		
 		/**
@@ -97,7 +122,6 @@
 			if (preg_match('/namespace\s+([^;]+);/s', $contents, $namespaceMatches)) {
 				$namespace = $namespaceMatches[1];
 			} else {
-				//$namespace = $this->configuration->getEntityNamespace();
 				$namespace = '';
 			}
 			
@@ -119,7 +143,11 @@
 		 * @return bool
 		 */
 		private function isEntity(string $entityName): bool {
-			$annotations = $this->annotationReader->getClassAnnotations($entityName);
-			return array_key_exists("Quellabs\\ObjectQuel\\Annotations\\Orm\\Table", $annotations);
+			try {
+				$annotations = $this->annotationReader->getClassAnnotations($entityName);
+				return array_key_exists("Quellabs\\ObjectQuel\\Annotations\\Orm\\Table", $annotations);
+			} catch (ParserException $e) {
+				return false;
+			}
 		}
 	}
