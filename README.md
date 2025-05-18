@@ -733,6 +733,7 @@ While you can work directly with the EntityManager, creating entity-specific rep
 
 ```php
 use Quellabs\ObjectQuel\Repository;
+use Quellabs\ObjectQuel\ObjectQuel\QuelResult;
 
 class ProductRepository extends Repository {
     
@@ -749,7 +750,7 @@ class ProductRepository extends Repository {
      * @param float $maxPrice Maximum price threshold
      * @return array<ProductEntity> Matching products
      */
-    public function findBelowPrice(float $maxPrice): array {
+    public function findBelowPrice(float $maxPrice): QuelResult {
         return $this->entityManager->executeQuery("
             range of p is App\\Entity\\ProductEntity
             retrieve (p) where p.price < :maxPrice
