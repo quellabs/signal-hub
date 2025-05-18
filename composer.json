@@ -1,0 +1,14 @@
+{
+  "name": "quellabs/dependency-injection",
+  "description": "A simple dependency injection container",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\DependencyInjection\\": "src/"
+    }
+  }
+}
