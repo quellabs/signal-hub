@@ -110,27 +110,16 @@ use Quellabs\Sculpt\Application;
 use Quellabs\Sculpt\Contracts\ServiceProvider;
 
 class SculptServiceProvider extends ServiceProvider {
+
     /**
      * Register your package's commands and services
      */
-    public function register(Application $app): void {
+    public function register(mixed $container): void {
         // Register commands
-        $this->registerCommands($app, [
+        $container->registerCommands($app, [
             \Your\Package\Commands\YourCommand::class,
             \Your\Package\Commands\AnotherCommand::class
         ]);
-    }
-    
-    /**
-     * Bootstrap after all providers are registered
-     */
-    public function boot(Application $app): void {
-        // This runs after all providers have been registered
-        // Ideal for extending existing commands or services
-        if ($app->hasCommand('existing:command')) {
-            $command = $app->getCommand('existing:command');
-            $command->addTemplate('your-template', __DIR__ . '/templates/example.stub');
-        }
     }
 }
 ```
@@ -145,6 +134,22 @@ In your package's composer.json:
     "extra": {
         "sculpt": {
             "provider": "Your\\Package\\SculptServiceProvider"
+        }
+    }
+}
+```
+
+Or:
+
+```json
+{
+    "name": "your/package",
+    "extra": {
+        "sculpt": {
+            "providers": [
+              "Your\\Package\\SculptServiceProvider",
+              "Your\\Package\\SculptServiceProvider2",
+            ]
         }
     }
 }
