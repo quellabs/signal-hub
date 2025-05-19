@@ -19,6 +19,15 @@
 		}
 		
 		/**
+		 * Always load sculpt commands.
+		 * The service itself may override this.
+		 * @return bool
+		 */
+		public function shouldLoad(): bool {
+			return true;
+		}
+		
+		/**
 		 * The boot method is called after all service providers have been registered.
 		 * This allows a provider to use services registered by other providers.
 		 * @param Application $app The application instance
