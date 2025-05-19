@@ -2,20 +2,22 @@
 	
 	namespace Quellabs\Sculpt;
 	
-	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
+	use Quellabs\Discover\Provider\ProviderInterface;
 	
 	/**
 	 * Base implementation of the ServiceProviderInterface that provides
 	 * common functionality for service providers in the Sculpt framework.
 	 */
-	abstract class ServiceProvider implements ServiceProviderInterface {
+	abstract class ServiceProvider implements ProviderInterface {
 		
 		/**
 		 * This service provider provides sculpt commands
 		 * @return string[]
 		 */
 		public function provides(): array {
-			return ['sculpt'];
+			return [
+				'sculpt'
+			];
 		}
 		
 		/**
@@ -25,16 +27,6 @@
 		 */
 		public function shouldLoad(): bool {
 			return true;
-		}
-		
-		/**
-		 * The boot method is called after all service providers have been registered.
-		 * This allows a provider to use services registered by other providers.
-		 * @param Application $app The application instance
-		 */
-		public function boot(Application $app): void {
-			// Default empty implementation
-			// Child classes can override this method to perform boot operations
 		}
 		
 		/**

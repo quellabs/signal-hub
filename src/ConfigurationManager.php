@@ -4,9 +4,6 @@
 	
 	/**
 	 * Configuration manager for handling command-line parameters
-	 *
-	 * This class provides structured access to command parameters passed via the CLI,
-	 * with support for named parameters, flags, and validation.
 	 */
 	class ConfigurationManager {
 		/**
@@ -315,4 +312,3 @@
 				!str_starts_with($this->rawParameters[$currentIndex + 1], '-');
 		}
 	}
-	
