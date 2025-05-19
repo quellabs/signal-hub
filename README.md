@@ -197,6 +197,10 @@ Use a custom key for service discovery in composer.json:
 $container = new \Quellabs\DependencyInjection\Container(null, false, 'custom-key');
 ```
 
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
 ## License
 
 MIT License
