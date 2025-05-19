@@ -4,11 +4,11 @@
 	
 	use Phinx\Config\Config;
 	use Phinx\Migration\Manager;
+	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Sculpt\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
-	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	use Symfony\Component\Console\Input\ArrayInput;
 	use Symfony\Component\Console\Output\BufferedOutput;
 	
@@ -23,9 +23,9 @@
 		 * QuelMigrateCommand constructor
 		 * @param ConsoleInput $input
 		 * @param ConsoleOutput $output
-		 * @param ServiceProviderInterface|null $provider
+		 * @param ProviderInterface|null $provider
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->environment = 'development';
 		}

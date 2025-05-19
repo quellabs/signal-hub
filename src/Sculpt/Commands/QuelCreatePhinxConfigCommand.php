@@ -108,7 +108,6 @@ EOT;
 		 * This method formats PHP arrays in a more readable way than the standard
 		 * var_export function, using modern short array syntax and proper indentation.
 		 * @param mixed $var The variable to export
-		 * @param bool $return Whether to return the exported value
 		 * @return string|null Formatted PHP code or null if $return is false
 		 */
 		private function varExport(mixed $var): ?string {

@@ -3,6 +3,7 @@
 	namespace Quellabs\ObjectQuel\Sculpt\Commands;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\EntityStore;
@@ -13,7 +14,6 @@
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
-	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	
 	/**
 	 * MakeMigration - CLI command for generating database migrations
@@ -34,10 +34,10 @@
 		 * MakeEntityCommand constructor
 		 * @param ConsoleInput $input
 		 * @param ConsoleOutput $output
-		 * @param ServiceProviderInterface|null $provider
+		 * @param ProviderInterface|null $provider
 		 * @throws OrmException
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
 			$this->entityPath = $this->configuration->getEntityPath();

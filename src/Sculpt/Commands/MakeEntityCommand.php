@@ -6,6 +6,7 @@
 	 * Import required classes for entity management and console interaction
 	 */
 	
+	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\OrmException;
@@ -14,7 +15,6 @@
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
-	use Quellabs\Sculpt\Contracts\ServiceProviderInterface;
 	
 	/**
 	 * MakeEntityCommand - CLI command for creating or updating entity classes
@@ -46,10 +46,10 @@
 		 * MakeEntityCommand constructor
 		 * @param ConsoleInput $input
 		 * @param ConsoleOutput $output
-		 * @param ServiceProviderInterface|null $provider
+		 * @param ProviderInterface|null $provider
 		 * @throws OrmException
 		 */
-		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ServiceProviderInterface $provider = null) {
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->configuration = $provider->getConfiguration();
 		}
