@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\DependencyInjection\Container;
+	namespace Quellabs\DependencyInjection;
 	
 	/**
 	 * Core container interface

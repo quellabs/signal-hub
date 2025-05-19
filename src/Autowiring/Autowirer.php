@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\DependencyInjection\Autowiring;
 	
-	use Quellabs\DependencyInjection\Container\ContainerInterface;
+	use Quellabs\DependencyInjection\ContainerInterface;
 	
 	/**
 	 * Handles dependency injection through reflection

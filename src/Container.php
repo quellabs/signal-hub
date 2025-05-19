@@ -3,7 +3,6 @@
 	namespace Quellabs\DependencyInjection;
 	
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
-	use Quellabs\DependencyInjection\Container\ContainerInterface;
 	use Quellabs\DependencyInjection\Discovery\ServiceDiscoverer;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
 	use Quellabs\DependencyInjection\Provider\ServiceProviderInterface;
