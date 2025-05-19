@@ -68,7 +68,7 @@
 		 * @param string $methodName
 		 * @return array
 		 */
-		private function getMethodParameters(string $className, string $methodName): array {
+		protected function getMethodParameters(string $className, string $methodName): array {
 			try {
 				$result = [];
 				
@@ -117,15 +117,26 @@
 		}
 		
 		/**
-		 * Check if a type is a built-in PHP type
+		 * Check if a type is a built-in PHP type that can be used in parameter lists
 		 * @param string $type
 		 * @return bool
 		 */
 		protected function isBuiltinType(string $type): bool {
 			return in_array($type, [
-				'string', 'int', 'float', 'bool', 'array', 'object',
-				'callable', 'iterable', 'resource', 'null', 'mixed',
-				'integer', 'boolean', 'double'
+				// Basic scalar types
+				'string', 'int', 'float', 'bool',
+				
+				// Legacy aliases for scalar types
+				'integer', 'boolean', 'double',
+				
+				// Compound types
+				'array', 'object', 'callable', 'iterable',
+				
+				// Special types
+				'mixed', 'null', 'false', 'true',
+				
+				// Resource (rarely used as a parameter type)
+				'resource',
 			]);
 		}
 	}

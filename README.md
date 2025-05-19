@@ -36,8 +36,7 @@ $result = $container->call($service, 'doSomething', ['extraParam' => 'value']);
 Service providers allow you to customize how services are created. A service provider can:
 
 - Define specific instantiation logic for a service
-- Register services with the container
-- Support specific types of services
+- Support instantiation of interfaces
 
 ### Default Service Provider
 

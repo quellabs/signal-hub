@@ -1,8 +1,18 @@
 {
   "name": "quellabs/dependency-injection",
-  "description": "A simple dependency injection container",
+  "description": "A lightweight, PSR-compliant dependency injection container for PHP with advanced autowiring capabilities",
   "type": "library",
   "license": "MIT",
+  "keywords": [
+    "dependency-injection",
+    "container",
+    "autowiring"
+  ],
+  "homepage": "https://github.com/quellabs/dependency-injection",
+  "support": {
+    "issues": "https://github.com/quellabs/dependency-injection/issues",
+    "source": "https://github.com/quellabs/dependency-injection"
+  },
   "require": {
     "php": ">=8.3"
   },

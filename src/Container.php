@@ -64,14 +64,6 @@
 		}
 		
 		/**
-		 * Get the autowirer instance
-		 * @return Autowirer
-		 */
-		public function getAutowirer(): Autowirer {
-			return $this->autowire;
-		}
-		
-		/**
 		 * Register a service provider
 		 * @param ServiceProviderInterface $provider
 		 * @return self
