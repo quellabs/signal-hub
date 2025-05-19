@@ -101,8 +101,6 @@
 		}
 		
 		/**
-		 * Determine if the provider should be loaded
-		 *
 		 * This method can be overridden to conditionally load providers
 		 * based on runtime conditions.
 		 * @return bool
