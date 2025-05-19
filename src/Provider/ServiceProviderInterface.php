@@ -2,10 +2,12 @@
 	
 	namespace Quellabs\DependencyInjection\Provider;
 	
+	use Quellabs\Discover\Provider\ProviderInterface;
+	
 	/**
 	 * Interface for service providers that support centralized autowiring
 	 */
-	interface ServiceProviderInterface {
+	interface ServiceProviderInterface extends ProviderInterface {
 
 		/**
 		 * Determine if this provider supports creating the given class

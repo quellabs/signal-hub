@@ -6,25 +6,32 @@
 	
 	/**
 	 * Abstract base class for service providers with centralized autowiring
+	 *
+	 * This class serves as the foundation for all service providers in the application.
+	 * It implements the ServiceProviderInterface and provides common functionality
+	 * that all service providers will inherit.
 	 */
 	abstract class ServiceProvider implements ServiceProviderInterface {
 		
 		/**
-		 * Reference to the container
+		 * This property stores the dependency injection container instance
+		 * that will be used to register and resolve services.
 		 */
 		protected Container $container;
 		
 		/**
 		 * ServiceProvider constructor
-		 * @param Container $container
+		 * @param Container $container The dependency injection container
 		 */
 		public function __construct(Container $container) {
 			$this->container = $container;
 		}
 		
 		/**
-		 * This class provides 'di' (dependency injection)
-		 * @return string[]
+		 * Defines the services that this provider makes available to the application.
+		 * By default, this base provider only registers the 'di' service.
+		 * Child classes should override this method to register additional services.
+		 * @return string[] Array of service identifiers provided by this provider
 		 */
 		public function provides(): array {
 			return [
@@ -33,8 +40,11 @@
 		}
 		
 		/**
-		 * Always load this provider
-		 * @return bool
+		 * Determines whether this service provider should be loaded.
+		 * The base implementation always returns true, ensuring that
+		 * core dependency injection services are always available.
+		 * Child classes may override this to conditionally load services.
+		 * @return bool True if the provider should be loaded, false otherwise
 		 */
 		public function shouldLoad(): bool {
 			return true;
