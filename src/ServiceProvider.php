@@ -40,4 +40,11 @@
 				$app->registerCommand(new $command($app->getInput(), $app->getOutput(), $this));
 			}
 		}
+		
+		/**
+		 * Register the service provider with the Sculpt application.
+		 * @param Application $application The Sculpt application instance
+		 * @return void
+		 */
+		abstract public function register(Application $application): void;
 	}
