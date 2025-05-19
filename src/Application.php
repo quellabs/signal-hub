@@ -150,6 +150,11 @@
 		public function discoverProviders(): void {
 			// Delegate to the service discoverer
 			$this->getServiceDiscoverer()->discover();
+			
+			// Call register on all found providers
+			foreach($this->getServiceDiscoverer()->getProviders() as $provider) {
+				$provider->register($this);
+			}
 		}
 		
 		/**
