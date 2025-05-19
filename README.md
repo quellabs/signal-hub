@@ -96,9 +96,11 @@ $container->register(new MyServiceProvider($container));
 
 ## Automatic Service Discovery
 
-The container can automatically discover and register service providers from Composer configurations:
+The container can automatically discover and register service providers through multiple methods. The Dependency Injection package integrates the Quellabs Discover functionality, giving you powerful service discovery capabilities right out of the box.
 
-### Project-Level Configuration
+### Basic Discovery with Composer Configuration
+
+#### Project-Level Configuration
 
 In your `composer.json`:
 
@@ -115,7 +117,7 @@ In your `composer.json`:
 }
 ```
 
-### Package-Level Configuration
+#### Package-Level Configuration
 
 For packages that want to register providers when installed:
 
@@ -128,6 +130,8 @@ For packages that want to register providers when installed:
     }
 }
 ```
+
+For more information about Quellabs Discover and its advanced features, visit [https://github.com/quellabs/discover](https://github.com/quellabs/discover).
 
 ## Singleton and Transient Patterns
 
