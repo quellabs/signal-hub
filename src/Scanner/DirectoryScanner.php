@@ -10,18 +10,26 @@
 	
 	/**
 	 * Scans directories for classes that implement ProviderInterface
+	 *
+	 * This scanner recursively traverses directories to find PHP classes that:
+	 * 1. Match an optional naming pattern (e.g., '/Provider$/' for classes ending with "Provider")
+	 * 2. Implement the ProviderInterface
 	 */
 	class DirectoryScanner implements ScannerInterface {
 		
 		/**
 		 * Directories to scan
-		 *
 		 * @var array<string>
 		 */
 		protected array $directories = [];
 		
 		/**
-		 * Class name pattern to match (regex)
+		 * Optional regular expression pattern to filter class names
+		 *
+		 * Examples:
+		 * - '/Provider$/' - Only classes ending with "Provider"
+		 * - '/^App\\\\Service\\\\/' - Only classes in the App\Service namespace
+		 * - null - No filtering, all classes implementing ProviderInterface are included
 		 *
 		 * @var string|null
 		 */
@@ -29,7 +37,6 @@
 		
 		/**
 		 * Cache of already scanned classes
-		 *
 		 * @var array<string, bool>
 		 */
 		protected array $scannedClasses = [];
@@ -92,6 +99,33 @@
 		}
 		
 		/**
+		 * Set a common naming convention pattern
+		 * @param string $convention The naming convention to use ('suffix', 'prefix', or 'namespace')
+		 * @param string $value The value to match (e.g., 'Provider' for suffix)
+		 * @return self
+		 */
+		public function setNamingConvention(string $convention, string $value): self {
+			switch (strtolower($convention)) {
+				case 'suffix':
+					$this->pattern = '/' . preg_quote($value) . '$/';
+					break;
+					
+				case 'prefix':
+					$this->pattern = '/^' . preg_quote($value) . '/';
+					break;
+					
+				case 'namespace':
+					$this->pattern = '/^' . str_replace('\\', '\\\\', $value) . '\\\\/';
+					break;
+					
+				default:
+					throw new \InvalidArgumentException("Unknown naming convention: {$convention}");
+			}
+			
+			return $this;
+		}
+		
+		/**
 		 * This function traverses a directory structure, identifies all PHP files,
 		 * attempts to extract class names from them, and checks if each class implements
 		 * the ProviderInterface. All valid providers are instantiated and returned.
@@ -100,9 +134,6 @@
 		 * @return array<ProviderInterface> Array of successfully instantiated provider objects found in the directory
 		 */
 		protected function scanDirectory(string $directory, bool $debug = false): array {
-			// Initialize an empty array to store discovered provider instances
-			$providers = [];
-			
 			// Verify the directory exists and is accessible before attempting to scan
 			if (!is_dir($directory) || !is_readable($directory)) {
 				// Log warning if the directory can't be accessed and debug is enabled
@@ -110,34 +141,37 @@
 					echo "[WARNING] Directory not readable: {$directory}\n";
 				}
 				
-				return $providers;
+				return [];
 			}
 			
-			// Create a recursive directory iterator to traverse all subdirectories
-			// SKIP_DOTS ensures "." and ".." directory entries are skipped
-			$iterator = new \RecursiveIteratorIterator(
-				new \RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-				\RecursiveIteratorIterator::SELF_FIRST  // Process parent directories before their children
-			);
+			// Initialize an empty array to store discovered provider instances
+			$providers = [];
+			
+			// Fetch all php files in the directory
+			$phpFiles = $this->getPhpFiles($directory);
 			
 			// Process each file found in the directory structure
-			foreach ($iterator as $file) {
-				// Only process PHP files, skip directories and non-PHP files
-				if ($file->isFile() && $file->getExtension() === 'php') {
-					// Attempt to extract the fully qualified class name from the file
-					$className = $this->getClassNameFromFile($file->getPathname());
-					
-					// If a class name was successfully extracted
-					if ($className) {
-						// Check if the class implements ProviderInterface and instantiate it
-						$provider = $this->checkClassIsProvider($className, $debug);
-						
-						// Add the provider to the results if it's valid and not a duplicate
-						// Using strict comparison (===) for the in_array check to ensure object identity
-						if ($provider && !in_array($provider, $providers, true)) {
-							$providers[] = $provider;
-						}
-					}
+			foreach ($phpFiles as $file) {
+				// Attempt to extract the fully qualified class name from the file
+				$className = $this->getClassNameFromFile($file);
+				
+				// If a class name was successfully extracted
+				if (!$className) {
+					continue;
+				}
+				
+				// Check if the class is a valid provider
+				if (!$this->isProvider($className, $debug)) {
+					continue;
+				}
+				
+				// Instantiate the provider
+				$provider = $this->instantiateProvider($className, $debug);
+				
+				// Add the provider to the results if it's valid and not a duplicate
+				// Using strict comparison (===) for the in_array check to ensure object identity
+				if (!in_array($provider, $providers, true)) {
+					$providers[] = $provider;
 				}
 			}
 			
@@ -232,124 +266,117 @@
 		
 		/**
 		 * Check if a class implements ProviderInterface and matches the pattern
+		 *
+		 * This method performs a series of validations to determine if a class qualifies
+		 * as a valid provider according to the scanner's criteria. A class is considered
+		 * a valid provider if it:
+		 *
+		 * 1. Has not been previously scanned
+		 * 2. Exists and can be autoloaded
+		 * 3. Matches the naming pattern (if a pattern is set)
+		 * 4. Is not abstract
+		 * 5. Implements the ProviderInterface
+		 *
+		 * @param string $className Fully qualified class name to check
+		 * @param bool $debug Whether to output error messages when exceptions occur
+		 * @return bool True if the class is a valid provider, false otherwise
+		 */
+		protected function isProvider(string $className, bool $debug = false): bool {
+			// Skip already scanned classes to prevent duplicate processing
+			// This improves performance when scanning large codebases
+			if (isset($this->scannedClasses[$className])) {
+				return false;
+			}
+			
+			// Mark this class as scanned for future reference
+			$this->scannedClasses[$className] = true;
+			
+			try {
+				// Attempt to load the class using PHP's autoloader
+				// Returns false if the class doesn't exist or can't be loaded
+				if (!class_exists($className)) {
+					return false;
+				}
+				
+				// If a naming pattern was specified, check if the class name matches
+				// This allows filtering for specific naming conventions (e.g., all classes ending with "Provider")
+				if ($this->pattern !== null && !preg_match($this->pattern, $className)) {
+					return false;
+				}
+				
+				// Create a reflection instance to inspect the class's properties and interfaces
+				$reflectionClass = new ReflectionClass($className);
+				
+				// Abstract classes cannot be instantiated, so they can't be used as providers
+				// This prevents attempting to instantiate abstract classes later
+				if ($reflectionClass->isAbstract()) {
+					return false;
+				}
+				
+				// Final check: verify that the class implements the required interface
+				// Only classes implementing ProviderInterface are considered valid providers
+				return $reflectionClass->implementsInterface(ProviderInterface::class);
+				
+			} catch (\Throwable $e) {
+				// Handle any exceptions that might occur during class inspection
+				// Common issues include autoloading errors or reflection failures
+				if ($debug) {
+					echo "[ERROR] Failed to check class {$className}: {$e->getMessage()}\n";
+				}
+				
+				return false;
+			}
+		}
+		
+		/**
+		 * Create an instance of a provider class
 		 * @param string $className
 		 * @param bool $debug
 		 * @return ProviderInterface|null
 		 */
-		protected function checkClassIsProvider(string $className, bool $debug = false): ?ProviderInterface {
-			// Skip already scanned classes
-			if (isset($this->scannedClasses[$className])) {
-				return null;
-			}
-			
-			$this->scannedClasses[$className] = true;
-			
+		protected function instantiateProvider(string $className, bool $debug = false): ?ProviderInterface {
 			try {
-				// Check if the class exists
-				if (!class_exists($className)) {
-					return null;
-				}
-				
-				// Check if class name matches pattern (if pattern is set)
-				if ($this->pattern !== null && !preg_match($this->pattern, $className)) {
-					return null;
-				}
-				
 				$reflectionClass = new ReflectionClass($className);
-				
-				// Skip abstract classes
-				if ($reflectionClass->isAbstract()) {
-					return null;
-				}
-				
-				// Check if it implements ProviderInterface
-				if (!$reflectionClass->implementsInterface(ProviderInterface::class)) {
-					return null;
-				}
-				
-				// Instantiate the provider
 				return $reflectionClass->newInstance();
-				
 			} catch (\Throwable $e) {
 				if ($debug) {
-					echo "[ERROR] Failed to process class {$className}: {$e->getMessage()}\n";
+					echo "[ERROR] Failed to instantiate provider {$className}: {$e->getMessage()}\n";
 				}
+				
 				return null;
 			}
 		}
 		
 		/**
 		 * Get all PHP files in a directory recursively
-		 * @param string $directory
-		 * @return array<string>
+		 * @param string $directory The absolute path to the directory to scan
+		 * @return array<string> Array of absolute file paths to all PHP files found
 		 */
 		protected function getPhpFiles(string $directory): array {
+			// Initialize an empty array to store collected file paths
 			$files = [];
 			
+			// Create a recursive directory iterator to traverse all subdirectories
+			// RecursiveDirectoryIterator gets entries in a directory
+			// RecursiveIteratorIterator allows iteration through all nested directories
+			// SKIP_DOTS ensures "." and ".." directory entries are skipped
 			$iterator = new \RecursiveIteratorIterator(
 				new \RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-				\RecursiveIteratorIterator::SELF_FIRST
+				\RecursiveIteratorIterator::SELF_FIRST  // Process parent directories before their children
 			);
 			
+			// Iterate through each file/directory entry found
 			foreach ($iterator as $file) {
+				// Only collect entries that are:
+				// 1. Files (not directories)
+				// 2. Have the .php extension
 				if ($file->isFile() && $file->getExtension() === 'php') {
+					// Add the full path of the PHP file to our collection
 					$files[] = $file->getPathname();
 				}
 			}
 			
+			// Return the collected list of PHP file paths
 			return $files;
-		}
-		
-		/**
-		 * Auto-discover PSR-4 directories from composer.json
-		 * This method reads the composer.json file and extracts all PSR-4 autoload directories.
-		 * It's useful for finding all source directories that might contain classes.
-		 * @param string|null $basePath Base path of the project, defaults to current working directory
-		 * @param bool $debug Whether to output warnings for missing directories
-		 * @return array<string> List of absolute paths to all PSR-4 directories
-		 */
-		public static function discoverPsr4Directories(?string $basePath = null, bool $debug = false): array {
-			// Use the current working directory if no base path provided
-			$basePath = $basePath ?? getcwd();
-			$composerPath = $basePath . '/composer.json';
-			
-			// Return an empty array if composer.json doesn't exist
-			if (!file_exists($composerPath)) {
-				return [];
-			}
-			
-			// Parse composer.json file
-			$composer = json_decode(file_get_contents($composerPath), true);
-			
-			// Return an empty array if parsing failed or no PSR-4 configuration exists
-			if (!$composer || !isset($composer['autoload']['psr-4'])) {
-				return [];
-			}
-			
-			// Process each PSR-4 namespace mapping
-			$directories = [];
-
-			foreach ($composer['autoload']['psr-4'] as $namespace => $paths) {
-				// Convert single path string to array for consistent handling
-				if (is_string($paths)) {
-					$paths = [$paths];
-				}
-				
-				// Process each path within the namespace
-				foreach ($paths as $path) {
-					// Build absolute path and ensure no trailing slash
-					$fullPath = $basePath . '/' . rtrim($path, '/');
-					
-					// Only include directories that actually exist
-					if (is_dir($fullPath)) {
-						$directories[] = $fullPath;
-					} elseif ($debug) {
-						// Output warning for missing directories when in debug mode
-						echo "[WARNING] PSR-4 directory not found: {$fullPath}\n";
-					}
-				}
-			}
-			
-			return $directories;
 		}
 	}

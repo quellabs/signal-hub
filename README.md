@@ -30,7 +30,7 @@ use Quellabs\Discover\Scanner\ComposerScanner;
 use Quellabs\Discover\Scanner\DirectoryScanner;
 use Quellabs\Discover\Config\DiscoveryConfig;
 
-// Create a Discover instance - no container needed
+// Create a Discover instance
 $discover = new Discover();
 
 // Add scanners to discover providers
