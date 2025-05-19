@@ -1,7 +1,5 @@
 # Sculpt: Modern CLI Framework for Quellabs Ecosystem
 
-<div align="center">
-
 ![Sculpt Logo](https://via.placeholder.com/150x150.png?text=Sculpt)
 
 A powerful, extensible command-line toolkit that seamlessly integrates with ObjectQuel ORM.
@@ -9,8 +7,6 @@ A powerful, extensible command-line toolkit that seamlessly integrates with Obje
 [![Latest Stable Version](https://img.shields.io/packagist/v/quellabs/sculpt.svg)](https://packagist.org/packages/quellabs/sculpt)
 [![License](https://img.shields.io/badge/license-MIT-brightgreen.svg)](LICENSE)
 [![PHP Version](https://img.shields.io/packagist/php-v/quellabs/sculpt.svg)](https://packagist.org/packages/quellabs/sculpt)
-
-</div>
 
 ## 🚀 Overview
 
