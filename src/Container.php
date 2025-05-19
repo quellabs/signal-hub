@@ -3,9 +3,11 @@
 	namespace Quellabs\DependencyInjection;
 	
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
-	use Quellabs\DependencyInjection\Discovery\DiscoverBridge;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
+	use Quellabs\Discover\Config\DiscoveryConfig;
+	use Quellabs\Discover\Discover;
+	use Quellabs\Discover\Scanner\ComposerScanner;
 	
 	/**
 	 * Container with centralized autowiring for all services
@@ -63,10 +65,10 @@
 		
 		/**
 		 * Register a service provider
-		 * @param DiscoverBridge $provider
+		 * @param ServiceProvider $provider
 		 * @return self
 		 */
-		public function register(DiscoverBridge $provider): self {
+		public function register(ServiceProvider $provider): self {
 			$this->providers[get_class($provider)] = $provider;
 			return $this;
 		}
@@ -125,6 +127,7 @@
 					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
 						array_pop($this->resolutionStack);
 					}
+					
 					array_pop($this->resolutionStack);
 				}
 				
@@ -161,8 +164,32 @@
 		 * @return self
 		 */
 		protected function discoverProviders(string $configKey): self {
-			$bridge = new DiscoverBridge($this, $this->basePath, $this->debug);
-			$bridge->discoverProviders($configKey);
+			// Configure discovery
+			$config = new DiscoveryConfig([
+				'debug' => $this->debug
+			]);
+			
+			// Create and configure Discover
+			$discover = new Discover($config);
+			$discover->addScanner(new ComposerScanner($configKey, $this->basePath));
+			
+			// Run discovery
+			$discover->discover();
+			
+			// Register each discovered provider with the container
+			foreach ($discover->getProviders() as $provider) {
+				if ($provider instanceof Provider\ServiceProviderInterface) {
+					$this->register($provider);
+					continue;
+				}
+				
+				// Show a debug message when provider does not implement Provider\ServiceProviderInterface
+				if ($this->debug) {
+					echo "[WARNING] Provider " . get_class($provider) . " does not implement ServiceProviderInterface\n";
+				}
+			}
+			
 			return $this;
 		}
 	}
+	
