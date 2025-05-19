@@ -89,19 +89,16 @@
 				
 				// Process each parameter
 				foreach ($methodReflector->getParameters() as $parameter) {
-					$param = [
-						'name'          => $parameter->getName(),
-						'type'          => null,
-						'default_value' => null
-					];
+					// Get the name of the parameter
+					$param = ['name' => $parameter->getName()];
 					
-					// Get the type if available
+					// Get the type of the parameter if available
 					if ($parameter->hasType()) {
 						$type = $parameter->getType();
 						$param['type'] = $type->getName();
 					}
 					
-					// Get default value if available
+					// Get the default value if available
 					if ($parameter->isDefaultValueAvailable()) {
 						$param['default_value'] = $parameter->getDefaultValue();
 					}
