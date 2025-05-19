@@ -42,6 +42,12 @@
 		protected array $scannedClasses = [];
 		
 		/**
+		 * Cache for the Composer autoloader instance
+		 * @var ClassLoader|null
+		 */
+		private ?ClassLoader $autoloaderCache = null;
+		
+		/**
 		 * DirectoryScanner constructor
 		 * @param array<string> $directories Directories to scan
 		 * @param string|null $pattern Regex pattern for class names (e.g., '/Provider$/')
@@ -231,14 +237,27 @@
 		}
 		
 		/**
-		 * Find the Composer autoloader
-		 * @return ClassLoader|null
+		 * Find the Composer autoloader, using a cached instance if available
+		 *
+		 * This method attempts to locate the Composer ClassLoader instance by:
+		 * 1. Checking if it's already cached in the instance property
+		 * 2. Examining registered autoload functions
+		 * 3. Trying to load it from common file locations
+		 *
+		 * @return ClassLoader|null The Composer autoloader instance, or null if not found
 		 */
 		protected function findAutoloader(): ?ClassLoader {
+			// Return cached autoloader if it exists
+			if ($this->autoloaderCache !== null) {
+				return $this->autoloaderCache;
+			}
+			
 			// First check if we can get it from the loader that loaded this class
 			foreach (spl_autoload_functions() as $function) {
 				if (is_array($function) && $function[0] instanceof ClassLoader) {
-					return $function[0];
+					// Cache the found autoloader for future use
+					$this->autoloaderCache = $function[0];
+					return $this->autoloaderCache;
 				}
 			}
 			
@@ -257,7 +276,9 @@
 			
 			foreach ($locations as $location) {
 				if (file_exists($location)) {
-					return require $location;
+					// Cache the autoloader before returning it
+					$this->autoloaderCache = require $location;
+					return $this->autoloaderCache;
 				}
 			}
 			

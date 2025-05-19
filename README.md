@@ -10,8 +10,6 @@ A flexible service discovery component for PHP applications that helps you autom
 
 Quellabs Discover is a lightweight package that handles service discovery for PHP applications. It focuses solely on locating service providers defined in your application and its dependencies, giving you complete control over how to use them in your application.
 
-It forms part of the Quellabs ecosystem alongside other components like Canvas (PHP framework) and ObjectQuel (ORM).
-
 ## Installation
 
 You can install the package via composer:
