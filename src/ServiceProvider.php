@@ -11,6 +11,14 @@
 	abstract class ServiceProvider implements ServiceProviderInterface {
 		
 		/**
+		 * This service provider provides sculpt commands
+		 * @return string[]
+		 */
+		public function provides(): array {
+			return ['sculpt'];
+		}
+		
+		/**
 		 * The boot method is called after all service providers have been registered.
 		 * This allows a provider to use services registered by other providers.
 		 * @param Application $app The application instance

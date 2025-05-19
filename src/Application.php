@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\Sculpt;
 	
+	use Quellabs\Discover\Discover;
+	use Quellabs\Discover\Scanner\ComposerScanner;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\CommandInterface;
@@ -37,7 +39,7 @@
 		/**
 		 * Provider manager responsible for service provider discovery and management
 		 */
-		protected ServiceDiscoverer $serviceDiscoverer;
+		protected Discover $serviceDiscoverer;
 		
 		/**
 		 * Application constructor
@@ -59,7 +61,8 @@
 			}
 			
 			// Initialize the provider manager
-			$this->serviceDiscoverer = new ServiceDiscoverer($this, $this->output, $this->basePath);
+			$this->serviceDiscoverer = new Discover();
+			$this->serviceDiscoverer->addScanner(new ComposerScanner("sculpt"));
 			
 			// Register internal commands
 			$this->discoverInternalCommands();
@@ -83,9 +86,9 @@
 		
 		/**
 		 * Get the service discoverer instance
-		 * @return ServiceDiscoverer
+		 * @return Discover
 		 */
-		public function getServiceDiscoverer(): ServiceDiscoverer {
+		public function getServiceDiscoverer(): Discover {
 			return $this->serviceDiscoverer;
 		}
 		
@@ -146,7 +149,7 @@
 		 */
 		public function discoverProviders(): void {
 			// Delegate to the service discoverer
-			$this->getServiceDiscoverer()->discoverProviders();
+			$this->getServiceDiscoverer()->discover();
 		}
 		
 		/**
