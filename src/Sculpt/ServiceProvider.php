@@ -14,16 +14,11 @@
 		
 		/**
 		 * Register all ObjectQuel commands with the Sculpt application
-		 * @param mixed $container
+		 * @param Application $application
 		 */
-		public function register(mixed $container): void {
-			// Do nothing when $container is not of type Application
-			if (!$container instanceof Application) {
-				return;
-			}
-			
+		public function register(Application $application): void {
 			// Register the commands into the Sculpt application
-			$this->registerCommands($container, [
+			$this->registerCommands($application, [
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
 				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
