@@ -3,9 +3,9 @@
 	namespace Quellabs\DependencyInjection;
 	
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
-	use Quellabs\DependencyInjection\Discovery\ServiceDiscoverer;
+	use Quellabs\DependencyInjection\Discovery\DiscoverBridge;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
-	use Quellabs\DependencyInjection\Provider\ServiceProviderInterface;
+	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	
 	/**
 	 * Container with centralized autowiring for all services
@@ -14,8 +14,7 @@
 		
 		/**
 		 * Registered service providers
-		 *
-		 * @var ServiceProviderInterface[]
+		 * @var ServiceProvider[]
 		 */
 		protected array $providers = [];
 		
@@ -64,10 +63,10 @@
 		
 		/**
 		 * Register a service provider
-		 * @param ServiceProviderInterface $provider
+		 * @param DiscoverBridge $provider
 		 * @return self
 		 */
-		public function register(ServiceProviderInterface $provider): self {
+		public function register(DiscoverBridge $provider): self {
 			$this->providers[get_class($provider)] = $provider;
 			return $this;
 		}
@@ -75,9 +74,9 @@
 		/**
 		 * Find a provider that supports the given class
 		 * @param string $className
-		 * @return ServiceProviderInterface
+		 * @return ServiceProvider
 		 */
-		public function findProvider(string $className): ServiceProviderInterface {
+		public function findProvider(string $className): ServiceProvider {
 			foreach ($this->providers as $provider) {
 				if ($provider->supports($className)) {
 					return $provider;
@@ -162,8 +161,8 @@
 		 * @return self
 		 */
 		protected function discoverProviders(string $configKey): self {
-			$discoverer = new ServiceDiscoverer($this, $this->basePath, $this->debug);
-			$discoverer->discover($configKey);
+			$bridge = new DiscoverBridge($this, $this->basePath, $this->debug);
+			$bridge->discoverProviders($configKey);
 			return $this;
 		}
 	}

@@ -3,11 +3,12 @@
 	namespace Quellabs\DependencyInjection\Provider;
 	
 	use Quellabs\DependencyInjection\Container;
+	use Quellabs\Discover\Provider\ProviderInterface;
 	
 	/**
 	 * Abstract base class for service providers with centralized autowiring
 	 */
-	abstract class ServiceProvider implements ServiceProviderInterface {
+	abstract class ServiceProvider implements ProviderInterface {
 		
 		/**
 		 * Reference to the container
@@ -20,6 +21,24 @@
 		 */
 		public function __construct(Container $container) {
 			$this->container = $container;
+		}
+		
+		/**
+		 * This class provides 'di' (dependency injection)
+		 * @return string[]
+		 */
+		public function provides(): array {
+			return [
+				'di'
+			];
+		}
+		
+		/**
+		 * Always load this provider
+		 * @return bool
+		 */
+		public function shouldLoad(): bool {
+			return true;
 		}
 		
 		/**

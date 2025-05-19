@@ -14,7 +14,8 @@
     "source": "https://github.com/quellabs/dependency-injection"
   },
   "require": {
-    "php": ">=8.3"
+    "php": ">=8.3",
+    "quellabs/discover": "dev-main"
   },
   "autoload": {
     "psr-4": {
