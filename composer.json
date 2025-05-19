@@ -34,6 +34,7 @@
     "quellabs/signal-hub": "1.*",
     "quellabs/annotation-reader": "1.*",
     "quellabs/sculpt": "dev-main",
+    "quellabs/discover": "dev-main",
     "robmorgan/phinx": "^0.13.4",
     "cakephp/database": "^4.4",
     "softcreatr/jsonpath": "*"
