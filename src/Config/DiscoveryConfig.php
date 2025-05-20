@@ -38,12 +38,6 @@
 		protected ?string $cachePath = null;
 		
 		/**
-		 * Auto-load providers after discovery
-		 * @var bool
-		 */
-		protected bool $autoload = true;
-		
-		/**
 		 * Create a new DiscoveryConfig instance
 		 * @param array<string, mixed> $config Configuration options
 		 */
@@ -72,7 +66,7 @@
 				getcwd() . '/src/Providers'
 			];
 			
-			// Set default cache path
+			// Set the default cache path
 			$this->cachePath = getcwd() . '/bootstrap/cache/providers.php';
 		}
 		
@@ -187,25 +181,7 @@
 		public function getCachePath(): ?string {
 			return $this->cachePath;
 		}
-		
-		/**
-		 * Enable or disable auto-loading of providers
-		 * @param bool $autoload
-		 * @return self
-		 */
-		public function setAutoload(bool $autoload): self {
-			$this->autoload = $autoload;
-			return $this;
-		}
-		
-		/**
-		 * Check if autoloading is enabled
-		 * @return bool
-		 */
-		public function isAutoloadEnabled(): bool {
-			return $this->autoload;
-		}
-		
+
 		/**
 		 * Convert config to array
 		 * @return array<string, mixed>
@@ -217,7 +193,6 @@
 				'composerConfigKey'  => $this->composerConfigKey,
 				'cacheEnabled'       => $this->cacheEnabled,
 				'cachePath'          => $this->cachePath,
-				'autoload'           => $this->autoload,
 			];
 		}
 	}

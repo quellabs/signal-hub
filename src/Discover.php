@@ -150,7 +150,7 @@
 		 * @return string|null Path to composer.json if found, null otherwise
 		 */
 		public function findComposerJsonPath(?string $startDirectory = null): ?string {
-			// Get result from cache if we can
+			// Get the result from cache if we can
 			if ($this->composerJsonPathCache !== null) {
 				return $this->composerJsonPathCache;
 			}
