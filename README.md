@@ -117,9 +117,7 @@ In your `composer.json`:
 }
 ```
 
-#### Package-Level Configuration
-
-For packages that want to register providers when installed:
+For registering just one service provider:
 
 ```json
 {
@@ -130,6 +128,8 @@ For packages that want to register providers when installed:
     }
 }
 ```
+
+Note the difference between the plural "providers" key (for an array of providers) and the singular "provider" key (for a single provider class).
 
 For more information about Quellabs Discover and its advanced features, visit [https://github.com/quellabs/discover](https://github.com/quellabs/discover).
 
