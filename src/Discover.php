@@ -24,11 +24,17 @@
 		protected DiscoveryConfig $config;
 		
 		/**
+		 * @var string|null Cached local json path
+		 */
+		protected ?string $composerJsonPathCache;
+		
+		/**
 		 * Create a new Discover instance
 		 * @param DiscoveryConfig|null $config
 		 */
 		public function __construct(?DiscoveryConfig $config = null) {
 			$this->config = $config ?? new DiscoveryConfig();
+			$this->composerJsonPathCache = null;
 		}
 		
 		/**
@@ -136,5 +142,49 @@
 		public function setConfig(DiscoveryConfig $config): self {
 			$this->config = $config;
 			return $this;
+		}
+		
+		/**
+		 * Find the path to the local composer.json file
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @return string|null Path to composer.json if found, null otherwise
+		 */
+		public function findComposerJsonPath(?string $startDirectory = null): ?string {
+			// Get result from cache if we can
+			if ($this->composerJsonPathCache !== null) {
+				return $this->composerJsonPathCache;
+			}
+			
+			// Start from provided directory or current directory if not specified
+			$directory = $startDirectory ?? getcwd();
+			
+			// Ensure we have a valid directory
+			if (!$directory || !is_dir($directory)) {
+				return null;
+			}
+			
+			// Convert to absolute path if it's not already
+			$directory = realpath($directory);
+			
+			// Keep traversing up until we find composer.json or reach the filesystem root
+			while ($directory) {
+				$composerPath = $directory . DIRECTORY_SEPARATOR . 'composer.json';
+				
+				if (file_exists($composerPath)) {
+					return $this->composerJsonPathCache = $composerPath;
+				}
+				
+				// Get parent directory
+				$parentDir = dirname($directory);
+				
+				// Stop if we've reached the filesystem root
+				if ($parentDir === $directory) {
+					break;
+				}
+				
+				$directory = $parentDir;
+			}
+			
+			return null;
 		}
 	}
