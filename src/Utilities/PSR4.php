@@ -123,6 +123,33 @@
 		}
 		
 		/**
+		 * Find the path to Composer's installed.json file
+		 * This file contains information about all installed packages
+		 * @return string|null Path to installed.json if found, null otherwise
+		 */
+		public function getComposerInstalledFilePath(): ?string {
+			// First find the project root, as we'll need to navigate to vendor/composer from there
+			$projectRoot = $this->getProjectRoot();
+			
+			// If we couldn't find the project root, we can't locate installed.json
+			if ($projectRoot === null) {
+				return null;
+			}
+			
+			// The installed.json file is typically located in vendor/composer directory
+			$installedJsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' .
+				DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+			
+			// Check if the file exists
+			if (file_exists($installedJsonPath)) {
+				return $installedJsonPath;
+			}
+			
+			// If the file doesn't exist at the expected location, return null
+			return null;
+		}
+		
+		/**
 		 * Maps a directory path to a namespace based on PSR-4 rules.
 		 * This method attempts to determine the correct namespace for a directory by:
 		 * 1. First checking against registered autoloader PSR-4 mappings (for dependencies)

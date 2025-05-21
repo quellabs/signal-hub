@@ -119,7 +119,7 @@
 			$providers = [];
 			
 			// Get the full filesystem path to Composer's installed.json file
-			$installedPath = $this->utilities->getComposerJsonFilePath();
+			$installedPath = $this->utilities->getComposerInstalledFilePath();
 			
 			// If the path couldn't be determined or the file doesn't exist, return an empty array
 			if ($installedPath === null || !file_exists($installedPath)) {
