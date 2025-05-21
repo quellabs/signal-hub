@@ -316,13 +316,8 @@
 					continue;
 				}
 				
-				// Create the complete namespace
-				$fullyQualifiedName = $namespaceForDir . '\\' . $className;
-				
-				// Only add class if it exists and is loadable
-				if (class_exists($fullyQualifiedName)) {
-					$classNames[] = $fullyQualifiedName;
-				}
+				// Add the complete namespace to the list
+				$classNames[] = $namespaceForDir . '\\' . $className;
 			}
 			
 			return $classNames;
