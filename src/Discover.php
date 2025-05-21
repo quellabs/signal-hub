@@ -225,6 +225,15 @@
 		}
 
 		/**
+		 * Find the path to installed.json
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @return string|null Path to composer.json if found, null otherwise
+		 */
+		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
+			return $this->utilities->getComposerInstalledFilePath($startDirectory);
+		}
+
+		/**
 		 * Maps a directory path to a namespace based on PSR-4 rules.
 		 * This method attempts to determine the correct namespace for a directory by:
 		 * 1. First checking against registered autoloader PSR-4 mappings (for dependencies)

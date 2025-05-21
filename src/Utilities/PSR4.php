@@ -112,24 +112,24 @@
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
-			// If a directory containing composer.json was found
-			if ($projectRoot !== null) {
-				// Return the full path to the composer.json file
-				return $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
+			// If we couldn't find the project root, we can't locate installed.json
+			if ($projectRoot === null) {
+				return null;
 			}
 			
-			// If no composer.json was found, return null to indicate failure
-			return null;
+			// Return the full path to the composer.json file
+			return $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
 		}
 		
 		/**
 		 * Find the path to Composer's installed.json file
 		 * This file contains information about all installed packages
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
 		 * @return string|null Path to installed.json if found, null otherwise
 		 */
-		public function getComposerInstalledFilePath(): ?string {
+		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
 			// First find the project root, as we'll need to navigate to vendor/composer from there
-			$projectRoot = $this->getProjectRoot();
+			$projectRoot = $this->getProjectRoot($startDirectory);
 			
 			// If we couldn't find the project root, we can't locate installed.json
 			if ($projectRoot === null) {
@@ -137,16 +137,8 @@
 			}
 			
 			// The installed.json file is typically located in vendor/composer directory
-			$installedJsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' .
+			return $projectRoot . DIRECTORY_SEPARATOR . 'vendor' .
 				DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
-			
-			// Check if the file exists
-			if (file_exists($installedJsonPath)) {
-				return $installedJsonPath;
-			}
-			
-			// If the file doesn't exist at the expected location, return null
-			return null;
 		}
 		
 		/**
