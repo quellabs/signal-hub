@@ -144,10 +144,10 @@
 			$types = [];
 			
 			foreach ($this->getProviders() as $provider) {
-				$type = $provider->getType();
+				$family = $provider->getFamily();
 				
-				if ($type !== null && !in_array($type, $types)) {
-					$types[] = $type;
+				if ($family !== null && !in_array($family, $types)) {
+					$types[] = $family;
 				}
 			}
 			
@@ -170,29 +170,29 @@
 		
 		/**
 		 * Find all providers of a specific type
-		 * @param string $type The provider type to filter by
+		 * @param string $family The provider type to filter by
 		 * @return array<ProviderInterface> Array of provider instances of the requested type
 		 */
-		public function findProvidersByType(string $type): array {
+		public function findProvidersByType(string $family): array {
 			return array_filter(
 				$this->getProviders(),
-				function(ProviderInterface $provider) use ($type) {
-					return $provider->getType() === $type;
+				function(ProviderInterface $provider) use ($family) {
+					return $provider->getFamily() === $family;
 				}
 			);
 		}
 		
 		/**
 		 * Find providers that match both type and capability
-		 * @param string $type The provider type to filter by
+		 * @param string $family The provider type to filter by
 		 * @param string $capability The capability/service identifier to filter by
 		 * @return array<ProviderInterface> Array of matching provider instances
 		 */
-		public function findProvidersByTypeAndCapability(string $type, string $capability): array {
+		public function findProvidersByTypeAndCapability(string $family, string $capability): array {
 			return array_filter(
 				$this->getProviders(),
-				function(ProviderInterface $provider) use ($type, $capability) {
-					return $provider->getType() === $type && in_array($capability, $provider->getCapabilities());
+				function(ProviderInterface $provider) use ($family, $capability) {
+					return $provider->getFamily() === $family && in_array($capability, $provider->getCapabilities());
 				}
 			);
 		}
