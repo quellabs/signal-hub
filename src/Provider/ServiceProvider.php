@@ -3,6 +3,7 @@
 	namespace Quellabs\DependencyInjection\Provider;
 	
 	use Quellabs\DependencyInjection\Container;
+	use Quellabs\Discover\Provider\AbstractProvider;
 	
 	/**
 	 * Abstract base class for service providers with centralized autowiring
@@ -11,13 +12,7 @@
 	 * It implements the ServiceProviderInterface and provides common functionality
 	 * that all service providers will inherit.
 	 */
-	abstract class ServiceProvider implements ServiceProviderInterface {
-		
-		/**
-		 * Provider family
-		 * @var string
-		 */
-		protected string $family;
+	abstract class ServiceProvider extends AbstractProvider implements ServiceProviderInterface {
 		
 		/**
 		 * This property stores the dependency injection container instance
@@ -34,42 +29,6 @@
 		}
 		
 		/**
-		 * Returns the provider's capabilities
-		 * @return array|string[]
-		 */
-		public function getCapabilities(): array {
-			return [];
-		}
-		
-		/**
-		 * Returns the family
-		 * @return string|null
-		 */
-		public function getFamily(): ?string {
-			return $this->family;
-		}
-		
-		/**
-		 * Updates the family
-		 * @param string $family
-		 * @return void
-		 */
-		public function setFamily(string $family): void {
-			$this->family = $family;
-		}
-
-		/**
-		 * Determines whether this service provider should be loaded.
-		 * The base implementation always returns true, ensuring that
-		 * core dependency injection services are always available.
-		 * Child classes may override this to conditionally load services.
-		 * @return bool True if the provider should be loaded, false otherwise
-		 */
-		public function shouldLoad(): bool {
-			return true;
-		}
-		
-		/**
 		 * Creates a new instance of the specified class with the provided dependencies
 		 * @param string $className The fully qualified class name to instantiate
 		 * @param array $dependencies An array of resolved dependencies to pass to the constructor
@@ -83,23 +42,7 @@
 		}
 		
 		/**
-		 * Returns the default settings
-		 * @return array
-		 */
-		public function getDefaults(): array {
-			return [];
-		}
-		
-		/**
-		 * Accepts a new configuration
-		 * @param array $config
-		 * @return void
-		 */
-		public function setConfig(array $config): void {
-		}
-		
-		/**
-		 * This class provides 'di' (dependency injection)
+		 * Returns true if the Dependency Injection provider supports the given class
 		 * @param string $className
 		 * @return bool
 		 */

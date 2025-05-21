@@ -60,7 +60,7 @@
 			$this->defaultProvider = new DefaultServiceProvider($this);
 			
 			// Automatically discover and register service providers
-			$this->discoverProviders($configKey);
+			$this->discover($configKey);
 		}
 		
 		/**
@@ -144,13 +144,13 @@
 		}
 		
 		/**
-		 * Call a method with autowired arguments
+		 * Invoke a method with autowired arguments
 		 * @param object $instance
 		 * @param string $methodName
 		 * @param array $parameters
 		 * @return mixed
 		 */
-		public function call(object $instance, string $methodName, array $parameters = []): mixed {
+		public function invoke(object $instance, string $methodName, array $parameters = []): mixed {
 			// Get method arguments with all dependencies resolved
 			$args = $this->autowire->getMethodArguments(get_class($instance), $methodName, $parameters);
 			
@@ -163,7 +163,7 @@
 		 * @param string $configKey The key to look for in composer.json
 		 * @return self
 		 */
-		protected function discoverProviders(string $configKey): self {
+		protected function discover(string $configKey): self {
 			// Configure discovery
 			$config = new DiscoveryConfig([
 				'debug' => $this->debug
