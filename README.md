@@ -28,7 +28,7 @@ $container = new \Quellabs\DependencyInjection\Container();
 $service = $container->get(MyService::class);
 
 // Call a method with autowired dependencies
-$result = $container->call($service, 'doSomething', ['extraParam' => 'value']);
+$result = $container->invoke($service, 'doSomething', ['extraParam' => 'value']);
 ```
 
 ## Service Providers
