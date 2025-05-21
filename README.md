@@ -252,13 +252,6 @@ Quellabs Discover includes utilities for working with Composer's autoloader and 
 $autoloader = $discover->getComposerAutoloader();
 ```
 
-### Working with PSR-4 Namespaces
-
-```php
-// Get PSR-4 prefix mappings from the autoloader
-$prefixes = $discover->getPsr4Prefixes($autoloader);
-```
-
 ### Scanning Directories with PSR-4 Mapping
 
 ```php
@@ -300,8 +293,9 @@ protected function findControllerClasses(string $dir, string $controllerSuffix =
     $composerAutoloader = $this->getComposerAutoloader();
     
     // Get PSR-4 prefixes from the autoloader
-    $prefixesPsr4 = $this->getPsr4Prefixes($composerAutoloader);
+    $prefixesPsr4 = $composerAutoloader->getPsr4Prefixes($composerAutoloader);
     
+    // Scan directory and map to namespaces
     return $this->scanDirectoryWithPsr4($dir, $prefixesPsr4, $controllerSuffix);
 }
 ```

@@ -222,18 +222,6 @@
 		}
 		
 		/**
-		 * Gets PSR-4 prefixes from the Composer autoloader
-		 * @param ClassLoader $autoloader
-		 * @return array<string, string[]> Associative array of namespace prefixes and their directories
-		 */
-		public function getPsr4Prefixes(ClassLoader $autoloader): array {
-			// Get PSR-4 prefixes using reflection as getPrefixesPsr4() is protected
-			$reflMethod = new \ReflectionMethod($autoloader, 'getPrefixesPsr4');
-			$reflMethod->setAccessible(true);
-			return $reflMethod->invoke($autoloader) ?: [];
-		}
-		
-		/**
 		 * Recursively scans a directory and maps files to namespaced classes based on PSR-4 rules
 		 * @param string $directory Directory to scan
 		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes and their dirs
@@ -251,7 +239,7 @@
 			// Find matching PSR-4 namespace for this directory
 			$namespaceForDir = $this->findMatchingNamespace($absoluteDir, $psr4Prefixes);
 			
-			// Get directory entries or return empty array if scandir fails
+			// Get directory entries or return an empty array if scandir fails
 			$classNames = [];
 			$entries = scandir($absoluteDir) ?: [];
 			
@@ -334,7 +322,7 @@
 		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes mapping to possible directories
 		 * @return string|null Matched namespace or null if not found
 		 */
-		private function findMatchingNamespace(string $directory, array $psr4Prefixes): ?string {
+		public function findMatchingNamespace(string $directory, array $psr4Prefixes): ?string {
 			// Will hold the namespace that best matches the directory
 			$matchedNamespace = null;
 			
