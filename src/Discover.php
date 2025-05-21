@@ -369,6 +369,45 @@
 		}
 		
 		/**
+		 * Find the fully qualified namespace for a given file path
+		 * @param string $filePath The absolute path to the PHP file
+		 * @return string|null The fully qualified namespace of the file, or null if not found
+		 */
+		function findNamespaceFromPath(string $filePath): ?string {
+			// Convert to an absolute path, resolving any symlinks
+			$filePath = realpath($filePath);
+			$composer = $this->getComposerAutoloader();
+			
+			// Check PSR-4 autoloaded namespaces first
+			// PSR-4 maps namespace prefixes to directory bases
+			foreach ($composer->getPrefixesPsr4() as $namespace => $dirs) {
+				foreach ($dirs as $dir) {
+					// Ensure we have the absolute directory path for comparison
+					$dir = realpath($dir);
+					
+					// Check if the file is within this PSR-4 base directory
+					if ($dir && str_starts_with($filePath, $dir)) {
+						// Extract the relative path from the base directory
+						$relPath = substr($filePath, strlen($dir) + 1);
+						
+						// Convert directory separators to namespace separators
+						$relPath = str_replace('/', '\\', $relPath);
+						
+						// Remove the .php extension
+						$relPath = substr($relPath, 0, strrpos($relPath, '.php'));
+						
+						// Combine namespace prefix with relative path to get fully qualified namespace
+						return $namespace . $relPath;
+					}
+				}
+			}
+			
+			// If no PSR-4 mapping found, return null
+			// Note: PSR-0 mapping check was omitted from this implementation
+			return null;
+		}
+		
+		/**
 		 * Checks if an entry should be skipped during directory scanning
 		 * @param string $entry Directory entry name
 		 * @return bool True if entry should be skipped

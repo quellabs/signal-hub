@@ -274,6 +274,23 @@ $namespace = $discover->mapDirectoryToNamespace(
 );
 ```
 
+### Finding Namespace from File Path
+
+```php
+// Convert a file path to its fully qualified namespace based on PSR-4 rules
+$namespace = $discover->findNamespaceFromPath(__DIR__ . '/app/Services/UserService.php');
+// Returns: "App\Services\UserService"
+```
+
+The `findNamespaceFromPath` method examines Composer's PSR-4 autoloader configuration to determine the correct namespace for a given PHP file. It maps file paths to their corresponding fully qualified namespaces by:
+
+1. Getting Composer's PSR-4 prefix configurations
+2. Finding which base directory contains the file
+3. Converting the relative path to a namespace segment
+4. Combining the namespace prefix with the path segment
+
+This is particularly useful when you have a file path and need to determine its corresponding class name based on PSR-4 autoloading rules.
+
 ### Example: Finding Controller Classes
 
 ```php
@@ -298,4 +315,4 @@ protected function findControllerClasses(string $dir, string $controllerSuffix =
     // Scan directory and map to namespaces
     return $this->scanDirectoryWithPsr4($dir, $prefixesPsr4, $controllerSuffix);
 }
-```
+``` 
