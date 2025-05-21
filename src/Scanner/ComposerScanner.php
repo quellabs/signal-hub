@@ -5,6 +5,7 @@
 	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Discover\Utilities\PSR4;
 	
 	/**
 	 * Scans composer.json files to discover service providers
@@ -29,6 +30,11 @@
 		protected string $basePath;
 		
 		/**
+		 * @var PSR4 PSR-4 utilities
+		 */
+		private PSR4 $utilities;
+		
+		/**
 		 * ComposerScanner constructor
 		 * @param Discover $discover Discovery container
 		 * @param string $configKey The key to look for in composer.json (e.g., 'discover')
@@ -38,6 +44,7 @@
 			$this->discover = $discover;
 			$this->configKey = $configKey;
 			$this->basePath = $basePath ?? getcwd();
+			$this->utilities = new PSR4();
 		}
 		
 		/**
@@ -75,15 +82,12 @@
 		 * @return array<ProviderInterface> Array of successfully instantiated provider objects from the project
 		 */
 		protected function discoverProjectProviders(bool $debug): array {
-			// Initialize empty array to store discovered provider instances
-			$providers = [];
-			
 			// Get the full filesystem path to the project's composer.json file
-			$composerPath = $this->discover->getComposerJsonFilePath();
+			$composerPath = $this->utilities->getComposerJsonFilePath();
 			
 			// If the path couldn't be determined or the file doesn't exist, return an empty array
 			if (!$composerPath || !file_exists($composerPath)) {
-				return $providers;
+				return [];
 			}
 			
 			// Log provider discovery attempt if debug mode is enabled
@@ -96,12 +100,15 @@
 			
 			// If parsing failed or file is empty/invalid, return empty array
 			if (!$composer) {
-				return $providers;
+				return [];
 			}
 			
 			// Extract provider class names from the composer.json structure
 			// (This calls a separate method that handles the specific extraction logic)
 			$providerClasses = $this->extractProviderClasses($composer);
+			
+			// Initialize an empty array to store discovered provider instances
+			$providers = [];
 			
 			// Attempt to instantiate each discovered provider class
 			foreach ($providerClasses as $providerClass) {
@@ -131,7 +138,7 @@
 			$providers = [];
 			
 			// Get the full filesystem path to Composer's installed.json file
-			$installedPath = $this->discover->getComposerJsonFilePath();
+			$installedPath = $this->utilities->getComposerJsonFilePath();
 			
 			// If the path couldn't be determined or the file doesn't exist, return empty array
 			if ($installedPath === null) {

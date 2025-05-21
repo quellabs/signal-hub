@@ -6,6 +6,7 @@
 	use FilesystemIterator;
 	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Discover\Utilities\PSR4;
 	use ReflectionClass;
 	
 	/**
@@ -48,6 +49,11 @@
 		private ?ClassLoader $autoloaderCache = null;
 		
 		/**
+		 * @var PSR4 PSR-4 utilities
+		 */
+		private PSR4 $utilities;
+		
+		/**
 		 * DirectoryScanner constructor
 		 * @param array<string> $directories Directories to scan
 		 * @param string|null $pattern Regex pattern for class names (e.g., '/Provider$/')
@@ -55,6 +61,7 @@
 		public function __construct(array $directories = [], ?string $pattern = null) {
 			$this->directories = $directories;
 			$this->pattern = $pattern;
+			$this->utilities = new PSR4();
 		}
 		
 		/**
@@ -159,10 +166,10 @@
 			// Process each file found in the directory structure
 			foreach ($phpFiles as $file) {
 				// Attempt to extract the fully qualified class name from the file
-				$className = $this->getClassNameFromFile($file);
+				$className = $this->utilities->resolveNamespaceFromPath($file);
 				
 				// If a class name was successfully extracted
-				if (!$className) {
+				if ($className === null) {
 					continue;
 				}
 				
@@ -184,107 +191,7 @@
 			// Return all successfully instantiated provider objects discovered in the directory
 			return $providers;
 		}
-		
-		/**
-		 * Get class name from a file path using Composer's autoloader
-		 * @param string $filePath
-		 * @return string|null
-		 */
-		protected function getClassNameFromFile(string $filePath): ?string {
-			// Get the absolute, normalized path
-			$realPath = realpath($filePath);
-			
-			// Couldn't resolve the path
-			if ($realPath === false) {
-				return null;
-			}
-			
-			// Get Composer's autoloader
-			$autoloader = $this->findAutoloader();
-			
-			// Couldn't find the autoloader
-			if ($autoloader === null) {
-				return null;
-			}
-			
-			// Get the class map from the autoloader
-			$classMap = $autoloader->getClassMap();
-			
-			// Find the class that maps to this file
-			$className = array_search($realPath, $classMap);
-			
-			if ($className !== false) {
-				return $className; // Found in the class map
-			}
-			
-			// If not in the class map, try to infer from PSR-4 autoloading rules
-			foreach ($autoloader->getPrefixesPsr4() as $namespace => $directories) {
-				foreach ($directories as $directory) {
-					$directory = realpath($directory);
-					
-					if ($directory && str_starts_with($realPath, $directory)) {
-						// File is within this PSR-4 directory
-						$relPath = substr($realPath, strlen($directory) + 1);
-						$relPath = str_replace('.php', '', $relPath);
-						$relPath = str_replace('/', '\\', $relPath);
-						
-						return rtrim($namespace, '\\') . '\\' . $relPath;
-					}
-				}
-			}
-			
-			return null;
-		}
-		
-		/**
-		 * Find the Composer autoloader, using a cached instance if available
-		 *
-		 * This method attempts to locate the Composer ClassLoader instance by:
-		 * 1. Checking if it's already cached in the instance property
-		 * 2. Examining registered autoload functions
-		 * 3. Trying to load it from common file locations
-		 *
-		 * @return ClassLoader|null The Composer autoloader instance, or null if not found
-		 */
-		protected function findAutoloader(): ?ClassLoader {
-			// Return cached autoloader if it exists
-			if ($this->autoloaderCache !== null) {
-				return $this->autoloaderCache;
-			}
-			
-			// First check if we can get it from the loader that loaded this class
-			foreach (spl_autoload_functions() as $function) {
-				if (is_array($function) && $function[0] instanceof ClassLoader) {
-					// Cache the found autoloader for future use
-					$this->autoloaderCache = $function[0];
-					return $this->autoloaderCache;
-				}
-			}
-			
-			// Try common locations relative to the current file
-			$locations = [
-				// When used as a dependency in another project
-				dirname(__DIR__, 4) . '/vendor/autoload.php',
-				
-				// When used directly
-				dirname(__DIR__) . '/vendor/autoload.php',
-				
-				// Other common locations
-				dirname(__DIR__, 3) . '/autoload.php',
-				dirname(__DIR__, 2) . '/autoload.php',
-			];
-			
-			foreach ($locations as $location) {
-				if (file_exists($location)) {
-					// Cache the autoloader before returning it
-					$this->autoloaderCache = require $location;
-					return $this->autoloaderCache;
-				}
-			}
-			
-			return null;
-		}
-		
+
 		/**
 		 * Check if a class implements ProviderInterface and matches the pattern
 		 *
