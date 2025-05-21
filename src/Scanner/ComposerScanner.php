@@ -264,9 +264,7 @@
 					$config = $this->loadConfigFile($configFile);
 					
 					// Apply configuration to the provider if loading was successful
-					if ($config) {
-						$provider->setConfig(array_merge($provider->getDefaults(), $config));
-					}
+					$provider->setConfig(array_merge($provider->getDefaults(), $config));
 				}
 				
 				// Return successfully created and configured provider
