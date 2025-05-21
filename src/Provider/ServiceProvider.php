@@ -14,6 +14,12 @@
 	abstract class ServiceProvider implements ServiceProviderInterface {
 		
 		/**
+		 * Provider family
+		 * @var string
+		 */
+		protected string $family;
+		
+		/**
 		 * This property stores the dependency injection container instance
 		 * that will be used to register and resolve services.
 		 */
@@ -28,17 +34,30 @@
 		}
 		
 		/**
-		 * Defines the services that this provider makes available to the application.
-		 * By default, this base provider only registers the 'di' service.
-		 * Child classes should override this method to register additional services.
-		 * @return string[] Array of service identifiers provided by this provider
+		 * Returns the provider's capabilities
+		 * @return array|string[]
 		 */
-		public function provides(): array {
-			return [
-				'di'
-			];
+		public function getCapabilities(): array {
+			return [];
 		}
 		
+		/**
+		 * Returns the family
+		 * @return string|null
+		 */
+		public function getFamily(): ?string {
+			return $this->family;
+		}
+		
+		/**
+		 * Updates the family
+		 * @param string $family
+		 * @return void
+		 */
+		public function setFamily(string $family): void {
+			$this->family = $family;
+		}
+
 		/**
 		 * Determines whether this service provider should be loaded.
 		 * The base implementation always returns true, ensuring that
