@@ -3,7 +3,6 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Composer\Autoload\ClassLoader;
-	use FilesystemIterator;
 	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Utilities\PSR4;
@@ -41,12 +40,6 @@
 		 * @var array<string, bool>
 		 */
 		protected array $scannedClasses = [];
-		
-		/**
-		 * Cache for the Composer autoloader instance
-		 * @var ClassLoader|null
-		 */
-		private ?ClassLoader $autoloaderCache = null;
 		
 		/**
 		 * @var PSR4 PSR-4 utilities

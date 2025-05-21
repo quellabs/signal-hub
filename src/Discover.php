@@ -141,29 +141,38 @@
 		 * @return array<string> Array of unique provider types
 		 */
 		public function getProviderTypes(): array {
+			// Initialize an empty array to store unique provider types
 			$types = [];
 			
+			// Iterate through each provider in the collection
 			foreach ($this->getProviders() as $provider) {
+				// Get the family/type of the current provider
 				$family = $provider->getFamily();
 				
+				// Only add the provider type if:
+				// 1. It has a valid family (not null)
+				// 2. The family isn't already in our types array (avoid duplicates)
 				if ($family !== null && !in_array($family, $types)) {
+					// Add the unique provider type to our array
 					$types[] = $family;
 				}
 			}
 			
+			// Return the array of unique provider types
 			return $types;
 		}
 		
 		/**
-		 * Find providers that offer a specific capability
-		 * @param string $capability The capability/service identifier to filter by
-		 * @return array<ProviderInterface> Array of provider instances offering the requested capability
+		 * Find providers by metadata using a filter function
+		 * @param callable $metadataFilter A callback function that receives a provider's metadata array
+		 *                               and returns true if the provider should be included
+		 * @return array<ProviderInterface> Array of provider instances matching the metadata criteria
 		 */
-		public function findProvidersByCapability(string $capability): array {
+		public function findProvidersByMetadata(callable $metadataFilter): array {
 			return array_filter(
 				$this->getProviders(),
-				function(ProviderInterface $provider) use ($capability) {
-					return in_array($capability, $provider->getCapabilities());
+				function(ProviderInterface $provider) use ($metadataFilter) {
+					return $metadataFilter($provider->getMetadata());
 				}
 			);
 		}
@@ -183,16 +192,23 @@
 		}
 		
 		/**
-		 * Find providers that match both type and capability
-		 * @param string $family The provider type to filter by
-		 * @param string $capability The capability/service identifier to filter by
+		 * Find providers that match a specific type and optionally filter by metadata
+		 * @param string $family The family to filter by
+		 * @param callable $metadataFilter Callback function that receives a provider's metadata array
+		 *                                 and returns true if the provider should be included
 		 * @return array<ProviderInterface> Array of matching provider instances
 		 */
-		public function findProvidersByTypeAndCapability(string $family, string $capability): array {
+		public function findProvidersByTypeAndMetadata(string $family, callable $metadataFilter): array {
 			return array_filter(
 				$this->getProviders(),
-				function(ProviderInterface $provider) use ($family, $capability) {
-					return $provider->getFamily() === $family && in_array($capability, $provider->getCapabilities());
+				function(ProviderInterface $provider) use ($family, $metadataFilter) {
+					// Check family first
+					if ($provider->getFamily() !== $family) {
+						return false;
+					}
+					
+					// Apply the custom metadata filter
+					return $metadataFilter($provider->getMetadata());
 				}
 			);
 		}
@@ -223,7 +239,7 @@
 		public function getComposerJsonFilePath(?string $startDirectory = null): ?string {
 			return $this->utilities->getComposerJsonFilePath($startDirectory);
 		}
-
+		
 		/**
 		 * Find the path to installed.json
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
@@ -232,7 +248,7 @@
 		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
 			return $this->utilities->getComposerInstalledFilePath($startDirectory);
 		}
-
+		
 		/**
 		 * Maps a directory path to a namespace based on PSR-4 rules.
 		 * This method attempts to determine the correct namespace for a directory by:

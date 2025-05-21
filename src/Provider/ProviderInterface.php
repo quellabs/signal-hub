@@ -5,12 +5,13 @@
 	interface ProviderInterface {
 		
 		/**
-		 * Get the specific capabilities or services provided by this provider.
-		 * This returns a list of specific features, services, or capabilities
-		 * that this provider offers within its broader provider type.
-		 * @return array<string> Array of service/capability identifiers
+		 * Retrieves metadata about the provider's capabilities and attributes.
+		 * This method returns detailed information that describes the provider's
+		 * functionality, supported features, version information, and other
+		 * relevant configuration details needed for discovery and integration.
+		 * @return array<string, mixed> Associative array of metadata key-value pairs
 		 */
-		public function getCapabilities(): array;
+		public function getMetadata(): array;
 		
 		/**
 		 * This method can be overridden to conditionally load providers
@@ -24,7 +25,7 @@
 		 * @return array
 		 */
 		public function getDefaults(): array;
-
+		
 		/**
 		 * Sets configuration
 		 * @return void

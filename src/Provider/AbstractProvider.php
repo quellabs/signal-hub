@@ -23,11 +23,10 @@
 		private string $family;
 		
 		/**
-		 * Returns the capabilities of this provider.
-		 * Each provider can define what features it supports.
-		 * @return array List of capabilities supported by this provider
+		 * Retrieves metadata associated with this provider.
+		 * @return array An associative array of metadata key-value pairs
 		 */
-		public function getCapabilities(): array {
+		public function getMetadata(): array {
 			return [];
 		}
 		

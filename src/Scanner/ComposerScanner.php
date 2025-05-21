@@ -76,9 +76,7 @@
 			}
 			
 			// Log provider discovery attempt if debug mode is enabled
-			if ($debug) {
-				echo "[INFO] Looking for providers in family '{$this->configKey}' from project: {$composerPath}\n";
-			}
+			$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from project: {$composerPath}");
 			
 			// Parse the project's composer.json file into an associative array
 			$composer = $this->parseJsonFile($composerPath);
@@ -127,9 +125,7 @@
 			}
 			
 			// Log package discovery attempt if debug mode is enabled
-			if ($debug) {
-				echo "[INFO] Looking for providers in family '{$this->configKey}' from installed packages\n";
-			}
+			$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from installed packages");
 			
 			// Parse the installed.json file into an associative array
 			$packages = $this->parseJsonFile($installedPath);
@@ -181,51 +177,96 @@
 		
 		/**
 		 * Extracts service provider classes from composer configuration.
+		 * Supports both single provider and multiple providers formats.
 		 * @param array $composerConfig The parsed composer.json configuration array
 		 * @return array An associative array of provider classes and their configuration
 		 */
 		protected function extractProviderClasses(array $composerConfig): array {
+			// Access our configuration section within composer.json's 'extra' section
+			// The $this->configKey determines which specific section we're targeting
+			// (e.g., 'laravel', 'symfony', etc.)
+			$configSection = $composerConfig['extra'][$this->configKey] ?? [];
+			
+			// Verify that our configuration section is a valid array
+			// If not, return empty result immediately
+			if (!is_array($configSection)) {
+				return [];
+			}
+			
+			// Get providers from both formats
+			$multipleProviders = $this->extractMultipleProviders($configSection);
+			$singularProvider = $this->extractSingularProvider($configSection);
+			
+			// Return the complete mapping of provider classes to their configurations
+			// Keys are fully qualified class names, values are null or configuration arrays
+			return array_merge($multipleProviders, $singularProvider);
+		}
+		
+		/**
+		 * Extract providers from the 'providers' array format
+		 * Handles multiple providers defined in a single configuration
+		 * @param array $config The configuration section
+		 * @return array The extracted providers and their configurations
+		 */
+		protected function extractMultipleProviders(array $config): array {
+			// Initialize the result array
 			$result = [];
 			
-			// We only look for providers under the specific configKey in the extra section
-			// This way, each scanner only processes its own family of providers
-			if (!isset($composerConfig['extra'][$this->configKey]) || !is_array($composerConfig['extra'][$this->configKey])) {
+			// Get the provider array or default to an empty array if not set
+			$providers = $config['providers'] ?? [];
+			
+			// Ensure we have a valid array to iterate over
+			if (!is_array($providers)) {
 				return $result;
 			}
 			
-			$config = $composerConfig['extra'][$this->configKey];
-			
-			// Process multiple providers in array format
-			// Format: 'providers' => [ProviderClass::class, ['class' => AnotherProvider::class, 'config' => [...]], ...]
-			if (isset($config['providers']) && is_array($config['providers'])) {
-				foreach ($config['providers'] as $provider) {
-					if (is_string($provider)) {
-						// Simple string format - provider class with no configuration
-						$result[$provider] = null; // No specific config
-					} elseif (is_array($provider) && isset($provider['class'])) {
-						// Array format with explicit class and optional configuration
-						$result[$provider['class']] = $provider['config'] ?? null;
-					}
-				}
-			}
-			
-			// Process singular provider format
-			// Format: 'provider' => ProviderClass::class, 'config' => [...]
-			// or: 'provider' => ['class' => ProviderClass::class, 'config' => [...]]
-			if (isset($config['provider'])) {
-				$provider = $config['provider'];
-				$providerConfig = $config['config'] ?? null;
-				
+			// Process each provider in the array
+			foreach ($providers as $provider) {
 				if (is_string($provider)) {
-					// Simple string provider with separate config
-					$result[$provider] = $providerConfig;
+					// Handle simple string format: ProviderClass::class
+					// No configuration is provided for these providers
+					$result[$provider] = null;
 				} elseif (is_array($provider) && isset($provider['class'])) {
-					// Array format provider with inline config
-					$result[$provider['class']] = $provider['config'] ?? $providerConfig;
+					// Handle array format: ['class' => ProviderClass::class, 'config' => [...]]
+					// Configuration is optional and stored in the 'config' key
+					$result[$provider['class']] = $provider['config'] ?? null;
 				}
 			}
 			
-			// Return the extracted providers with their configurations
+			return $result;
+		}
+		
+		/**
+		 * Extract provider from the singular 'provider' format
+		 * @param array $config The configuration section
+		 * @return array The extracted provider and its configuration
+		 */
+		protected function extractSingularProvider(array $config): array {
+			// Exit early if no provider is defined in this configuration section
+			if (!isset($config['provider'])) {
+				return [];
+			}
+			
+			// Initialize the result array
+			$result = [];
+			
+			// Extract the provider and its configuration
+			$provider = $config['provider'];
+			
+			// Use null coalescing operator to get config or null if not set
+			$providerConfig = $config['config'] ?? null;
+			
+			if (is_string($provider)) {
+				// Handle string format: 'provider' => 'Namespace\ProviderClass'
+				// In this case, configuration is defined separately as 'config' => [...]
+				$result[$provider] = $providerConfig;
+			} elseif (is_array($provider) && isset($provider['class'])) {
+				// Handle array format: 'provider' => ['class' => 'Namespace\ProviderClass', 'config' => [...]]
+				// Configuration can be defined inline in the provider array or in the separate 'config' key
+				// Inline config takes precedence over separate config if both exist
+				$result[$provider['class']] = $provider['config'] ?? $providerConfig;
+			}
+			
 			return $result;
 		}
 		
@@ -278,18 +319,6 @@
 		}
 		
 		/**
-		 * Conditionally outputs debug messages to console.
-		 * @param bool $debug Whether debugging is enabled
-		 * @param string $message Message to display
-		 * @return void
-		 */
-		protected function logDebug(bool $debug, string $message): void {
-			if ($debug) {
-				echo $message . PHP_EOL;
-			}
-		}
-		
-		/**
 		 * Loads a configuration file and returns its contents as an array.
 		 * @param string $configFile Relative path to the configuration file from project root
 		 * @return array The configuration array from the file, or empty array if the file doesn't exist
@@ -336,5 +365,17 @@
 			
 			// Return the successfully parsed JSON data as an associative array
 			return $data;
+		}
+		
+		/**
+		 * Conditionally outputs debug messages to console.
+		 * @param bool $debug Whether debugging is enabled
+		 * @param string $message Message to display
+		 * @return void
+		 */
+		protected function logDebug(bool $debug, string $message): void {
+			if ($debug) {
+				echo $message . PHP_EOL;
+			}
 		}
 	}
