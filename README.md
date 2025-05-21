@@ -31,7 +31,6 @@ A lightweight, flexible service discovery component for PHP applications that au
     - [Advanced PSR-4 Techniques](#advanced-psr-4-techniques)
 - [Framework Integration](#framework-integration)
 - [Extending Discover](#extending-discover)
-- [Common Use Cases](#common-use-cases)
 - [License](#license)
 
 ## Introduction
@@ -71,7 +70,6 @@ $discover->discover();
 
 // Get and use the discovered providers
 $providers = $discover->getProviders();
-
 foreach ($providers as $provider) {
     // Register with your container or use directly
     $yourContainer->register($provider);
@@ -92,6 +90,7 @@ namespace App\Providers;
 use Quellabs\Discover\Provider\AbstractProvider;
 
 class ExampleServiceProvider extends AbstractProvider {
+
     /**
      * Get the list of capabilities this provider supports
      * @return array<string>
@@ -119,6 +118,7 @@ The core `ProviderInterface` is intentionally minimal:
 
 ```php
 interface ProviderInterface {
+    
     /**
      * Get the specific capabilities or services provided by this provider.
      * This returns a list of specific features, services, or capabilities
@@ -128,16 +128,44 @@ interface ProviderInterface {
     public function getCapabilities(): array;
     
     /**
-     * Determine if this provider should be loaded
-     * @return bool Whether this provider should be included
+     * This method can be overridden to conditionally load providers
+     * based on runtime conditions.
+     * @return bool
      */
     public function shouldLoad(): bool;
+    
+    /**
+     * Get default configuration
+     * @return array
+     */
+    public function getDefaults(): array;
+
+    /**
+     * Sets configuration
+     * @return void
+     */
+    public function setConfig(array $config): void;
+    
+    /**
+     * Get the family this provider belongs to
+     * @return string|null The provider family or null if not categorized
+     */
+    public function getFamily(): ?string;
+    
+    /**
+     * Set the family for this provider
+     * @param string $family The provider family
+     * @return void
+     */
+    public function setFamily(string $family): void;
 }
 ```
 
-This interface only specifies:
+This interface specifies:
 1. Which capabilities a provider supports
 2. Whether the provider should be loaded
+3. Configuration management methods
+4. Family classification methods
 
 The actual implementation of how services are created and used is left to your application.
 
@@ -230,19 +258,16 @@ class ExampleServiceProvider extends AbstractProvider
 {
     protected array $config = [];
     
-    public function setConfig(array $config): void 
-    {
+    public function setConfig(array $config): void {
         $this->config = $config;
     }
     
-    public function shouldLoad(): bool 
-    {
+    public function shouldLoad(): bool {
         // Use configuration to determine if provider should be loaded
         return $this->config['enabled'] ?? true;
     }
     
-    public function getServiceOptions(): array 
-    {
+    public function getServiceOptions(): array {
         return [
             'option1' => $this->config['option1'] ?? 'default',
             'option2' => $this->config['option2'] ?? 'default',
@@ -346,9 +371,12 @@ Use sophisticated filters for custom class discovery:
 $controllers = $discover->findClassesInDirectory(
     __DIR__ . '/app/Controllers',
     function($className) {
-        if (!class_exists($className)) return false;
+        if (!class_exists($className)) {
+            return false;
+        }
         
         $reflection = new ReflectionClass($className);
+        
         return str_ends_with($className, 'Controller') && 
                !$reflection->isAbstract() && 
                $reflection->hasMethod('handle');
@@ -389,46 +417,10 @@ namespace App\Discovery;
 use Quellabs\Discover\Scanner\ScannerInterface;
 use Quellabs\Discover\Config\DiscoveryConfig;
 
-class CustomScanner implements ScannerInterface 
-{
-    public function scan(DiscoveryConfig $config): array 
-    {
+class CustomScanner implements ScannerInterface {
+    public function scan(DiscoveryConfig $config): array {
         // Your custom discovery logic
         // Return an array of ProviderInterface instances
-    }
-}
-```
-
-## Common Use Cases
-
-### Auto-Loading Controllers
-
-```php
-// Auto-discover and register all controllers
-$controllers = $discover->findClassesInDirectory(
-    __DIR__ . '/app/Controllers',
-    fn($className) => str_ends_with($className, 'Controller')
-);
-
-foreach ($controllers as $controllerClass) {
-    $router->registerController(new $controllerClass());
-}
-```
-
-### Service Manager Organization
-
-```php
-// Create service managers for each provider family
-$managers = [
-    'database' => new DatabaseManager(),
-    'cache' => new CacheManager(),
-    'queue' => new QueueManager()
-];
-
-// Register providers with appropriate managers
-foreach ($managers as $family => $manager) {
-    foreach ($discover->findProvidersByFamily($family) as $provider) {
-        $manager->register($provider);
     }
 }
 ```
