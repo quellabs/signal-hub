@@ -295,10 +295,10 @@
 		/**
 		 * Recursively scans a directory and maps files to namespaced classes based on PSR-4 rules
 		 * @param string $directory Directory to scan
-		 * @param string $controllerSuffix Suffix to filter controller classes (optional)
+		 * @param callable|null $filter Optional callback function to filter classes (receives className as parameter)
 		 * @return array<string> Array of fully qualified class names
 		 */
-		public function findClassesInDirectory(string $directory, string $controllerSuffix = ''): array {
+		public function findClassesInDirectory(string $directory, ?callable $filter = null): array {
 			// Early return if directory doesn't exist or is not readable
 			$absoluteDir = realpath($directory);
 			
@@ -330,7 +330,7 @@
 				
 				// Recursively scan subdirectories and merge results
 				if (is_dir($fullPath)) {
-					$subDirClasses = $this->findClassesInDirectory($fullPath, $controllerSuffix);
+					$subDirClasses = $this->findClassesInDirectory($fullPath, $filter);
 					$classNames = array_merge($classNames, $subDirClasses);
 					continue; // Early continue to next iteration
 				}
@@ -343,13 +343,16 @@
 				// Fetch class name from the file
 				$className = $this->extractClassNameFromFile($entry);
 				
-				// Skip if it doesn't match the controller suffix (when specified)
-				if (!$this->hasRequiredSuffix($className, $controllerSuffix)) {
+				// Build the fully qualified class name
+				$fullyQualifiedClassName = $namespaceForDir . '\\' . $className;
+				
+				// Apply the filter if provided
+				if ($filter !== null && !$filter($fullyQualifiedClassName)) {
 					continue;
 				}
 				
 				// Add the complete namespace to the list
-				$classNames[] = $namespaceForDir . '\\' . $className;
+				$classNames[] = $fullyQualifiedClassName;
 			}
 			
 			return $classNames;

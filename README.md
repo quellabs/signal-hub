@@ -300,10 +300,10 @@ Find and load classes in a directory according to PSR-4 autoloading rules:
 $classes = $discover->findClassesInDirectory('/path/to/your/Controllers');
 // Returns array of fully qualified class names like ["App\Controllers\UserController", ...]
 
-// Optionally filter classes by suffix
+// Filter classes using a callback function (much more flexible than suffix filtering)
 $controllerClasses = $discover->findClassesInDirectory(
     '/path/to/your/Controllers',
-    'Controller' // Only include classes ending with "Controller"
+    fn($className) => str_ends_with($className, 'Controller')
 );
 ```
 
@@ -312,8 +312,8 @@ This method:
 1. Determines the correct namespace for the given directory using PSR-4 rules
 2. Recursively scans the directory and all subdirectories
 3. Converts file paths to fully qualified class names
-4. Filters the results by suffix if requested
-5. Only includes classes that actually exist and can be loaded
+4. Applies any provided filter callback to determine which classes to include
+5. Only includes classes that meet the filter criteria (if a filter is provided)
 
 ### Example: Finding All Controller Classes
 
@@ -330,7 +330,7 @@ $discover = new Discover();
 // Find all classes ending with "Controller" in your controllers directory
 $controllerClasses = $discover->findClassesInDirectory(
     __DIR__ . '/app/Controllers',
-    'Controller'
+    fn($className) => str_ends_with($className, 'Controller')
 );
 
 // Now you can work with these controller classes
@@ -379,7 +379,7 @@ And you call `resolveNamespaceFromPath('/your/project/src/Controllers/UserContro
 // Auto-discover and register all controllers in your application
 $controllers = $discover->findClassesInDirectory(
     __DIR__ . '/app/Controllers',
-    'Controller'
+    fn($className) => str_ends_with($className, 'Controller')
 );
 
 foreach ($controllers as $controllerClass) {
@@ -392,13 +392,11 @@ foreach ($controllers as $controllerClass) {
 ```php
 // Find all classes that implement a specific interface
 $repositoryClasses = $discover->findClassesInDirectory(
-    __DIR__ . '/app/Repositories'
+    __DIR__ . '/app/Repositories',
+    fn($className) => class_exists($className) && is_subclass_of($className, YourRepositoryInterface::class)
 );
 
-// Filter to only include classes that implement a specific interface
-$repositoryClasses = array_filter($repositoryClasses, function($class) {
-    return is_subclass_of($class, YourRepositoryInterface::class);
-});
+// No need for additional filtering since we can do it directly in the callback
 ```
 
 ### Generating Documentation
@@ -407,7 +405,7 @@ $repositoryClasses = array_filter($repositoryClasses, function($class) {
 // Discover all service provider classes
 $providerClasses = $discover->findClassesInDirectory(
     __DIR__ . '/app/Providers',
-    'Provider'
+    fn($className) => str_ends_with($className, 'Provider') && class_exists($className)
 );
 
 // Generate documentation for each provider
@@ -419,6 +417,28 @@ foreach ($providerClasses as $providerClass) {
 ```
 
 ## Advanced PSR-4 Techniques
+
+### Using Complex Filters
+
+You can use sophisticated filters to find exactly the classes you need:
+
+```php
+// Find only concrete (non-abstract) controller classes
+$controllers = $discover->findClassesInDirectory(
+    __DIR__ . '/app/Controllers',
+    function($className) {
+        // Skip classes that don't exist or can't be loaded
+        if (!class_exists($className)) return false;
+        
+        $reflection = new ReflectionClass($className);
+        
+        // Only include concrete controllers with specific method
+        return str_ends_with($className, 'Controller') && 
+               !$reflection->isAbstract() && 
+               $reflection->hasMethod('handle');
+    }
+);
+```
 
 ### Multi-Directory Discovery
 
@@ -432,8 +452,15 @@ $directories = [
     __DIR__ . '/vendor/package/src/Services'
 ];
 
+// Use a callback to find classes that fit our service criteria
+$serviceFilter = function($className) {
+    return class_exists($className) && 
+           (str_ends_with($className, 'Service') || 
+            is_subclass_of($className, ServiceInterface::class));
+};
+
 foreach ($directories as $directory) {
-    $serviceClasses = $discover->findClassesInDirectory($directory, 'Service');
+    $serviceClasses = $discover->findClassesInDirectory($directory, $serviceFilter);
     $allServiceClasses = array_merge($allServiceClasses, $serviceClasses);
 }
 ```
@@ -443,17 +470,21 @@ foreach ($directories as $directory) {
 ```php
 // Discover and conditionally load classes
 $eventListeners = $discover->findClassesInDirectory(
-    __DIR__ . '/app/Listeners'
+    __DIR__ . '/app/Listeners',
+    function($className) {
+        // Only include classes that exist and have an isEnabled method that returns true
+        if (!class_exists($className)) {
+            return false;
+        }
+        
+        $reflection = new ReflectionClass($className);
+        return $reflection->hasMethod('isEnabled') && $className::isEnabled();
+    }
 );
 
+// Since filtering is done in the callback, we can directly use the classes
 foreach ($eventListeners as $listenerClass) {
-    // Only load listeners that are enabled
-    $reflection = new ReflectionClass($listenerClass);
-    
-    if ($reflection->hasMethod('isEnabled') && 
-        $listenerClass::isEnabled()) {
-        $eventDispatcher->registerListener(new $listenerClass());
-    }
+    $eventDispatcher->registerListener(new $listenerClass());
 }
 ```
 
