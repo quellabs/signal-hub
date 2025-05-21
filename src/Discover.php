@@ -222,13 +222,84 @@
 		}
 		
 		/**
+		 * Find the fully qualified namespace for a given file or directory path
+		 * @param string $path The absolute path to the PHP file or directory
+		 * @param bool $isDirectory Set to true if the path is a directory rather than a file
+		 * @return string|null The fully qualified namespace, or null if not found
+		 */
+		public function findNamespaceFromPath(string $path, bool $isDirectory = false): ?string {
+			// Convert to an absolute path, resolving any symlinks
+			$path = realpath($path);
+			
+			if (!$path) {
+				return null;
+			}
+			
+			// Get the composer autoloader for PSR-4 information
+			$composer = $this->getComposerAutoloader();
+			$psr4Prefixes = $composer->getPrefixesPsr4();
+			
+			// If the path is a file, remove the filename portion to work with its directory
+			$directoryPath = $isDirectory ? $path : dirname($path);
+			$fileName = $isDirectory ? '' : basename($path);
+			
+			// Track the best matching namespace and its corresponding base directory length
+			$matchedNamespace = null;
+			$longestMatch = 0;
+			
+			// Check PSR-4 autoloaded namespaces
+			foreach ($psr4Prefixes as $namespace => $dirs) {
+				foreach ($dirs as $dir) {
+					// Ensure we have the absolute directory path for comparison
+					$dir = realpath($dir);
+					
+					if (!$dir) {
+						continue;
+					}
+					
+					// Check if the directory is within this PSR-4 base directory
+					if (!str_starts_with($directoryPath, $dir)) {
+						continue;
+					}
+					
+					// Calculate how much of the path matches to find the most specific match
+					$matchLength = strlen($dir);
+					
+					// If this match is longer than previous matches, it's more specific
+					if ($matchLength > $longestMatch) {
+						$longestMatch = $matchLength;
+						
+						// Extract the relative path from the base directory
+						$relPath = substr($directoryPath, strlen($dir) + 1);
+						
+						// If we have a relative path, convert directory separators to namespace separators
+						if (!empty($relPath)) {
+							$relPath = str_replace(DIRECTORY_SEPARATOR, '\\', $relPath);
+							$matchedNamespace = rtrim($namespace, '\\') . '\\' . $relPath;
+						} else {
+							$matchedNamespace = rtrim($namespace, '\\');
+						}
+					}
+				}
+			}
+			
+			// If this is a file path, append the filename (without extension) to the namespace
+			if (!$isDirectory && $matchedNamespace !== null && !empty($fileName)) {
+				// Remove the .php extension if it exists
+				$className = pathinfo($fileName, PATHINFO_FILENAME);
+				$matchedNamespace .= '\\' . $className;
+			}
+			
+			return $matchedNamespace;
+		}
+		
+		/**
 		 * Recursively scans a directory and maps files to namespaced classes based on PSR-4 rules
 		 * @param string $directory Directory to scan
-		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes and their dirs
 		 * @param string $controllerSuffix Suffix to filter controller classes (optional)
 		 * @return array<string> Array of fully qualified class names
 		 */
-		public function scanDirectoryWithPsr4(string $directory, array $psr4Prefixes, string $controllerSuffix = ''): array {
+		public function scanDirectoryWithPsr4(string $directory, string $controllerSuffix = ''): array {
 			// Early return if directory doesn't exist or is not readable
 			$absoluteDir = realpath($directory);
 			
@@ -236,8 +307,14 @@
 				return [];
 			}
 			
-			// Find matching PSR-4 namespace for this directory
-			$namespaceForDir = $this->findMatchingNamespace($absoluteDir, $psr4Prefixes);
+			// Get the namespace for this directory using our preferred method
+			$namespaceForDir = $this->findNamespaceFromPath($absoluteDir, true);
+			
+			// If no namespace was found for the directory, we can return early
+			// This is an optimization as we avoid scanning directories that aren't part of a PSR-4 namespace
+			if (!$namespaceForDir) {
+				return [];
+			}
 			
 			// Get directory entries or return an empty array if scandir fails
 			$classNames = [];
@@ -254,19 +331,19 @@
 				
 				// Recursively scan subdirectories and merge results
 				if (is_dir($fullPath)) {
-					$subDirClasses = $this->scanDirectoryWithPsr4($fullPath, $psr4Prefixes, $controllerSuffix);
+					$subDirClasses = $this->scanDirectoryWithPsr4($fullPath, $controllerSuffix);
 					$classNames = array_merge($classNames, $subDirClasses);
 					continue; // Early continue to next iteration
 				}
 				
-				// Skip if not a PHP file or no namespace was found for the directory
-				if (!$this->isPhpFile($entry) || !$namespaceForDir) {
+				// Skip if not a PHP file
+				if (!$this->isPhpFile($entry)) {
 					continue;
 				}
 				
 				// Fetch class name from the file
 				$className = $this->getClassNameFromFile($entry);
-
+				
 				// Skip if it doesn't match the controller suffix (when specified)
 				if (!$this->matchesControllerSuffix($className, $controllerSuffix)) {
 					continue;
@@ -281,130 +358,6 @@
 			}
 			
 			return $classNames;
-		}
-		
-		/**
-		 * Maps a directory path to a namespace based on PSR-4 rules
-		 * @param string $directory Directory path to map
-		 * @param string $psr4RootDir PSR-4 root directory
-		 * @param string $namespacePrefix PSR-4 namespace prefix
-		 * @return string The corresponding namespace
-		 */
-		public function mapDirectoryToNamespace(string $directory, string $psr4RootDir, string $namespacePrefix): string {
-			// Get the relative path from the PSR-4 root
-			$relativePath = '';
-			
-			// Only extract the relative path if the directory is longer than the root directory
-			// This prevents negative offsets in substr() when directory is shorter than root
-			if (strlen($directory) > strlen($psr4RootDir)) {
-				$relativePath = substr($directory, strlen($psr4RootDir) + 1);
-				// The +1 skips the directory separator after the root path
-			}
-			
-			// Convert directory separators to namespace separators
-			// This transforms filesystem paths (with / or \) into PHP namespace format (with \)
-			$namespaceSuffix = str_replace(
-				DIRECTORY_SEPARATOR,  // Platform-specific directory separator (/ on Unix, \ on Windows)
-				'\\',                 // PHP namespace separator
-				$relativePath
-			);
-			
-			// Combine the prefix with the suffix
-			// rtrim ensures we don't have double backslashes between prefix and suffix
-			return
-				rtrim($namespacePrefix, '\\') .
-				(empty($namespaceSuffix) ? '' : '\\' . $namespaceSuffix);
-		}
-		
-		/**
-		 * Finds the matching PSR-4 namespace for a given directory
-		 * @param string $directory Absolute directory path
-		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes mapping to possible directories
-		 * @return string|null Matched namespace or null if not found
-		 */
-		public function findMatchingNamespace(string $directory, array $psr4Prefixes): ?string {
-			// Will hold the namespace that best matches the directory
-			$matchedNamespace = null;
-			
-			// Tracks the length of the longest matching PSR-4 directory path
-			$longestMatch = 0;
-			
-			// Iterate through each namespace prefix and its corresponding directories
-			foreach ($psr4Prefixes as $prefix => $dirs) {
-				// A prefix might map to multiple directories, check each one
-				foreach ($dirs as $psr4Dir) {
-					// Convert relative paths to absolute paths
-					$psr4AbsoluteDir = realpath($psr4Dir);
-					
-					// Skip invalid directories that can't be resolved
-					if (!$psr4AbsoluteDir) {
-						continue;
-					}
-					
-					// Check if the target directory is within this PSR-4 root directory
-					if (!str_starts_with($directory, $psr4AbsoluteDir)) {
-						continue;
-					}
-					
-					// Calculate how much of the path matches to find the most specific match
-					$matchLength = strlen($psr4AbsoluteDir);
-					
-					// If this match is longer than previous matches, it's more specific
-					if ($matchLength > $longestMatch) {
-						$longestMatch = $matchLength;
-						
-						// Transform the directory path into a namespace using the prefix
-						$matchedNamespace = $this->mapDirectoryToNamespace(
-							$directory,
-							$psr4AbsoluteDir,
-							$prefix
-						);
-					}
-				}
-			}
-			
-			// Return the namespace corresponding to the most specific (longest) matching directory
-			// or null if no match was found
-			return $matchedNamespace;
-		}
-		
-		/**
-		 * Find the fully qualified namespace for a given file path
-		 * @param string $filePath The absolute path to the PHP file
-		 * @return string|null The fully qualified namespace of the file, or null if not found
-		 */
-		function findNamespaceFromPath(string $filePath): ?string {
-			// Convert to an absolute path, resolving any symlinks
-			$filePath = realpath($filePath);
-			$composer = $this->getComposerAutoloader();
-			
-			// Check PSR-4 autoloaded namespaces first
-			// PSR-4 maps namespace prefixes to directory bases
-			foreach ($composer->getPrefixesPsr4() as $namespace => $dirs) {
-				foreach ($dirs as $dir) {
-					// Ensure we have the absolute directory path for comparison
-					$dir = realpath($dir);
-					
-					// Check if the file is within this PSR-4 base directory
-					if ($dir && str_starts_with($filePath, $dir)) {
-						// Extract the relative path from the base directory
-						$relPath = substr($filePath, strlen($dir) + 1);
-						
-						// Convert directory separators to namespace separators
-						$relPath = str_replace('/', '\\', $relPath);
-						
-						// Remove the .php extension
-						$relPath = substr($relPath, 0, strrpos($relPath, '.php'));
-						
-						// Combine namespace prefix with relative path to get fully qualified namespace
-						return $namespace . $relPath;
-					}
-				}
-			}
-			
-			// If no PSR-4 mapping found, return null
-			// Note: PSR-0 mapping check was omitted from this implementation
-			return null;
 		}
 		
 		/**
