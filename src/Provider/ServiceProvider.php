@@ -64,6 +64,22 @@
 		}
 		
 		/**
+		 * Returns the default settings
+		 * @return array
+		 */
+		public function getDefaults(): array {
+			return [];
+		}
+		
+		/**
+		 * Accepts a new configuration
+		 * @param array $config
+		 * @return void
+		 */
+		public function setConfig(array $config): void {
+		}
+		
+		/**
 		 * This class provides 'di' (dependency injection)
 		 * @param string $className
 		 * @return bool
