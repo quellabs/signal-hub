@@ -98,15 +98,15 @@ Add service providers to your `composer.json` file:
 
 ```json
 {
-    "name": "your/package",
-    "extra": {
-        "discover": {
-            "providers": [
-                "App\\Providers\\ExampleServiceProvider",
-                "App\\Providers\\AnotherServiceProvider"
-            ]
-        }
+  "name": "your/package",
+  "extra": {
+    "discover": {
+      "providers": [
+        "App\\Providers\\ExampleServiceProvider",
+        "App\\Providers\\AnotherServiceProvider"
+      ]
     }
+  }
 }
 ```
 
@@ -240,3 +240,68 @@ All service providers must implement this interface to be discovered. The interf
 2. Determining if the provider should be loaded based on runtime conditions
 
 The actual implementation details of how services are created and used are left entirely to your application.
+
+## PSR-4 and Class Discovery
+
+Quellabs Discover includes utilities for working with Composer's autoloader and PSR-4 namespaces:
+
+### Accessing the Composer Autoloader
+
+```php
+// Get the Composer ClassLoader instance
+$autoloader = $discover->getComposerAutoloader();
+```
+
+### Working with PSR-4 Namespaces
+
+```php
+// Get PSR-4 prefix mappings from the autoloader
+$prefixes = $discover->getPsr4Prefixes($autoloader);
+```
+
+### Scanning Directories with PSR-4 Mapping
+
+```php
+// Scan a directory and map files to fully qualified class names using PSR-4 rules
+$classes = $discover->scanDirectoryWithPsr4(
+    __DIR__ . '/app/Controllers', 
+    $prefixes,
+    'Controller'  // Optional suffix to filter classes
+);
+```
+
+### Mapping Directories to Namespaces
+
+```php
+// Map a directory path to its corresponding namespace based on PSR-4 rules
+$namespace = $discover->mapDirectoryToNamespace(
+    __DIR__ . '/app/Controllers',
+    __DIR__ . '/app',
+    'App\\'
+);
+```
+
+### Example: Finding Controller Classes
+
+```php
+/**
+ * Maps directory structure to namespaces based on the PSR-4 autoload configuration
+ * @param string $dir Absolute path to the directory to scan
+ * @param string $controllerSuffix Optional suffix to filter controller classes (e.g., 'Controller')
+ * @return array<string> Array with fully qualified class names
+ * @throws \RuntimeException If the directory isn't readable
+ */
+protected function findControllerClasses(string $dir, string $controllerSuffix = 'Controller'): array {
+    if (!is_readable($dir)) {
+        throw new \RuntimeException("Directory not readable: {$dir}");
+    }
+    
+    // Get the Composer autoloader
+    $composerAutoloader = $this->getComposerAutoloader();
+    
+    // Get PSR-4 prefixes from the autoloader
+    $prefixesPsr4 = $this->getPsr4Prefixes($composerAutoloader);
+    
+    return $this->scanDirectoryWithPsr4($dir, $prefixesPsr4, $controllerSuffix);
+}
+```
