@@ -349,6 +349,7 @@
 					continue;
 				}
 				
+				// Create the complete namespace
 				$fullyQualifiedName = $namespaceForDir . '\\' . $className;
 				
 				// Only add class if it exists and is loadable
