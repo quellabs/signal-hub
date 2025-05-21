@@ -198,7 +198,7 @@ You can filter providers by the services they provide:
 
 ```php
 // Get all providers that provide a specific service
-$databaseProviders = $discover->getProvidersForService('database');
+$databaseProviders = $discover->findProvidersByService('database');
 
 // You can also filter providers manually
 $filteredProviders = array_filter(
@@ -256,11 +256,14 @@ Access the Composer `ClassLoader` instance to interact with registered namespace
 $autoloader = $discover->getComposerAutoloader();
 ```
 
-#### Finding Composer Configuration
+#### Finding the Project Root and Composer Configuration
 
-Locate the project's `composer.json` file:
+Locate the project's root directory and composer.json file:
 
 ```php
+// Find the project's root directory (where composer.json is located)
+$projectRoot = $discover->getProjectRoot();
+
 // Find the composer.json file, searching upward from the current directory
 $composerJsonPath = $discover->getComposerJsonFilePath();
 
@@ -270,13 +273,13 @@ $composerJsonPath = $discover->getComposerJsonFilePath('/path/to/start/from');
 
 ### Namespace <-> Path Mapping
 
-#### Getting a Namespace from a Path
+#### Resolving a Namespace from a Path
 
 One of the most useful utilities is mapping a directory path to its corresponding PSR-4 namespace:
 
 ```php
 // Determine the appropriate namespace for a directory
-$namespace = $discover->getNamespaceFromPath('/path/to/your/project/src/Controllers');
+$namespace = $discover->resolveNamespaceFromPath('/path/to/your/project/src/Controllers');
 // Returns something like: "App\Controllers"
 ```
 
@@ -288,17 +291,17 @@ This method is smart enough to:
 
 The method works for both your project's source code and for directories within dependencies.
 
-### Discovering Classes by PSR-4 Rules
+### Finding Classes in Directories
 
-Discover and load classes in a directory according to PSR-4 autoloading rules:
+Find and load classes in a directory according to PSR-4 autoloading rules:
 
 ```php
 // Find all classes in a directory based on PSR-4 rules
-$classes = $discover->discoverClassesByPsr4('/path/to/your/Controllers');
+$classes = $discover->findClassesInDirectory('/path/to/your/Controllers');
 // Returns array of fully qualified class names like ["App\Controllers\UserController", ...]
 
 // Optionally filter classes by suffix
-$controllerClasses = $discover->discoverClassesByPsr4(
+$controllerClasses = $discover->findClassesInDirectory(
     '/path/to/your/Controllers',
     'Controller' // Only include classes ending with "Controller"
 );
@@ -325,7 +328,7 @@ use Quellabs\Discover\Discover;
 $discover = new Discover();
 
 // Find all classes ending with "Controller" in your controllers directory
-$controllerClasses = $discover->discoverClassesByPsr4(
+$controllerClasses = $discover->findClassesInDirectory(
     __DIR__ . '/app/Controllers',
     'Controller'
 );
@@ -362,7 +365,7 @@ For example, if your `composer.json` has this configuration:
 }
 ```
 
-And you call `getNamespaceFromPath('/your/project/src/Controllers/UserController.php')`, the library will:
+And you call `resolveNamespaceFromPath('/your/project/src/Controllers/UserController.php')`, the library will:
 
 1. Recognize that the path is within the "src/" directory (mapped to "App\\")
 2. Convert the relative path "Controllers/UserController.php" to namespace segments
@@ -374,7 +377,7 @@ And you call `getNamespaceFromPath('/your/project/src/Controllers/UserController
 
 ```php
 // Auto-discover and register all controllers in your application
-$controllers = $discover->discoverClassesByPsr4(
+$controllers = $discover->findClassesInDirectory(
     __DIR__ . '/app/Controllers',
     'Controller'
 );
@@ -388,7 +391,7 @@ foreach ($controllers as $controllerClass) {
 
 ```php
 // Find all classes that implement a specific interface
-$repositoryClasses = $discover->discoverClassesByPsr4(
+$repositoryClasses = $discover->findClassesInDirectory(
     __DIR__ . '/app/Repositories'
 );
 
@@ -402,7 +405,7 @@ $repositoryClasses = array_filter($repositoryClasses, function($class) {
 
 ```php
 // Discover all service provider classes
-$providerClasses = $discover->discoverClassesByPsr4(
+$providerClasses = $discover->findClassesInDirectory(
     __DIR__ . '/app/Providers',
     'Provider'
 );
@@ -430,7 +433,7 @@ $directories = [
 ];
 
 foreach ($directories as $directory) {
-    $serviceClasses = $discover->discoverClassesByPsr4($directory, 'Service');
+    $serviceClasses = $discover->findClassesInDirectory($directory, 'Service');
     $allServiceClasses = array_merge($allServiceClasses, $serviceClasses);
 }
 ```
@@ -439,7 +442,7 @@ foreach ($directories as $directory) {
 
 ```php
 // Discover and conditionally load classes
-$eventListeners = $discover->discoverClassesByPsr4(
+$eventListeners = $discover->findClassesInDirectory(
     __DIR__ . '/app/Listeners'
 );
 

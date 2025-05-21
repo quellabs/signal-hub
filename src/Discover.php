@@ -146,7 +146,7 @@
 		 * @param string $service
 		 * @return array<ProviderInterface>
 		 */
-		public function getProvidersForService(string $service): array {
+		public function findProvidersByService(string $service): array {
 			return array_filter($this->providers, function (ProviderInterface $provider) use ($service) {
 				return in_array($service, $provider->provides());
 			});
@@ -185,49 +185,81 @@
 		}
 		
 		/**
-		 * Find the path to the local composer.json file
-		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to composer.json if found, null otherwise
+		 * Find directory containing composer.json by traversing up from the given directory
+		 * @param string|null $directory Directory to start searching from (defaults to current directory)
+		 * @return string|null Directory containing composer.json if found, null otherwise
 		 */
-		public function getComposerJsonFilePath(?string $startDirectory = null): ?string {
-			// Get the result from cache if we can
-			if ($this->composerJsonPathCache !== null) {
-				return $this->composerJsonPathCache;
+		public function getProjectRoot(?string $directory = null): ?string {
+			// If no directory provided, use current directory
+			if ($directory === null) {
+				$directory = getcwd();
+			} else {
+				// Convert to absolute path if it's not already
+				$directory = realpath($directory);
 			}
-			
-			// Start from provided directory or current directory if not specified
-			$directory = $startDirectory ?? getcwd();
 			
 			// Ensure we have a valid directory
 			if (!$directory || !is_dir($directory)) {
 				return null;
 			}
 			
-			// Convert to absolute path if it's not already
-			$directory = realpath($directory);
+			// Start with the provided/default directory
+			$currentDir = $directory;
 			
-			// Keep traversing up until we find composer.json or reach the filesystem root
-			while ($directory) {
-				$composerPath = $directory . DIRECTORY_SEPARATOR . 'composer.json';
+			// Continue searching until we reach filesystem root or find composer.json
+			while ($currentDir) {
+				// Construct the potential path to composer.json in the current directory
+				$composerPath = $currentDir . DIRECTORY_SEPARATOR . 'composer.json';
 				
+				// Check if composer.json exists in the current directory
 				if (file_exists($composerPath)) {
-					return $this->composerJsonPathCache = $composerPath;
+					// Found it - return the directory containing composer.json
+					return $currentDir;
 				}
 				
-				// Get parent directory
-				$parentDir = dirname($directory);
+				// Get parent directory to continue search upward in filesystem hierarchy
+				$parentDir = dirname($currentDir);
 				
-				// Stop if we've reached the filesystem root
-				if ($parentDir === $directory) {
+				// Stop if we've reached the filesystem root (dirname returns the same path)
+				if ($parentDir === $currentDir) {
 					break;
 				}
 				
-				$directory = $parentDir;
+				// Move up to parent directory for next iteration
+				$currentDir = $parentDir;
 			}
 			
+			// If we get here, composer.json wasn't found in this path or any parent directories
 			return null;
 		}
 		
+		/**
+		 * Find the path to the local composer.json file
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @return string|null Path to composer.json if found, null otherwise
+		 */
+		public function getComposerJsonFilePath(?string $startDirectory = null): ?string {
+			// Check if we've already found and cached the path in this instance
+			if ($this->composerJsonPathCache !== null) {
+				return $this->composerJsonPathCache;
+			}
+			
+			// Find the directory containing composer.json, starting from provided directory or current directory
+			$projectRoot = $this->getProjectRoot($startDirectory);
+			
+			// If a directory containing composer.json was found
+			if ($projectRoot !== null) {
+				// Construct the full path to the composer.json file
+				$composerPath = $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
+				
+				// Store result in cache for future calls and return it
+				return $this->composerJsonPathCache = $composerPath;
+			}
+			
+			// If no composer.json was found, return null to indicate failure
+			return null;
+		}
+
 		/**
 		 * Maps a directory path to a namespace based on PSR-4 rules.
 		 * This method attempts to determine the correct namespace for a directory by:
@@ -236,7 +268,7 @@
 		 * @param string $directory Directory path to map to a namespace
 		 * @return string|null The corresponding namespace if found, null otherwise
 		 */
-		public function getNamespaceFromPath(string $directory): ?string {
+		public function resolveNamespaceFromPath(string $directory): ?string {
 			// Convert to the absolute real path to ensure consistent path comparison
 			$directory = realpath($directory);
 			
@@ -247,7 +279,7 @@
 			
 			// First approach: Use the already registered Composer autoloader
 			// This works well for packages/dependencies that have been autoloaded
-			$composerNamespace = $this->findNamespaceFromComposerAutoloader($directory);
+			$composerNamespace = $this->resolveNamespaceFromAutoloader($directory);
 			
 			// If we found a matching namespace through the autoloader, return it immediately
 			if ($composerNamespace !== null) {
@@ -257,7 +289,7 @@
 			// Second approach: Parse the main project's composer.json file directly
 			// This is necessary when dealing with the current project's namespaces
 			// which might not be fully registered in the autoloader yet
-			return $this->findNamespaceFromProjectComposer($directory);
+			return $this->resolveNamespaceFromComposerJson($directory);
 		}
 		
 		/**
@@ -266,7 +298,7 @@
 		 * @param string $controllerSuffix Suffix to filter controller classes (optional)
 		 * @return array<string> Array of fully qualified class names
 		 */
-		public function discoverClassesByPsr4(string $directory, string $controllerSuffix = ''): array {
+		public function findClassesInDirectory(string $directory, string $controllerSuffix = ''): array {
 			// Early return if directory doesn't exist or is not readable
 			$absoluteDir = realpath($directory);
 			
@@ -275,7 +307,7 @@
 			}
 			
 			// Get the namespace for this directory using our preferred method
-			$namespaceForDir = $this->getNamespaceFromPath($absoluteDir);
+			$namespaceForDir = $this->resolveNamespaceFromPath($absoluteDir);
 			
 			// If no namespace was found for the directory, we can return early
 			// This is an optimization as we avoid scanning directories that aren't part of a PSR-4 namespace
@@ -298,7 +330,7 @@
 				
 				// Recursively scan subdirectories and merge results
 				if (is_dir($fullPath)) {
-					$subDirClasses = $this->discoverClassesByPsr4($fullPath, $controllerSuffix);
+					$subDirClasses = $this->findClassesInDirectory($fullPath, $controllerSuffix);
 					$classNames = array_merge($classNames, $subDirClasses);
 					continue; // Early continue to next iteration
 				}
@@ -309,10 +341,10 @@
 				}
 				
 				// Fetch class name from the file
-				$className = $this->getClassNameFromFile($entry);
+				$className = $this->extractClassNameFromFile($entry);
 				
 				// Skip if it doesn't match the controller suffix (when specified)
-				if (!$this->matchesControllerSuffix($className, $controllerSuffix)) {
+				if (!$this->hasRequiredSuffix($className, $controllerSuffix)) {
 					continue;
 				}
 				
@@ -328,7 +360,7 @@
 		 * @param string $directory Resolved realpath to directory
 		 * @return string|null Namespace if found
 		 */
-		private function findNamespaceFromComposerAutoloader(string $directory): ?string {
+		private function resolveNamespaceFromAutoloader(string $directory): ?string {
 			try {
 				// Get the Composer autoloader
 				$composerAutoloader = $this->getComposerAutoloader();
@@ -337,7 +369,7 @@
 				$prefixesPsr4 = $composerAutoloader->getPrefixesPsr4();
 				
 				// Find the longest matching namespace prefix
-				return $this->findLongestMatchingNamespace($directory, $prefixesPsr4);
+				return $this->findMostSpecificNamespace($directory, $prefixesPsr4);
 			} catch (\Exception $e) {
 				return null;
 			}
@@ -350,7 +382,7 @@
 		 * @param string $directory Resolved realpath to the directory we need to find a namespace for
 		 * @return string|null The namespace corresponding to the directory, or null if not found
 		 */
-		private function findNamespaceFromProjectComposer(string $directory): ?string {
+		private function resolveNamespaceFromComposerJson(string $directory): ?string {
 			// First, locate the project's composer.json file by traversing upwards from the current directory
 			$composerJsonPath = $this->getComposerJsonFilePath();
 			
@@ -399,7 +431,7 @@
 			
 			// Use the same logic as the autoloader-based approach to find the best namespace match
 			// This ensures consistent namespace resolution regardless of which method finds it
-			return $this->findLongestMatchingNamespace($directory, $prefixesPsr4);
+			return $this->findMostSpecificNamespace($directory, $prefixesPsr4);
 		}
 		
 		/**
@@ -411,7 +443,7 @@
 		 *                           Format: ['Namespace\\' => ['/path/to/dir', '/another/path']]
 		 * @return string|null The complete namespace for the directory, or null if no match found
 		 */
-		private function findLongestMatchingNamespace(string $directory, array $prefixesPsr4): ?string {
+		private function findMostSpecificNamespace(string $directory, array $prefixesPsr4): ?string {
 			// Track best match found so far
 			$matchedNamespace = null;
 			$longestMatch = 0;
@@ -540,7 +572,7 @@
 		 * @param string $filename File name
 		 * @return string Class name
 		 */
-		private function getClassNameFromFile(string $filename): string {
+		private function extractClassNameFromFile(string $filename): string {
 			return pathinfo($filename, PATHINFO_FILENAME);
 		}
 		
@@ -550,7 +582,7 @@
 		 * @param string $controllerSuffix Required suffix (if any)
 		 * @return bool True if matches or no suffix required
 		 */
-		private function matchesControllerSuffix(string $className, string $controllerSuffix): bool {
+		private function hasRequiredSuffix(string $className, string $controllerSuffix): bool {
 			return empty($controllerSuffix) || str_ends_with($className, $controllerSuffix);
 		}
 	}
