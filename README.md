@@ -94,7 +94,7 @@ class ExampleServiceProvider extends AbstractProvider {
      * Get the list of capabilities this provider supports
      * @return array<string>
      */
-    public function getCapabilities(): array {
+    public function getMetadata(): array {
         return [
             'redis',
         ];
@@ -118,13 +118,14 @@ The core `ProviderInterface` is intentionally minimal:
 ```php
 interface ProviderInterface {
     
-    /**
-     * Get the specific capabilities or services provided by this provider.
-     * This returns a list of specific features, services, or capabilities
-     * that this provider offers within its broader provider type.
-     * @return array<string> Array of service/capability identifiers
-     */
-    public function getCapabilities(): array;
+      /**
+       * Retrieves metadata about the provider's capabilities and attributes.
+       * This method returns detailed information that describes the provider's
+       * functionality, supported features, version information, and other
+       * relevant configuration details needed for discovery and integration.
+       * @return array<string, mixed> Associative array of metadata key-value pairs
+       */
+    public function getMetadata(): array;
     
     /**
      * This method can be overridden to conditionally load providers
@@ -161,10 +162,10 @@ interface ProviderInterface {
 ```
 
 This interface specifies:
-1. Which capabilities a provider supports
+1. Family classification methods
 2. Whether the provider should be loaded
 3. Configuration management methods
-4. Family classification methods
+4. The provider metadata
 
 The actual implementation of how services are created and used is left to your application.
 
