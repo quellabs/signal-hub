@@ -35,9 +35,7 @@ A lightweight, flexible service discovery component for PHP applications that au
 
 ## Introduction
 
-Quellabs Discover solves the common challenge of service discovery in PHP applications. It focuses solely on locating service providers defined in your application and its dependencies, giving you complete control over how to use these providers in your application architecture.
-
-Unlike other service discovery solutions that force specific patterns, Quellabs Discover is framework-agnostic and can be integrated into any PHP application.
+Quellabs Discover solves the common challenge of service discovery in PHP applications. It focuses solely on locating service providers defined in your application and its dependencies, giving you complete control over how to use these providers in your application architecture. Unlike other service discovery solutions that force specific patterns, Discover is framework-agnostic and can be integrated into any PHP application.
 
 ## Installation
 
@@ -49,7 +47,7 @@ composer require quellabs/discover
 
 ## Quick Start
 
-Here's how to quickly get started with Quellabs Discover:
+Here's how to quickly get started with Discover:
 
 ```php
 use Quellabs\Discover\Discover;
@@ -70,6 +68,7 @@ $discover->discover();
 
 // Get and use the discovered providers
 $providers = $discover->getProviders();
+
 foreach ($providers as $provider) {
     // Register with your container or use directly
     $yourContainer->register($provider);
@@ -254,8 +253,7 @@ Specify a configuration file in your `composer.json`:
 Use configuration values in your provider:
 
 ```php
-class ExampleServiceProvider extends AbstractProvider 
-{
+class ExampleServiceProvider extends AbstractProvider {
     protected array $config = [];
     
     public function setConfig(array $config): void {
