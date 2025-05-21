@@ -3,12 +3,14 @@
 	namespace Quellabs\Discover\Provider;
 	
 	interface ProviderInterface {
-
+		
 		/**
-		 * Get the services provided
-		 * @return array<string> Array of service names or class names
+		 * Get the specific capabilities or services provided by this provider.
+		 * This returns a list of specific features, services, or capabilities
+		 * that this provider offers within its broader provider type.
+		 * @return array<string> Array of service/capability identifiers
 		 */
-		public function provides(): array;
+		public function getCapabilities(): array;
 		
 		/**
 		 * This method can be overridden to conditionally load providers
@@ -28,4 +30,17 @@
 		 * @return void
 		 */
 		public function setConfig(array $config): void;
+		
+		/**
+		 * Get the family this provider belongs to
+		 * @return string|null The provider family or null if not categorized
+		 */
+		public function getFamily(): ?string;
+		
+		/**
+		 * Set the family for this provider
+		 * @param string $family The provider family
+		 * @return void
+		 */
+		public function setFamily(string $family): void;
 	}

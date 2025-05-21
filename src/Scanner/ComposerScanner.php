@@ -118,42 +118,52 @@
 		/**
 		 * Extracts service provider classes from composer configuration.
 		 * @param array $composerConfig The parsed composer.json configuration array
-		 * @return array An associative array of provider classes and their configurations
+		 * @return array An associative array of provider classes and their metadata (config and family)
 		 */
 		protected function extractProviderClasses(array $composerConfig): array {
 			$result = [];
 			
 			// Process multiple providers in array format
-			// Format: 'providers' => [ProviderClass::class, ['class' => AnotherProvider::class, 'config' => [...]], ...]
 			if (isset($composerConfig['extra'][$this->configKey]['providers']) && is_array($composerConfig['extra'][$this->configKey]['providers'])) {
 				foreach ($composerConfig['extra'][$this->configKey]['providers'] as $provider) {
 					if (is_string($provider)) {
-						// Simple string format - provider class with no configuration
-						$result[$provider] = null; // No specific config
+						// Simple string format - provider class with no configuration or family
+						$result[$provider] = [
+							'config' => null,
+							'family' => null
+						];
 					} elseif (is_array($provider) && isset($provider['class'])) {
-						// Array format with explicit class and optional configuration
-						$result[$provider['class']] = $provider['config'] ?? null;
+						// Array format with explicit class and optional configuration and family
+						$result[$provider['class']] = [
+							'config' => $provider['config'] ?? null,
+							'family' => $provider['family'] ?? null
+						];
 					}
 				}
 			}
 			
 			// Process singular provider format
-			// Format: 'provider' => ProviderClass::class, 'config' => [...]
-			// or: 'provider' => ['class' => ProviderClass::class, 'config' => [...]]
 			if (isset($composerConfig['extra'][$this->configKey]['provider'])) {
 				$provider = $composerConfig['extra'][$this->configKey]['provider'];
 				$config = $composerConfig['extra'][$this->configKey]['config'] ?? null;
+				$family = $composerConfig['extra'][$this->configKey]['family'] ?? null;
 				
 				if (is_string($provider)) {
-					// Simple string provider with separate config
-					$result[$provider] = $config;
+					// Simple string provider with separate config and family
+					$result[$provider] = [
+						'config' => $config,
+						'family' => $family
+					];
 				} elseif (is_array($provider) && isset($provider['class'])) {
-					// Array format provider with inline config
-					$result[$provider['class']] = $provider['config'] ?? null;
+					// Array format provider with inline config and family
+					$result[$provider['class']] = [
+						'config' => $provider['config'] ?? null,
+						'family' => $provider['family'] ?? null
+					];
 				}
 			}
 			
-			// Return the extracted providers with their configurations
+			// Return the extracted providers with their metadata
 			return $result;
 		}
 		
@@ -225,11 +235,15 @@
 		/**
 		 * Creates and validates a provider instance from a class name.
 		 * @param string $providerClass Fully qualified provider class name
-		 * @param string|null $configFile Path to a configuration file (optional)
+		 * @param array|null $metadata Provider metadata including config file path and family
 		 * @param bool $debug Whether to output error messages to console
 		 * @return ProviderInterface|null Provider instance or null if instantiation fails
 		 */
-		protected function instantiateProvider(string $providerClass, ?string $configFile, bool $debug): ?ProviderInterface {
+		protected function instantiateProvider(string $providerClass, ?array $metadata, bool $debug): ?ProviderInterface {
+			// Extract config and family from metadata
+			$configFile = $metadata['config'] ?? null;
+			$family = $metadata['family'] ?? null;
+			
 			// Check if the provider class exists in the application namespace
 			if (!class_exists($providerClass)) {
 				// Log warning and exit early if class doesn't exist
@@ -241,6 +255,18 @@
 				// Instantiate provider with no constructor arguments
 				$provider = new $providerClass();
 				
+				// Ensure the provider implements the required interface
+				if (!$provider instanceof ProviderInterface) {
+					// Log warning and exit if interface not implemented
+					$this->logDebug($debug, "[WARNING] Class {$providerClass} does not implement ProviderInterface");
+					return null;
+				}
+				
+				// Set the provider family if provided
+				if (!empty($family)) {
+					$provider->setFamily($family);
+				}
+				
 				// Load and apply configuration if a config file was specified
 				if (!empty($configFile)) {
 					// Attempt to load the configuration file
@@ -250,13 +276,6 @@
 					if ($config) {
 						$provider->setConfig(array_merge($provider->getDefaults(), $config));
 					}
-				}
-				
-				// Ensure the provider implements the required interface
-				if (!$provider instanceof ProviderInterface) {
-					// Log warning and exit if interface not implemented
-					$this->logDebug($debug, "[WARNING] Class {$providerClass} does not implement ProviderInterface");
-					return null;
 				}
 				
 				// Return successfully created and configured provider

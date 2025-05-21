@@ -137,14 +137,64 @@
 		}
 		
 		/**
-		 * Get providers that provide a specific service
-		 * @param string $service
-		 * @return array<ProviderInterface>
+		 * Get all available provider types across all providers
+		 * @return array<string> Array of unique provider types
 		 */
-		public function findProvidersByService(string $service): array {
-			return array_filter($this->providers, function (ProviderInterface $provider) use ($service) {
-				return in_array($service, $provider->provides());
-			});
+		public function getProviderTypes(): array {
+			$types = [];
+			
+			foreach ($this->getProviders() as $provider) {
+				$type = $provider->getType();
+				
+				if ($type !== null && !in_array($type, $types)) {
+					$types[] = $type;
+				}
+			}
+			
+			return $types;
+		}
+		
+		/**
+		 * Find providers that offer a specific capability
+		 * @param string $capability The capability/service identifier to filter by
+		 * @return array<ProviderInterface> Array of provider instances offering the requested capability
+		 */
+		public function findProvidersByCapability(string $capability): array {
+			return array_filter(
+				$this->getProviders(),
+				function(ProviderInterface $provider) use ($capability) {
+					return in_array($capability, $provider->getCapabilities());
+				}
+			);
+		}
+		
+		/**
+		 * Find all providers of a specific type
+		 * @param string $type The provider type to filter by
+		 * @return array<ProviderInterface> Array of provider instances of the requested type
+		 */
+		public function findProvidersByType(string $type): array {
+			return array_filter(
+				$this->getProviders(),
+				function(ProviderInterface $provider) use ($type) {
+					return $provider->getType() === $type;
+				}
+			);
+		}
+		
+		/**
+		 * Find providers that match both type and capability
+		 * @param string $type The provider type to filter by
+		 * @param string $capability The capability/service identifier to filter by
+		 * @return array<ProviderInterface> Array of matching provider instances
+		 */
+		public function findProvidersByTypeAndCapability(string $type, string $capability): array {
+			return array_filter(
+				$this->getProviders(),
+				function(ProviderInterface $provider) use ($type, $capability) {
+					return $provider->getType() === $type && in_array($capability, $provider->getCapabilities());
+				}
+			);
 		}
 		
 		/**
