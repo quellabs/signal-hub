@@ -1,0 +1,26 @@
+{
+  "config": {
+    "platform": {
+      "php": "8.3"
+    }
+  },
+  "require": {
+    "ext-json": "*",
+    "ext-mysqli": "*",
+    "ext-pdo": "*",
+    "ext-curl": "*",
+    "ext-gd": "*",
+    "ext-fileinfo": "*",
+    "quellabs/annotation-reader": "dev-main",
+    "quellabs/discover": "dev-main",
+    "quellabs/dependency-injection": "dev-main",
+    "smarty/smarty": "^4.3",
+    "symfony/http-foundation": "*",
+    "vlucas/phpdotenv": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\Canvas\\": "src/"
+    }
+  }
+}
