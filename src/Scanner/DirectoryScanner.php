@@ -156,34 +156,22 @@
 				
 				return [];
 			}
-			
-			// Initialize an empty array to store discovered provider instances
-			$providers = [];
-			
-			// Fetch all php files in the directory
-			$phpFiles = $this->getPhpFiles($directory);
+
+			// Fetch all provider classes found in the directory
+			$classes = $this->utilities->findClassesInDirectory($directory, function($e) use ($debug) {
+				// Check if the class is a valid provider
+				return $this->isProvider($e, $debug);
+			});
 			
 			// Process each file found in the directory structure
-			foreach ($phpFiles as $file) {
-				// Attempt to extract the fully qualified class name from the file
-				$className = $this->utilities->resolveNamespaceFromPath($file);
-				
-				// If a class name was successfully extracted
-				if ($className === null) {
-					continue;
-				}
-				
-				// Check if the class is a valid provider
-				if (!$this->isProvider($className, $debug)) {
-					continue;
-				}
-				
+			$providers = [];
+
+			foreach ($classes as $class) {
 				// Instantiate the provider
-				$provider = $this->instantiateProvider($className, $debug);
-				
-				// Add the provider to the results if it's valid and not a duplicate
-				// Using strict comparison (===) for the in_array check to ensure object identity
-				if (!in_array($provider, $providers, true)) {
+				$provider = $this->instantiateProvider($class, $debug);
+
+				// Only add valid providers (non-null)
+				if ($provider !== null) {
 					$providers[] = $provider;
 				}
 			}
@@ -273,38 +261,5 @@
 				
 				return null;
 			}
-		}
-		
-		/**
-		 * Get all PHP files in a directory recursively
-		 * @param string $directory The absolute path to the directory to scan
-		 * @return array<string> Array of absolute file paths to all PHP files found
-		 */
-		protected function getPhpFiles(string $directory): array {
-			// Initialize an empty array to store collected file paths
-			$files = [];
-			
-			// Create a recursive directory iterator to traverse all subdirectories
-			// RecursiveDirectoryIterator gets entries in a directory
-			// RecursiveIteratorIterator allows iteration through all nested directories
-			// SKIP_DOTS ensures "." and ".." directory entries are skipped
-			$iterator = new \RecursiveIteratorIterator(
-				new \RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-				\RecursiveIteratorIterator::SELF_FIRST  // Process parent directories before their children
-			);
-			
-			// Iterate through each file/directory entry found
-			foreach ($iterator as $file) {
-				// Only collect entries that are:
-				// 1. Files (not directories)
-				// 2. Have the .php extension
-				if ($file->isFile() && $file->getExtension() === 'php') {
-					// Add the full path of the PHP file to our collection
-					$files[] = $file->getPathname();
-				}
-			}
-			
-			// Return the collected list of PHP file paths
-			return $files;
 		}
 	}

@@ -3,7 +3,6 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Quellabs\Discover\Config\DiscoveryConfig;
-	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Utilities\PSR4;
 	
@@ -11,11 +10,6 @@
 	 * Scans composer.json files to discover service providers
 	 */
 	class ComposerScanner implements ScannerInterface {
-		
-		/**
-		 * @var Discover Main container
-		 */
-		protected Discover $discover;
 		
 		/**
 		 * The key to look for in composer.json extra section
@@ -36,12 +30,10 @@
 		
 		/**
 		 * ComposerScanner constructor
-		 * @param Discover $discover Discovery container
 		 * @param string $configKey The key to look for in composer.json (e.g., 'discover')
 		 * @param string|null $basePath
 		 */
-		public function __construct(Discover $discover, string $configKey = 'discover', ?string $basePath = null) {
-			$this->discover = $discover;
+		public function __construct(string $configKey = 'discover', ?string $basePath = null) {
 			$this->configKey = $configKey;
 			$this->basePath = $basePath ?? getcwd();
 			$this->utilities = new PSR4();
