@@ -248,7 +248,7 @@
 					
 					// Apply configuration to the provider if loading was successful
 					if ($config) {
-						$provider->setConfig($config);
+						$provider->setConfig(array_merge($provider->getDefaults(), $config));
 					}
 				}
 				
