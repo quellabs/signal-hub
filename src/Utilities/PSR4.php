@@ -8,9 +8,9 @@
 	class PSR4 {
 		
 		/**
-		 * @var string|null Cached local json path
+		 * @var string|null Cached project root
 		 */
-		protected ?string $composerJsonPathCache = null;
+		protected ?string $projectRootPathCache = null;
 		
 		/**
 		 * Cache of parsed composer.json files
@@ -56,13 +56,14 @@
 		 * @return string|null Directory containing composer.json if found, null otherwise
 		 */
 		public function getProjectRoot(?string $directory = null): ?string {
-			// If no directory provided, use current directory
-			if ($directory === null) {
-				$directory = getcwd();
-			} else {
-				// Convert to absolute path if it's not already
-				$directory = realpath($directory);
+			// Check if we've already found and cached the path in this instance
+			if ($this->projectRootPathCache !== null) {
+				return $this->projectRootPathCache;
 			}
+			
+			// If no directory provided, use current directory
+			// Otherwise, convert the given path to an absolute path if it's not already
+			$directory = $directory === null ? realpath($directory) : getcwd();
 			
 			// Ensure we have a valid directory
 			if (!$directory || !is_dir($directory)) {
@@ -79,7 +80,10 @@
 				
 				// Check if composer.json exists in the current directory
 				if (file_exists($composerPath)) {
-					// Found it - return the directory containing composer.json
+					// Found it - put the result in cache
+					$this->projectRootPathCache = $currentDir;
+					
+					// Return the directory containing composer.json
 					return $currentDir;
 				}
 				
@@ -105,21 +109,13 @@
 		 * @return string|null Path to composer.json if found, null otherwise
 		 */
 		public function getComposerJsonFilePath(?string $startDirectory = null): ?string {
-			// Check if we've already found and cached the path in this instance
-			if ($this->composerJsonPathCache !== null) {
-				return $this->composerJsonPathCache;
-			}
-			
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
 			// If a directory containing composer.json was found
 			if ($projectRoot !== null) {
-				// Construct the full path to the composer.json file
-				$composerPath = $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
-				
-				// Store result in cache for future calls and return it
-				return $this->composerJsonPathCache = $composerPath;
+				// Return the full path to the composer.json file
+				return $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
 			}
 			
 			// If no composer.json was found, return null to indicate failure
@@ -443,15 +439,5 @@
 		 */
 		private function extractClassNameFromFile(string $filename): string {
 			return pathinfo($filename, PATHINFO_FILENAME);
-		}
-		
-		/**
-		 * Checks if a class name matches the controller suffix requirement
-		 * @param string $className Class name to check
-		 * @param string $controllerSuffix Required suffix (if any)
-		 * @return bool True if matches or no suffix required
-		 */
-		private function hasRequiredSuffix(string $className, string $controllerSuffix): bool {
-			return empty($controllerSuffix) || str_ends_with($className, $controllerSuffix);
 		}
 	}
