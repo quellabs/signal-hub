@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\Discover;
 	
+	use Composer\Autoload\ClassLoader;
 	use Quellabs\Discover\Scanner\ScannerInterface;
 	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Config\DiscoveryConfig;
@@ -186,5 +187,233 @@
 			}
 			
 			return null;
+		}
+		
+		/**
+		 * Gets the Composer autoloader instance
+		 * @return ClassLoader
+		 * @throws \RuntimeException If autoloader can't be found
+		 */
+		public function getComposerAutoloader(): ClassLoader {
+			// Try to find the Composer autoloader
+			foreach (spl_autoload_functions() as $autoloader) {
+				if (is_array($autoloader) && $autoloader[0] instanceof ClassLoader) {
+					return $autoloader[0];
+				}
+			}
+			
+			// Look for the autoloader in common locations
+			$autoloaderPaths = [
+				// From the current working directory
+				getcwd() . '/vendor/autoload.php',
+				
+				// From this file's directory, going up to find vendor
+				dirname(__DIR__, 3) . '/vendor/autoload.php',
+				dirname(__DIR__, 4) . '/vendor/autoload.php',
+			];
+			
+			foreach ($autoloaderPaths as $path) {
+				if (file_exists($path)) {
+					return require $path;
+				}
+			}
+			
+			throw new \RuntimeException('Could not find Composer autoloader');
+		}
+		
+		/**
+		 * Gets PSR-4 prefixes from the Composer autoloader
+		 * @param ClassLoader $autoloader
+		 * @return array<string, string[]> Associative array of namespace prefixes and their directories
+		 */
+		public function getPsr4Prefixes(ClassLoader $autoloader): array {
+			// Get PSR-4 prefixes using reflection as getPrefixesPsr4() is protected
+			$reflMethod = new \ReflectionMethod($autoloader, 'getPrefixesPsr4');
+			$reflMethod->setAccessible(true);
+			return $reflMethod->invoke($autoloader) ?: [];
+		}
+		
+		/**
+		 * Recursively scans a directory and maps files to namespaced classes based on PSR-4 rules
+		 * @param string $directory Directory to scan
+		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes and their dirs
+		 * @param string $controllerSuffix Suffix to filter controller classes (optional)
+		 * @return array<string> Array of fully qualified class names
+		 */
+		public function scanDirectoryWithPsr4(string $directory, array $psr4Prefixes, string $controllerSuffix = ''): array {
+			// Early return if directory doesn't exist or is not readable
+			$absoluteDir = realpath($directory);
+			
+			if (!$absoluteDir) {
+				return [];
+			}
+			
+			// Find matching PSR-4 namespace for this directory
+			$namespaceForDir = $this->findMatchingNamespace($absoluteDir, $psr4Prefixes);
+			
+			// Get directory entries or return empty array if scandir fails
+			$classNames = [];
+			$entries = scandir($absoluteDir) ?: [];
+			
+			foreach ($entries as $entry) {
+				// Skip current directory, parent directory, and hidden files
+				if ($this->shouldSkipEntry($entry)) {
+					continue;
+				}
+				
+				// Fetch the full path
+				$fullPath = $absoluteDir . DIRECTORY_SEPARATOR . $entry;
+				
+				// Recursively scan subdirectories and merge results
+				if (is_dir($fullPath)) {
+					$subDirClasses = $this->scanDirectoryWithPsr4($fullPath, $psr4Prefixes, $controllerSuffix);
+					$classNames = array_merge($classNames, $subDirClasses);
+					continue; // Early continue to next iteration
+				}
+				
+				// Skip if not a PHP file or no namespace was found for the directory
+				if (!$this->isPhpFile($entry) || !$namespaceForDir) {
+					continue;
+				}
+				
+				// Fetch class name from the file
+				$className = $this->getClassNameFromFile($entry);
+
+				// Skip if it doesn't match the controller suffix (when specified)
+				if (!$this->matchesControllerSuffix($className, $controllerSuffix)) {
+					continue;
+				}
+				
+				$fullyQualifiedName = $namespaceForDir . '\\' . $className;
+				
+				// Only add class if it exists and is loadable
+				if (class_exists($fullyQualifiedName)) {
+					$classNames[] = $fullyQualifiedName;
+				}
+			}
+			
+			return $classNames;
+		}
+		
+		/**
+		 * Maps a directory path to a namespace based on PSR-4 rules
+		 * @param string $directory Directory path to map
+		 * @param string $psr4RootDir PSR-4 root directory
+		 * @param string $namespacePrefix PSR-4 namespace prefix
+		 * @return string The corresponding namespace
+		 */
+		public function mapDirectoryToNamespace(string $directory, string $psr4RootDir, string $namespacePrefix): string {
+			// Get the relative path from the PSR-4 root
+			$relativePath = '';
+			
+			// Only extract the relative path if the directory is longer than the root directory
+			// This prevents negative offsets in substr() when directory is shorter than root
+			if (strlen($directory) > strlen($psr4RootDir)) {
+				$relativePath = substr($directory, strlen($psr4RootDir) + 1);
+				// The +1 skips the directory separator after the root path
+			}
+			
+			// Convert directory separators to namespace separators
+			// This transforms filesystem paths (with / or \) into PHP namespace format (with \)
+			$namespaceSuffix = str_replace(
+				DIRECTORY_SEPARATOR,  // Platform-specific directory separator (/ on Unix, \ on Windows)
+				'\\',                 // PHP namespace separator
+				$relativePath
+			);
+			
+			// Combine the prefix with the suffix
+			// rtrim ensures we don't have double backslashes between prefix and suffix
+			return
+				rtrim($namespacePrefix, '\\') .
+				(empty($namespaceSuffix) ? '' : '\\' . $namespaceSuffix);
+		}
+		
+		/**
+		 * Finds the matching PSR-4 namespace for a given directory
+		 * @param string $directory Absolute directory path
+		 * @param array<string, string[]> $psr4Prefixes PSR-4 namespace prefixes mapping to possible directories
+		 * @return string|null Matched namespace or null if not found
+		 */
+		private function findMatchingNamespace(string $directory, array $psr4Prefixes): ?string {
+			// Will hold the namespace that best matches the directory
+			$matchedNamespace = null;
+			
+			// Tracks the length of the longest matching PSR-4 directory path
+			$longestMatch = 0;
+			
+			// Iterate through each namespace prefix and its corresponding directories
+			foreach ($psr4Prefixes as $prefix => $dirs) {
+				// A prefix might map to multiple directories, check each one
+				foreach ($dirs as $psr4Dir) {
+					// Convert relative paths to absolute paths
+					$psr4AbsoluteDir = realpath($psr4Dir);
+					
+					// Skip invalid directories that can't be resolved
+					if (!$psr4AbsoluteDir) {
+						continue;
+					}
+					
+					// Check if the target directory is within this PSR-4 root directory
+					if (!str_starts_with($directory, $psr4AbsoluteDir)) {
+						continue;
+					}
+					
+					// Calculate how much of the path matches to find the most specific match
+					$matchLength = strlen($psr4AbsoluteDir);
+					
+					// If this match is longer than previous matches, it's more specific
+					if ($matchLength > $longestMatch) {
+						$longestMatch = $matchLength;
+						
+						// Transform the directory path into a namespace using the prefix
+						$matchedNamespace = $this->mapDirectoryToNamespace(
+							$directory,
+							$psr4AbsoluteDir,
+							$prefix
+						);
+					}
+				}
+			}
+			
+			// Return the namespace corresponding to the most specific (longest) matching directory
+			// or null if no match was found
+			return $matchedNamespace;
+		}
+		
+		/**
+		 * Checks if an entry should be skipped during directory scanning
+		 * @param string $entry Directory entry name
+		 * @return bool True if entry should be skipped
+		 */
+		private function shouldSkipEntry(string $entry): bool {
+			return in_array($entry, ['.', '..', '.htaccess'], true);
+		}
+		
+		/**
+		 * Checks if a file is a PHP file
+		 * @param string $filename Filename to check
+		 * @return bool True if file is a PHP file
+		 */
+		private function isPhpFile(string $filename): bool {
+			return str_ends_with($filename, '.php');
+		}
+		
+		/**
+		 * Gets class name from a file path
+		 * @param string $filename File name
+		 * @return string Class name
+		 */
+		private function getClassNameFromFile(string $filename): string {
+			return pathinfo($filename, PATHINFO_FILENAME);
+		}
+		
+		/**
+		 * Checks if a class name matches the controller suffix requirement
+		 * @param string $className Class name to check
+		 * @param string $controllerSuffix Required suffix (if any)
+		 * @return bool True if matches or no suffix required
+		 */
+		private function matchesControllerSuffix(string $className, string $controllerSuffix): bool {
+			return empty($controllerSuffix) || str_ends_with($className, $controllerSuffix);
 		}
 	}
