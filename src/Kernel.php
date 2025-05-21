@@ -126,7 +126,7 @@
 			    // - $controller: The controller instance
 			    // - $urlData["method"]: The controller method to execute
 			    // - $urlData["variables"]: Route parameters extracted from the URL
-			    return $this->di->call($controller, $urlData["method"], $urlData["variables"]);
+			    return $this->di->invoke($controller, $urlData["method"], $urlData["variables"]);
 		    } catch (\Exception $e) {
 			    // If any exception occurs during execution, return it as the response
 			    // with the exception message as content and exception code as HTTP status
