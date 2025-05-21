@@ -241,78 +241,217 @@ All service providers must implement this interface to be discovered. The interf
 
 The actual implementation details of how services are created and used are left entirely to your application.
 
-## PSR-4 and Class Discovery
+## PSR-4 Utilities
 
-Quellabs Discover includes utilities for working with Composer's autoloader and PSR-4 namespaces:
+Quellabs Discover includes powerful utilities for working with Composer's autoloader and PSR-4 namespaces. These utilities make it easy to map between file paths and namespaces, discover classes in specific directories, and work with PSR-4 configured directories.
 
-### Accessing the Composer Autoloader
+### Working with Composer and PSR-4
+
+#### Getting the Composer Autoloader
+
+Access the Composer `ClassLoader` instance to interact with registered namespaces and paths:
 
 ```php
-// Get the Composer ClassLoader instance
+// Get the Composer autoloader
 $autoloader = $discover->getComposerAutoloader();
 ```
 
-### Scanning Directories with PSR-4 Mapping
+#### Finding Composer Configuration
+
+Locate the project's `composer.json` file:
 
 ```php
-// Scan a directory and map files to fully qualified class names using PSR-4 rules
-$classes = $discover->scanDirectoryWithPsr4(
-    __DIR__ . '/app/Controllers', 
-    $prefixes,
-    'Controller'  // Optional suffix to filter classes
+// Find the composer.json file, searching upward from the current directory
+$composerJsonPath = $discover->getComposerJsonFilePath();
+
+// Or specify a starting directory
+$composerJsonPath = $discover->getComposerJsonFilePath('/path/to/start/from');
+```
+
+### Namespace <-> Path Mapping
+
+#### Getting a Namespace from a Path
+
+One of the most useful utilities is mapping a directory path to its corresponding PSR-4 namespace:
+
+```php
+// Determine the appropriate namespace for a directory
+$namespace = $discover->getNamespaceFromPath('/path/to/your/project/src/Controllers');
+// Returns something like: "App\Controllers"
+```
+
+This method is smart enough to:
+
+1. First try to use the registered Composer autoloader for fast lookups of dependencies
+2. Fall back to parsing the main project's `composer.json` directly if needed
+3. Find the most specific (longest) matching PSR-4 namespace prefix
+
+The method works for both your project's source code and for directories within dependencies.
+
+### Discovering Classes by PSR-4 Rules
+
+Discover and load classes in a directory according to PSR-4 autoloading rules:
+
+```php
+// Find all classes in a directory based on PSR-4 rules
+$classes = $discover->discoverClassesByPsr4('/path/to/your/Controllers');
+// Returns array of fully qualified class names like ["App\Controllers\UserController", ...]
+
+// Optionally filter classes by suffix
+$controllerClasses = $discover->discoverClassesByPsr4(
+    '/path/to/your/Controllers',
+    'Controller' // Only include classes ending with "Controller"
 );
 ```
 
-### Mapping Directories to Namespaces
+This method:
+
+1. Determines the correct namespace for the given directory using PSR-4 rules
+2. Recursively scans the directory and all subdirectories
+3. Converts file paths to fully qualified class names
+4. Filters the results by suffix if requested
+5. Only includes classes that actually exist and can be loaded
+
+### Example: Finding All Controller Classes
+
+Here's a complete example showing how to find and load all controller classes in your application:
 
 ```php
-// Map a directory path to its corresponding namespace based on PSR-4 rules
-$namespace = $discover->mapDirectoryToNamespace(
+<?php
+
+use Quellabs\Discover\Discover;
+
+// Create a Discover instance
+$discover = new Discover();
+
+// Find all classes ending with "Controller" in your controllers directory
+$controllerClasses = $discover->discoverClassesByPsr4(
     __DIR__ . '/app/Controllers',
-    __DIR__ . '/app',
-    'App\\'
+    'Controller'
 );
-```
 
-### Finding Namespace from File Path
-
-```php
-// Convert a file path to its fully qualified namespace based on PSR-4 rules
-$namespace = $discover->findNamespaceFromPath(__DIR__ . '/app/Services/UserService.php');
-// Returns: "App\Services\UserService"
-```
-
-The `findNamespaceFromPath` method examines Composer's PSR-4 autoloader configuration to determine the correct namespace for a given PHP file. It maps file paths to their corresponding fully qualified namespaces by:
-
-1. Getting Composer's PSR-4 prefix configurations
-2. Finding which base directory contains the file
-3. Converting the relative path to a namespace segment
-4. Combining the namespace prefix with the path segment
-
-This is particularly useful when you have a file path and need to determine its corresponding class name based on PSR-4 autoloading rules.
-
-### Example: Finding Controller Classes
-
-```php
-/**
- * Maps directory structure to namespaces based on the PSR-4 autoload configuration
- * @param string $dir Absolute path to the directory to scan
- * @param string $controllerSuffix Optional suffix to filter controller classes (e.g., 'Controller')
- * @return array<string> Array with fully qualified class names
- * @throws \RuntimeException If the directory isn't readable
- */
-protected function findControllerClasses(string $dir, string $controllerSuffix = 'Controller'): array {
-    if (!is_readable($dir)) {
-        throw new \RuntimeException("Directory not readable: {$dir}");
-    }
+// Now you can work with these controller classes
+foreach ($controllerClasses as $controllerClass) {
+    // Instantiate the controller
+    $controller = new $controllerClass();
     
-    // Get the Composer autoloader
-    $composerAutoloader = $this->getComposerAutoloader();
-    
-    // Get PSR-4 prefixes from the autoloader
-    $prefixesPsr4 = $composerAutoloader->getPsr4Prefixes($composerAutoloader);
-    
-    // Scan directory and map to namespaces
-    return $this->scanDirectoryWithPsr4($dir, $prefixesPsr4, $controllerSuffix);
+    // Register it, analyze it, or use it however you need
+    $yourApp->registerController($controller);
 }
-``` 
+```
+
+### How PSR-4 Resolution Works
+
+The PSR-4 utilities resolve namespaces intelligently:
+
+1. First, they check the Composer autoloader's registered PSR-4 prefixes for a match
+2. If no match is found in the autoloader, they look in the project's `composer.json` file
+3. When multiple matches exist, the most specific (longest matching path) is used
+4. The relative path from the matching PSR-4 root is converted to namespace segments
+
+For example, if your `composer.json` has this configuration:
+
+```json
+{
+  "autoload": {
+    "psr-4": {
+      "App\\": "src/",
+      "App\\Tests\\": "tests/"
+    }
+  }
+}
+```
+
+And you call `getNamespaceFromPath('/your/project/src/Controllers/UserController.php')`, the library will:
+
+1. Recognize that the path is within the "src/" directory (mapped to "App\\")
+2. Convert the relative path "Controllers/UserController.php" to namespace segments
+3. Return "App\\Controllers\\UserController" as the fully qualified name
+
+## Practical Use Cases
+
+### Auto-Loading All Controllers
+
+```php
+// Auto-discover and register all controllers in your application
+$controllers = $discover->discoverClassesByPsr4(
+    __DIR__ . '/app/Controllers',
+    'Controller'
+);
+
+foreach ($controllers as $controllerClass) {
+    $yourRouter->registerController(new $controllerClass());
+}
+```
+
+### Finding All Implementations of an Interface
+
+```php
+// Find all classes that implement a specific interface
+$repositoryClasses = $discover->discoverClassesByPsr4(
+    __DIR__ . '/app/Repositories'
+);
+
+// Filter to only include classes that implement a specific interface
+$repositoryClasses = array_filter($repositoryClasses, function($class) {
+    return is_subclass_of($class, YourRepositoryInterface::class);
+});
+```
+
+### Generating Documentation
+
+```php
+// Discover all service provider classes
+$providerClasses = $discover->discoverClassesByPsr4(
+    __DIR__ . '/app/Providers',
+    'Provider'
+);
+
+// Generate documentation for each provider
+foreach ($providerClasses as $providerClass) {
+    $reflection = new ReflectionClass($providerClass);
+    $docComment = $reflection->getDocComment();
+    // Process documentation...
+}
+```
+
+## Advanced PSR-4 Techniques
+
+### Multi-Directory Discovery
+
+```php
+// Discover classes across multiple directories
+$allServiceClasses = [];
+
+$directories = [
+    __DIR__ . '/app/Services',
+    __DIR__ . '/src/Core/Services',
+    __DIR__ . '/vendor/package/src/Services'
+];
+
+foreach ($directories as $directory) {
+    $serviceClasses = $discover->discoverClassesByPsr4($directory, 'Service');
+    $allServiceClasses = array_merge($allServiceClasses, $serviceClasses);
+}
+```
+
+### Conditional Class Loading
+
+```php
+// Discover and conditionally load classes
+$eventListeners = $discover->discoverClassesByPsr4(
+    __DIR__ . '/app/Listeners'
+);
+
+foreach ($eventListeners as $listenerClass) {
+    // Only load listeners that are enabled
+    $reflection = new ReflectionClass($listenerClass);
+    
+    if ($reflection->hasMethod('isEnabled') && 
+        $listenerClass::isEnabled()) {
+        $eventDispatcher->registerListener(new $listenerClass());
+    }
+}
+```
+
+By leveraging these PSR-4 utilities, you can create more modular, extensible applications without hardcoding class paths or manually maintaining class registries.
