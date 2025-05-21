@@ -16,4 +16,16 @@
 		 * @return bool
 		 */
 		public function shouldLoad(): bool;
+		
+		/**
+		 * Get default configuration
+		 * @return array
+		 */
+		public function getDefaults(): array;
+
+		/**
+		 * Sets configuration
+		 * @return void
+		 */
+		public function setConfig(array $config): void;
 	}
