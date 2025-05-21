@@ -63,7 +63,7 @@
 			
 			// If no directory provided, use current directory
 			// Otherwise, convert the given path to an absolute path if it's not already
-			$directory = $directory === null ? realpath($directory) : getcwd();
+			$directory = $directory !== null ? realpath($directory) : getcwd();
 			
 			// Ensure we have a valid directory
 			if (!$directory || !is_dir($directory)) {
