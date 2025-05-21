@@ -38,16 +38,6 @@
 		}
 		
 		/**
-		 * Add a scanner
-		 * @param ScannerInterface $scanner
-		 * @return self
-		 */
-		public function addScanner(ScannerInterface $scanner): self {
-			$this->scanners[] = $scanner;
-			return $this;
-		}
-		
-		/**
 		 * Discover providers using all registered scanners
 		 * @return self
 		 */
@@ -62,6 +52,51 @@
 				}
 			}
 			
+			return $this;
+		}
+		
+		/**
+		 * Get all discovered providers
+		 * @return array<ProviderInterface>
+		 */
+		public function getProviders(): array {
+			return $this->providers;
+		}
+		
+		/**
+		 * Clear all discovered providers
+		 * @return self
+		 */
+		public function clearProviders(): self {
+			$this->providers = [];
+			return $this;
+		}
+		
+		/**
+		 * Get the current configuration
+		 * @return DiscoveryConfig
+		 */
+		public function getConfig(): DiscoveryConfig {
+			return $this->config;
+		}
+		
+		/**
+		 * Set a new configuration
+		 * @param DiscoveryConfig $config
+		 * @return self
+		 */
+		public function setConfig(DiscoveryConfig $config): self {
+			$this->config = $config;
+			return $this;
+		}
+		
+		/**
+		 * Add a scanner
+		 * @param ScannerInterface $scanner
+		 * @return self
+		 */
+		public function addScanner(ScannerInterface $scanner): self {
+			$this->scanners[] = $scanner;
 			return $this;
 		}
 		
@@ -99,14 +134,6 @@
 		}
 		
 		/**
-		 * Get all discovered providers
-		 * @return array<ProviderInterface>
-		 */
-		public function getProviders(): array {
-			return $this->providers;
-		}
-		
-		/**
 		 * Get providers that provide a specific service
 		 * @param string $service
 		 * @return array<ProviderInterface>
@@ -115,33 +142,6 @@
 			return array_filter($this->providers, function (ProviderInterface $provider) use ($service) {
 				return in_array($service, $provider->provides());
 			});
-		}
-		
-		/**
-		 * Clear all discovered providers
-		 * @return self
-		 */
-		public function clearProviders(): self {
-			$this->providers = [];
-			return $this;
-		}
-		
-		/**
-		 * Get the current configuration
-		 * @return DiscoveryConfig
-		 */
-		public function getConfig(): DiscoveryConfig {
-			return $this->config;
-		}
-		
-		/**
-		 * Set a new configuration
-		 * @param DiscoveryConfig $config
-		 * @return self
-		 */
-		public function setConfig(DiscoveryConfig $config): self {
-			$this->config = $config;
-			return $this;
 		}
 		
 		/**
