@@ -10,6 +10,9 @@
 	
 	class AnnotationResolver {
 		
+		/**
+		 * @var Kernel Kernel object, used among other things for service discovery
+		 */
 		protected Kernel $kernel;
 		
 		/**
@@ -198,6 +201,7 @@
 							// If a Route annotation is found, add it to results and skip to next method
 							if ($annotation instanceof Route) {
 								$result[$method->getName()] = $annotation;
+								
 								// Skip to the next method after finding a Route annotation (only one Route per method)
 								continue 2;
 							}
