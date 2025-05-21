@@ -3,12 +3,18 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Quellabs\Discover\Config\DiscoveryConfig;
+	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Provider\ProviderInterface;
 	
 	/**
 	 * Scans composer.json files to discover service providers
 	 */
 	class ComposerScanner implements ScannerInterface {
+		
+		/**
+		 * @var Discover Main container
+		 */
+		protected Discover $discover;
 		
 		/**
 		 * The key to look for in composer.json extra section
@@ -24,10 +30,12 @@
 		
 		/**
 		 * ComposerScanner constructor
+		 * @param Discover $discover Discovery container
 		 * @param string $configKey The key to look for in composer.json (e.g., 'discover')
 		 * @param string|null $basePath
 		 */
-		public function __construct(string $configKey = 'discover', ?string $basePath = null) {
+		public function __construct(Discover $discover, string $configKey = 'discover', ?string $basePath = null) {
+			$this->discover = $discover;
 			$this->configKey = $configKey;
 			$this->basePath = $basePath ?? getcwd();
 		}
@@ -71,9 +79,9 @@
 			$providers = [];
 			
 			// Get the full filesystem path to the project's composer.json file
-			$composerPath = $this->getProjectComposerPath();
+			$composerPath = $this->discover->getComposerJsonFilePath();
 			
-			// If the path couldn't be determined or the file doesn't exist, return empty array
+			// If the path couldn't be determined or the file doesn't exist, return an empty array
 			if (!$composerPath || !file_exists($composerPath)) {
 				return $providers;
 			}
@@ -123,10 +131,10 @@
 			$providers = [];
 			
 			// Get the full filesystem path to Composer's installed.json file
-			$installedPath = $this->getComposerInstalledPath();
+			$installedPath = $this->discover->getComposerJsonFilePath();
 			
 			// If the path couldn't be determined or the file doesn't exist, return empty array
-			if (!$installedPath || !file_exists($installedPath)) {
+			if ($installedPath === null) {
 				return $providers;
 			}
 			
@@ -286,64 +294,5 @@
 			
 			// Return the successfully parsed JSON data as an associative array
 			return $data;
-		}
-		
-		/**
-		 * Get the path to the project's composer.json
-		 * @return string|null
-		 */
-		protected function getProjectComposerPath(): ?string {
-			// Check if running as standalone or as dependency
-			if (!str_contains($this->basePath, '/vendor/')) {
-				$composerPath = $this->basePath . '/composer.json'; // Running directly
-			} else {
-				$composerPath = $this->findComposerPathInDependencyMode(); // Running as a dependency
-			}
-			
-			return file_exists($composerPath) ? $composerPath : null;
-		}
-		
-		/**
-		 * Find composer.json when running as a dependency
-		 * @return string
-		 */
-		protected function findComposerPathInDependencyMode(): string {
-			// Navigate up to find vendor directory
-			$path = $this->basePath;
-			
-			while ($path !== '/' && basename(dirname($path)) !== 'vendor') {
-				$path = dirname($path);
-			}
-			
-			// Go up two levels to reach project root
-			$projectRoot = dirname($path, 2);
-			return $projectRoot . '/composer.json';
-		}
-		
-		/**
-		 * Get the path to installed.json
-		 * @return string|null
-		 */
-		protected function getComposerInstalledPath(): ?string {
-			// Possible locations of installed.json
-			$possiblePaths = [
-				// When running directly
-				$this->basePath . '/vendor/composer/installed.json',
-				
-				// When installed as a dependency
-				dirname($this->basePath, 2) . '/composer/installed.json',
-				
-				// When running in a project that uses the package
-				dirname($this->basePath, 3) . '/composer/installed.json'
-			];
-			
-			// Return the first path that exists
-			foreach ($possiblePaths as $path) {
-				if (file_exists($path)) {
-					return $path;
-				}
-			}
-			
-			return null;
 		}
 	}
