@@ -29,6 +29,13 @@
 		}
 		
 		/**
+		 * Implements the required method from ProviderInterface
+		 */
+		public function getMetadata(): array {
+			return parent::getMetadata();
+		}
+		
+		/**
 		 * Creates a new instance of the specified class with the provided dependencies
 		 * @param string $className The fully qualified class name to instantiate
 		 * @param array $dependencies An array of resolved dependencies to pass to the constructor
