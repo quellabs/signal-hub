@@ -127,6 +127,125 @@ $discover->addScanner(new DirectoryScanner([
 ], '/Provider$/'));
 ```
 
+## Provider Configuration Files
+
+Quellabs Discover supports loading configuration files for providers registered through Composer. This allows you to separate provider declaration from its configuration.
+
+### Basic Configuration File
+
+Configuration files should return an array that will be passed to the provider:
+
+```php
+// config/providers/example.php
+return [
+    'option1' => 'value1',
+    'option2' => 'value2',
+    'enabled' => true,
+    // Any configuration your provider needs
+];
+```
+
+### Registering Provider with Configuration
+
+You can specify a configuration file when registering a provider in your composer.json:
+
+```json
+{
+  "name": "your/package",
+  "extra": {
+    "discover": {
+      "provider": "App\\Providers\\ExampleServiceProvider",
+      "config": "config/providers/example.php"
+    }
+  }
+}
+```
+
+For multiple providers with individual configurations:
+
+```json
+{
+  "name": "your/package",
+  "extra": {
+    "discover": {
+      "providers": [
+        {
+          "class": "App\\Providers\\ExampleServiceProvider",
+          "config": "config/providers/example.php"
+        },
+        {
+          "class": "App\\Providers\\AnotherServiceProvider",
+          "config": "config/providers/another.php"
+        }
+      ]
+    }
+  }
+}
+```
+
+### Using Configuration in Providers
+
+Your provider must implement a method to receive the configuration. The `AbstractProvider` class already includes a `setConfig()` method:
+
+```php
+<?php
+
+namespace App\Providers;
+
+use Quellabs\Discover\Provider\AbstractProvider;
+
+class ExampleServiceProvider extends AbstractProvider {
+    /**
+     * Configuration settings loaded from the specified config file
+     */
+    protected array $config = [];
+    
+    /**
+     * Set configuration for this provider
+     * @param array $config Configuration array
+     */
+    public function setConfig(array $config): void {
+        $this->config = $config;
+    }
+    
+    /**
+     * Get the list of services this provider offers
+     */
+    public function provides(): array {
+        return [
+            'example.service',
+            'App\Services\ExampleService'
+        ];
+    }
+    
+    /**
+     * Should this provider be loaded?
+     * You can use configuration values to determine this
+     */
+    public function shouldLoad(): bool {
+        // Use configuration to determine if provider should be loaded
+        return $this->config['enabled'] ?? true;
+    }
+    
+    /**
+     * Access configuration values in your provider methods
+     */
+    public function getServiceOptions(): array {
+        return [
+            'option1' => $this->config['option1'] ?? 'default',
+            'option2' => $this->config['option2'] ?? 'default',
+        ];
+    }
+}
+```
+
+### Configuration File Loading Process
+
+1. When a provider is discovered through the `ComposerScanner`, it checks for an associated configuration file
+2. The configuration file path is resolved relative to the project root directory
+3. The file is included and expected to return an array of configuration values
+4. The configuration is passed to the provider's `setConfig()` method before it's returned for use
+
 ## Advanced Configuration
 
 For more control over the discovery process, you can create a custom configuration:
