@@ -45,8 +45,10 @@
     }
   },
   "extra": {
-    "sculpt": {
-      "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
+    "discover": {
+      "sculpt": {
+        "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
+      }
     }
   }
 }
