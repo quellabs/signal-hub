@@ -268,6 +268,35 @@
 		}
 		
 		/**
+		 * Get metadata from all providers without instantiation
+		 * @return array<string, array> Provider metadata indexed by class name
+		 */
+		public function getAllProviderMetadata(): array {
+			// Initialize collection to store metadata from all registered providers
+			// This will be indexed by class name for easy lookup and identification
+			$metadata = [];
+			
+			// Iterate through all cached provider definitions to extract metadata
+			// This approach avoids instantiating providers, making it very efficient
+			foreach ($this->providerDefinitions as $definition) {
+				// Extract the class name as the unique identifier for this provider
+				// Use null coalescing to safely handle definitions without 'class' key
+				$className = $definition['class'] ?? null;
+				
+				// Only process providers with valid class names to ensure data integrity
+				if ($className) {
+					// Extract and store the provider's metadata using class name as key
+					// Default to an empty array if metadata is not defined in the cached definition
+					$metadata[$className] = $definition['metadata'] ?? [];
+				}
+			}
+			
+			// Return the complete collection of provider metadata indexed by class name
+			// This enables efficient capability inspection without provider instantiation
+			return $metadata;
+		}
+		
+		/**
 		 * Find providers by metadata using a filter function (with lazy instantiation)
 		 * @param callable $metadataFilter Function that receives metadata and returns bool
 		 * @return array<ProviderInterface>

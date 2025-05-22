@@ -19,7 +19,6 @@ A lightweight, flexible service discovery component for PHP applications that au
   - [Directory Scanning](#directory-scanning)
 - [Caching and Performance](#caching-and-performance)
   - [Provider Definition Caching](#provider-definition-caching)
-  - [Lazy Loading](#lazy-loading)
   - [Performance Best Practices](#performance-best-practices)
 - [Provider Configuration](#provider-configuration)
   - [Basic Configuration File](#basic-configuration-file)
@@ -42,12 +41,12 @@ A lightweight, flexible service discovery component for PHP applications that au
 Quellabs Discover solves the common challenge of service discovery in PHP applications. It focuses solely on locating service providers defined in your application and its dependencies, giving you complete control over how to use these providers in your application architecture. Unlike other service discovery solutions that force specific patterns, Discover is framework-agnostic and can be integrated into any PHP application.
 
 **Key Features:**
-- **Lazy Loading**: Providers are only instantiated when actually needed
-- **Advanced Caching**: Export and import provider definitions for lightning-fast subsequent loads
+- **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
 - **Framework Agnostic**: Works with any PHP application or framework
 - **Multiple Discovery Methods**: Composer configuration, directory scanning, and custom scanners
 - **Provider Families**: Organize providers into logical groups
 - **PSR-4 Utilities**: Built-in tools for namespace and class discovery
+- **Flexible Access Patterns**: Access providers individually or in bulk as needed
 
 ## Installation
 
@@ -75,7 +74,7 @@ $discover->addScanner(new DirectoryScanner([
     __DIR__ . '/app/Providers'
 ], '/Provider$/'));
 
-// Run the discovery process
+// Run the discovery process (instantiates providers to gather metadata)
 $discover->discover();
 
 // Get and use the discovered providers
@@ -208,24 +207,24 @@ $discover->addScanner(new DirectoryScanner([
 
 ## Caching and Performance
 
-Quellabs Discover includes sophisticated caching and lazy loading mechanisms to dramatically improve performance, especially in production environments.
+Quellabs Discover includes sophisticated caching mechanisms to dramatically improve performance, especially in production environments.
 
 ### Provider Definition Caching
 
-The discovery process can be expensive, especially when scanning large codebases or many dependencies. Discover allows you to cache provider definitions and restore them instantly on subsequent runs.
+The discovery process instantiates all found providers to gather their metadata, configuration, and family information. This can be expensive, especially when scanning large codebases or many dependencies. Discover allows you to cache the gathered provider information and restore it instantly on subsequent runs.
 
 #### Exporting Cache Data
 
 After running discovery, export the provider definitions for caching:
 
 ```php
-// Perform initial discovery
+// Perform initial discovery (instantiates providers to gather metadata)
 $discover = new Discover();
 $discover->addScanner(new ComposerScanner());
 $discover->addScanner(new DirectoryScanner([__DIR__ . '/app/Providers']));
 $discover->discover();
 
-// Export definitions for caching
+// Export definitions for caching (includes all gathered metadata)
 $cacheData = $discover->exportForCache();
 
 // Store in your preferred cache system
@@ -236,14 +235,14 @@ $redis->set('app:providers', serialize($cacheData));
 
 #### Importing from Cache
 
-On subsequent requests, skip the discovery process entirely by importing from cache:
+On subsequent requests, bypass the discovery process by importing definitions directly from cache. The ImportDefinitionsFromCache() function loads pre-gathered provider information without instantiating the providers themselves. Instead, providers are instantiated on-demand through lazy loading when first accessed. 
 
 ```php
 // Load from cache
 $cacheData = json_decode(file_get_contents('cache/providers.json'), true);
 // Or from Redis: $cacheData = unserialize($redis->get('app:providers'));
 
-// Import cached definitions
+// Import cached definitions (no provider instantiation needed)
 $discover = new Discover();
 $discover->importDefinitionsFromCache($cacheData);
 
@@ -251,35 +250,21 @@ $discover->importDefinitionsFromCache($cacheData);
 $providers = $discover->findProvidersByType('database');
 ```
 
-### Lazy Loading
-
-**Important**: Discover implements lazy loading by default. This means provider classes are **not instantiated** until you actually request them. This provides significant performance benefits:
+#### Understanding Access Patterns
 
 ```php
-// This only stores provider definitions - NO instantiation occurs
-$discover->discover();
+// ⚠️ BULK ACCESS: Returns all instantiated providers
+$allProviders = $discover->getProviders(); // Use when you need everything
 
-// Still no instantiation - just returns metadata
-$types = $discover->getProviderTypes();
-
-// First instantiation occurs here
-$databaseProviders = $discover->findProvidersByType('database');
-
-// Individual providers are cached after first instantiation
-$sameProviders = $discover->findProvidersByType('database'); // Uses cached instances
-```
-
-#### Understanding Lazy Loading Behavior
-
-```php
-// ⚠️ WARNING: This instantiates ALL providers at once
-$allProviders = $discover->getProviders(); // Use carefully!
-
-// ✅ RECOMMENDED: Use targeted discovery methods instead
+// ✅ FILTERED ACCESS: Returns subsets based on criteria
 $specificProviders = $discover->findProvidersByType('cache');
 $filteredProviders = $discover->findProvidersByMetadata(function($metadata) {
     return in_array('redis', $metadata);
 });
+
+// ✅ METADATA ONLY: No additional instantiation
+$families = $discover->getProviderTypes();
+$capabilities = $discover->getAllProviderMetadata();
 ```
 
 ### Performance Best Practices
@@ -287,19 +272,25 @@ $filteredProviders = $discover->findProvidersByMetadata(function($metadata) {
 #### 1. Use Caching in Production
 
 ```php
-// Development: Always discover fresh
+// Development: Always discover fresh for changes
 if (app()->environment('local')) {
     $discover->discover();
 } else {
-    // Production: Use cache when possible
-    $discover->importDefinitionsFromCache($cachedData);
+    // Production: Use cache to avoid re-instantiation
+    $cacheData = $this->cache->get('provider_definitions');
+    if ($cacheData) {
+        $discover->importDefinitionsFromCache($cacheData);
+    } else {
+        $discover->discover();
+        $this->cache->set('provider_definitions', $discover->exportForCache());
+    }
 }
 ```
 
-#### 2. Leverage Lazy Loading
+#### 2. Use Filtered Access
 
 ```php
-// ❌ Don't do this - instantiates everything
+// ❌ Don't do this if you only need specific providers
 $allProviders = $discover->getProviders();
 foreach ($allProviders as $provider) {
     if ($provider->getFamily() === 'database') {
@@ -307,22 +298,37 @@ foreach ($allProviders as $provider) {
     }
 }
 
-// ✅ Do this - only instantiates what you need
+// ✅ Do this - get only what you need
 $databaseProviders = $discover->findProvidersByType('database');
 ```
 
-#### 3. Filter Early
+#### 3. Optimize Provider Constructors
+
+Since providers are instantiated during discovery, keep constructors lightweight:
 
 ```php
-// ✅ Filter by metadata without instantiation
-$redisCapableProviders = $discover->findProvidersByMetadata(function($metadata) {
-    return in_array('redis', $metadata);
-});
-
-// ✅ Combine type and metadata filtering
-$cacheRedisProviders = $discover->findProvidersByTypeAndMetadata('cache', function($metadata) {
-    return in_array('redis', $metadata);
-});
+class ExampleServiceProvider extends AbstractProvider {
+    
+    // ✅ Good: Lightweight constructor
+    public function __construct() {
+        // Only essential initialization
+    }
+    
+    // ❌ Avoid: Heavy operations in constructor
+    public function __construct() {
+        // Don't do expensive operations here
+        $this->connectToDatabase(); // This runs during discovery!
+        $this->loadLargeConfiguration(); // This too!
+    }
+    
+    // ✅ Better: Defer heavy operations
+    public function getConnection() {
+        if (!$this->connection) {
+            $this->connection = $this->connectToDatabase();
+        }
+        return $this->connection;
+    }
+}
 ```
 
 #### 4. Cache Structure Optimization
@@ -566,17 +572,17 @@ class ApplicationBootstrap {
         $cached = $this->cache->get($cacheKey);
         
         if ($cached && $this->isProduction()) {
-            // Use cached definitions in production
+            // Use cached definitions in production (no instantiation needed)
             $discover->importDefinitionsFromCache($cached);
         } else {
-            // Perform discovery and cache results
+            // Perform discovery (instantiates providers) and cache results
             $discover->addScanner(new ComposerScanner());
             $discover->addScanner(new DirectoryScanner([
                 __DIR__ . '/app/Providers'
             ]));
             $discover->discover();
             
-            // Cache for future requests
+            // Cache gathered provider information for future requests
             $this->cache->set($cacheKey, $discover->exportForCache(), 3600);
         }
         
