@@ -307,13 +307,15 @@
 				// Set the family to the scanner's configKey
 				$provider->setFamily($this->configKey);
 				
-				// Load and apply configuration if a config file was specified
+				// Load and apply configuration
 				if (!empty($configFile)) {
 					// Attempt to load the configuration file
 					$config = $this->loadConfigFile($configFile);
 					
 					// Apply configuration to the provider if loading was successful
 					$provider->setConfig(array_merge($provider->getDefaults(), $config));
+				} else {
+					$provider->setConfig($provider->getDefaults());
 				}
 				
 				// Return successfully created and configured provider
