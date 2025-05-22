@@ -2,32 +2,13 @@
 	
 	namespace Quellabs\Sculpt;
 	
-	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Discover\Provider\AbstractProvider;
 	
 	/**
 	 * Base implementation of the ServiceProviderInterface that provides
 	 * common functionality for service providers in the Sculpt framework.
 	 */
-	abstract class ServiceProvider implements ProviderInterface {
-		
-		/**
-		 * This service provider provides sculpt commands
-		 * @return string[]
-		 */
-		public function provides(): array {
-			return [
-				'sculpt'
-			];
-		}
-		
-		/**
-		 * Always load sculpt commands.
-		 * The service itself may override this.
-		 * @return bool
-		 */
-		public function shouldLoad(): bool {
-			return true;
-		}
+	abstract class ServiceProvider extends AbstractProvider {
 		
 		/**
 		 * Helper method to register multiple commands at once
