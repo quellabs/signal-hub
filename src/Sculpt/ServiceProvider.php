@@ -37,8 +37,17 @@
 		}
 		
 		/**
+		 * Returns the default configuration
+		 * @return array[]
+		 */
+		public static function getDefaults(): array {
+			return [];
+		}
+		
+		/**
 		 * Returns a Phinx configuration array
 		 * @return array
+		 * @throws OrmException
 		 */
 		public function createPhinxConfig(): array {
 			$configuration = $this->getConfiguration();
