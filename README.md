@@ -12,23 +12,23 @@ A lightweight, flexible service discovery component for PHP applications that au
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Service Providers](#service-providers)
-    - [Creating a Service Provider](#creating-a-service-provider)
-    - [Provider Interface](#provider-interface)
+  - [Creating a Service Provider](#creating-a-service-provider)
+  - [Provider Interface](#provider-interface)
 - [Discovery Methods](#discovery-methods)
-    - [Composer Configuration](#composer-configuration)
-    - [Directory Scanning](#directory-scanning)
+  - [Composer Configuration](#composer-configuration)
+  - [Directory Scanning](#directory-scanning)
 - [Provider Configuration](#provider-configuration)
-    - [Basic Configuration File](#basic-configuration-file)
-    - [Registering Provider with Configuration](#registering-provider-with-configuration)
-    - [Using Configuration in Providers](#using-configuration-in-providers)
+  - [Basic Configuration File](#basic-configuration-file)
+  - [Registering Provider with Configuration](#registering-provider-with-configuration)
+  - [Using Configuration in Providers](#using-configuration-in-providers)
 - [Provider Families](#provider-families)
-    - [Defining Provider Families](#defining-provider-families)
-    - [Using Multiple Family Scanners](#using-multiple-family-scanners)
-    - [Accessing Providers by Family](#accessing-providers-by-family)
+  - [Defining Provider Families](#defining-provider-families)
+  - [Using Multiple Family Scanners](#using-multiple-family-scanners)
+  - [Accessing Providers by Family](#accessing-providers-by-family)
 - [PSR-4 Utilities](#psr-4-utilities)
-    - [Namespace/Path Mapping](#namespacepath-mapping)
-    - [Finding Classes in Directories](#finding-classes-in-directories)
-    - [Advanced PSR-4 Techniques](#advanced-psr-4-techniques)
+  - [Namespace/Path Mapping](#namespacepath-mapping)
+  - [Finding Classes in Directories](#finding-classes-in-directories)
+  - [Advanced PSR-4 Techniques](#advanced-psr-4-techniques)
 - [Framework Integration](#framework-integration)
 - [Extending Discover](#extending-discover)
 - [License](#license)
@@ -175,17 +175,19 @@ Quellabs Discover supports multiple methods to discover service providers:
 
 ### Composer Configuration
 
-Add service providers to your `composer.json` file:
+Add service providers to your `composer.json` file using the new nested structure where `discover` is always the top-level key:
 
 ```json
 {
   "name": "your/package",
   "extra": {
     "discover": {
-      "providers": [
-        "App\\Providers\\ExampleServiceProvider",
-        "App\\Providers\\AnotherServiceProvider"
-      ]
+      "default": {
+        "providers": [
+          "App\\Providers\\ExampleServiceProvider",
+          "App\\Providers\\AnotherServiceProvider"
+        ]
+      }
     }
   }
 }
@@ -194,7 +196,7 @@ Add service providers to your `composer.json` file:
 Use the `ComposerScanner` to discover these providers:
 
 ```php
-$discover->addScanner(new ComposerScanner('discover'));
+$discover->addScanner(new ComposerScanner('default'));
 ```
 
 ### Directory Scanning
@@ -228,22 +230,24 @@ return [
 
 ### Registering Provider with Configuration
 
-Specify a configuration file in your `composer.json`:
+Specify a configuration file in your `composer.json` using the nested structure:
 
 ```json
 {
   "extra": {
     "discover": {
-      "providers": [
-        {
-          "class": "App\\Providers\\ExampleServiceProvider",
-          "config": "config/providers/example.php"
-        },
-        {
-          "class": "App\\Providers\\AnotherServiceProvider",
-          "config": "config/providers/another.php"
-        }
-      ]
+      "default": {
+        "providers": [
+          {
+            "class": "App\\Providers\\ExampleServiceProvider",
+            "config": "config/providers/example.php"
+          },
+          {
+            "class": "App\\Providers\\AnotherServiceProvider",
+            "config": "config/providers/another.php"
+          }
+        ]
+      }
     }
   }
 }
@@ -255,6 +259,7 @@ Use configuration values in your provider:
 
 ```php
 class ExampleServiceProvider extends AbstractProvider {
+
     protected array $config = [];
     
     public function setConfig(array $config): void {
@@ -281,22 +286,24 @@ Provider families organize service providers into logical groups.
 
 ### Defining Provider Families
 
-Define providers in different families in your `composer.json`:
+Define providers in different families in your `composer.json` using the nested structure:
 
 ```json
 {
   "extra": {
-    "database": {
-      "providers": [
-        "App\\Providers\\MySQLProvider",
-        "App\\Providers\\PostgreSQLProvider"
-      ]
-    },
-    "cache": {
-      "providers": [
-        "App\\Providers\\RedisProvider",
-        "App\\Providers\\MemcachedProvider"
-      ]
+    "discover": {
+      "database": {
+        "providers": [
+          "App\\Providers\\MySQLProvider",
+          "App\\Providers\\PostgreSQLProvider"
+        ]
+      },
+      "cache": {
+        "providers": [
+          "App\\Providers\\RedisProvider",
+          "App\\Providers\\MemcachedProvider"
+        ]
+      }
     }
   }
 }

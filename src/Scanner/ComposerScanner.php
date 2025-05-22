@@ -31,12 +31,11 @@
 		
 		/**
 		 * ComposerScanner constructor
-		 * @param string $configKey The key to look for in composer.json (e.g., 'discover')
-		 *                         This also serves as the family name for providers
+		 * @param string $familyName The family name for providers
 		 * @param string|null $basePath
 		 */
-		public function __construct(string $configKey = 'discover', ?string $basePath = null) {
-			$this->configKey = $configKey;
+		public function __construct(string $familyName = 'default', ?string $basePath = null) {
+			$this->configKey = $familyName;
 			$this->basePath = $basePath ?? getcwd();
 			$this->utilities = new PSR4();
 		}
@@ -145,8 +144,8 @@
 			
 			// Process each package to find providers
 			foreach ($packagesList as $package) {
-				// Skip packages without extra configuration or the specific family key
-				if (!isset($package['extra'][$this->configKey])) {
+				// Skip packages without extra configuration or the discover section
+				if (!isset($package['extra']['discover'])) {
 					continue;
 				}
 				
@@ -178,14 +177,23 @@
 		/**
 		 * Extracts service provider classes from composer configuration.
 		 * Supports both single provider and multiple providers formats.
+		 * Now expects the structure: extra.discover.{configKey}
 		 * @param array $composerConfig The parsed composer.json configuration array
 		 * @return array An associative array of provider classes and their configuration
 		 */
 		protected function extractProviderClasses(array $composerConfig): array {
-			// Access our configuration section within composer.json's 'extra' section
+			// Access the discover section within composer.json's 'extra' section
+			$discoverSection = $composerConfig['extra']['discover'] ?? [];
+			
+			// Verify that the discover section is a valid array
+			if (!is_array($discoverSection)) {
+				return [];
+			}
+			
+			// Access our specific configuration section within the discover section
 			// The $this->configKey determines which specific section we're targeting
-			// (e.g., 'laravel', 'symfony', etc.)
-			$configSection = $composerConfig['extra'][$this->configKey] ?? [];
+			// (e.g., 'default', 'laravel', 'symfony', etc.)
+			$configSection = $discoverSection[$this->configKey] ?? [];
 			
 			// Verify that our configuration section is a valid array
 			// If not, return empty result immediately
@@ -223,7 +231,7 @@
 			// Process each provider in the array
 			foreach ($providers as $provider) {
 				if (is_string($provider)) {
-					// Handle simple string format: ProviderClass::class
+					// Handle a simple string format: ProviderClass::class
 					// No configuration is provided for these providers
 					$result[$provider] = null;
 				} elseif (is_array($provider) && isset($provider['class'])) {
@@ -298,7 +306,7 @@
 				
 				// Set the family to the scanner's configKey
 				$provider->setFamily($this->configKey);
-
+				
 				// Load and apply configuration if a config file was specified
 				if (!empty($configFile)) {
 					// Attempt to load the configuration file
