@@ -276,33 +276,4 @@
 		public function findClassesInDirectory(string $directory, ?callable $filter = null): array {
 			return $this->utilities->findClassesInDirectory($directory, $filter);
 		}
-		
-		/**
-		 * Reads and parses the .env file into an array
-		 * Uses the vlucas/phpdotenv library to parse environment variables
-		 * Does not load variables into $_ENV or $_SERVER superglobals
-		 * @return array Array containing all environment variables as key-value pairs
-		 */
-		public function readEnvironmentFile(): array {
-			// Return cached result if available
-			if ($this->envCache !== null) {
-				return $this->envCache;
-			}
-			
-			// Construct the full path to the .env file in the project root directory
-			$envPath = $this->getProjectRoot() . DIRECTORY_SEPARATOR . '.env';
-			
-			// Check if the .env file exists before attempting to read it
-			// Return an empty array if .env file is not found
-			if (!file_exists($envPath)) {
-				return [];
-			}
-			
-			// Read the raw contents of the .env file as a string
-			$content = file_get_contents($envPath);
-			
-			// Parse the .env content into an associative array using Dotenv's static parser
-			// This parses KEY=VALUE pairs without loading them into PHP's environment
-			return $this->envCache = Dotenv::parse($content);
-		}
 	}
