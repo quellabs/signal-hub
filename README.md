@@ -20,7 +20,6 @@ A lightweight, flexible service discovery component for PHP applications that au
 - [Caching and Performance](#caching-and-performance)
   - [Provider Definition Caching](#provider-definition-caching)
   - [Lazy Loading](#lazy-loading)
-  - [Cache Management](#cache-management)
   - [Performance Best Practices](#performance-best-practices)
 - [Provider Configuration](#provider-configuration)
   - [Basic Configuration File](#basic-configuration-file)
@@ -297,53 +296,6 @@ $specificProviders = $discover->findProvidersByType('cache');
 $filteredProviders = $discover->findProvidersByMetadata(function($metadata) {
     return in_array('redis', $metadata);
 });
-```
-
-### Cache Management
-
-#### Cache Validation and Invalidation
-
-```php
-class ProviderCacheManager {
-    private string $cacheFile = 'cache/providers.json';
-    
-    public function isCacheValid(): bool {
-        if (!file_exists($this->cacheFile)) {
-            return false;
-        }
-        
-        $cacheData = json_decode(file_get_contents($this->cacheFile), true);
-        $cacheTime = $cacheData['timestamp'] ?? 0;
-        
-        // Invalidate cache after 24 hours or when composer.lock changes
-        $composerModified = filemtime('composer.lock');
-        return ($cacheTime > time() - 86400) && ($cacheTime > $composerModified);
-    }
-    
-    public function loadOrDiscover(): Discover {
-        $discover = new Discover();
-        
-        if ($this->isCacheValid()) {
-            // Load from cache
-            $cacheData = json_decode(file_get_contents($this->cacheFile), true);
-            $discover->importDefinitionsFromCache($cacheData);
-        } else {
-            // Perform discovery and cache results
-            $discover->addScanner(new ComposerScanner());
-            $discover->addScanner(new DirectoryScanner([__DIR__ . '/app/Providers']));
-            $discover->discover();
-            
-            $cacheData = $discover->exportForCache();
-            file_put_contents($this->cacheFile, json_encode($cacheData));
-        }
-        
-        return $discover;
-    }
-}
-
-// Usage
-$cacheManager = new ProviderCacheManager();
-$discover = $cacheManager->loadOrDiscover();
 ```
 
 ### Performance Best Practices
