@@ -19,12 +19,6 @@
 		protected ?string $familyName;
 		
 		/**
-		 * Base path where the application is installed
-		 * @var string
-		 */
-		protected string $basePath;
-		
-		/**
 		 * @var PSR4 PSR-4 utilities
 		 */
 		private PSR4 $utilities;
@@ -32,11 +26,9 @@
 		/**
 		 * ComposerScanner constructor
 		 * @param string|null $familyName The family name for providers, or null to discover all families
-		 * @param string|null $basePath
 		 */
-		public function __construct(?string $familyName = null, ?string $basePath = null) {
+		public function __construct(?string $familyName = null) {
 			$this->familyName = $familyName;
-			$this->basePath = $basePath ?? getcwd();
 			$this->utilities = new PSR4();
 		}
 		
