@@ -88,17 +88,9 @@
 			$result = [];
 			
 			foreach ($providersWithConfig as $providerData) {
-				$providerFamily = $providerData['family'];
-				$providerClass = $providerData['class'];
-				$providerConfig = $providerData['config'] ?? null;
-				
 				// Validate that the class exists and implements the interface
-				if ($this->validateProviderClass($providerClass, $debug)) {
-					$result[] = [
-						'class'  => $providerClass,
-						'config' => $providerConfig,
-						'family' => $providerFamily
-					];
+				if ($this->validateProviderClass($providerData['class'], $debug)) {
+					$result[] = $providerData;
 				}
 			}
 			
@@ -156,17 +148,9 @@
 				
 				// Process each provider in this package
 				foreach ($packageProviders as $providerData) {
-					$providerClass = $providerData['class'];
-					$providerFamily = $providerData['family'];
-					$configFile = $providerData['config'] ?? null;  // Extract the config file if present
-					
 					// Validate the provider class
-					if ($this->validateProviderClass($providerClass, $debug)) {
-						$providerClasses[] = [
-							'class'  => $providerClass,
-							'config' => $configFile,
-							'family' => $providerFamily
-						];
+					if ($this->validateProviderClass($providerData['class'], $debug)) {
+						$providerClasses[] = $providerData;
 					}
 				}
 			}
