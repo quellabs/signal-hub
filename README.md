@@ -43,7 +43,8 @@ Quellabs Discover solves the common challenge of service discovery in PHP applic
 **Key Features:**
 - **Framework Agnostic**: Works with any PHP application or framework
 - **Multiple Discovery Methods**: Composer configuration, directory scanning, and custom scanners
-- **Flexible Access Patterns**: Access providers individually or in bulk as needed
+- **Lazy Loading**: Providers are only instantiated when actually needed
+- **Efficient Discovery**: Uses static methods to gather metadata without instantiation
 - **Provider Families**: Organize providers into logical groups
 - **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
 - **PSR-4 Utilities**: Built-in tools for namespace and class discovery
@@ -74,10 +75,10 @@ $discover->addScanner(new DirectoryScanner([
     __DIR__ . '/app/Providers'
 ], '/Provider$/'));
 
-// Run the discovery process (instantiates providers to gather metadata)
+// Run the discovery process (gathers metadata without instantiation)
 $discover->discover();
 
-// Get and use the discovered providers
+// Get and use the discovered providers (instantiated on-demand)
 $providers = $discover->getProviders();
 
 foreach ($providers as $provider) {
@@ -90,77 +91,74 @@ foreach ($providers as $provider) {
 
 ### Creating a Service Provider
 
-To create a discoverable service provider, implement the `ProviderInterface` or extend the `AbstractProvider` class:
+To create a discoverable service provider, implement the `ProviderInterface`:
 
 ```php
 <?php
 
 namespace App\Providers;
 
-use Quellabs\Discover\Provider\AbstractProvider;
+use Quellabs\Discover\Provider\ProviderInterface;
 
-class ExampleServiceProvider extends AbstractProvider {
+class ExampleServiceProvider implements ProviderInterface {
 
     /**
-     * Get the list of capabilities this provider supports
-     * @return array<string>
+     * Get metadata about this provider's capabilities (static method)
+     * @return array<string, mixed>
      */
-    public function getMetadata(): array {
+    public static function getProviderMetadata(): array {
         return [
-            'redis',
+            'capabilities' => ['redis', 'clustering'],
+            'version' => '1.0.0',
+            'priority' => 10
         ];
+    }
+    
+    /**
+     * Get default configuration values (static method)
+     * @return array
+     */
+    public static function getProviderDefaults(): array {
+        return [
+            'host' => 'localhost',
+            'port' => 6379,
+            'timeout' => 2.5
+        ];
+    }
+
+    // Instance methods for runtime configuration
+    private array $config = [];
+    
+    public function setConfig(array $config): void {
+        $this->config = $config;
+    }
+    
+    public function getConfig(): array {
+        return $this->config;
     }
 }
 ```
 
 ### Provider Interface
 
-The core `ProviderInterface` is intentionally minimal:
+The core `ProviderInterface` separates discovery-time methods (static) from runtime methods (instance):
 
 ```php
 interface ProviderInterface {
     
-      /**
-       * Retrieves metadata about the provider's capabilities and attributes.
-       * This method returns detailed information that describes the provider's
-       * functionality, supported features, version information, and other
-       * relevant configuration details needed for discovery and integration.
-       * @return array<string, mixed> Associative array of metadata key-value pairs
-       */
-    public function getMetadata(): array;
+    // Static methods for discovery (no instantiation needed)
+    public static function getProviderMetadata(): array;
+    public static function getProviderDefaults(): array;
     
-    /**
-     * Get default configuration
-     * @return array
-     */
-    public function getDefaults(): array;
-
-    /**
-     * Sets configuration
-     * @return void
-     */
+    // Instance methods for runtime configuration
     public function setConfig(array $config): void;
-    
-    /**
-     * Get the family this provider belongs to
-     * @return string|null The provider family or null if not categorized
-     */
-    public function getFamily(): ?string;
-    
-    /**
-     * Set the family for this provider
-     * @param string $family The provider family
-     * @return void
-     */
-    public function setFamily(string $family): void;
+    public function getConfig(): array;
 }
 ```
 
 This interface specifies:
-1. Family classification methods
-2. Whether the provider should be loaded
-3. Configuration management methods
-4. The provider metadata
+1. **Static discovery methods** - Called during discovery without instantiation
+2. **Instance configuration methods** - Used when providers are actually needed
 
 The actual implementation of how services are created and used is left to your application.
 
@@ -170,7 +168,7 @@ Quellabs Discover supports multiple methods to discover service providers:
 
 ### Composer Configuration
 
-Add service providers to your `composer.json` file using the new nested structure where `discover` is always the top-level key:
+Add service providers to your `composer.json` file using the nested structure where `discover` is always the top-level key:
 
 ```json
 {
@@ -202,7 +200,7 @@ Scan directories for provider classes:
 $discover->addScanner(new DirectoryScanner([
     __DIR__ . '/app/Providers',
     __DIR__ . '/src/Providers'
-], '/Provider$/'));
+], '/Provider$/', 'cache')); // Pattern and family name
 ```
 
 ## Caching and Performance
@@ -211,20 +209,20 @@ Quellabs Discover includes sophisticated caching mechanisms to dramatically impr
 
 ### Provider Definition Caching
 
-The discovery process instantiates all found providers to gather their metadata, configuration, and family information. This can be expensive, especially when scanning large codebases or many dependencies. Discover allows you to cache the gathered provider information and restore it instantly on subsequent runs.
+The discovery process gathers provider metadata using static methods without instantiation. This is already efficient, but you can cache the gathered definitions for even better performance.
 
 #### Exporting Cache Data
 
 After running discovery, export the provider definitions for caching:
 
 ```php
-// Perform initial discovery (instantiates providers to gather metadata)
+// Perform discovery (gathers metadata using static methods - no instantiation)
 $discover = new Discover();
 $discover->addScanner(new ComposerScanner());
 $discover->addScanner(new DirectoryScanner([__DIR__ . '/app/Providers']));
 $discover->discover();
 
-// Export definitions for caching (includes all gathered metadata)
+// Export definitions for caching
 $cacheData = $discover->exportForCache();
 
 // Store in your preferred cache system
@@ -235,14 +233,14 @@ $redis->set('app:providers', serialize($cacheData));
 
 #### Importing from Cache
 
-On subsequent requests, bypass the discovery process by importing definitions directly from cache. The ImportDefinitionsFromCache() function loads pre-gathered provider information without instantiating the providers themselves. Instead, providers are instantiated on-demand through lazy loading when first accessed. 
+On subsequent requests, bypass the discovery process entirely:
 
 ```php
 // Load from cache
 $cacheData = json_decode(file_get_contents('cache/providers.json'), true);
 // Or from Redis: $cacheData = unserialize($redis->get('app:providers'));
 
-// Import cached definitions (no provider instantiation needed)
+// Import cached definitions (no scanning or static method calls needed)
 $discover = new Discover();
 $discover->importDefinitionsFromCache($cacheData);
 
@@ -253,16 +251,17 @@ $providers = $discover->findProvidersByType('database');
 #### Understanding Access Patterns
 
 ```php
-// ⚠️ BULK ACCESS: Returns all instantiated providers
+// ⚠️ BULK ACCESS: Instantiates all providers
 $allProviders = $discover->getProviders(); // Use when you need everything
 
-// ✅ FILTERED ACCESS: Returns subsets based on criteria
+// ✅ FILTERED ACCESS: Only instantiates matching providers
 $specificProviders = $discover->findProvidersByType('cache');
 $filteredProviders = $discover->findProvidersByMetadata(function($metadata) {
-    return in_array('redis', $metadata);
+    return isset($metadata['capabilities']) && 
+           in_array('redis', $metadata['capabilities']);
 });
 
-// ✅ METADATA ONLY: No additional instantiation
+// ✅ METADATA ONLY: No instantiation at all
 $families = $discover->getProviderTypes();
 $capabilities = $discover->getAllProviderMetadata();
 ```
@@ -276,7 +275,7 @@ $capabilities = $discover->getAllProviderMetadata();
 if (app()->environment('local')) {
     $discover->discover();
 } else {
-    // Production: Use cache to avoid re-instantiation
+    // Production: Use cache to avoid scanning
     $cacheData = $this->cache->get('provider_definitions');
     if ($cacheData) {
         $discover->importDefinitionsFromCache($cacheData);
@@ -291,73 +290,41 @@ if (app()->environment('local')) {
 
 ```php
 // ❌ Don't do this if you only need specific providers
-$allProviders = $discover->getProviders();
-foreach ($allProviders as $provider) {
-    if ($provider->getFamily() === 'database') {
-        // Use provider
-    }
-}
+$allProviders = $discover->getProviders(); // Instantiates everything!
 
 // ✅ Do this - get only what you need
 $databaseProviders = $discover->findProvidersByType('database');
 ```
 
-#### 3. Optimize Provider Constructors
+#### 3. Optimize Static Methods
 
-Since providers are instantiated during discovery, keep constructors lightweight:
+Since static methods are called during discovery, keep them lightweight:
 
 ```php
-class ExampleServiceProvider extends AbstractProvider {
+class ExampleServiceProvider implements ProviderInterface {
     
-    // ✅ Good: Lightweight constructor
-    public function __construct() {
-        // Only essential initialization
+    // ✅ Good: Lightweight static methods
+    public static function getProviderMetadata(): array {
+        return [
+            'capabilities' => ['redis'],
+            'version' => '1.0.0'
+        ];
     }
     
-    // ❌ Avoid: Heavy operations in constructor
-    public function __construct() {
+    // ❌ Avoid: Heavy operations in static methods
+    public static function getProviderMetadata(): array {
         // Don't do expensive operations here
-        $this->connectToDatabase(); // This runs during discovery!
-        $this->loadLargeConfiguration(); // This too!
+        $config = file_get_contents('/path/to/config.json'); // This runs during discovery!
+        return json_decode($config, true);
     }
     
-    // ✅ Better: Defer heavy operations
-    public function getConnection() {
-        if (!$this->connection) {
-            $this->connection = $this->connectToDatabase();
-        }
-        return $this->connection;
+    // ✅ Better: Keep static methods simple
+    public static function getProviderDefaults(): array {
+        return [
+            'host' => 'localhost',
+            'port' => 6379
+        ];
     }
-}
-```
-
-#### 4. Cache Structure Optimization
-
-The cache structure is optimized for efficient family-based lookups:
-
-```json
-{
-  "timestamp": 1640995200,
-  "providers": {
-    "database": [
-      {
-        "class": "App\\Providers\\MySQLProvider",
-        "family": "database",
-        "config": {...},
-        "metadata": ["mysql", "pdo"],
-        "defaults": {...}
-      }
-    ],
-    "cache": [
-      {
-        "class": "App\\Providers\\RedisProvider",
-        "family": "cache",
-        "config": {...},
-        "metadata": ["redis", "clustering"],
-        "defaults": {...}
-      }
-    ]
-  }
 }
 ```
 
@@ -381,7 +348,7 @@ return [
 
 ### Registering Provider with Configuration
 
-Specify a configuration file in your `composer.json` using the nested structure:
+Specify a configuration file in your `composer.json`:
 
 ```json
 {
@@ -406,21 +373,33 @@ Specify a configuration file in your `composer.json` using the nested structure:
 
 ### Using Configuration in Providers
 
-Use configuration values in your provider:
+Configuration is loaded and merged with defaults when providers are instantiated:
 
 ```php
-class ExampleServiceProvider extends AbstractProvider {
+class ExampleServiceProvider implements ProviderInterface {
+
+    public static function getProviderDefaults(): array {
+        return [
+            'option1' => 'default_value',
+            'option2' => 'default_value',
+            'enabled' => false
+        ];
+    }
 
     protected array $config = [];
     
     public function setConfig(array $config): void {
-        $this->config = $config;
+        $this->config = $config; // Contains merged defaults + config file
+    }
+    
+    public function getConfig(): array {
+        return $this->config;
     }
     
     public function getServiceOptions(): array {
         return [
-            'option1' => $this->config['option1'] ?? 'default',
-            'option2' => $this->config['option2'] ?? 'default',
+            'option1' => $this->config['option1'],
+            'option2' => $this->config['option2'],
         ];
     }
 }
@@ -428,11 +407,11 @@ class ExampleServiceProvider extends AbstractProvider {
 
 ## Provider Families
 
-Provider families organize service providers into logical groups.
+Provider families organize service providers into logical groups. Families are determined by the composer.json structure, not by the provider classes themselves.
 
 ### Defining Provider Families
 
-Define providers in different families in your `composer.json` using the nested structure:
+Define providers in different families in your `composer.json`:
 
 ```json
 {
@@ -479,7 +458,8 @@ $families = $discover->getProviderTypes();
 
 // Find providers by both family and capability
 $redisProviders = $discover->findProvidersByTypeAndMetadata('cache', function($metadata) {
-    return in_array('redis', $metadata);
+    return isset($metadata['capabilities']) && 
+           in_array('redis', $metadata['capabilities']);
 });
 ```
 
@@ -570,10 +550,10 @@ class ApplicationBootstrap {
         $cached = $this->cache->get($cacheKey);
         
         if ($cached && $this->isProduction()) {
-            // Use cached definitions in production (no instantiation needed)
+            // Use cached definitions in production (no scanning needed)
             $discover->importDefinitionsFromCache($cached);
         } else {
-            // Perform discovery (instantiates providers) and cache results
+            // Perform discovery and cache results
             $discover->addScanner(new ComposerScanner());
             $discover->addScanner(new DirectoryScanner([
                 __DIR__ . '/app/Providers'
@@ -606,7 +586,14 @@ use Quellabs\Discover\Config\DiscoveryConfig;
 class CustomScanner implements ScannerInterface {
     public function scan(DiscoveryConfig $config): array {
         // Your custom discovery logic
-        // Return an array of ProviderInterface instances
+        // Return an array of ['class' => $className, 'family' => $family, 'config' => $configFile]
+        return [
+            [
+                'class' => 'App\\Providers\\CustomProvider',
+                'family' => 'custom',
+                'config' => 'config/custom.php'
+            ]
+        ];
     }
 }
 ```
