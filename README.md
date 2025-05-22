@@ -43,9 +43,8 @@ Quellabs Discover solves the common challenge of service discovery in PHP applic
 **Key Features:**
 - **Framework Agnostic**: Works with any PHP application or framework
 - **Multiple Discovery Methods**: Composer configuration, directory scanning, and custom scanners
-- **Lazy Loading**: Providers are only instantiated when actually needed
-- **Efficient Discovery**: Uses static methods to gather metadata without instantiation
 - **Provider Families**: Organize providers into logical groups
+- **Efficient Discovery**: Uses static methods to gather metadata without instantiation
 - **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
 - **PSR-4 Utilities**: Built-in tools for namespace and class discovery
 
@@ -98,9 +97,9 @@ To create a discoverable service provider, implement the `ProviderInterface`:
 
 namespace App\Providers;
 
-use Quellabs\Discover\Provider\ProviderInterface;
+use Quellabs\Discover\Provider\AbstractProvider;
 
-class ExampleServiceProvider implements ProviderInterface {
+class ExampleServiceProvider extends AbstractProvider {
 
     /**
      * Get metadata about this provider's capabilities (static method)
@@ -125,17 +124,6 @@ class ExampleServiceProvider implements ProviderInterface {
             'timeout' => 2.5
         ];
     }
-
-    // Instance methods for runtime configuration
-    private array $config = [];
-    
-    public function setConfig(array $config): void {
-        $this->config = $config;
-    }
-    
-    public function getConfig(): array {
-        return $this->config;
-    }
 }
 ```
 
@@ -147,8 +135,8 @@ The core `ProviderInterface` separates discovery-time methods (static) from runt
 interface ProviderInterface {
     
     // Static methods for discovery (no instantiation needed)
-    public static function getProviderMetadata(): array;
-    public static function getProviderDefaults(): array;
+    public static function getMetadata(): array;
+    public static function getDefaults(): array;
     
     // Instance methods for runtime configuration
     public function setConfig(array $config): void;
@@ -277,6 +265,7 @@ if (app()->environment('local')) {
 } else {
     // Production: Use cache to avoid scanning
     $cacheData = $this->cache->get('provider_definitions');
+    
     if ($cacheData) {
         $discover->importDefinitionsFromCache($cacheData);
     } else {
@@ -304,7 +293,7 @@ Since static methods are called during discovery, keep them lightweight:
 class ExampleServiceProvider implements ProviderInterface {
     
     // ✅ Good: Lightweight static methods
-    public static function getProviderMetadata(): array {
+    public static function getMetadata(): array {
         return [
             'capabilities' => ['redis'],
             'version' => '1.0.0'
@@ -312,14 +301,14 @@ class ExampleServiceProvider implements ProviderInterface {
     }
     
     // ❌ Avoid: Heavy operations in static methods
-    public static function getProviderMetadata(): array {
+    public static function getMetadata(): array {
         // Don't do expensive operations here
         $config = file_get_contents('/path/to/config.json'); // This runs during discovery!
         return json_decode($config, true);
     }
     
     // ✅ Better: Keep static methods simple
-    public static function getProviderDefaults(): array {
+    public static function getDefaults(): array {
         return [
             'host' => 'localhost',
             'port' => 6379
@@ -376,9 +365,9 @@ Specify a configuration file in your `composer.json`:
 Configuration is loaded and merged with defaults when providers are instantiated:
 
 ```php
-class ExampleServiceProvider implements ProviderInterface {
+class ExampleServiceProvider extends \Quellabs\Discover\Provider\AbstractProvider {
 
-    public static function getProviderDefaults(): array {
+    public static function getDefaults(): array {
         return [
             'option1' => 'default_value',
             'option2' => 'default_value',
@@ -386,16 +375,6 @@ class ExampleServiceProvider implements ProviderInterface {
         ];
     }
 
-    protected array $config = [];
-    
-    public function setConfig(array $config): void {
-        $this->config = $config; // Contains merged defaults + config file
-    }
-    
-    public function getConfig(): array {
-        return $this->config;
-    }
-    
     public function getServiceOptions(): array {
         return [
             'option1' => $this->config['option1'],
