@@ -41,12 +41,12 @@ A lightweight, flexible service discovery component for PHP applications that au
 Quellabs Discover solves the common challenge of service discovery in PHP applications. It focuses solely on locating service providers defined in your application and its dependencies, giving you complete control over how to use these providers in your application architecture. Unlike other service discovery solutions that force specific patterns, Discover is framework-agnostic and can be integrated into any PHP application.
 
 **Key Features:**
-- **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
 - **Framework Agnostic**: Works with any PHP application or framework
 - **Multiple Discovery Methods**: Composer configuration, directory scanning, and custom scanners
-- **Provider Families**: Organize providers into logical groups
-- **PSR-4 Utilities**: Built-in tools for namespace and class discovery
 - **Flexible Access Patterns**: Access providers individually or in bulk as needed
+- **Provider Families**: Organize providers into logical groups
+- **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
+- **PSR-4 Utilities**: Built-in tools for namespace and class discovery
 
 ## Installation
 
