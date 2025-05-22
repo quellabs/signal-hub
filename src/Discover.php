@@ -3,7 +3,6 @@
 	namespace Quellabs\Discover;
 	
 	use Composer\Autoload\ClassLoader;
-	use Dotenv\Dotenv;
 	use Quellabs\Discover\Scanner\ScannerInterface;
 	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Config\DiscoveryConfig;
@@ -51,20 +50,31 @@
 		 * @return self
 		 */
 		public function discover(): self {
-			// Clear existing state
+			// Clear any previously discovered providers to start fresh
 			$this->clearProviders();
 			
+			// Iterate through each registered scanner to discover providers
 			foreach ($this->scanners as $scanner) {
-				$discoveredProviders = $scanner->scan($this->config);
+				// Use the scanner to find provider classes based on configuration
+				$discoveredClasses = $scanner->scan($this->config);
 				
-				foreach ($discoveredProviders as $provider) {
-					if ($provider instanceof ProviderInterface) {
-						// Convert instantiated provider to definition
-						$this->addProviderDefinition($provider);
+				// Process each discovered class returned by the scanner
+				foreach ($discoveredClasses as $classData) {
+					// Check if the discovered class data is in array format
+					// (contains structured metadata about the provider)
+					if (is_array($classData)) {
+						// Register the discovered provider with its metadata
+						// Pass the config file from scanner data
+						$this->addProviderDefinition(
+							$classData['class'],                   // The fully qualified class name
+							$classData['family'],                  // The provider family/category
+							$classData['config'] ?? null  // Optional config file path (null if not provided)
+						);
 					}
 				}
 			}
 			
+			// Return self to enable method chaining
 			return $this;
 		}
 		
@@ -208,41 +218,7 @@
 			$this->scanners[] = $scanner;
 			return $this;
 		}
-		
-		/**
-		 * Add a provider (updates both definitions and instances)
-		 * @param ProviderInterface $provider
-		 * @return self
-		 */
-		public function addProvider(ProviderInterface $provider): self {
-			// Get the fully qualified class name to use as a unique identifier
-			$className = get_class($provider);
-			
-			// Initialize flag to track whether this provider class is already registered.
-			// We need to prevent duplicate registrations of the same provider type.
-			$exists = false;
-			
-			// Scan through existing provider definitions to check for duplicates
-			foreach ($this->providerDefinitions as $definition) {
-				// Compare class names to determine if this provider type already exists
-				// Uses null coalescing to safely handle definitions without 'class' key
-				if (($definition['class'] ?? null) === $className) {
-					// Mark as existing and exit the loop early for performance
-					$exists = true;
-					break;
-				}
-			}
-			
-			// Only proceed with registration if the provider is new
-			if (!$exists) {
-				// Register the provider definition for future lazy instantiation
-				$this->addProviderDefinition($provider);
-			}
-			
-			// Return self to enable method chaining
-			return $this;
-		}
-		
+
 		/**
 		 * Get all available provider types (no instantiation needed)
 		 * @return array<string> Array of unique provider types
@@ -272,8 +248,8 @@
 		 * @return array<string, array> Provider metadata indexed by class name
 		 */
 		public function getAllProviderMetadata(): array {
-			// Initialize collection to store metadata from all registered providers
-			// This will be indexed by class name for easy lookup and identification
+			// Initialize a collection to store metadata from all registered providers.
+			// Class name will index this for easy lookup and identification.
 			$metadata = [];
 			
 			// Iterate through all cached provider definitions to extract metadata
@@ -462,7 +438,7 @@
 			
 			// No cached instance exists, so create a new provider from the definition data
 			// Delegate the complex instantiation logic to the specialized reconstruction method
-			$provider = $this->reconstructProviderFromCache($definition);
+			$provider = $this->instantiateProvider($definition);
 			
 			// If instantiation was successful, cache the new provider instance
 			if ($provider) {
@@ -476,40 +452,43 @@
 		}
 		
 		/**
-		 * Add a provider definition from an instantiated provider
-		 * @param ProviderInterface $provider The instantiated provider
+		 * Add a provider definition from a class name
+		 * @param class-string<ProviderInterface> $className The provider class name
+		 * @param string $family The family name for this provider
+		 * @param string|null $configFile Optional path to a config file
 		 * @return void
 		 */
-		protected function addProviderDefinition(ProviderInterface $provider): void {
-			$family = $provider->getFamily();
-			$className = get_class($provider);
+		protected function addProviderDefinition(string $className, string $family, ?string $configFile = null): void {
+			// Create a cache key
 			$definitionKey = $family . '::' . $className;
 			
-			// Store the definition
-			$this->providerDefinitions[$definitionKey] = [
-				'class'       => $className,
-				'family'      => $family,
-				'config'      => $provider->getConfig(),
-				'metadata'    => $provider->getMetadata(),
-				'defaults'    => $provider->getDefaults(),
-			];
+			// Skip if already exists
+			if (isset($this->providerDefinitions[$definitionKey])) {
+				return;
+			}
 			
-			// Store the instance since we already have it
-			$this->instantiatedProviders[$definitionKey] = $provider;
+			// Add it to the list
+			$this->providerDefinitions[$definitionKey] = [
+				'class'    => $className,
+				'family'   => $family,
+				'config'   => $configFile,
+				'metadata' => $className::getMetadata(),
+				'defaults' => $className::getDefaults(),
+			];
 		}
 		
 		/**
-		 * Reconstruct a single provider instance from cached data
-		 * Handles the complete provider instantiation and configuration from cache data.
-		 * @param array $providerData Cached provider information
-		 * @return ProviderInterface|null Successfully reconstructed provider or null on failure
+		 * Instantiate and configure a provider from definition data
+		 * Creates a new provider instance, loads its configuration from file (if specified),
+		 * merges it with defaults, and applies the final configuration to the provider.
+		 * @param array $providerData Provider definition containing class, config file path, and family
+		 * @return ProviderInterface|null Successfully instantiated and configured provider or null on failure
 		 */
-		protected function reconstructProviderFromCache(array $providerData): ?ProviderInterface {
+		protected function instantiateProvider(array $providerData): ?ProviderInterface {
 			// Extract essential provider information from cached data
 			// Use null coalescing to handle missing keys gracefully
 			$className = $providerData['class'] ?? null;
-			$family = $providerData['family'] ?? null;
-			$config = $providerData['config'] ?? [];
+			$configFile = $providerData['config'] ?? null;
 			
 			// Perform upfront validation to ensure we have the minimum required data
 			// Check both that class name exists and that the class is actually loadable
@@ -528,10 +507,11 @@
 					return null;
 				}
 				
-				// Restore the provider's state using the cached configuration data
-				// Apply family type and configuration to bring provider to cached state
-				$provider->setFamily($family);
-				$provider->setConfig($config);
+				// Load configuration from file if specified, otherwise use empty array
+				$loadedConfig = $this->loadConfigFile($configFile);
+				
+				// Merge defaults with loaded config and apply to provider
+				$provider->setConfig(array_merge($className::getDefaults(), $loadedConfig));
 				
 				// Return the fully reconstructed and configured provider instance
 				return $provider;
@@ -541,5 +521,33 @@
 				// Return null to indicate reconstruction failure rather than throwing exceptions
 				return null;
 			}
+		}
+		
+		/**
+		 * Loads a configuration file and returns its contents as an array.
+		 * @param string|null $configFile Relative path to the configuration file from project root
+		 * @return array The configuration array from the file, or empty array if the file doesn't exist
+		 */
+		protected function loadConfigFile(?string $configFile): array {
+			// Return empty config when no file given
+			if ($configFile === null) {
+				return [];
+			}
+			
+			// Get the project's root directory
+			$rootDir = $this->utilities->getProjectRoot();
+			
+			// Build the absolute path to the configuration file
+			$completeDir = $rootDir . DIRECTORY_SEPARATOR . $configFile;
+			
+			// Make sure the file exists before attempting to load it
+			if (!file_exists($completeDir)) {
+				return [];
+			}
+			
+			// Include the file and return its contents
+			// This works because PHP's include statement returns the result of the included file,
+			// which should be an array if the file contains 'return []' or similar
+			return include $completeDir;
 		}
 	}

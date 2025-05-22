@@ -11,30 +11,17 @@
 		 * relevant configuration details needed for discovery and integration.
 		 * @return array<string, mixed> Associative array of metadata key-value pairs
 		 */
-		public function getMetadata(): array;
+		public static function getMetadata(): array;
 		
 		/**
 		 * Get default configuration
 		 * @return array
 		 */
-		public function getDefaults(): array;
+		public static function getDefaults(): array;
 		
 		/**
 		 * Sets configuration
 		 * @return void
 		 */
 		public function setConfig(array $config): void;
-		
-		/**
-		 * Get the family this provider belongs to
-		 * @return string|null The provider family or null if not categorized
-		 */
-		public function getFamily(): ?string;
-		
-		/**
-		 * Set the family for this provider
-		 * @param string $family The provider family
-		 * @return void
-		 */
-		public function setFamily(string $family): void;
 	}

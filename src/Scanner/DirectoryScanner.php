@@ -36,6 +36,12 @@
 		protected ?string $pattern;
 		
 		/**
+		 * Default family name for discovered providers
+		 * @var string
+		 */
+		protected string $defaultFamily;
+		
+		/**
 		 * Cache of already scanned classes
 		 * @var array<string, bool>
 		 */
@@ -50,10 +56,12 @@
 		 * DirectoryScanner constructor
 		 * @param array<string> $directories Directories to scan
 		 * @param string|null $pattern Regex pattern for class names (e.g., '/Provider$/')
+		 * @param string $defaultFamily Default family name for discovered providers
 		 */
-		public function __construct(array $directories = [], ?string $pattern = null) {
+		public function __construct(array $directories = [], ?string $pattern = null, string $defaultFamily = 'default') {
 			$this->directories = $directories;
 			$this->pattern = $pattern;
+			$this->defaultFamily = $defaultFamily;
 			$this->utilities = new PSR4();
 		}
 		
@@ -83,10 +91,10 @@
 		/**
 		 * Scan directories for classes that implement ProviderInterface
 		 * @param DiscoveryConfig $config
-		 * @return array<ProviderInterface>
+		 * @return array Array of provider data with class and family information
 		 */
 		public function scan(DiscoveryConfig $config): array {
-			$providers = [];
+			$providerData = [];
 			$dirs = $this->directories;
 			
 			// If no directories specified, use config default directories
@@ -95,13 +103,13 @@
 			}
 			
 			foreach ($dirs as $directory) {
-				$providers = array_merge(
-					$providers,
+				$providerData = array_merge(
+					$providerData,
 					$this->scanDirectory($directory, $config->isDebugEnabled())
 				);
 			}
 			
-			return $providers;
+			return $providerData;
 		}
 		
 		/**
@@ -115,15 +123,15 @@
 				case 'suffix':
 					$this->pattern = '/' . preg_quote($value) . '$/';
 					break;
-					
+				
 				case 'prefix':
 					$this->pattern = '/^' . preg_quote($value) . '/';
 					break;
-					
+				
 				case 'namespace':
 					$this->pattern = '/^' . str_replace('\\', '\\\\', $value) . '\\\\/';
 					break;
-					
+				
 				default:
 					throw new \InvalidArgumentException("Unknown naming convention: {$convention}");
 			}
@@ -134,10 +142,10 @@
 		/**
 		 * This function traverses a directory structure, identifies all PHP files,
 		 * attempts to extract class names from them, and checks if each class implements
-		 * the ProviderInterface. All valid providers are instantiated and returned.
+		 * the ProviderInterface. All valid provider class data is returned.
 		 * @param string $directory The root directory path to begin scanning
 		 * @param bool $debug Whether to output debug messages during the scanning process
-		 * @return array<ProviderInterface> Array of successfully instantiated provider objects found in the directory
+		 * @return array Array of provider data with class and family information
 		 */
 		protected function scanDirectory(string $directory, bool $debug = false): array {
 			// Verify the directory exists and is accessible before attempting to scan
@@ -149,48 +157,36 @@
 				
 				return [];
 			}
-
+			
 			// Fetch all provider classes found in the directory
-			$classes = $this->utilities->findClassesInDirectory($directory, function($e) use ($debug) {
+			$classes = $this->utilities->findClassesInDirectory($directory, function($className) use ($debug) {
 				// Check if the class is a valid provider
-				return $this->isProvider($e, $debug);
+				return $this->isValidProviderClass($className, $debug);
 			});
 			
-			// Process each file found in the directory structure
-			$providers = [];
-
-			foreach ($classes as $class) {
-				// Instantiate the provider
-				$provider = $this->instantiateProvider($class, $debug);
-
-				// Only add valid providers (non-null)
-				if ($provider !== null) {
-					$providers[] = $provider;
-				}
+			// Process each valid class found in the directory structure
+			$providerData = [];
+			
+			foreach ($classes as $className) {
+				// Add the provider data to our results
+				$providerData[] = [
+					'class'  => $className,
+					'family' => $this->defaultFamily,
+					'config' => null
+				];
 			}
 			
-			// Return all successfully instantiated provider objects discovered in the directory
-			return $providers;
+			// Return all discovered provider class data from the directory
+			return $providerData;
 		}
-
+		
 		/**
 		 * Check if a class implements ProviderInterface and matches the pattern
-		 *
-		 * This method performs a series of validations to determine if a class qualifies
-		 * as a valid provider according to the scanner's criteria. A class is considered
-		 * a valid provider if it:
-		 *
-		 * 1. Has not been previously scanned
-		 * 2. Exists and can be autoloaded
-		 * 3. Matches the naming pattern (if a pattern is set)
-		 * 4. Is not abstract
-		 * 5. Implements the ProviderInterface
-		 *
 		 * @param string $className Fully qualified class name to check
 		 * @param bool $debug Whether to output error messages when exceptions occur
 		 * @return bool True if the class is a valid provider, false otherwise
 		 */
-		protected function isProvider(string $className, bool $debug = false): bool {
+		protected function isValidProviderClass(string $className, bool $debug = false): bool {
 			// Skip already scanned classes to prevent duplicate processing
 			// This improves performance when scanning large codebases
 			if (isset($this->scannedClasses[$className])) {
@@ -234,25 +230,6 @@
 				}
 				
 				return false;
-			}
-		}
-		
-		/**
-		 * Create an instance of a provider class
-		 * @param string $className
-		 * @param bool $debug
-		 * @return ProviderInterface|null
-		 */
-		protected function instantiateProvider(string $className, bool $debug = false): ?ProviderInterface {
-			try {
-				$reflectionClass = new ReflectionClass($className);
-				return $reflectionClass->newInstance();
-			} catch (\Throwable $e) {
-				if ($debug) {
-					echo "[ERROR] Failed to instantiate provider {$className}: {$e->getMessage()}\n";
-				}
-				
-				return null;
 			}
 		}
 	}
