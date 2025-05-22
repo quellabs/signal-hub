@@ -33,322 +33,423 @@
 		}
 		
 		/**
-		 * This is the main entry point for the provider discovery process.
+		 * Main entry point for provider discovery
 		 * @param DiscoveryConfig $config Configuration object containing discovery settings
-		 * @return array<string> Array of discovered provider class names
+		 * @return array|ProviderInterface[] Array of discovered provider instances
 		 */
 		public function scan(DiscoveryConfig $config): array {
-			// Extract debug mode setting from the configuration
+			// Extract debug flag from configuration for consistent logging behavior
+			// across all discovery operations
 			$debug = $config->isDebugEnabled();
 			
-			// Discover provider classes declared in the project's own composer.json
-			$providerClasses = $this->discoverProjectProviders($debug);
+			// Discover providers defined within the current project structure
+			// These are typically application-specific providers in src/ or app/ directories
+			$projectProviders = $this->discoverProjectProviders($debug);
 			
-			// Discover provider classes declared in installed dependency packages
-			$packageProviderClasses = $this->discoverPackageProviders($debug);
+			// Discover providers from installed packages/dependencies
+			// These are usually third-party providers from vendor/ directory
+			$packageProviders = $this->discoverPackageProviders($debug);
 			
-			// Return the complete collection of discovered provider class names from all sources
-			return array_merge($providerClasses, $packageProviderClasses);
+			// Combine both sets of providers into a single array
+			// Project providers are placed first, potentially allowing them to
+			// override or take precedence over package providers
+			return array_merge($projectProviders, $packageProviders);
 		}
 		
 		/**
-		 * This function reads the project's main composer.json file to find provider classes
-		 * that are directly declared in the project (as opposed to in dependencies).
-		 * @param bool $debug Whether to output debug messages during the discovery process
-		 * @return array<string> Array of discovered provider class names from the project
+		 * Scans the current project's composer.json file to find provider definitions
+		 * in the "extra" section or other configured locations. This method handles
+		 * the project-specific provider discovery as opposed to third-party packages.
+		 * @param bool $debug Whether to enable debug logging
+		 * @return array Array of discovered provider instances
 		 */
 		protected function discoverProjectProviders(bool $debug): array {
-			// Get the full filesystem path to the project's composer.json file
+			// Resolve the absolute path to the project's composer.json file
+			// Uses utility method to handle different project structures and locations
 			$composerPath = $this->utilities->getComposerJsonFilePath();
 			
-			// If the path couldn't be determined or the file doesn't exist, return an empty array
+			// Validate that composer.json exists and is accessible
+			// Early return prevents unnecessary processing and error conditions
 			if (!$composerPath || !file_exists($composerPath)) {
 				return [];
 			}
 			
-			// Log provider discovery attempt if debug mode is enabled
-			if ($this->familyName) {
-				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->familyName}' from project: {$composerPath}");
-			} else {
-				$this->logDebug($debug, "[INFO] Looking for providers in all families from project: {$composerPath}");
-			}
+			// Log the start of project provider discovery when debug mode is enabled
+			// Helps with troubleshooting and understanding the discovery flow
+			$this->logDiscoveryStart($debug, 'project', $composerPath);
 			
-			// Parse the project's composer.json file into an associative array
-			$composer = $this->parseJsonFile($composerPath);
+			// Parse the composer.json file into a PHP array structure
+			// Handles JSON decoding and potential file reading errors gracefully
+			$composerData = $this->parseJsonFile($composerPath);
 			
-			// If parsing failed or file is empty/invalid, return empty array
-			if (!$composer) {
+			// Validate that composer.json was parsed successfully
+			// Corrupted or invalid JSON will result in null/false return value
+			if (!$composerData) {
 				return [];
 			}
 			
-			// Extract provider classes with their configs and family names
-			$providersWithConfig = $this->extractProviderClasses($composer);
-			
-			// Validate and collect class names
-			$result = [];
-			
-			foreach ($providersWithConfig as $providerData) {
-				// Validate that the class exists and implements the interface
-				if ($this->validateProviderClass($providerData['class'], $debug)) {
-					$result[] = $providerData;
-				}
-			}
-			
-			// Return all valid provider class names from the project
-			return $result;
+			// Extract provider definitions from composer data and instantiate them
+			// This method handles validation, class loading, and provider instantiation
+			return $this->extractAndValidateProviders($composerData, $debug);
 		}
 		
 		/**
-		 * This function scans the Composer installed.json file to find packages that
-		 * declare provider classes in their extra configuration.
-		 * @param bool $debug Whether to output debug messages when errors occur during provider validation
-		 * @return array Array of discovered provider data with class and family information
+		 * Scans Composer's installed.json file to find provider definitions from
+		 * third-party packages. This method processes all installed dependencies
+		 * and extracts providers that have been configured for auto-discovery.
+		 * @param bool $debug Whether to enable debug logging
+		 * @return array Array of discovered provider instances
 		 */
 		protected function discoverPackageProviders(bool $debug): array {
-			// Initialize an empty array to store discovered provider class names
-			$providerClasses = [];
-			
-			// Get the full filesystem path to Composer's installed.json file
+			// Resolve the path to Composer's installed.json file
+			// This file contains metadata about all installed packages and dependencies
 			$installedPath = $this->utilities->getComposerInstalledFilePath();
 			
-			// If the path couldn't be determined or the file doesn't exist, return an empty array
-			if ($installedPath === null || !file_exists($installedPath)) {
-				return $providerClasses;
+			// Validate that installed.json exists and is accessible
+			// Missing file typically indicates Composer hasn't been run or project issues
+			if (!$installedPath || !file_exists($installedPath)) {
+				return [];
 			}
 			
-			// Log package discovery attempt if debug mode is enabled
-			if ($this->familyName) {
-				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->familyName}' from installed packages");
-			} else {
-				$this->logDebug($debug, "[INFO] Looking for providers in all families from installed packages");
+			// Log the start of package provider discovery when debug mode is enabled
+			// Note: No path logged here as it's always the standard installed.json location
+			$this->logDiscoveryStart($debug, 'packages');
+			
+			// Parse the installed.json file into a PHP array structure
+			// This file can be quite large as it contains all package metadata
+			$packagesData = $this->parseJsonFile($installedPath);
+			
+			// Validate that installed.json was parsed successfully
+			// Corrupted file would prevent access to any package provider information
+			if (!$packagesData) {
+				return [];
 			}
 			
-			// Parse the installed.json file into an associative array
-			$packages = $this->parseJsonFile($installedPath);
+			// Handle different installed.json format versions for compatibility
+			// Newer Composer versions wrap packages in a 'packages' key,
+			// while older versions use the root array directly
+			$packagesList = $packagesData['packages'] ?? $packagesData;
 			
-			// If parsing failed or file is empty, return empty array
-			if (!$packages) {
-				return $providerClasses;
-			}
+			// Initialize collection for all discovered providers across packages
+			$allProviders = [];
 			
-			// Handle both formats of installed.json:
-			// - Newer Composer versions use a 'packages' key containing the array of packages
-			// - Older versions have the packages directly at the root level
-			$packagesList = $packages['packages'] ?? $packages;
-			
-			// Process each package to find providers
+			// Iterate through each installed package to check for provider definitions
 			foreach ($packagesList as $package) {
-				// Skip packages without extra configuration or the discover section
-				if (!isset($package['extra']['discover'])) {
-					continue;
-				}
-				
-				// Extract providers from this package
-				$packageProviders = $this->extractProviderClasses($package);
-				
-				// Process each provider in this package
-				foreach ($packageProviders as $providerData) {
-					// Validate the provider class
-					if ($this->validateProviderClass($providerData['class'], $debug)) {
-						$providerClasses[] = $providerData;
-					}
+				// Check if package has opted into auto-discovery via 'extra.discover' section
+				// This is the standard convention for packages that want their providers discovered
+				if (isset($package['extra']['discover'])) {
+					// Extract and validate providers from this specific package
+					// Uses the same validation logic as project providers
+					$packageProviders = $this->extractAndValidateProviders($package, $debug);
+					
+					// Merge discovered providers into the main collection
+					// Maintains order of discovery across packages
+					$allProviders = array_merge($allProviders, $packageProviders);
 				}
 			}
 			
-			// Return all discovered provider class names from packages
-			return $providerClasses;
+			// Return all providers discovered from installed packages
+			return $allProviders;
+		}
+		/**
+		 * This method performs a two-stage process: first extracting provider class
+		 * definitions from composer configuration data, then validating each provider
+		 * to ensure it's properly implemented and can be instantiated. Only valid
+		 * providers are returned to prevent runtime errors during application bootstrap.
+		 * @param array $composerConfig Complete composer.json data array
+		 * @param bool $debug Whether to enable debug logging
+		 * @return array Array of validated provider data structures
+		 */
+		private function extractAndValidateProviders(array $composerConfig, bool $debug): array {
+			// Extract raw provider class definitions and their configurations
+			// from the composer config's discovery section (typically extra.discover)
+			$providersWithConfig = $this->extractProviderClasses($composerConfig);
+			
+			// Initialize collection for providers that pass validation
+			$validProviders = [];
+			
+			// Validate each discovered provider class individually
+			foreach ($providersWithConfig as $providerData) {
+				// Perform comprehensive validation on the provider class:
+				// - Check if class exists and can be autoloaded
+				// - Verify it implements required ProviderInterface
+				// - Ensure constructor is compatible with dependency injection
+				// - Log validation failures when debug mode is enabled
+				if ($this->validateProviderClass($providerData['class'], $debug)) {
+					// Only include providers that pass all validation checks
+					// This prevents runtime errors during provider instantiation
+					$validProviders[] = $providerData;
+				}
+			}
+			
+			// Return only the providers that are confirmed to be valid and usable
+			return $validProviders;
 		}
 		
 		/**
-		 * Validates that a provider class exists and implements the required interface
-		 * @param string $providerClass Fully qualified provider class name
-		 * @param bool $debug Whether to output error messages to console
-		 * @return bool True if the class is valid, false otherwise
+		 * Performs essential validation checks to ensure a provider class is properly
+		 * defined and can be safely instantiated. This prevents runtime errors that
+		 * would occur if invalid providers were included in the application bootstrap.
+		 * @param string $providerClass Fully qualified class name of the provider to validate
+		 * @param bool $debug Whether to log validation failures for troubleshooting
+		 * @return bool True if provider is valid and can be used, false if validation fails
 		 */
 		protected function validateProviderClass(string $providerClass, bool $debug): bool {
-			// Check if the provider class exists in the application namespace
+			// Verify that the provider class can be found and autoloaded
+			// This catches typos in class names, missing files, or autoloader issues
 			if (!class_exists($providerClass)) {
-				// Log warning and return false if class doesn't exist
+				// Log missing class warning to help developers identify configuration issues
 				$this->logDebug($debug, "[WARNING] Provider class not found: {$providerClass}");
 				return false;
 			}
 			
-			// Check if the class implements the required interface
+			// Ensure the provider class implements the required ProviderInterface contract
+			// This guarantees the class has all necessary methods for provider functionality
 			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
-				// Log warning and return false if interface not implemented
+				// Log interface violation to help developers fix implementation issues
 				$this->logDebug($debug, "[WARNING] Class {$providerClass} does not implement ProviderInterface");
 				return false;
 			}
 			
+			// The provider passed all validation checks and is safe to instantiate
 			return true;
 		}
 		
 		/**
-		 * Extracts service provider classes from composer configuration.
-		 * Supports both single provider and multiple providers formats.
-		 * Expect the structure: extra.discover.{configKey}
-		 * @param array $composerConfig The parsed composer.json configuration array
-		 * @return array An array of provider data with class, config, and family information
+		 * Parses the composer.json 'extra.discover' section to extract provider class
+		 * definitions. Supports multiple configuration formats and can filter by provider
+		 * family. This method handles the complexity of different discovery formats while
+		 * maintaining backward compatibility.
+		 * @param array $composerConfig Complete composer.json configuration array
+		 * @return array Array of provider data structures
 		 */
 		protected function extractProviderClasses(array $composerConfig): array {
-			// Access the discover section within composer.json's 'extra' section
+			// Extract the discovery configuration section from composer's extra data
+			// This is the standardized location where packages define their discoverable providers
 			$discoverSection = $composerConfig['extra']['discover'] ?? [];
 			
-			// Verify that the discover section is a valid array
+			// Validate that the discover section is properly formatted as an array
+			// Malformed configuration should be ignored rather than causing errors
 			if (!is_array($discoverSection)) {
 				return [];
 			}
 			
-			// Process all families in the discover section
-			$result = [];
+			// Initialize collection for all discovered providers across families
+			$allProviders = [];
 			
+			// Process each provider family within the discovery section
+			// Families group related providers (e.g., 'services', 'middleware', 'commands')
 			foreach ($discoverSection as $familyKey => $configSection) {
-				// If a specific family is requested, skip families that don't match
+				// Apply family filtering if a specific family name has been configured
+				// This allows selective discovery of only certain provider types
 				if ($this->familyName !== null && $familyKey !== $this->familyName) {
 					continue;
 				}
 				
-				// Verify that the configuration section is a valid array
+				// Skip malformed family configurations that aren't arrays
+				// Each family section should contain provider definitions
 				if (!is_array($configSection)) {
 					continue;
 				}
 				
-				// Get providers from both formats for this family
+				// Extract providers using multiple supported configuration formats:
+				
+				// Handle array format: multiple providers listed in an array
+				// Format: "family": ["Provider1", "Provider2", ...]
 				$multipleProviders = $this->extractMultipleProviders($configSection, $familyKey);
+				
+				// Handle object format: single provider with additional configuration
+				// Format: "family": {"provider": "ProviderClass", "config": {...}}
 				$singularProvider = $this->extractSingularProvider($configSection, $familyKey);
 				
-				// Merge both results
-				$result = array_merge($result, $multipleProviders, $singularProvider);
+				// Combine all providers found in this family into the main collection
+				// Order is preserved: multiple providers first, then singular provider
+				$allProviders = array_merge($allProviders, $multipleProviders, $singularProvider);
 			}
 			
-			return $result;
+			// Return all discovered providers from all processed families
+			return $allProviders;
 		}
 		
 		/**
-		 * Extract providers from the 'providers' array format
+		 * Extract providers from 'providers' array format
 		 *
-		 * Handles multiple providers defined in a single configuration:
-		 * 1. String format: ["App\\Providers\\RedisProvider", "App\\Providers\\MemcachedProvider"]
-		 * 2. Object format: [{"class": "App\\Providers\\RedisProvider", "config": "redis.php"}, {"class": "App\\Providers\\MemcachedProvider"}]
+		 * Handles multiple provider definitions within a single family configuration.
+		 * Supports both simple string format for basic providers and complex array
+		 * format for providers that require additional configuration files or parameters.
 		 *
-		 * @param array $config The configuration section
-		 * @param string $familyName The family name for these providers
-		 * @return array The extracted providers and their configurations
+		 * Handles: ["Class1", "Class2"] or [{"class": "Class1", "config": "file.php"}]
+		 *
+		 * @param array $config Family configuration section containing providers array
+		 * @param string $familyName Name of the provider family (e.g., 'services', 'middleware')
+		 * @return array Array of normalized provider data structures with class, config, and family
 		 */
 		protected function extractMultipleProviders(array $config, string $familyName): array {
+			// Extract the 'providers' array from the family configuration
+			// This array contains multiple provider definitions in various formats
 			$providersArray = $config['providers'] ?? [];
 			
-			// Ensure we have a valid array to iterate over
+			// Validate that providers section is properly formatted as an array
+			// Non-array values indicate configuration errors and should be ignored
 			if (!is_array($providersArray)) {
 				return [];
 			}
 			
-			// Process each provider definition in the array
-			$extractedProviders = [];
-			
-			foreach ($providersArray as $providerDefinition) {
-				if (is_string($providerDefinition)) {
-					// Format 1: Simple string - just the class name
-					// Example: "App\Providers\RedisProvider"
-					$extractedProviders[] = [
-						'class'  => $providerDefinition,
-						'config' => null, // No config file specified
-						'family' => $familyName
+			// Process each provider definition within the providers array
+			$result = [];
+
+			foreach ($providersArray as $definition) {
+				// Handle simple string format: just the provider class name
+				// Example: "App\Providers\RedisProvider"
+				if (is_string($definition)) {
+					// Normalize simple string definitions into standard structure
+					$result[] = [
+						'class' => $definition,              // Fully qualified class name
+						'config' => null,                   // No additional configuration
+						'family' => $familyName             // Associate with current family
 					];
-				} elseif (is_array($providerDefinition) && isset($providerDefinition['class'])) {
-					// Format 2: Array with class and optional config
-					// Example: ["class" => "App\Providers\RedisProvider", "config" => "redis.php"]
-					$extractedProviders[] = [
-						'class'  => $providerDefinition['class'],
-						'config' => $providerDefinition['config'] ?? null,
-						'family' => $familyName
+					
+					continue;
+				}
+				
+				// Handle complex array format: provider with additional configuration
+				// Example: {"class": "App\Providers\RedisProvider", "config": "redis.php"}
+				if (is_array($definition) && isset($definition['class'])) {
+					// Extract class name and optional configuration from array definition
+					$result[] = [
+						'class' => $definition['class'],                    // Required: provider class
+						'config' => $definition['config'] ?? null,         // Optional: config file/data
+						'family' => $familyName                            // Associate with current family
 					];
 				}
-				// Skip invalid formats (neither string nor array with 'class' key)
+				
+				// Skip malformed definitions that don't match expected formats
+				// This prevents errors while allowing other valid providers to be processed
 			}
 			
-			return $extractedProviders;
+			// Return all successfully processed provider definitions
+			return $result;
 		}
 		
 		/**
-		 * Extract provider from the singular 'provider' format
+		 * Extract provider from singular 'provider' format
 		 *
-		 * Handles two formats:
-		 * 1. String format: "provider" => "ClassName", "config" => "path/to/config.php"
-		 * 2. Array format:  "provider" => ["class" => "ClassName", "config" => "path/to/config.php"]
+		 * Handles single provider definitions within a family configuration, supporting
+		 * both simple string format and complex object format. Also manages configuration
+		 * precedence when config can be specified in multiple locations (inline vs separate).
 		 *
-		 * @param array $config The configuration section
-		 * @param string $familyName The family name for this provider
-		 * @return array The extracted provider and its configuration
+		 * Handles: "provider" => "Class" or "provider" => {"class": "Class", "config": "file.php"}
+		 *
+		 * @param array $config Family configuration section that may contain a single provider
+		 * @param string $familyName Name of the provider family for categorization
+		 * @return array|array[] Array containing single provider data structure, or empty array
+		 *                       if no valid provider found. Wrapped in array for consistency
+		 *                       with extractMultipleProviders method
 		 */
 		protected function extractSingularProvider(array $config, string $familyName): array {
-			// Exit early if no provider is defined in this configuration section
+			// Check if this family configuration contains a singular provider definition
+			// The 'provider' key (singular) is used for single provider configurations
 			if (!isset($config['provider'])) {
 				return [];
 			}
 			
-			$providerDefinition = $config['provider'];
-			$separateConfigFile = $config['config'] ?? null; // Config defined outside the provider block
+			// Extract the provider definition and any separate configuration
+			$definition = $config['provider'];
 			
-			if (is_string($providerDefinition)) {
-				// Format 1: "provider" => "App\Providers\RedisProvider", "config" => "config/redis.php"
+			// Check for configuration defined at the family level (separate from provider)
+			// Format: {"provider": "Class", "config": "separate-config.php"}
+			$separateConfig = $config['config'] ?? null;
+			
+			// Handle simple string format: provider defined as just the class name
+			// Example: "provider" => "App\Providers\RedisProvider"
+			if (is_string($definition)) {
+				// Return normalized provider structure with separate config if available
 				return [[
-					'class'  => $providerDefinition,
-					'config' => $separateConfigFile,
-					'family' => $familyName
+					'class' => $definition,           // Provider class name
+					'config' => $separateConfig,      // Use family-level config if present
+					'family' => $familyName          // Associate with current family
 				]];
 			}
 			
-			if (is_array($providerDefinition) && isset($providerDefinition['class'])) {
-				// Format 2: "provider" => ["class" => "App\Providers\RedisProvider", "config" => "config/redis.php"]
-				$inlineConfigFile = $providerDefinition['config'] ?? null; // Config defined inside the provider block
+			// Handle complex array format: provider with inline configuration
+			// Example: "provider" => {"class": "App\Providers\RedisProvider", "config": "redis.php"}
+			if (is_array($definition) && isset($definition['class'])) {
+				// Extract inline configuration from provider definition
+				$inlineConfig = $definition['config'] ?? null;
 				
-				// Inline config takes precedence over separate config
-				$finalConfigFile = $inlineConfigFile ?? $separateConfigFile;
+				// Resolve configuration precedence: inline config overrides separate config
+				// This allows for more specific configuration at the provider level
+				$finalConfig = $inlineConfig ?? $separateConfig;
 				
 				return [[
-					'class'  => $providerDefinition['class'],
-					'config' => $finalConfigFile,
-					'family' => $familyName
+					'class' => $definition['class'],  // Required: provider class name
+					'config' => $finalConfig,         // Resolved configuration with precedence
+					'family' => $familyName          // Associate with current family
 				]];
 			}
 			
-			// Invalid format - return empty array
+			// Return an empty array if provider definition doesn't match expected formats
+			// This maintains consistency and prevents errors with malformed configurations
 			return [];
 		}
 		
 		/**
-		 * Parse a JSON file into an associative array
-		 * @param string $path The file path to the JSON file to be parsed
-		 * @return array|null Returns the parsed JSON data as an associative array on success,
-		 *                    or null if file reading fails or JSON is invalid
+		 * Log discovery start message
+		 * @param bool $debug
+		 * @param string $source
+		 * @param string|null $path
+		 * @return void
+		 */
+		private function logDiscoveryStart(bool $debug, string $source, ?string $path = null): void {
+			if ($this->familyName) {
+				$familyMsg = "providers in family '{$this->familyName}'";
+			} else {
+				$familyMsg = "providers in all families";
+			}
+			
+			if ($source === 'project') {
+				$locationMsg = "from project: {$path}";
+			} else {
+				$locationMsg = "from installed packages";
+			}
+			
+			$this->logDebug($debug, "[INFO] Looking for {$familyMsg} {$locationMsg}");
+		}
+		
+		/**
+		 * Safely reads and parses a JSON file with comprehensive error handling.
+		 * This utility method handles both file system errors (missing/unreadable files)
+		 * and JSON parsing errors (malformed JSON syntax) to prevent crashes during
+		 * the provider discovery process.
+		 * @param string $path Absolute file path to the JSON file to be parsed
+		 * @return array|null Parsed JSON data as associative array, or null if
+		 *                    file cannot be read or JSON is invalid
 		 */
 		protected function parseJsonFile(string $path): ?array {
-			// Attempt to read the contents of the file
+			// Attempt to read the entire file contents into memory
+			// This may fail if file doesn't exist, is unreadable, or has permission issues
 			$content = file_get_contents($path);
 			
-			// If file reading fails (file not found, permission issues, etc.), return null
+			// Check if file reading was successful
+			// file_get_contents returns false on failure (missing file, permissions, etc.)
 			if ($content === false) {
 				return null;
 			}
 			
-			// Decode the JSON string into an associative array (true parameter)
+			// Parse JSON content into PHP associative array
+			// The 'true' parameter ensures objects are converted to arrays, not stdClass
 			$data = json_decode($content, true);
 			
-			// Check if JSON decoding encountered any errors
-			// If there were JSON syntax errors, return null
-			if (json_last_error() !== JSON_ERROR_NONE) {
-				return null;
-			}
-			
-			// Return the successfully parsed JSON data as an associative array
-			return $data;
+			// Validate that JSON parsing completed without errors
+			// json_last_error() returns JSON_ERROR_NONE (0) only if parsing was successful
+			// This catches syntax errors, encoding issues, and other JSON format problems
+			return (json_last_error() === JSON_ERROR_NONE) ? $data : null;
 		}
 		
 		/**
-		 * Conditionally outputs debug messages to console.
-		 * @param bool $debug Whether debugging is enabled
-		 * @param string $message Message to display
+		 * Conditionally output debug messages
+		 * @param bool $debug
+		 * @param string $message
 		 * @return void
 		 */
 		protected function logDebug(bool $debug, string $message): void {
