@@ -23,6 +23,11 @@
 		protected array $providers = [];
 		
 		/**
+		 * @var array|null
+		 */
+		private ?array $envCache = null;
+		
+		/**
 		 * @var DiscoveryConfig
 		 */
 		protected DiscoveryConfig $config;
@@ -279,12 +284,17 @@
 		 * @return array Array containing all environment variables as key-value pairs
 		 */
 		public function readEnvironmentFile(): array {
+			// Return cached result if available
+			if ($this->envCache !== null) {
+				return $this->envCache;
+			}
+			
 			// Construct the full path to the .env file in the project root directory
 			$envPath = $this->getProjectRoot() . DIRECTORY_SEPARATOR . '.env';
 			
 			// Check if the .env file exists before attempting to read it
+			// Return an empty array if .env file is not found
 			if (!file_exists($envPath)) {
-				// Return an empty array if .env file is not found
 				return [];
 			}
 			
@@ -293,6 +303,6 @@
 			
 			// Parse the .env content into an associative array using Dotenv's static parser
 			// This parses KEY=VALUE pairs without loading them into PHP's environment
-			return Dotenv::parse($content);
+			return $this->envCache = Dotenv::parse($content);
 		}
 	}
