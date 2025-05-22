@@ -14,9 +14,9 @@
 		/**
 		 * The key to look for in composer.json extra section
 		 * This also serves as the family name for discovered providers
-		 * @var string
+		 * @var string|null
 		 */
-		protected string $configKey;
+		protected ?string $configKey;
 		
 		/**
 		 * Base path where the application is installed
@@ -31,10 +31,10 @@
 		
 		/**
 		 * ComposerScanner constructor
-		 * @param string $familyName The family name for providers
+		 * @param string|null $familyName The family name for providers, or null to discover all families
 		 * @param string|null $basePath
 		 */
-		public function __construct(string $familyName = 'default', ?string $basePath = null) {
+		public function __construct(?string $familyName = null, ?string $basePath = null) {
 			$this->configKey = $familyName;
 			$this->basePath = $basePath ?? getcwd();
 			$this->utilities = new PSR4();
@@ -75,7 +75,11 @@
 			}
 			
 			// Log provider discovery attempt if debug mode is enabled
-			$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from project: {$composerPath}");
+			if ($this->configKey) {
+				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from project: {$composerPath}");
+			} else {
+				$this->logDebug($debug, "[INFO] Looking for providers in all families from project: {$composerPath}");
+			}
 			
 			// Parse the project's composer.json file into an associative array
 			$composer = $this->parseJsonFile($composerPath);
@@ -85,15 +89,20 @@
 				return [];
 			}
 			
-			// Extract provider classes with their configs
+			// Extract provider classes with their configs and family names
 			$providersWithConfig = $this->extractProviderClasses($composer);
 			
 			// Attempt to instantiate each discovered provider class
 			$result = [];
 			
-			foreach ($providersWithConfig as $providerClass => $providerConfig) {
+			foreach ($providersWithConfig as $providerData) {
+				// Fetch data from provider
+				$providerClass = $providerData['class'];
+				$providerConfig = $providerData['config'];
+				$familyName = $providerData['family'];
+				
 				// Try to create an instance of the provider class
-				$provider = $this->instantiateProvider($providerClass, $providerConfig, $debug);
+				$provider = $this->instantiateProvider($providerClass, $providerConfig, $familyName, $debug);
 				
 				// If successfully instantiated, add to our results
 				if ($provider) {
@@ -124,7 +133,11 @@
 			}
 			
 			// Log package discovery attempt if debug mode is enabled
-			$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from installed packages");
+			if ($this->configKey) {
+				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from installed packages");
+			} else {
+				$this->logDebug($debug, "[INFO] Looking for providers in all families from installed packages");
+			}
 			
 			// Parse the installed.json file into an associative array
 			$packages = $this->parseJsonFile($installedPath);
@@ -153,14 +166,18 @@
 				$packageProviders = $this->extractProviderClasses($package);
 				
 				// Process each provider in this package
-				foreach ($packageProviders as $providerClass => $providerConfig) {
+				foreach ($packageProviders as $providerData) {
+					$providerClass = $providerData['class'];
+					$providerConfig = $providerData['config'];
+					$familyName = $providerData['family'];
+					
 					// Skip providers that have already been instantiated to prevent duplicates
 					if (in_array($providerClass, $instantiatedClasses)) {
 						continue;
 					}
 					
 					// Attempt to instantiate the provider
-					$provider = $this->instantiateProvider($providerClass, $providerConfig, $debug);
+					$provider = $this->instantiateProvider($providerClass, $providerConfig, $familyName, $debug);
 					
 					// If the provider was successfully instantiated, add it to our results
 					if ($provider) {
@@ -179,7 +196,7 @@
 		 * Supports both single provider and multiple providers formats.
 		 * Now expects the structure: extra.discover.{configKey}
 		 * @param array $composerConfig The parsed composer.json configuration array
-		 * @return array An associative array of provider classes and their configuration
+		 * @return array An array of provider data with class, config, and family information
 		 */
 		protected function extractProviderClasses(array $composerConfig): array {
 			// Access the discover section within composer.json's 'extra' section
@@ -190,33 +207,47 @@
 				return [];
 			}
 			
-			// Access our specific configuration section within the discover section
-			// The $this->configKey determines which specific section we're targeting
-			// (e.g., 'default', 'laravel', 'symfony', etc.)
-			$configSection = $discoverSection[$this->configKey] ?? [];
+			$result = [];
 			
-			// Verify that our configuration section is a valid array
-			// If not, return empty result immediately
-			if (!is_array($configSection)) {
-				return [];
+			// If a specific family is requested, only process that family
+			if ($this->configKey !== null) {
+				$configSection = $discoverSection[$this->configKey] ?? [];
+				
+				// Verify that our configuration section is a valid array
+				if (is_array($configSection)) {
+					// Get providers from both formats
+					$multipleProviders = $this->extractMultipleProviders($configSection, $this->configKey);
+					$singularProvider = $this->extractSingularProvider($configSection, $this->configKey);
+					
+					$result = array_merge($multipleProviders, $singularProvider);
+				}
+			} else {
+				// Process all families in the discover section
+				foreach ($discoverSection as $familyKey => $configSection) {
+					// Verify that the configuration section is a valid array
+					if (!is_array($configSection)) {
+						continue;
+					}
+					
+					// Get providers from both formats for this family
+					$multipleProviders = $this->extractMultipleProviders($configSection, $familyKey);
+					$singularProvider = $this->extractSingularProvider($configSection, $familyKey);
+					
+					$result = array_merge($result, $multipleProviders, $singularProvider);
+				}
 			}
 			
-			// Get providers from both formats
-			$multipleProviders = $this->extractMultipleProviders($configSection);
-			$singularProvider = $this->extractSingularProvider($configSection);
-			
-			// Return the complete mapping of provider classes to their configurations
-			// Keys are fully qualified class names, values are null or configuration arrays
-			return array_merge($multipleProviders, $singularProvider);
+			return $result;
 		}
 		
 		/**
 		 * Extract providers from the 'providers' array format
 		 * Handles multiple providers defined in a single configuration
 		 * @param array $config The configuration section
+		 * @param string $familyName The family name for these providers
 		 * @return array The extracted providers and their configurations
 		 */
-		protected function extractMultipleProviders(array $config): array {
+		protected function extractMultipleProviders(array $config, string $familyName): array {
 			// Initialize the result array
 			$result = [];
 			
@@ -233,11 +264,19 @@
 				if (is_string($provider)) {
 					// Handle a simple string format: ProviderClass::class
 					// No configuration is provided for these providers
-					$result[$provider] = null;
+					$result[] = [
+						'class' => $provider,
+						'config' => null,
+						'family' => $familyName
+					];
 				} elseif (is_array($provider) && isset($provider['class'])) {
 					// Handle array format: ['class' => ProviderClass::class, 'config' => [...]]
 					// Configuration is optional and stored in the 'config' key
-					$result[$provider['class']] = $provider['config'] ?? null;
+					$result[] = [
+						'class' => $provider['class'],
+						'config' => $provider['config'] ?? null,
+						'family' => $familyName
+					];
 				}
 			}
 			
@@ -247,9 +286,10 @@
 		/**
 		 * Extract provider from the singular 'provider' format
 		 * @param array $config The configuration section
+		 * @param string $familyName The family name for this provider
 		 * @return array The extracted provider and its configuration
 		 */
-		protected function extractSingularProvider(array $config): array {
+		protected function extractSingularProvider(array $config, string $familyName): array {
 			// Exit early if no provider is defined in this configuration section
 			if (!isset($config['provider'])) {
 				return [];
@@ -267,12 +307,20 @@
 			if (is_string($provider)) {
 				// Handle string format: 'provider' => 'Namespace\ProviderClass'
 				// In this case, configuration is defined separately as 'config' => [...]
-				$result[$provider] = $providerConfig;
+				$result[] = [
+					'class' => $provider,
+					'config' => $providerConfig,
+					'family' => $familyName
+				];
 			} elseif (is_array($provider) && isset($provider['class'])) {
 				// Handle array format: 'provider' => ['class' => 'Namespace\ProviderClass', 'config' => [...]]
 				// Configuration can be defined inline in the provider array or in the separate 'config' key
 				// Inline config takes precedence over separate config if both exist
-				$result[$provider['class']] = $provider['config'] ?? $providerConfig;
+				$result[] = [
+					'class' => $provider['class'],
+					'config' => $provider['config'] ?? $providerConfig,
+					'family' => $familyName
+				];
 			}
 			
 			return $result;
@@ -282,10 +330,11 @@
 		 * Creates and validates a provider instance from a class name.
 		 * @param string $providerClass Fully qualified provider class name
 		 * @param string|null $configFile Path to a configuration file (optional)
+		 * @param string $familyName The family name to assign to this provider
 		 * @param bool $debug Whether to output error messages to console
 		 * @return ProviderInterface|null Provider instance or null if instantiation fails
 		 */
-		protected function instantiateProvider(string $providerClass, ?string $configFile, bool $debug): ?ProviderInterface {
+		protected function instantiateProvider(string $providerClass, ?string $configFile, string $familyName, bool $debug): ?ProviderInterface {
 			// Check if the provider class exists in the application namespace
 			if (!class_exists($providerClass)) {
 				// Log warning and exit early if class doesn't exist
@@ -304,8 +353,8 @@
 					return null;
 				}
 				
-				// Set the family to the scanner's configKey
-				$provider->setFamily($this->configKey);
+				// Set the family to the actual family name from the composer.json key
+				$provider->setFamily($familyName);
 				
 				// Load and apply configuration
 				if (!empty($configFile)) {
