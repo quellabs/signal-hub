@@ -128,8 +128,10 @@ In your package's composer.json:
 {
     "name": "your/package",
     "extra": {
-        "sculpt": {
+        "discover": {
+          "sculpt": {
             "provider": "Your\\Package\\SculptServiceProvider"
+          }
         }
     }
 }
@@ -141,6 +143,7 @@ Or:
 {
     "name": "your/package",
     "extra": {
+      "discover": {
         "sculpt": {
             "providers": [
               "Your\\Package\\SculptServiceProvider",
