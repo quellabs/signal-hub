@@ -233,7 +233,7 @@ $discover = new Discover();
 $discover->importDefinitionsFromCache($cacheData);
 
 // Providers are now available without running discovery!
-$providers = $discover->findProvidersByType('database');
+$providers = $discover->findProvidersByFamily('database');
 ```
 
 #### Understanding Access Patterns
@@ -243,7 +243,7 @@ $providers = $discover->findProvidersByType('database');
 $allProviders = $discover->getProviders(); // Use when you need everything
 
 // ✅ FILTERED ACCESS: Only instantiates matching providers
-$specificProviders = $discover->findProvidersByType('cache');
+$specificProviders = $discover->findProvidersByFamily('cache');
 $filteredProviders = $discover->findProvidersByMetadata(function($metadata) {
     return isset($metadata['capabilities']) && 
            in_array('redis', $metadata['capabilities']);
@@ -282,7 +282,7 @@ if (app()->environment('local')) {
 $allProviders = $discover->getProviders(); // Instantiates everything!
 
 // ✅ Do this - get only what you need
-$databaseProviders = $discover->findProvidersByType('database');
+$databaseProviders = $discover->findProvidersByFamily('database');
 ```
 
 #### 3. Optimize Static Methods
@@ -430,13 +430,13 @@ Filter providers by family:
 
 ```php
 // Get all providers of the 'database' family
-$databaseProviders = $discover->findProvidersByType('database');
+$databaseProviders = $discover->findProvidersByFamily('database');
 
 // Get all available families
 $families = $discover->getProviderTypes();
 
 // Find providers by both family and capability
-$redisProviders = $discover->findProvidersByTypeAndMetadata('cache', function($metadata) {
+$redisProviders = $discover->findProvidersByFamilyAndMetadata('cache', function($metadata) {
     return isset($metadata['capabilities']) && 
            in_array('redis', $metadata['capabilities']);
 });

@@ -305,11 +305,11 @@
 		}
 		
 		/**
-		 * Find all providers of a specific type (with lazy instantiation)
-		 * @param string $family The provider type to filter by
+		 * Find all providers of a specific family type (with lazy instantiation)
+		 * @param string $family The family type to filter by
 		 * @return array<ProviderInterface>
 		 */
-		public function findProvidersByType(string $family): array {
+		public function findProvidersByFamily(string $family): array {
 			$providers = [];
 
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
@@ -333,12 +333,12 @@
 		}
 
 		/**
-		 * Find providers that match a specific type and metadata filter (with lazy instantiation)
+		 * Find providers that match a specific family and metadata filter (with lazy instantiation)
 		 * @param string $family The family to filter by
 		 * @param callable $metadataFilter Function that receives metadata and returns bool
 		 * @return array<ProviderInterface>
 		 */
-		public function findProvidersByTypeAndMetadata(string $family, callable $metadataFilter): array {
+		public function findProvidersByFamilyAndMetadata(string $family, callable $metadataFilter): array {
 			$providers = [];
 
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
