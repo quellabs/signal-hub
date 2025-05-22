@@ -88,7 +88,6 @@
 			$result = [];
 			
 			foreach ($providersWithConfig as $providerData) {
-				// Fetch data from provider
 				$providerClass = $providerData['class'];
 				$providerConfig = $providerData['config'];
 				$familyName = $providerData['family'];
@@ -199,34 +198,26 @@
 				return [];
 			}
 			
+			// Process all families in the discover section
 			$result = [];
 			
-			// If a specific family is requested, only process that family
-			if ($this->familyName !== null) {
-				$configSection = $discoverSection[$this->familyName] ?? [];
+			foreach ($discoverSection as $familyKey => $configSection) {
+				// If a specific family is requested, skip families that don't match
+				if ($this->familyName !== null && $familyKey !== $this->familyName) {
+					continue;
+				}
 				
-				// Verify that our configuration section is a valid array
-				if (is_array($configSection)) {
-					// Get providers from both formats
-					$multipleProviders = $this->extractMultipleProviders($configSection, $this->familyName);
-					$singularProvider = $this->extractSingularProvider($configSection, $this->familyName);
-					
-					$result = array_merge($multipleProviders, $singularProvider);
+				// Verify that the configuration section is a valid array
+				if (!is_array($configSection)) {
+					continue;
 				}
-			} else {
-				// Process all families in the discover section
-				foreach ($discoverSection as $familyKey => $configSection) {
-					// Verify that the configuration section is a valid array
-					if (!is_array($configSection)) {
-						continue;
-					}
-					
-					// Get providers from both formats for this family
-					$multipleProviders = $this->extractMultipleProviders($configSection, $familyKey);
-					$singularProvider = $this->extractSingularProvider($configSection, $familyKey);
-					
-					$result = array_merge($result, $multipleProviders, $singularProvider);
-				}
+				
+				// Get providers from both formats for this family
+				$multipleProviders = $this->extractMultipleProviders($configSection, $familyKey);
+				$singularProvider = $this->extractSingularProvider($configSection, $familyKey);
+				
+				// Merge both results
+				$result = array_merge($result, $multipleProviders, $singularProvider);
 			}
 			
 			return $result;
@@ -257,7 +248,7 @@
 					// Handle a simple string format: ProviderClass::class
 					// No configuration is provided for these providers
 					$result[] = [
-						'class' => $provider,
+						'class'  => $provider,
 						'config' => null,
 						'family' => $familyName
 					];
@@ -265,7 +256,7 @@
 					// Handle array format: ['class' => ProviderClass::class, 'config' => [...]]
 					// Configuration is optional and stored in the 'config' key
 					$result[] = [
-						'class' => $provider['class'],
+						'class'  => $provider['class'],
 						'config' => $provider['config'] ?? null,
 						'family' => $familyName
 					];
@@ -300,16 +291,16 @@
 				// Handle string format: 'provider' => 'Namespace\ProviderClass'
 				// In this case, configuration is defined separately as 'config' => [...]
 				$result[] = [
-					'class' => $provider,
+					'class'  => $provider,
 					'config' => $providerConfig,
 					'family' => $familyName
 				];
 			} elseif (is_array($provider) && isset($provider['class'])) {
 				// Handle array format: 'provider' => ['class' => 'Namespace\ProviderClass', 'config' => [...]]
-				// Configuration can be defined inline in the provider array or in the separate 'config' key
+				// Configuration can be defined inline in the provider array, or in the separate 'config' key
 				// Inline config takes precedence over separate config if both exist
 				$result[] = [
-					'class' => $provider['class'],
+					'class'  => $provider['class'],
 					'config' => $provider['config'] ?? $providerConfig,
 					'family' => $familyName
 				];
