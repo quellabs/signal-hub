@@ -345,7 +345,6 @@ The cache structure is optimized for efficient family-based lookups:
         "family": "database",
         "config": {...},
         "metadata": ["mysql", "pdo"],
-        "should_load": true,
         "defaults": {...}
       }
     ],
@@ -355,7 +354,6 @@ The cache structure is optimized for efficient family-based lookups:
         "family": "cache",
         "config": {...},
         "metadata": ["redis", "clustering"],
-        "should_load": true,
         "defaults": {...}
       }
     ]
