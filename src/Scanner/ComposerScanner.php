@@ -88,14 +88,16 @@
 			$result = [];
 			
 			foreach ($providersWithConfig as $providerData) {
+				$providerFamily = $providerData['family'];
 				$providerClass = $providerData['class'];
+				$providerConfig = $providerData['config'] ?? null;
 				
 				// Validate that the class exists and implements the interface
 				if ($this->validateProviderClass($providerClass, $debug)) {
 					$result[] = [
 						'class'  => $providerClass,
-						'config' => null,
-						'family' => $providerData['family']  // Include the family from extracted data
+						'config' => $providerConfig,
+						'family' => $providerFamily
 					];
 				}
 			}
