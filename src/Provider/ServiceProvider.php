@@ -31,8 +31,8 @@
 		/**
 		 * Implements the required method from ProviderInterface
 		 */
-		public function getMetadata(): array {
-			return parent::getMetadata();
+		public static function getMetadata(): array {
+			return [];
 		}
 		
 		/**
