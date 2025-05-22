@@ -111,15 +111,6 @@ class ExampleServiceProvider extends AbstractProvider {
             'redis',
         ];
     }
-    
-    /**
-     * Determine if this provider should be loaded
-     * @return bool
-     */
-    public function shouldLoad(): bool {
-        // Conditionally control provider inclusion
-        return true;
-    }
 }
 ```
 
@@ -138,13 +129,6 @@ interface ProviderInterface {
        * @return array<string, mixed> Associative array of metadata key-value pairs
        */
     public function getMetadata(): array;
-    
-    /**
-     * This method can be overridden to conditionally load providers
-     * based on runtime conditions.
-     * @return bool
-     */
-    public function shouldLoad(): bool;
     
     /**
      * Get default configuration
@@ -427,11 +411,6 @@ class ExampleServiceProvider extends AbstractProvider {
     
     public function setConfig(array $config): void {
         $this->config = $config;
-    }
-    
-    public function shouldLoad(): bool {
-        // Use configuration to determine if provider should be loaded
-        return $this->config['enabled'] ?? true;
     }
     
     public function getServiceOptions(): array {
