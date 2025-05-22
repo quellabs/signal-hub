@@ -106,7 +106,7 @@ class ExampleServiceProvider implements ProviderInterface {
      * Get metadata about this provider's capabilities (static method)
      * @return array<string, mixed>
      */
-    public static function getProviderMetadata(): array {
+    public static function getMetadata(): array {
         return [
             'capabilities' => ['redis', 'clustering'],
             'version' => '1.0.0',
@@ -118,7 +118,7 @@ class ExampleServiceProvider implements ProviderInterface {
      * Get default configuration values (static method)
      * @return array
      */
-    public static function getProviderDefaults(): array {
+    public static function getDefaults(): array {
         return [
             'host' => 'localhost',
             'port' => 6379,

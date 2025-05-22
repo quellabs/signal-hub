@@ -20,6 +20,12 @@
 		public static function getDefaults(): array;
 		
 		/**
+		 * Returns the configuration
+		 * @return array
+		 */
+		public function getConfig(): array;
+
+		/**
 		 * Sets configuration
 		 * @return void
 		 */
