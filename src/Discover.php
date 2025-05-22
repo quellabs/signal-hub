@@ -18,16 +18,6 @@
 		protected array $scanners = [];
 		
 		/**
-		 * @var array<ProviderInterface>
-		 */
-		protected array $providers = [];
-		
-		/**
-		 * @var array|null
-		 */
-		private ?array $envCache = null;
-		
-		/**
 		 * @var DiscoveryConfig
 		 */
 		protected DiscoveryConfig $config;
@@ -36,6 +26,16 @@
 		 * @var PSR4 PSR-4 Utility Class
 		 */
 		private PSR4 $utilities;
+		
+		/**
+		 * @var array Provider definitions indexed by unique keys
+		 */
+		protected array $providerDefinitions = [];
+		
+		/**
+		 * @var array Map of instantiated providers by definition key
+		 */
+		protected array $instantiatedProviders = [];
 		
 		/**
 		 * Create a new Discover instance
@@ -51,12 +51,16 @@
 		 * @return self
 		 */
 		public function discover(): self {
+			// Clear existing state
+			$this->clearProviders();
+			
 			foreach ($this->scanners as $scanner) {
 				$discoveredProviders = $scanner->scan($this->config);
 				
 				foreach ($discoveredProviders as $provider) {
 					if ($provider instanceof ProviderInterface) {
-						$this->addProvider($provider);
+						// Convert instantiated provider to definition
+						$this->addProviderDefinition($provider);
 					}
 				}
 			}
@@ -65,19 +69,115 @@
 		}
 		
 		/**
-		 * Get all discovered providers
-		 * @return array<ProviderInterface>
+		 * Export current provider definitions for caching
+		 * @return array Cacheable provider definitions
 		 */
-		public function getProviders(): array {
-			return $this->providers;
+		public function exportForCache(): array {
+			// Initialize cache data structure with metadata and organized provider storage
+			$cacheData = [
+				'timestamp' => time(),  // Record when this cache snapshot was created
+				'providers' => []       // Will hold providers organized by family type
+			];
+			
+			// Transform flat provider definitions into a family-grouped structure for efficient caching
+			// This organization makes cache lookups and provider discovery faster
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Extract the provider family, defaulting to 'unknown' for safety
+				// This ensures all providers get categorized even if family is missing
+				$family = $definition['family'] ?? 'unknown';
+				
+				// Create family group in cache structure if it doesn't exist yet
+				// This lazy initialization approach only creates groups as needed
+				if (!isset($cacheData['providers'][$family])) {
+					$cacheData['providers'][$family] = [];
+				}
+				
+				// Add this provider definition to its appropriate family group
+				// The definition contains all data needed to reconstruct the provider later
+				$cacheData['providers'][$family][] = $definition;
+			}
+			
+			// Return the complete cache-ready data structure with timestamp and organized providers
+			return $cacheData;
 		}
 		
 		/**
-		 * Clear all discovered providers
+		 * Import provider definitions from cache
+		 * @param array $cacheData Previously exported provider data
+		 * @return self
+		 */
+		public function importDefinitionsFromCache(array $cacheData): self {
+			// Clear existing state to ensure clean import from cache
+			// Reset both definitions and any previously instantiated providers
+			$this->clearProviders();
+			
+			// Validate cache data structure before processing
+			// Ensure providers key exists and contains array data to prevent errors
+			if (!isset($cacheData['providers']) || !is_array($cacheData['providers'])) {
+				return $this;
+			}
+			
+			// Process the family-grouped provider data from cache
+			// Iterate through each provider family and its associated providers
+			foreach ($cacheData['providers'] as $family => $familyProviders) {
+				// Process each provider definition within this family
+				foreach ($familyProviders as $providerData) {
+					// Extract class name as the primary identifier for the provider
+					// This is essential for generating unique definition keys
+					$className = $providerData['class'] ?? null;
+					
+					// Only process providers with valid class names
+					if ($className) {
+						// Generate a unique definition key combining family and class name
+						// Format: "family::className" ensures uniqueness across families
+						$definitionKey = $family . '::' . $className;
+						
+						// Store the complete provider definition using the generated key
+						// This recreates the flat storage structure from the hierarchical cache
+						$this->providerDefinitions[$definitionKey] = $providerData;
+					}
+				}
+			}
+			
+			// Return self to enable method chaining
+			return $this;
+		}
+		
+		/**
+		 * Get all providers (instantiates all definitions - use carefully!)
+		 * @return array<ProviderInterface>
+		 */
+		public function getProviders(): array {
+			// Initialize collection to store all successfully instantiated providers
+			$providers = [];
+			
+			// Iterate through every registered provider definition
+			// WARNING: This will instantiate ALL providers, which can be expensive
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Attempt to get or create a provider instance from the definition
+				// Uses lazy instantiation helper that handles caching and reconstruction
+				$provider = $this->getOrInstantiateProvider($definitionKey, $definition);
+				
+				// Only include successfully instantiated providers in the result
+				// Filters out any providers that failed to instantiate properly
+				if ($provider) {
+					// Add the valid provider to our collection
+					$providers[] = $provider;
+				}
+			}
+			
+			// Return array containing all successfully instantiated provider instances
+			// Note: This could be a large collection depending on registered definitions
+			return $providers;
+		}
+		
+		/**
+		 * Clear all providers and definitions
 		 * @return self
 		 */
 		public function clearProviders(): self {
-			$this->providers = [];
+			$this->providerDefinitions = [];
+			$this->instantiatedProviders = [];
 			return $this;
 		}
 		
@@ -110,113 +210,154 @@
 		}
 		
 		/**
-		 * This method adds a service provider to the internal providers collection,
-		 * but only if a provider of the same class doesn't already exist and
-		 * the provider indicates it should be loaded.
-		 * @param ProviderInterface $provider The service provider instance to add
-		 * @return self Returns $this for method chaining
+		 * Add a provider (updates both definitions and instances)
+		 * @param ProviderInterface $provider
+		 * @return self
 		 */
 		public function addProvider(ProviderInterface $provider): self {
-			// Get the fully qualified class name of the provider
+			// Get the fully qualified class name to use as a unique identifier
 			$className = get_class($provider);
 			
-			// Flag to track if this provider class already exists in our collection
+			// Initialize flag to track whether this provider class is already registered.
+			// We need to prevent duplicate registrations of the same provider type.
 			$exists = false;
 			
-			// Check if a provider of the same class is already registered
-			foreach ($this->providers as $existingProvider) {
-				if (get_class($existingProvider) === $className) {
+			// Scan through existing provider definitions to check for duplicates
+			foreach ($this->providerDefinitions as $definition) {
+				// Compare class names to determine if this provider type already exists
+				// Uses null coalescing to safely handle definitions without 'class' key
+				if (($definition['class'] ?? null) === $className) {
+					// Mark as existing and exit the loop early for performance
 					$exists = true;
 					break;
 				}
 			}
 			
-			// Only add the provider if:
-			// 1. It doesn't already exist in our collection
-			// 2. The provider itself indicates it should be loaded (via shouldLoad())
-			if (!$exists && $provider->shouldLoad()) {
-				$this->providers[] = $provider;
+			// Only proceed with registration if the provider is new
+			if (!$exists) {
+				// Register the provider definition for future lazy instantiation
+				$this->addProviderDefinition($provider);
 			}
 			
-			// Return $this to allow method chaining
+			// Return self to enable method chaining
 			return $this;
 		}
 		
 		/**
-		 * Get all available provider types across all providers
+		 * Get all available provider types (no instantiation needed)
 		 * @return array<string> Array of unique provider types
 		 */
 		public function getProviderTypes(): array {
-			// Initialize an empty array to store unique provider types
 			$types = [];
-			
-			// Iterate through each provider in the collection
-			foreach ($this->getProviders() as $provider) {
-				// Get the family/type of the current provider
-				$family = $provider->getFamily();
+
+			foreach ($this->providerDefinitions as $definition) {
+				// Safely extract the family type, handling cases where it might not be defined
+				// Uses null coalescing to avoid undefined key errors
+				$family = $definition['family'] ?? null;
 				
-				// Only add the provider type if:
-				// 1. It has a valid family (not null)
-				// 2. The family isn't already in our types array (avoid duplicates)
+				// Only process valid family types and ensure uniqueness in the result set
+				// Skip null values and duplicates to maintain a clean list of distinct types
 				if ($family !== null && !in_array($family, $types)) {
-					// Add the unique provider type to our array
+					// Add this unique family type to our collection
 					$types[] = $family;
 				}
 			}
 			
-			// Return the array of unique provider types
+			// Return array of all distinct provider family types found in definitions
 			return $types;
 		}
 		
 		/**
-		 * Find providers by metadata using a filter function
-		 * @param callable $metadataFilter A callback function that receives a provider's metadata array
-		 *                               and returns true if the provider should be included
-		 * @return array<ProviderInterface> Array of provider instances matching the metadata criteria
+		 * Find providers by metadata using a filter function (with lazy instantiation)
+		 * @param callable $metadataFilter Function that receives metadata and returns bool
+		 * @return array<ProviderInterface>
 		 */
 		public function findProvidersByMetadata(callable $metadataFilter): array {
-			return array_filter(
-				$this->getProviders(),
-				function(ProviderInterface $provider) use ($metadataFilter) {
-					return $metadataFilter($provider->getMetadata());
+			$providers = [];
+
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Extract metadata from the definition, defaulting to empty array if not present
+				// This ensures the filter function always receives a valid array parameter
+				$metadata = $definition['metadata'] ?? [];
+				
+				// Apply the custom filter function to determine if this provider's metadata matches
+				// The callback receives the metadata array and should return true/false
+				if ($metadataFilter($metadata)) {
+					// Only instantiate providers that pass the metadata filter test
+					// This lazy approach avoids creating objects for non-matching providers
+					$provider = $this->getOrInstantiateProvider($definitionKey, $definition);
+					
+					// Add to results only if instantiation succeeded
+					// Protects against potential instantiation errors or null returns
+					if ($provider) {
+						$providers[] = $provider;
+					}
 				}
-			);
+			}
+			
+			// Return the collection of providers whose metadata satisfied the filter criteria
+			return $providers;
 		}
 		
 		/**
-		 * Find all providers of a specific type
+		 * Find all providers of a specific type (with lazy instantiation)
 		 * @param string $family The provider type to filter by
-		 * @return array<ProviderInterface> Array of provider instances of the requested type
+		 * @return array<ProviderInterface>
 		 */
 		public function findProvidersByType(string $family): array {
-			return array_filter(
-				$this->getProviders(),
-				function(ProviderInterface $provider) use ($family) {
-					return $provider->getFamily() === $family;
+			$providers = [];
+
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Check if the provider definition matches the requested family type
+				// Uses null coalescing operator to safely handle missing 'family' key
+				if (($definition['family'] ?? null) === $family) {
+					// Lazily instantiate the provider only when we have a family match
+					// This defers object creation until we know the provider is needed
+					$provider = $this->getOrInstantiateProvider($definitionKey, $definition);
+					
+					// Only add successfully instantiated providers to the result set
+					// Guards against instantiation failures or null returns
+					if ($provider) {
+						$providers[] = $provider;
+					}
 				}
-			);
+			}
+			
+			// Return array of all provider instances that match the specified family
+			return $providers;
 		}
-		
+
 		/**
-		 * Find providers that match a specific type and optionally filter by metadata
+		 * Find providers that match a specific type and metadata filter (with lazy instantiation)
 		 * @param string $family The family to filter by
-		 * @param callable $metadataFilter Callback function that receives a provider's metadata array
-		 *                                 and returns true if the provider should be included
-		 * @return array<ProviderInterface> Array of matching provider instances
+		 * @param callable $metadataFilter Function that receives metadata and returns bool
+		 * @return array<ProviderInterface>
 		 */
 		public function findProvidersByTypeAndMetadata(string $family, callable $metadataFilter): array {
-			return array_filter(
-				$this->getProviders(),
-				function(ProviderInterface $provider) use ($family, $metadataFilter) {
-					// Check family first
-					if ($provider->getFamily() !== $family) {
-						return false;
-					}
+			$providers = [];
+
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Check if this provider definition belongs to the requested family
+				if (($definition['family'] ?? null) === $family) {
+					// Extract metadata from the definition (default to empty array if not set)
+					$metadata = $definition['metadata'] ?? [];
 					
-					// Apply the custom metadata filter
-					return $metadataFilter($provider->getMetadata());
+					// Apply the custom metadata filter function to determine if this provider matches
+					if ($metadataFilter($metadata)) {
+						// Lazily instantiate the provider only when it matches our criteria
+						// This avoids unnecessary object creation for non-matching providers
+						$provider = $this->getOrInstantiateProvider($definitionKey, $definition);
+						
+						// Only add to results if instantiation was successful
+						if ($provider) {
+							$providers[] = $provider;
+						}
+					}
 				}
-			);
+			}
+			
+			// Return the collection of matching provider instances
+			return $providers;
 		}
 		
 		/**
@@ -275,5 +416,102 @@
 		 */
 		public function findClassesInDirectory(string $directory, ?callable $filter = null): array {
 			return $this->utilities->findClassesInDirectory($directory, $filter);
+		}
+		
+		/**
+		 * Get or instantiate a provider from its definition
+		 * @param string $definitionKey Unique key for the provider definition
+		 * @param array $definition Provider definition data
+		 * @return ProviderInterface|null
+		 */
+		protected function getOrInstantiateProvider(string $definitionKey, array $definition): ?ProviderInterface {
+			// Check if we already have a cached instance for this provider definition
+			// This implements lazy instantiation - providers are only created when first needed
+			if (isset($this->instantiatedProviders[$definitionKey])) {
+				return $this->instantiatedProviders[$definitionKey];
+			}
+			
+			// No cached instance exists, so create a new provider from the definition data
+			// Delegate the complex instantiation logic to the specialized reconstruction method
+			$provider = $this->reconstructProviderFromCache($definition);
+			
+			// If instantiation was successful, cache the new provider instance
+			if ($provider) {
+				// Store in cache using the definition key for future lookups
+				// This ensures subsequent calls for the same provider return the same instance
+				$this->instantiatedProviders[$definitionKey] = $provider;
+			}
+			
+			// Return either the newly created provider or null if instantiation failed
+			return $provider;
+		}
+		
+		/**
+		 * Add a provider definition from an instantiated provider
+		 * @param ProviderInterface $provider The instantiated provider
+		 * @return void
+		 */
+		protected function addProviderDefinition(ProviderInterface $provider): void {
+			$family = $provider->getFamily();
+			$className = get_class($provider);
+			$definitionKey = $family . '::' . $className;
+			
+			// Store the definition
+			$this->providerDefinitions[$definitionKey] = [
+				'class'       => $className,
+				'family'      => $family,
+				'config'      => $provider->getConfig(),
+				'metadata'    => $provider->getMetadata(),
+				'should_load' => $provider->shouldLoad(),
+				'defaults'    => $provider->getDefaults(),
+			];
+			
+			// Store the instance since we already have it
+			$this->instantiatedProviders[$definitionKey] = $provider;
+		}
+		
+		/**
+		 * Reconstruct a single provider instance from cached data
+		 * Handles the complete provider instantiation and configuration from cache data.
+		 * @param array $providerData Cached provider information
+		 * @return ProviderInterface|null Successfully reconstructed provider or null on failure
+		 */
+		protected function reconstructProviderFromCache(array $providerData): ?ProviderInterface {
+			// Extract essential provider information from cached data
+			// Use null coalescing to handle missing keys gracefully
+			$className = $providerData['class'] ?? null;
+			$family = $providerData['family'] ?? null;
+			$config = $providerData['config'] ?? [];
+			
+			// Perform upfront validation to ensure we have the minimum required data
+			// Check both that class name exists and that the class is actually loadable
+			if (!$className || !class_exists($className)) {
+				return null;
+			}
+			
+			try {
+				// Attempt to create a new instance using the cached class name
+				// This uses dynamic instantiation based on the stored class reference
+				$provider = new $className();
+				
+				// Verify the instantiated object conforms to our expected interface
+				// This type check protects against cache corruption or invalid class definitions
+				if (!$provider instanceof ProviderInterface) {
+					return null;
+				}
+				
+				// Restore the provider's state using the cached configuration data
+				// Apply family type and configuration to bring provider to cached state
+				$provider->setFamily($family);
+				$provider->setConfig($config);
+				
+				// Return the fully reconstructed and configured provider instance
+				return $provider;
+				
+			} catch (\Throwable $e) {
+				// Catch any errors during instantiation, configuration, or method calls
+				// Return null to indicate reconstruction failure rather than throwing exceptions
+				return null;
+			}
 		}
 	}
