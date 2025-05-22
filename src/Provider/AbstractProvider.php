@@ -31,15 +31,6 @@
 		}
 		
 		/**
-		 * Determines if this provider should be loaded.
-		 * Can be overridden by child classes to conditionally load providers.
-		 * @return bool True if the provider should be loaded, false otherwise
-		 */
-		public function shouldLoad(): bool {
-			return true;
-		}
-		
-		/**
 		 * Returns the default configuration settings for this provider.
 		 * Child classes can override this to provide their specific defaults.
 		 * @return array Default configuration values

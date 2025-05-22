@@ -462,7 +462,6 @@
 				'family'      => $family,
 				'config'      => $provider->getConfig(),
 				'metadata'    => $provider->getMetadata(),
-				'should_load' => $provider->shouldLoad(),
 				'defaults'    => $provider->getDefaults(),
 			];
 			
