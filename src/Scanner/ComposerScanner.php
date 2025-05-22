@@ -16,7 +16,7 @@
 		 * This also serves as the family name for discovered providers
 		 * @var string|null
 		 */
-		protected ?string $configKey;
+		protected ?string $familyName;
 		
 		/**
 		 * Base path where the application is installed
@@ -35,7 +35,7 @@
 		 * @param string|null $basePath
 		 */
 		public function __construct(?string $familyName = null, ?string $basePath = null) {
-			$this->configKey = $familyName;
+			$this->familyName = $familyName;
 			$this->basePath = $basePath ?? getcwd();
 			$this->utilities = new PSR4();
 		}
@@ -75,8 +75,8 @@
 			}
 			
 			// Log provider discovery attempt if debug mode is enabled
-			if ($this->configKey) {
-				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from project: {$composerPath}");
+			if ($this->familyName) {
+				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->familyName}' from project: {$composerPath}");
 			} else {
 				$this->logDebug($debug, "[INFO] Looking for providers in all families from project: {$composerPath}");
 			}
@@ -133,8 +133,8 @@
 			}
 			
 			// Log package discovery attempt if debug mode is enabled
-			if ($this->configKey) {
-				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->configKey}' from installed packages");
+			if ($this->familyName) {
+				$this->logDebug($debug, "[INFO] Looking for providers in family '{$this->familyName}' from installed packages");
 			} else {
 				$this->logDebug($debug, "[INFO] Looking for providers in all families from installed packages");
 			}
@@ -210,14 +210,14 @@
 			$result = [];
 			
 			// If a specific family is requested, only process that family
-			if ($this->configKey !== null) {
-				$configSection = $discoverSection[$this->configKey] ?? [];
+			if ($this->familyName !== null) {
+				$configSection = $discoverSection[$this->familyName] ?? [];
 				
 				// Verify that our configuration section is a valid array
 				if (is_array($configSection)) {
 					// Get providers from both formats
-					$multipleProviders = $this->extractMultipleProviders($configSection, $this->configKey);
-					$singularProvider = $this->extractSingularProvider($configSection, $this->configKey);
+					$multipleProviders = $this->extractMultipleProviders($configSection, $this->familyName);
+					$singularProvider = $this->extractSingularProvider($configSection, $this->familyName);
 					
 					$result = array_merge($multipleProviders, $singularProvider);
 				}
