@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\Discovery\Discovery;
+	namespace Quellabs\Contracts\Discovery;
 	
 	interface ProviderInterface {
 		
