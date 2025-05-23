@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\DependencyInjection\Provider;
 	
-	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
 	/**
 	 * Interface for service providers that support centralized autowiring
