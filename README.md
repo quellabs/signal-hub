@@ -2,29 +2,48 @@
 
 [![Packagist](https://img.shields.io/packagist/v/quellabs/canvas.svg)](https://packagist.org/packages/quellabs/canvas)
 
-A modern, lightweight PHP framework built on contextual containers with automatic service discovery and ObjectQuel ORM integration.
+A modern, lightweight PHP framework that gets out of your way. Write clean controllers with route annotations, query your database with an intuitive ORM, and let contextual containers handle the complexity.
 
-## The Canvas Difference
+## What Makes Canvas Different
 
-Canvas takes a fundamentally different approach to dependency injection and service management. Instead of requiring developers to learn complex service configurations or remember specific service IDs, Canvas uses a **contextual container pattern** that allows you to work directly with interfaces and let the framework intelligently resolve the correct implementation based on context.
+Canvas combines three powerful concepts to create a framework that feels natural to work with:
+
+**🎯 Annotation-Based Routing** - Define routes directly in your controllers using `@Route` annotations. No separate route files to maintain.
+
+**🗄️ ObjectQuel ORM** - Query your database using an intuitive, purpose-built query language that feels like natural PHP.
+
+**📦 Contextual Containers** - Work with interfaces directly. Canvas intelligently resolves the right implementation based on context.
 
 ```php
-// Traditional frameworks require you to know service IDs
-$em = $container->get('doctrine.orm.entity_manager');
+<?php
+namespace App\Controller;
 
-// Canvas lets you work with interfaces naturally
-$em = $app->for('objectquel')->get(EntityManagerInterface::class);
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Controller\BaseController;
+use App\Models\User;
+
+class UserController extends BaseController {
+    
+    /**
+     * @Route("/users")
+     */
+    public function index() {
+        // ObjectQuel ORM - clean, intuitive queries
+        $users = $this->em->findBy(User::class, ['active' => true]);
+        
+        // Contextual template resolution
+        return $this->render('users/index.tpl', compact('users'));
+    }
+    
+    /**
+     * @Route("/users/{id}")
+     */
+    public function show(int $id) {
+        $user = $this->em->find(User::class, $id);
+        return $this->render('users/show.tpl', compact('user'));
+    }
+}
 ```
-
-## Features
-
-- **🎯 Contextual Containers**: Interface-first service resolution without complex configuration
-- **🔍 Automatic Discovery**: Template engines, service providers, and components auto-discovered via Composer
-- **🗄️ ObjectQuel ORM**: Modern ORM with Data Mapper pattern and purpose-built query language
-- **⚡ Zero Configuration**: Get started immediately with sensible defaults
-- **🧩 Modular Architecture**: Add functionality through discoverable packages
-- **🏗️ Advanced Autowiring**: Automatic dependency injection throughout the framework
-- **🔄 Multiple Implementations**: Seamlessly switch between different service implementations
 
 ## Installation
 
@@ -32,7 +51,7 @@ $em = $app->for('objectquel')->get(EntityManagerInterface::class);
 composer require quellabs/canvas
 ```
 
-Or create a new project with Canvas:
+Or create a new project:
 
 ```bash
 mkdir my-canvas-app
@@ -43,7 +62,7 @@ composer require quellabs/canvas
 
 ## Quick Start
 
-### Basic Application
+### 1. Bootstrap Your Application
 
 ```php
 <?php
@@ -60,9 +79,9 @@ $response = $kernel->handle($request);
 $response->send();
 ```
 
-### Controller with Route Annotations
+### 2. Create Controllers with Route Annotations
 
-Canvas automatically discovers controllers and their routes through annotations:
+Canvas automatically discovers your controllers and registers their routes:
 
 ```php
 <?php
@@ -70,7 +89,8 @@ Canvas automatically discovers controllers and their routes through annotations:
 
 namespace App\Controller;
 
-use Quellabs\Canvas\Annotations\Route;use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Controller\BaseController;
 use Symfony\Component\HttpFoundation\Response;
 
 class HomeController extends BaseController {
@@ -86,125 +106,127 @@ class HomeController extends BaseController {
      * @Route("/welcome/{name}")
      */
     public function welcome(string $name): Response {
-        return new Response($this->view->render('welcome.tpl', ['name' => $name]));
+        return $this->render('welcome.tpl', ['name' => $name]);
     }
 }
 ```
 
-Make use of ObjectQuel for queries:
+### 3. Work with Your Database Using ObjectQuel
+
+ObjectQuel provides an intuitive way to interact with your data:
 
 ```php
 <?php
-// src/Controller/UserController.php
+// src/Controller/BlogController.php
 
 namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controller\BaseController;
-use Quellabs\ObjectQuel\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\Response;
+use App\Models\Post;
 
-class UserController extends BaseController {
+class BlogController extends BaseController {
     
     /**
-     * @Route("/users")
+     * @Route("/posts")
      */
-    public function index(): Response {
-        $users = $this->em->findBy(User::class, ['active' => true]);
-        return new Response($this->view->render('users/index.tpl', compact('users')));
+    public function index() {
+        // Simple ObjectQuel queries
+        $posts = $this->em->findBy(Post::class, ['published' => true]);
+                          
+        return $this->render('blog/index.tpl', compact('posts'));
     }
     
     /**
-     * @Route("/users/{id}")
+     * @Route("/posts/{slug}")
      */
-    public function show(int $id): Response {
-        $user = $this->em->find(User::class, $id);
-        return new Response($this->view->render('users/show.tpl', compact('user')));
+    public function show(string $slug) {
+        // Find individual records
+        $post = $this->em->find(Post::class, $slug);
+                         
+        if (!$post) {
+            throw new NotFoundHttpException();
+        }
+        
+        return $this->render('blog/show.tpl', compact('post'));
     }
 }
 ```
 
-## Contextual Service Resolution
+## Key Features
 
-Canvas's most powerful feature is contextual service resolution. When you have multiple implementations of the same interface, you can specify which one to use through context:
-
-### Template Engine Selection
-
-Canvas's contextual container pattern allows the Kernel to dynamically provide different template engines based on configuration or context:
+### Annotation-Based Routing
+No separate route files to maintain. Define routes directly where they belong:
 
 ```php
-// src/Controller/UserController.php
-
-namespace App\Controller;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\DependencyInjection\Container;
-use Quellabs\ObjectQuel\EntityManagerInterface;
-use Symfony\Component\HttpFoundation\Response;
-use App\Models\User;
-
-class UserController {
-    
-    private $container;
-    
-    /**
-     * Constructor 
-     * @param Container $container
-     */
-    public function __construct(Container $container) {
-        $this->container = $this->container;
-    }
-    
-    /**
-     * @Route("/users")
-     */
-    public function index(): Response {
-        $em = $this->container->for('objectquel')->get(EntityManagerInterface::class);
-        $twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
-        
-        $users = $em->findBy(User::class, ['active' => true]);
-
-        return new Response($twig->render('users/index.tpl', compact('users')));
-    }
+/**
+ * @Route("/api/users/{id}", methods={"GET", "PUT", "DELETE"})
+ * @Route("/users/{id}/edit", name="user.edit")
+ */
+public function edit(int $id) {
+    // Controller logic here
 }
 ```
 
-## Automatic Service Discovery
+### ObjectQuel ORM
+A modern ORM with Data Mapper pattern:
 
-Canvas automatically discovers services, templates engines, and other components through Composer package configurations. This means adding new functionality is as simple as requiring a package.
+```php
+// Find records with conditions
+$users = $em->findBy(User::class, ['role' => 'admin']);
 
-### Template Engine Discovery
+// Find individual records
+$user = $em->find(User::class, $id);
 
-When you install a template engine package, it's automatically available:
+// Work with your entities naturally
+$user = new User();
+$user->name = 'John';
+$user->email = 'john@example.com';
+// ObjectQuel handles persistence automatically
+```
+
+### Contextual Service Resolution
+When you need different implementations of the same interface, context makes it simple:
+
+```php
+// Use different template engines based on context
+$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
+$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
+
+// Different cache implementations
+$redis = $this->container->for('redis')->get(CacheInterface::class);
+$file = $this->container->for('file')->get(CacheInterface::class);
+```
+
+### Automatic Discovery
+Add functionality by simply requiring packages:
 
 ```bash
-composer require quellabs/canvas-twig
-composer require quellabs/canvas-blade  
-composer require quellabs/canvas-plates
+composer require quellabs/canvas-twig      # Twig template engine
+composer require quellabs/canvas-blade     # Blade template engine  
+composer require quellabs/canvas-redis     # Redis integration
 ```
 
-Each package registers itself in `composer.json`:
+Canvas automatically discovers and configures new services through Composer metadata.
 
-```json
-{
-  "extra": {
-    "discover": {
-      "template_engine": {
-        "providers": [
-          "Quellabs\\Canvas\\Twig\\TwigServiceProvider",
-          "Quellabs\\Canvas\\Blade\\BladeServiceProvider"
-        ]
-      }
-    }
-  }
-}
+## Configuration
+
+Canvas follows convention-over-configuration. Create config files only when you need them:
+
+```php
+<?php
+// src/config/database.php
+
+return [
+    'driver'   => 'mysql',
+    'host'     => getenv('DB_HOST') ?: 'localhost',
+    'database' => getenv('DB_NAME') ?: 'canvas',
+    'username' => getenv('DB_USER') ?: 'root',
+    'password' => getenv('DB_PASS') ?: '',
+];
 ```
 
-Canvas automatically discovers and registers these providers, making them available through contextual resolution.
-
-### Custom Service Discovery
-
-You can also register your own discoverable services:
+Register it in `composer.json`:
 
 ```json
 {
@@ -212,49 +234,8 @@ You can also register your own discoverable services:
     "discover": {
       "canvas": {
         "providers": [
-          "App\\Providers\\CustomCacheProvider",
-          "App\\Providers\\PaymentServiceProvider"
-        ]
-      }
-    }
-  }
-}
-```
-
-## Configuration
-
-Canvas follows a convention-over-configuration approach, providing sensible defaults while offering flexibility for customization when your application requires it.
-
-### Creating a Configuration File
-
-Start by creating a configuration file in your project. For this example, we'll place it at `src/config/database.php`:
-
-```php
-<?php
-
-return [
-    'driver'   => 'mysql',
-    'host'     => 'localhost',
-    'database' => 'my_database',
-    'username' => 'root',
-    'password' => 'root',
-];
-```
-
-This example shows a basic configuration structure. You can define any configuration values your service needs.
-
-### Registering the Configuration
-
-Next, register your configuration file by adding its path to your `composer.json` file:
-
-```json
-{
-  "extra": {
-    "discover": {
-      "di": {
-        "providers": [
           {
-            "class": "Quellabs\\Canvas\\Discover\\ObjectQuelServiceProvider",
+            "class": "Quellabs\\Canvas\\Discover\\DatabaseServiceProvider",
             "config": "src/config/database.php"
           }
         ]
@@ -264,52 +245,102 @@ Next, register your configuration file by adding its path to your `composer.json
 }
 ```
 
-After updating your `composer.json`, run `composer dump-autoload` to ensure the changes are recognized.
+## Advanced Examples
 
-## Package Development
+### RESTful API Controller
+
+```php
+<?php
+namespace App\Controller\Api;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Controller\BaseController;
+use App\Models\Product;
+
+/**
+ * @Route("/api/products")
+ */
+class ProductController extends BaseController {
+    
+    /**
+     * @Route("/", methods={"GET"})
+     */
+    public function index() {
+        $products = $this->em->findBy(Product::class, ['active' => true]);
+                             
+        return $this->json($products);
+    }
+    
+    /**
+     * @Route("/", methods={"POST"})
+     */
+    public function create() {
+        $data = $this->getJsonRequest();
+        $product = new Product();
+        // Set properties from request data
+        foreach ($data as $key => $value) {
+            $product->$key = $value;
+        }
+        
+        return $this->json($product, 201);
+    }
+    
+    /**
+     * @Route("/{id}", methods={"PUT"})
+     */
+    public function update(int $id) {
+        $product = $this->em->find(Product::class, $id);
+        $data = $this->getJsonRequest();
+        
+        foreach ($data as $key => $value) {
+            $product->$key = $value;
+        }
+        
+        return $this->json($product);
+    }
+}
+```
+
+### Custom Service Provider
 
 Create discoverable packages for Canvas:
 
 ```php
 <?php
-// src/MyPackageServiceProvider.php
-
 use Quellabs\Canvas\ServiceProvider;
 
-class MyPackageServiceProvider extends ServiceProvider {
+class PaymentServiceProvider extends ServiceProvider {
     
     public function supports(string $className, array $context = []): bool {
-        return $className === MyServiceInterface::class
-            && ($context['provider'] ?? null) === 'mypackage';
+        return $className === PaymentInterface::class
+            && ($context['provider'] ?? null) === 'stripe';
     }
     
     public function createInstance(string $className, array $dependencies): object {
-        return new MyService(...$dependencies);
+        return new StripePaymentService($this->config['api_key']);
     }
-}
-```
-
-```json
-{
-  "extra": {
-    "discover": {
-      "canvas": {
-        "provider": "MyVendor\\MyPackage\\MyPackageServiceProvider"
-      }
-    }
-  }
 }
 ```
 
 ## Performance
 
-Canvas is designed for performance:
+Canvas is built for performance:
 
-- **Lazy Loading**: Services are only instantiated when needed
-- **Optimized Autowiring**: Efficient reflection caching
-- **Minimal Overhead**: Contextual containers add virtually no performance cost
+- **Lazy Loading**: Services instantiated only when needed
+- **Route Caching**: Annotation routes cached in production
 - **ObjectQuel Optimization**: Built-in query caching and optimization
-- **Production Caching**: Full service and configuration caching in production
+- **Minimal Reflection**: Efficient autowiring with caching
+- **Zero Configuration Overhead**: Sensible defaults eliminate config parsing
+
+## Why Canvas?
+
+**For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, and dependency injection work out of the box.
+
+**For Clean Code**: Annotation-based routes keep logic close to implementation. ObjectQuel queries read like natural language.
+
+**For Flexibility**: Contextual containers let you use different implementations without complex configuration.
+
+**For Growth**: Modular architecture scales from simple websites to complex applications.
 
 ## Contributing
 
