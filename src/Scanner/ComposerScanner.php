@@ -7,6 +7,7 @@
 	
 	/**
 	 * Scans composer.json files to discover service providers
+	 * Includes static file caching to avoid re-reading same files
 	 */
 	class ComposerScanner implements ScannerInterface {
 		
@@ -21,6 +22,20 @@
 		 * @var PSR4 PSR-4 utilities
 		 */
 		private PSR4 $utilities;
+		
+		/**
+		 * Static cache for composer.json file contents
+		 * Key: file path, Value: parsed array data
+		 * @var array<string, array|null>
+		 */
+		private static array $composerFileCache = [];
+		
+		/**
+		 * Static cache for installed.json file contents
+		 * Key: file path, Value: parsed array data
+		 * @var array<string, array|null>
+		 */
+		private static array $installedFileCache = [];
 		
 		/**
 		 * ComposerScanner constructor
@@ -67,12 +82,12 @@
 				return [];
 			}
 			
-			// Parse the composer.json file into a PHP array structure
-			// Handles JSON decoding and potential file reading errors gracefully
-			$composerData = $this->parseJsonFile($composerPath);
+			// Parse the composer.json file using cached method
+			// This avoids re-reading the same file multiple times
+			$composerData = $this->parseComposerFile($composerPath);
 			
 			// Validate that composer.json was parsed successfully
-			// Corrupted or invalid JSON will result in null/false return value
+			// Corrupted or invalid JSON will result in null return value
 			if (!$composerData) {
 				return [];
 			}
@@ -99,9 +114,9 @@
 				return [];
 			}
 			
-			// Parse the installed.json file into a PHP array structure
-			// This file can be quite large as it contains all package metadata
-			$packagesData = $this->parseJsonFile($installedPath);
+			// Parse the installed.json file using cached method
+			// This avoids re-reading the potentially large file multiple times
+			$packagesData = $this->parseInstalledFile($installedPath);
 			
 			// Validate that installed.json was parsed successfully
 			// Corrupted file would prevent access to any package provider information
@@ -135,6 +150,52 @@
 			// Return all providers discovered from installed packages
 			return $allProviders;
 		}
+		
+		/**
+		 * Parse composer.json file with static caching
+		 * @param string $path Absolute path to composer.json file
+		 * @return array|null Parsed composer data or null if invalid
+		 */
+		protected function parseComposerFile(string $path): ?array {
+			// Check if this file has already been parsed and cached
+			if (array_key_exists($path, self::$composerFileCache)) {
+				// Return cached result (may be null if file was invalid)
+				return self::$composerFileCache[$path];
+			}
+			
+			// File not in cache, parse it and store the result
+			$data = $this->parseJsonFile($path);
+			
+			// Cache the result (including null for invalid files)
+			// This prevents re-attempting to parse known invalid files
+			return self::$composerFileCache[$path] = $data;
+		}
+		
+		/**
+		 * Parse installed.json file with static caching
+		 *
+		 * Caches the parsed content to avoid re-reading and re-parsing the same
+		 * installed.json file multiple times. This is especially beneficial since
+		 * installed.json can be quite large (1-10MB in big projects).
+		 *
+		 * @param string $path Absolute path to installed.json file
+		 * @return array|null Parsed installed data or null if invalid
+		 */
+		protected function parseInstalledFile(string $path): ?array {
+			// Check if this file has already been parsed and cached
+			if (array_key_exists($path, self::$installedFileCache)) {
+				// Return cached result (may be null if file was invalid)
+				return self::$installedFileCache[$path];
+			}
+			
+			// File not in cache, parse it and store the result
+			$data = $this->parseJsonFile($path);
+			
+			// Cache the result (including null for invalid files)
+			// This prevents re-attempting to parse known invalid files
+			return self::$installedFileCache[$path] = $data;
+		}
+		
 		/**
 		 * This method performs a two-stage process: first extracting provider class
 		 * definitions from composer configuration data, then validating each provider
@@ -274,7 +335,7 @@
 			
 			// Process each provider definition within the providers array
 			$result = [];
-
+			
 			foreach ($providersArray as $definition) {
 				// Handle simple string format: just the provider class name
 				// Example: "App\Providers\RedisProvider"
