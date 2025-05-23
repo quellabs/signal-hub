@@ -2,10 +2,9 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Composer\Autoload\ClassLoader;
 	use Quellabs\Discover\Config\DiscoveryConfig;
-	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Utilities\PSR4;
+	use Quellabs\Discovery\Discovery\ProviderInterface;
 	use ReflectionClass;
 	
 	/**

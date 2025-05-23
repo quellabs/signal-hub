@@ -2,12 +2,12 @@
 	
 	namespace Quellabs\Discover;
 	
-	use Composer\Autoload\ClassLoader;
-	use Quellabs\Discover\Scanner\ScannerInterface;
-	use Quellabs\Discover\Provider\ProviderInterface;
-	use Quellabs\Discover\Config\DiscoveryConfig;
-	use Quellabs\Discover\Utilities\PSR4;
 	use RuntimeException;
+	use Composer\Autoload\ClassLoader;
+	use Quellabs\Discover\Utilities\PSR4;
+	use Quellabs\Discover\Config\DiscoveryConfig;
+	use Quellabs\Discover\Scanner\ScannerInterface;
+	use Quellabs\Discovery\Discovery\ProviderInterface;
 	
 	class Discover {
 		

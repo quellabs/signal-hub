@@ -3,8 +3,8 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Quellabs\Discover\Config\DiscoveryConfig;
-	use Quellabs\Discover\Provider\ProviderInterface;
 	use Quellabs\Discover\Utilities\PSR4;
+	use Quellabs\Discovery\Discovery\ProviderInterface;
 	
 	/**
 	 * Scans composer.json files to discover service providers
