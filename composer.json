@@ -31,6 +31,7 @@
     "ext-curl": "*",
     "ext-gd": "*",
     "ext-fileinfo": "*",
+    "quellabs/contracts": "dev-main",
     "quellabs/signal-hub": "1.*",
     "quellabs/annotation-reader": "1.*",
     "quellabs/sculpt": "dev-main",
