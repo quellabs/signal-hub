@@ -1,7 +1,17 @@
 {
+  "name": "quellabs/canvas",
+  "description": "A modern, lightweight PHP framework with contextual containers, automatic service discovery, and ObjectQuel ORM integration",
+  "keywords": [
+    "framework",
+    "contextual-containers",
+    "dependency-injection",
+    "templating"
+  ],
+  "type": "library",
+  "license": "MIT",
   "config": {
     "platform": {
-      "php": "8.3"
+      "php": "^8.3"
     }
   },
   "require": {
