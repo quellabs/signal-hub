@@ -1,11 +1,12 @@
 # Quellabs Dependency Injection
 
-A lightweight, PSR-compliant dependency injection container for PHP with advanced autowiring capabilities.
+A lightweight, PSR-compliant dependency injection container for PHP with advanced autowiring capabilities and a unique contextual container pattern that allows interface-first service resolution without requiring knowledge of specific service IDs.
 
 ## Features
 
 - **Autowiring**: Automatically resolve dependencies through reflection
 - **Service Providers**: Customize how specific services are instantiated
+- **Contextual Resolution**: Use the `for()` method to specify which implementation to use when multiple providers support the same interface
 - **Service Discovery**: Automatically discover service providers from Composer configurations
 - **Circular Dependency Detection**: Prevents infinite loops in dependency graphs
 - **Method Injection**: Support for dependency injection in any method, not just constructors
@@ -31,12 +32,35 @@ $service = $container->get(MyService::class);
 $result = $container->invoke($service, 'doSomething', ['extraParam' => 'value']);
 ```
 
+## Contextual Service Resolution
+
+The container supports contextual service resolution through the `for()` method, allowing you to specify which implementation to use when multiple service providers support the same interface.
+
+```php
+// Get a specific implementation using context
+$objectQuelEM = $container->for('objectquel')->get(EntityManagerInterface::class);
+$doctrineEM = $container->for('doctrine')->get(EntityManagerInterface::class);
+
+// Reuse context for multiple services
+$objectQuelContainer = $container->for('objectquel');
+$em = $objectQuelContainer->get(EntityManagerInterface::class);
+$migrator = $objectQuelContainer->get(MigratorInterface::class);
+$queryBuilder = $objectQuelContainer->get(QueryBuilderInterface::class);
+
+// Use complex context with multiple parameters
+$cache = $container->for(['driver' => 'redis', 'cluster' => 'main'])->get(CacheInterface::class);
+
+// Default behavior (no context)
+$logger = $container->get(LoggerInterface::class); // Uses default provider
+```
+
 ## Service Providers
 
 Service providers allow you to customize how services are created. A service provider can:
 
 - Define specific instantiation logic for a service
 - Support instantiation of interfaces
+- Use contextual information to determine if they should handle a specific request
 
 ### Default Service Provider
 
@@ -59,11 +83,19 @@ class MyServiceProvider extends ServiceProvider {
     /**
      * Determines if this provider can create the requested class
      * @param string $className The fully qualified class name to check
+     * @param array $context Context information for provider selection (optional)
      * @return bool True if this provider supports creating the class
      */
-    public function supports(string $className): bool {
+    public function supports(string $className, array $context = []): bool {
         // Support either the exact MyService class or any class implementing MyInterface
-        return $className === MyService::class || is_subclass_of($className, MyInterface::class);
+        $supportsClass = $className === MyService::class || is_subclass_of($className, MyInterface::class);
+        
+        // Check context if provider name is specified
+        if (isset($context['provider'])) {
+            return $supportsClass && $context['provider'] === 'myservice';
+        }
+        
+        return $supportsClass;
     }
     
     /**
@@ -91,7 +123,41 @@ class MyServiceProvider extends ServiceProvider {
 ### Registering a Service Provider
 
 ```php
-$container->register(new MyServiceProvider($container));
+$container->register(new MyServiceProvider());
+```
+
+### Multiple Implementations with Context
+
+When you have multiple service providers that support the same interface, you can use contextual resolution to specify which implementation to use:
+
+```php
+// ObjectQuel Entity Manager Provider
+class ObjectQuelServiceProvider extends ServiceProvider {
+    public function supports(string $className, array $context = []): bool {
+        return $className === EntityManagerInterface::class 
+            && ($context['provider'] ?? null) === 'objectquel';
+    }
+    
+    public function createInstance(string $className, array $dependencies): object {
+        return new ObjectQuelEntityManager($this->createConfiguration());
+    }
+}
+
+// Doctrine Entity Manager Provider  
+class DoctrineServiceProvider extends ServiceProvider {
+    public function supports(string $className, array $context = []): bool {
+        return $className === EntityManagerInterface::class 
+            && ($context['provider'] ?? null) === 'doctrine';
+    }
+    
+    public function createInstance(string $className, array $dependencies): object {
+        return new DoctrineEntityManager($this->createConfiguration());
+    }
+}
+
+// Usage
+$objectQuelEM = $container->for('objectquel')->get(EntityManagerInterface::class);
+$doctrineEM = $container->for('doctrine')->get(EntityManagerInterface::class);
 ```
 
 ## Automatic Service Discovery
@@ -154,9 +220,10 @@ class TransientServiceProvider extends ServiceProvider {
     /**
      * Determines if this provider should handle the requested class.
      * @param string $className The fully qualified class name to check
+     * @param array $context Context information for provider selection (optional)
      * @return bool True if this provider should create the instance
      */
-    public function supports(string $className): bool {
+    public function supports(string $className, array $context = []): bool {
         // Define which classes should be created as new instances each time
         // These are typically stateful classes that shouldn't be shared between requests
         return in_array($className, [
