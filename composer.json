@@ -15,6 +15,9 @@
     "quellabs/annotation-reader": "dev-main",
     "quellabs/discover": "dev-main",
     "quellabs/dependency-injection": "dev-main",
+    "quellabs/objectquel": "dev-main",
+    "quellabs/sculpt": "dev-main",
+    "quellabs/signal-hub": "dev-main",
     "smarty/smarty": "^4.3",
     "symfony/http-foundation": "*",
     "vlucas/phpdotenv": "*"
@@ -27,7 +30,10 @@
   "extra": {
     "discover": {
       "di": {
-        "provider": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"
+        "providers": [
+          "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider",
+          "Quellabs\\Canvas\\Discover\\ObjectQuelServiceProvider"
+        ]
       },
       "template_engine": {
         "provider": "Quellabs\\Canvas\\Templating\\SmartyTemplateProvider"

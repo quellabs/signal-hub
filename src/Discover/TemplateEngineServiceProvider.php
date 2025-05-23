@@ -22,9 +22,10 @@
 		/**
 		 * Determines if this service provider can handle the given class name.
 		 * @param string $className The fully qualified class name to check
+		 * @param array $metadata Metadata for filtering
 		 * @return bool True if this provider supports the TemplateEngineInterface
 		 */
-		public function supports(string $className): bool {
+		public function supports(string $className, array $metadata): bool {
 			return $className === TemplateEngineInterface::class;
 		}
 		

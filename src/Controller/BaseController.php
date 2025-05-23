@@ -3,6 +3,7 @@
 	namespace Quellabs\Canvas\Controller;
 	
 	use Quellabs\Canvas\Templating\TemplateEngineInterface;
+	use Quellabs\ObjectQuel\EntityManager;
 	
 	/**
 	 * Base controller providing common functionality for all controllers.
@@ -16,11 +17,18 @@
 		protected TemplateEngineInterface $view;
 		
 		/**
+		 * The EntityManager (ObjectQuel)
+		 * @var EntityManager
+		 */
+		protected EntityManager $em;
+		
+		/**
 		 * BaseController constructor.
 		 * @param TemplateEngineInterface $templateEngine The template engine to use for rendering
 		 */
-		public function __construct(TemplateEngineInterface $templateEngine) {
+		public function __construct(TemplateEngineInterface $templateEngine, EntityManager $entityManager) {
 			$this->view = $templateEngine;
+			$this->em = $entityManager;
 		}
 		
 		/**
