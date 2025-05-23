@@ -46,6 +46,11 @@
 		private Discover $discovery;
 		
 		/**
+		 * @var array|string[]
+		 */
+		private array $defaultContext = [];
+		
+		/**
 		 * Container constructor with automatic service discovery
 		 * @param string|null $basePath Base path of the application
 		 * @param string $familyName The key to look for in composer.json (default: 'di')
@@ -76,14 +81,30 @@
 		}
 		
 		/**
+		 * Set context for subsequent get() calls
+		 * @param string|array $context
+		 * @return $this
+		 */
+		public function for(string|array $context): self {
+			$clone = clone $this;
+			
+			if (is_string($context)) {
+				$clone->defaultContext = ['provider' => $context];
+			} else {
+				$clone->defaultContext = $context;
+			}
+			
+			return $clone;
+		}
+		
+		/**
 		 * Find a provider that supports the given class
 		 * @param string $className
-		 * @param array $metadata
 		 * @return ServiceProvider
 		 */
-		public function findProvider(string $className, array $metadata): ServiceProvider {
+		public function findProvider(string $className): ServiceProvider {
 			foreach ($this->providers as $provider) {
-				if ($provider->supports($className, $metadata)) {
+				if ($provider->supports($className, $this->defaultContext)) {
 					return $provider;
 				}
 			}
@@ -112,11 +133,8 @@
 				// Any manually provided parameters will override automatic resolution
 				$dependencies = $this->autowire->getMethodArguments($className, '__construct', $parameters);
 				
-				// Get the metadata of this class
-				$definition = $this->discovery->getDefinition($className);
-				
 				// Fetch the provider
-				$provider = $this->findProvider($className, $definition['metadata']);
+				$provider = $this->findProvider($className);
 				
 				// Create a new instance of the class using the resolved dependencies
 				// This will invoke the constructor with the correct parameters in the right order
