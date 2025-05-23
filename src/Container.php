@@ -65,9 +65,10 @@
 			// Create the service discoverer
 			$this->discovery = new Discover();
 			$this->discovery->addScanner(new ComposerScanner($familyName));
+			$this->discovery->discover();
 			
 			// Automatically discover and register service providers
-			$this->discover();
+			$this->registerProviders();
 		}
 		
 		/**
@@ -178,7 +179,7 @@
 		 * Discover and register service providers
 		 * @return self
 		 */
-		protected function discover(): self {
+		protected function registerProviders(): self {
 			// Register each discovered provider with the container
 			foreach ($this->discovery->getProviders() as $provider) {
 				if ($provider instanceof Provider\ServiceProviderInterface) {
