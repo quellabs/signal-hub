@@ -33,9 +33,9 @@
 		 */
 		public static function getDefaults(): array {
 			return [
-				'template_dir' => 'templates/',
-				'compile_dir'  => 'templates_c/',
-				'cache_dir'    => 'cache/',
+				'template_dir' => dirname(__FILE__) . '/../Templates/',
+				'compile_dir'  => dirname(__FILE__) . '/../Cache/Compile/',
+				'cache_dir'    => dirname(__FILE__) . '/../Cache/Cache/',
 				'debugging'    => false,
 				'caching'      => true
 			];
@@ -225,16 +225,6 @@
 			} catch (\SmartyException | \Exception $e) {
 				return false;
 			}
-		}
-		
-		/**
-		 * Get the underlying Smarty instance for advanced usage
-		 * @return Smarty The underlying Smarty template engine instance
-		 */
-		public function getSmartyInstance(): Smarty {
-			// Return the raw Smarty instance for advanced users who need
-			// direct access to Smarty's full API beyond what this wrapper provides
-			return $this->getEngineInstance();
 		}
 		
 		/**
