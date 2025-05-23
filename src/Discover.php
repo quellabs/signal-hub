@@ -79,78 +79,85 @@
 		}
 		
 		/**
-		 * Export current provider definitions for caching
-		 * @return array Cacheable provider definitions
+		 * Check if the discovery process has been run and providers have been found
+		 * @return bool True if providers have been discovered, false if no discovery has occurred
 		 */
-		public function exportForCache(): array {
-			// Initialize cache data structure with metadata and organized provider storage
-			$cacheData = [
-				'timestamp' => time(),  // Record when this cache snapshot was created
-				'providers' => []       // Will hold providers organized by family type
-			];
-			
-			// Transform flat provider definitions into a family-grouped structure for efficient caching
-			// This organization makes cache lookups and provider discovery faster
-			foreach ($this->providerDefinitions as $definitionKey => $definition) {
-				// Extract the provider family, defaulting to 'unknown' for safety
-				// This ensures all providers get categorized even if family is missing
-				$family = $definition['family'] ?? 'unknown';
-				
-				// Create family group in cache structure if it doesn't exist yet
-				// This lazy initialization approach only creates groups as needed
-				if (!isset($cacheData['providers'][$family])) {
-					$cacheData['providers'][$family] = [];
-				}
-				
-				// Add this provider definition to its appropriate family group
-				// The definition contains all data needed to reconstruct the provider later
-				$cacheData['providers'][$family][] = $definition;
-			}
-			
-			// Return the complete cache-ready data structure with timestamp and organized providers
-			return $cacheData;
+		public function hasDiscovered(): bool {
+			return !empty($this->providerDefinitions);
 		}
 		
 		/**
-		 * Import provider definitions from cache
-		 * @param array $cacheData Previously exported provider data
-		 * @return self
+		 * Returns the raw provider definitions array containing metadata for all
+		 * discovered providers. Each definition includes class name, family, configuration
+		 * file path, and other metadata gathered during the discovery process.
+		 * This is useful for debugging, caching, or external analysis of discovered providers.
+		 * @return array Array of provider definitions with metadata (not instantiated objects)
 		 */
-		public function importDefinitionsFromCache(array $cacheData): self {
-			// Clear existing state to ensure clean import from cache
-			// Reset both definitions and any previously instantiated providers
-			$this->clearProviders();
-			
-			// Validate cache data structure before processing
-			// Ensure providers key exists and contains array data to prevent errors
-			if (!isset($cacheData['providers']) || !is_array($cacheData['providers'])) {
-				return $this;
-			}
-			
-			// Process the family-grouped provider data from cache
-			// Iterate through each provider family and its associated providers
-			foreach ($cacheData['providers'] as $family => $familyProviders) {
-				// Process each provider definition within this family
-				foreach ($familyProviders as $providerData) {
-					// Extract class name as the primary identifier for the provider
-					// This is essential for generating unique definition keys
-					$className = $providerData['class'] ?? null;
-					
-					// Only process providers with valid class names
-					if ($className) {
-						// Generate a unique definition key combining family and class name
-						// Format: "family::className" ensures uniqueness across families
-						$definitionKey = $family . '::' . $className;
-						
-						// Store the complete provider definition using the generated key
-						// This recreates the flat storage structure from the hierarchical cache
-						$this->providerDefinitions[$definitionKey] = $providerData;
-					}
+		public function getDefinitions(): array {
+			return $this->providerDefinitions;
+		}
+		
+		/**
+		 * This method returns the raw definition array for a provider without instantiating it.
+		 * The definition contains metadata such as class name, family, configuration file path,
+		 * and other information gathered during discovery. Useful for inspecting provider
+		 * configuration before instantiation or for debugging purposes.
+		 * @param string $className The fully qualified class name of the provider
+		 * @return array|null The provider definition array if found, null if not found
+		 */
+		public function getDefinition(string $className): ?array {
+			// Iterate through all discovered provider definitions.
+			// Each definition contains metadata gathered during discovery without instantiation.
+			foreach ($this->providerDefinitions as $definition) {
+				// Check if this definition matches the requested class name
+				if ($definition['class'] === $className) {
+					// Return the complete definition array for this provider
+					return $definition;
 				}
 			}
 			
-			// Return self to enable method chaining
-			return $this;
+			// Return null if no provider definition matches the requested class name
+			return null;
+		}
+		
+		/**
+		 * Retrieve a specific provider instance by class name
+		 * @param string $className The fully qualified class name of the provider to retrieve
+		 * @return ProviderInterface|null The provider instance if found, null otherwise
+		 */
+		public function get(string $className): ?ProviderInterface {
+			// Iterate through all discovered provider definitions.
+			// Each definition contains metadata gathered during discovery without instantiation.
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Check if this definition matches the requested class name
+				if ($definition['class'] === $className) {
+					// Attempt to get or create a provider instance from the definition
+					// Uses lazy instantiation helper that handles caching and reconstruction
+					return $this->getOrInstantiateProvider($definitionKey, $definition);
+				}
+			}
+			
+			// Return null if no provider definition matches the requested class name
+			return null;
+		}
+		
+		/**
+		 * Check if a provider with the specified class exists in discovered definitions
+		 * @param string $className The fully qualified class name of the provider to check
+		 * @return bool True if a provider definition exists for the class, false otherwise
+		 */
+		public function exists(string $className): bool {
+			// Iterate through all discovered provider definitions
+			foreach ($this->providerDefinitions as $definition) {
+				// Check if this definition matches the requested class name
+				if ($definition['class'] === $className) {
+					// Provider definition found - return true immediately
+					return true;
+				}
+			}
+			
+			// Return false if no provider definition matches the requested class name
+			return false;
 		}
 		
 		/**
@@ -180,7 +187,7 @@
 			// Note: This could be a large collection depending on registered definitions
 			return $providers;
 		}
-		
+
 		/**
 		 * Clear all providers and definitions
 		 * @return self
@@ -363,6 +370,81 @@
 			
 			// Return the collection of matching provider instances
 			return $providers;
+		}
+		
+		/**
+		 * Export current provider definitions for caching
+		 * @return array Cacheable provider definitions
+		 */
+		public function exportForCache(): array {
+			// Initialize cache data structure with metadata and organized provider storage
+			$cacheData = [
+				'timestamp' => time(),  // Record when this cache snapshot was created
+				'providers' => []       // Will hold providers organized by family type
+			];
+			
+			// Transform flat provider definitions into a family-grouped structure for efficient caching
+			// This organization makes cache lookups and provider discovery faster
+			foreach ($this->providerDefinitions as $definitionKey => $definition) {
+				// Extract the provider family, defaulting to 'unknown' for safety
+				// This ensures all providers get categorized even if family is missing
+				$family = $definition['family'] ?? 'unknown';
+				
+				// Create family group in cache structure if it doesn't exist yet
+				// This lazy initialization approach only creates groups as needed
+				if (!isset($cacheData['providers'][$family])) {
+					$cacheData['providers'][$family] = [];
+				}
+				
+				// Add this provider definition to its appropriate family group
+				// The definition contains all data needed to reconstruct the provider later
+				$cacheData['providers'][$family][] = $definition;
+			}
+			
+			// Return the complete cache-ready data structure with timestamp and organized providers
+			return $cacheData;
+		}
+		
+		/**
+		 * Import provider definitions from cache
+		 * @param array $cacheData Previously exported provider data
+		 * @return self
+		 */
+		public function importDefinitionsFromCache(array $cacheData): self {
+			// Clear existing state to ensure clean import from cache
+			// Reset both definitions and any previously instantiated providers
+			$this->clearProviders();
+			
+			// Validate cache data structure before processing
+			// Ensure providers key exists and contains array data to prevent errors
+			if (!isset($cacheData['providers']) || !is_array($cacheData['providers'])) {
+				return $this;
+			}
+			
+			// Process the family-grouped provider data from cache
+			// Iterate through each provider family and its associated providers
+			foreach ($cacheData['providers'] as $family => $familyProviders) {
+				// Process each provider definition within this family
+				foreach ($familyProviders as $providerData) {
+					// Extract class name as the primary identifier for the provider
+					// This is essential for generating unique definition keys
+					$className = $providerData['class'] ?? null;
+					
+					// Only process providers with valid class names
+					if ($className) {
+						// Generate a unique definition key combining family and class name
+						// Format: "family::className" ensures uniqueness across families
+						$definitionKey = $family . '::' . $className;
+						
+						// Store the complete provider definition using the generated key
+						// This recreates the flat storage structure from the hierarchical cache
+						$this->providerDefinitions[$definitionKey] = $providerData;
+					}
+				}
+			}
+			
+			// Return self to enable method chaining
+			return $this;
 		}
 		
 		/**
