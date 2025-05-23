@@ -107,11 +107,13 @@ In your `composer.json`:
 ```json
 {
     "extra": {
-        "di": {
+        "discover": {
+          "di": {
             "providers": [
-                "App\\Providers\\MyServiceProvider",
-                "App\\Providers\\DatabaseServiceProvider"
+              "App\\Providers\\MyServiceProvider",
+              "App\\Providers\\DatabaseServiceProvider"
             ]
+          }
         }
     }
 }
@@ -122,9 +124,11 @@ For registering just one service provider:
 ```json
 {
     "extra": {
+      "discover": {
         "di": {
-            "provider": "MyPackage\\MyPackageServiceProvider"
+          "provider": "MyPackage\\MyPackageServiceProvider"
         }
+      }
     }
 }
 ```
