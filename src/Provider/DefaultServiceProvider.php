@@ -2,6 +2,11 @@
 	
 	namespace Quellabs\DependencyInjection\Provider;
 	
+	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\DependencyInjection\Container;
+	use Quellabs\Discover\Discover;
+	use Quellabs\Discover\Scanner\ComposerScanner;
+	
 	class DefaultServiceProvider extends ServiceProvider {
 		
 		/**
@@ -9,6 +14,22 @@
 		 * @var array<string, object>
 		 */
 		protected array $instances = [];
+		
+		/**
+		 * Service discovery
+		 * @var Discover
+		 */
+		private Discover $discovery;
+		
+		/**
+		 * DefaultServiceProvider constructor
+		 * @param Container $container
+		 */
+		public function __construct(Container $container) {
+			parent::__construct($container);
+			$this->discovery = new Discover();
+			$this->discovery->addScanner(new ComposerScanner());
+		}
 		
 		/**
 		 * Supports all classes as a fallback
@@ -29,6 +50,11 @@
 				throw new \RuntimeException("Class '$className' does not exist");
 			}
 			
+			// Check if this class implements ProviderInterface
+			if (is_subclass_of($className, ProviderInterface::class)) {
+				return $this->createServiceProvider($className);
+			}
+			
 			// If the instance already exists, return it
 			if (isset($this->instances[$className])) {
 				return $this->instances[$className];
@@ -42,5 +68,28 @@
 			
 			// Return the instance
 			return $instance;
+		}
+		
+		/**
+		 * Create or retrieve a service provider instance using Discovery
+		 * @param string $className The fully qualified class name of the service provider
+		 * @return object The instantiated and configured service provider
+		 * @throws \RuntimeException If the service provider cannot be found or instantiated
+		 */
+		private function createServiceProvider(string $className): object {
+			// Ensure discovery has been run to populate provider definitions
+			// This is a lazy check - only runs discovery if not already done
+			if (!$this->discovery->hasDiscovered()) {
+				$this->discovery->discover();
+			}
+			
+			// Check if the desired provider class exists in discovered definitions
+			// If so, retrieve the provider instance with proper configuration and metadata
+			if ($this->discovery->exists($className)) {
+				return $this->discovery->get($className);
+			}
+			
+			// Throw exception if provider cannot be found in any discovered definitions
+			throw new \RuntimeException("Cannot instantiate service provider: {$className}");
 		}
 	}
