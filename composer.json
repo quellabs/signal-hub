@@ -26,6 +26,9 @@
   },
   "extra": {
     "discover": {
+      "di": {
+        "provider": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"
+      },
       "template_engine": {
         "provider": "Quellabs\\Canvas\\Templating\\SmartyTemplateProvider"
       }
