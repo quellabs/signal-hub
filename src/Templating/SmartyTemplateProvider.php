@@ -4,7 +4,7 @@
 	
 	use Smarty;
 	use Quellabs\Discover\Provider\AbstractProvider;
-	use Quellabs\Discovery\Discovery\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
 	class SmartyTemplateProvider extends AbstractProvider implements TemplateEngineInterface, ProviderInterface {
 		

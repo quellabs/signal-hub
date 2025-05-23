@@ -23,5 +23,12 @@
     "psr-4": {
       "Quellabs\\Canvas\\": "src/"
     }
+  },
+  "extra": {
+    "discover": {
+      "template_engine": {
+        "provider": "Quellabs\\Canvas\\Templating\\SmartyTemplateProvider"
+      }
+    }
   }
 }
