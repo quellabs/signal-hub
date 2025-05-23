@@ -41,8 +41,8 @@
     "discover": {
       "di": {
         "providers": [
-          "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider",
-          "Quellabs\\Canvas\\Discover\\ObjectQuelServiceProvider"
+          {"class": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"},
+          {"class": "Quellabs\\Canvas\\Discover\\ObjectQuelServiceProvider", "config": "src/config/database.php"}
         ]
       },
       "template_engine": {
