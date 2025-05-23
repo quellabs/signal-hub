@@ -40,19 +40,29 @@
 		protected DefaultServiceProvider $defaultProvider;
 		
 		/**
+		 * Service discovery
+		 * @var Discover
+		 */
+		private Discover $discovery;
+		
+		/**
 		 * Container constructor with automatic service discovery
 		 * @param string|null $basePath Base path of the application
-		 * @param string $configKey The key to look for in composer.json (default: 'di')
+		 * @param string $familyName The key to look for in composer.json (default: 'di')
 		 */
-		public function __construct(?string $basePath = null, string $configKey = 'di') {
+		public function __construct(?string $basePath = null, string $familyName = 'di') {
 			$this->autowire = new Autowirer($this);
 			$this->basePath = $basePath ?? getcwd();
 			
 			// Create the default provider
 			$this->defaultProvider = new DefaultServiceProvider();
 			
+			// Create the service discoverer
+			$this->discovery = new Discover();
+			$this->discovery->addScanner(new ComposerScanner($familyName));
+			
 			// Automatically discover and register service providers
-			$this->discover($configKey);
+			$this->discover();
 		}
 		
 		/**
@@ -68,11 +78,12 @@
 		/**
 		 * Find a provider that supports the given class
 		 * @param string $className
+		 * @param array $metadata
 		 * @return ServiceProvider
 		 */
-		public function findProvider(string $className): ServiceProvider {
+		public function findProvider(string $className, array $metadata): ServiceProvider {
 			foreach ($this->providers as $provider) {
-				if ($provider->supports($className)) {
+				if ($provider->supports($className, $metadata)) {
 					return $provider;
 				}
 			}
@@ -101,8 +112,11 @@
 				// Any manually provided parameters will override automatic resolution
 				$dependencies = $this->autowire->getMethodArguments($className, '__construct', $parameters);
 				
+				// Get the metadata of this class
+				$definition = $this->discovery->getDefinition($className);
+				
 				// Fetch the provider
-				$provider = $this->findProvider($className);
+				$provider = $this->findProvider($className, $definition['metadata']);
 				
 				// Create a new instance of the class using the resolved dependencies
 				// This will invoke the constructor with the correct parameters in the right order
@@ -144,19 +158,11 @@
 		
 		/**
 		 * Discover and register service providers
-		 * @param string $familyName The key to look for in composer.json
 		 * @return self
 		 */
-		protected function discover(string $familyName): self {
-			// Create and configure Discover
-			$discover = new Discover();
-			$discover->addScanner(new ComposerScanner($familyName));
-			
-			// Run discovery
-			$discover->discover();
-			
+		protected function discover(): self {
 			// Register each discovered provider with the container
-			foreach ($discover->getProviders() as $provider) {
+			foreach ($this->discovery->getProviders() as $provider) {
 				if ($provider instanceof Provider\ServiceProviderInterface) {
 					$this->register($provider);
 				}

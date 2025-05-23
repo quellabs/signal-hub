@@ -3,7 +3,6 @@
 	namespace Quellabs\DependencyInjection\Provider;
 	
 	use Quellabs\Contracts\Discovery\ProviderInterface;
-	use Quellabs\DependencyInjection\Container;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
 	
@@ -31,8 +30,11 @@
 		
 		/**
 		 * Supports all classes as a fallback
+		 * @param string $className
+		 * @param array $metadata
+		 * @return bool
 		 */
-		public function supports(string $className): bool {
+		public function supports(string $className, array $metadata): bool {
 			return true;
 		}
 		

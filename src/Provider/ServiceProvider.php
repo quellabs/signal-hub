@@ -37,7 +37,8 @@
 		/**
 		 * Returns true if the Dependency Injection provider supports the given class
 		 * @param string $className
+		 * @param array $metadata
 		 * @return bool
 		 */
-		abstract public function supports(string $className): bool;
+		abstract public function supports(string $className, array $metadata): bool;
 	}

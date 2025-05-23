@@ -8,13 +8,14 @@
 	 * Interface for service providers that support centralized autowiring
 	 */
 	interface ServiceProviderInterface extends ProviderInterface {
-
+		
 		/**
 		 * Determine if this provider supports creating the given class
 		 * @param string $className
+		 * @param array $metadata
 		 * @return bool
 		 */
-		public function supports(string $className): bool;
+		public function supports(string $className, array $metadata): bool;
 		
 		/**
 		 * Create an instance of the class with pre-resolved dependencies
