@@ -4,7 +4,7 @@
 	
 	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Utilities\PSR4;
-	use Quellabs\Discovery\Discovery\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use ReflectionClass;
 	
 	/**

@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover\Provider;
 	
-	use Quellabs\Discovery\Discovery\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
 	/**
 	 * AbstractProvider class implements the basic functionality for a provider.
