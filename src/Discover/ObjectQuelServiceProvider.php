@@ -4,11 +4,18 @@
 	
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	use Quellabs\ObjectQuel\Configuration;
+	use Quellabs\ObjectQuel\EntityManager;
 	
 	/**
 	 * Service provider for ObjectQuel EntityManager
 	 */
 	class ObjectQuelServiceProvider extends ServiceProvider {
+		
+		/**
+		 * Cached singleton instance of the template engine.
+		 * @var EntityManager|null
+		 */
+		private static ?EntityManager $instance = null;
 		
 		/**
 		 * Determines if this provider can create instances of the given class
@@ -27,7 +34,16 @@
 		 * @return object A configured EntityManager instance
 		 */
 		public function createInstance(string $className, array $dependencies): object {
-			return new $className($this->createConfiguration());
+			// Return existing instance if already created (singleton behavior)
+			if (self::$instance !== null) {
+				return self::$instance;
+			}
+			
+			// Cache the instance for future requests (singleton pattern)
+			self::$instance = new $className($this->createConfiguration());
+			
+			// Return the singleton instance
+			return self::$instance;
 		}
 		
 		/**
