@@ -121,6 +121,11 @@
 		 */
 		public function get(string $className, array $parameters = []): ?object {
 			try {
+				// Special case: if someone asks for the container itself
+				if ($className === self::class || $className === ContainerInterface::class) {
+					return $this;
+				}
+				
 				// Check for circular dependencies
 				if (in_array($className, $this->resolutionStack)) {
 					throw new \RuntimeException("Circular dependency detected: " . implode(" -> ", $this->resolutionStack) . " -> {$className}");
