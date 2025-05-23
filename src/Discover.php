@@ -511,7 +511,7 @@
 				$loadedConfig = $this->loadConfigFile($configFile);
 				
 				// Merge defaults with loaded config and apply to provider
-				$provider->setConfig(array_merge($className::getDefaults(), $loadedConfig));
+				$provider->setConfig($loadedConfig);
 				
 				// Return the fully reconstructed and configured provider instance
 				return $provider;

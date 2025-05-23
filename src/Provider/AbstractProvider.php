@@ -48,6 +48,6 @@
 		 * @return void
 		 */
 		public function setConfig(array $config): void {
-			$this->config = $config;
+			$this->config = array_merge(static::getDefaults(), $config);
 		}
 	}
