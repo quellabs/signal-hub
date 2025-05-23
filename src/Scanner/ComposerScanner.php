@@ -2,7 +2,6 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
@@ -34,21 +33,16 @@
 		
 		/**
 		 * Main entry point for provider discovery
-		 * @param DiscoveryConfig $config Configuration object containing discovery settings
-		 * @return array|ProviderInterface[] Array of discovered provider instances
+		 * @return array<ProviderInterface> Array of instantiated provider objects
 		 */
-		public function scan(DiscoveryConfig $config): array {
-			// Extract debug flag from configuration for consistent logging behavior
-			// across all discovery operations
-			$debug = $config->isDebugEnabled();
-			
+		public function scan(): array {
 			// Discover providers defined within the current project structure
 			// These are typically application-specific providers in src/ or app/ directories
-			$projectProviders = $this->discoverProjectProviders($debug);
+			$projectProviders = $this->discoverProjectProviders();
 			
 			// Discover providers from installed packages/dependencies
 			// These are usually third-party providers from vendor/ directory
-			$packageProviders = $this->discoverPackageProviders($debug);
+			$packageProviders = $this->discoverPackageProviders();
 			
 			// Combine both sets of providers into a single array
 			// Project providers are placed first, potentially allowing them to
@@ -60,10 +54,9 @@
 		 * Scans the current project's composer.json file to find provider definitions
 		 * in the "extra" section or other configured locations. This method handles
 		 * the project-specific provider discovery as opposed to third-party packages.
-		 * @param bool $debug Whether to enable debug logging
 		 * @return array Array of discovered provider instances
 		 */
-		protected function discoverProjectProviders(bool $debug): array {
+		protected function discoverProjectProviders(): array {
 			// Resolve the absolute path to the project's composer.json file
 			// Uses utility method to handle different project structures and locations
 			$composerPath = $this->utilities->getComposerJsonFilePath();
@@ -73,10 +66,6 @@
 			if (!$composerPath || !file_exists($composerPath)) {
 				return [];
 			}
-			
-			// Log the start of project provider discovery when debug mode is enabled
-			// Helps with troubleshooting and understanding the discovery flow
-			$this->logDiscoveryStart($debug, 'project', $composerPath);
 			
 			// Parse the composer.json file into a PHP array structure
 			// Handles JSON decoding and potential file reading errors gracefully
@@ -90,17 +79,16 @@
 			
 			// Extract provider definitions from composer data and instantiate them
 			// This method handles validation, class loading, and provider instantiation
-			return $this->extractAndValidateProviders($composerData, $debug);
+			return $this->extractAndValidateProviders($composerData);
 		}
 		
 		/**
 		 * Scans Composer's installed.json file to find provider definitions from
 		 * third-party packages. This method processes all installed dependencies
 		 * and extracts providers that have been configured for auto-discovery.
-		 * @param bool $debug Whether to enable debug logging
 		 * @return array Array of discovered provider instances
 		 */
-		protected function discoverPackageProviders(bool $debug): array {
+		protected function discoverPackageProviders(): array {
 			// Resolve the path to Composer's installed.json file
 			// This file contains metadata about all installed packages and dependencies
 			$installedPath = $this->utilities->getComposerInstalledFilePath();
@@ -110,10 +98,6 @@
 			if (!$installedPath || !file_exists($installedPath)) {
 				return [];
 			}
-			
-			// Log the start of package provider discovery when debug mode is enabled
-			// Note: No path logged here as it's always the standard installed.json location
-			$this->logDiscoveryStart($debug, 'packages');
 			
 			// Parse the installed.json file into a PHP array structure
 			// This file can be quite large as it contains all package metadata
@@ -140,7 +124,7 @@
 				if (isset($package['extra']['discover'])) {
 					// Extract and validate providers from this specific package
 					// Uses the same validation logic as project providers
-					$packageProviders = $this->extractAndValidateProviders($package, $debug);
+					$packageProviders = $this->extractAndValidateProviders($package);
 					
 					// Merge discovered providers into the main collection
 					// Maintains order of discovery across packages
@@ -157,10 +141,9 @@
 		 * to ensure it's properly implemented and can be instantiated. Only valid
 		 * providers are returned to prevent runtime errors during application bootstrap.
 		 * @param array $composerConfig Complete composer.json data array
-		 * @param bool $debug Whether to enable debug logging
 		 * @return array Array of validated provider data structures
 		 */
-		private function extractAndValidateProviders(array $composerConfig, bool $debug): array {
+		private function extractAndValidateProviders(array $composerConfig): array {
 			// Extract raw provider class definitions and their configurations
 			// from the composer config's discovery section (typically extra.discover)
 			$providersWithConfig = $this->extractProviderClasses($composerConfig);
@@ -174,8 +157,7 @@
 				// - Check if class exists and can be autoloaded
 				// - Verify it implements required ProviderInterface
 				// - Ensure constructor is compatible with dependency injection
-				// - Log validation failures when debug mode is enabled
-				if ($this->validateProviderClass($providerData['class'], $debug)) {
+				if ($this->validateProviderClass($providerData['class'])) {
 					// Only include providers that pass all validation checks
 					// This prevents runtime errors during provider instantiation
 					$validProviders[] = $providerData;
@@ -191,23 +173,18 @@
 		 * defined and can be safely instantiated. This prevents runtime errors that
 		 * would occur if invalid providers were included in the application bootstrap.
 		 * @param string $providerClass Fully qualified class name of the provider to validate
-		 * @param bool $debug Whether to log validation failures for troubleshooting
 		 * @return bool True if provider is valid and can be used, false if validation fails
 		 */
-		protected function validateProviderClass(string $providerClass, bool $debug): bool {
+		protected function validateProviderClass(string $providerClass): bool {
 			// Verify that the provider class can be found and autoloaded
 			// This catches typos in class names, missing files, or autoloader issues
 			if (!class_exists($providerClass)) {
-				// Log missing class warning to help developers identify configuration issues
-				$this->logDebug($debug, "[WARNING] Provider class not found: {$providerClass}");
 				return false;
 			}
 			
 			// Ensure the provider class implements the required ProviderInterface contract
 			// This guarantees the class has all necessary methods for provider functionality
 			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
-				// Log interface violation to help developers fix implementation issues
-				$this->logDebug($debug, "[WARNING] Class {$providerClass} does not implement ProviderInterface");
 				return false;
 			}
 			
@@ -394,29 +371,6 @@
 		}
 		
 		/**
-		 * Log discovery start message
-		 * @param bool $debug
-		 * @param string $source
-		 * @param string|null $path
-		 * @return void
-		 */
-		private function logDiscoveryStart(bool $debug, string $source, ?string $path = null): void {
-			if ($this->familyName) {
-				$familyMsg = "providers in family '{$this->familyName}'";
-			} else {
-				$familyMsg = "providers in all families";
-			}
-			
-			if ($source === 'project') {
-				$locationMsg = "from project: {$path}";
-			} else {
-				$locationMsg = "from installed packages";
-			}
-			
-			$this->logDebug($debug, "[INFO] Looking for {$familyMsg} {$locationMsg}");
-		}
-		
-		/**
 		 * Safely reads and parses a JSON file with comprehensive error handling.
 		 * This utility method handles both file system errors (missing/unreadable files)
 		 * and JSON parsing errors (malformed JSON syntax) to prevent crashes during
@@ -444,17 +398,5 @@
 			// json_last_error() returns JSON_ERROR_NONE (0) only if parsing was successful
 			// This catches syntax errors, encoding issues, and other JSON format problems
 			return (json_last_error() === JSON_ERROR_NONE) ? $data : null;
-		}
-		
-		/**
-		 * Conditionally output debug messages
-		 * @param bool $debug
-		 * @param string $message
-		 * @return void
-		 */
-		protected function logDebug(bool $debug, string $message): void {
-			if ($debug) {
-				echo $message . PHP_EOL;
-			}
 		}
 	}

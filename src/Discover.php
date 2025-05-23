@@ -5,7 +5,6 @@
 	use RuntimeException;
 	use Composer\Autoload\ClassLoader;
 	use Quellabs\Discover\Utilities\PSR4;
-	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Scanner\ScannerInterface;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
@@ -15,11 +14,6 @@
 		 * @var array<ScannerInterface>
 		 */
 		protected array $scanners = [];
-		
-		/**
-		 * @var DiscoveryConfig
-		 */
-		protected DiscoveryConfig $config;
 		
 		/**
 		 * @var PSR4 PSR-4 Utility Class
@@ -38,10 +32,8 @@
 		
 		/**
 		 * Create a new Discover instance
-		 * @param DiscoveryConfig|null $config
 		 */
-		public function __construct(?DiscoveryConfig $config = null) {
-			$this->config = $config ?? new DiscoveryConfig();
+		public function __construct() {
 			$this->utilities = new PSR4();
 		}
 		
@@ -56,7 +48,7 @@
 			// Iterate through each registered scanner to discover providers
 			foreach ($this->scanners as $scanner) {
 				// Use the scanner to find provider classes based on configuration
-				$discoveredClasses = $scanner->scan($this->config);
+				$discoveredClasses = $scanner->scan();
 				
 				// Process each discovered class returned by the scanner
 				foreach ($discoveredClasses as $classData) {
@@ -195,24 +187,6 @@
 		public function clearProviders(): self {
 			$this->providerDefinitions = [];
 			$this->instantiatedProviders = [];
-			return $this;
-		}
-		
-		/**
-		 * Get the current configuration
-		 * @return DiscoveryConfig
-		 */
-		public function getConfig(): DiscoveryConfig {
-			return $this->config;
-		}
-		
-		/**
-		 * Set a new configuration
-		 * @param DiscoveryConfig $config
-		 * @return self
-		 */
-		public function setConfig(DiscoveryConfig $config): self {
-			$this->config = $config;
 			return $this;
 		}
 		
