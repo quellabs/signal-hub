@@ -1,8 +1,10 @@
 # Canvas
 
+[![Packagist](https://img.shields.io/packagist/v/quellabs/canvas.svg)](https://packagist.org/packages/quellabs/canvas)
+
 A modern, lightweight PHP framework built on contextual containers with automatic service discovery and ObjectQuel ORM integration.
 
-## Why Canvas?
+## The Canvas Difference
 
 Canvas takes a fundamentally different approach to dependency injection and service management. Instead of requiring developers to learn complex service configurations or remember specific service IDs, Canvas uses a **contextual container pattern** that allows you to work directly with interfaces and let the framework intelligently resolve the correct implementation based on context.
 
@@ -185,16 +187,16 @@ Each package registers itself in `composer.json`:
 
 ```json
 {
-    "extra": {
-        "discover": {
-            "template_engine": {
-                "providers": [
-                    "Quellabs\\Canvas\\Twig\\TwigServiceProvider",
-                    "Quellabs\\Canvas\\Blade\\BladeServiceProvider"
-                ]
-            }
-        }
+  "extra": {
+    "discover": {
+      "template_engine": {
+        "providers": [
+          "Quellabs\\Canvas\\Twig\\TwigServiceProvider",
+          "Quellabs\\Canvas\\Blade\\BladeServiceProvider"
+        ]
+      }
     }
+  }
 }
 ```
 
@@ -206,16 +208,16 @@ You can also register your own discoverable services:
 
 ```json
 {
-    "extra": {
-        "discover": {
-            "canvas": {
-                "providers": [
-                    "App\\Providers\\CustomCacheProvider",
-                    "App\\Providers\\PaymentServiceProvider"
-                ]
-            }
-        }
+  "extra": {
+    "discover": {
+      "canvas": {
+        "providers": [
+          "App\\Providers\\CustomCacheProvider",
+          "App\\Providers\\PaymentServiceProvider"
+        ]
+      }
     }
+  }
 }
 ```
 
@@ -257,13 +259,13 @@ class MyPackageServiceProvider extends ServiceProvider {
 
 ```json
 {
-    "extra": {
-        "discover": {
-            "canvas": {
-                "provider": "MyVendor\\MyPackage\\MyPackageServiceProvider"
-            }
-        }
+  "extra": {
+    "discover": {
+      "canvas": {
+        "provider": "MyVendor\\MyPackage\\MyPackageServiceProvider"
+      }
     }
+  }
 }
 ```
 
@@ -279,7 +281,7 @@ Canvas is designed for performance:
 
 ## Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+We welcome contributions! Please open an issue or submit a pull request.
 
 ## License
 
