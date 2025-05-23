@@ -5,7 +5,6 @@
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
-	use Quellabs\Discover\Config\DiscoveryConfig;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
 	
@@ -26,11 +25,6 @@
 		protected Autowirer $autowire;
 		
 		/**
-		 * Whether to output debug information
-		 */
-		protected bool $debug;
-		
-		/**
 		 * Base path where the application is installed
 		 */
 		protected string $basePath;
@@ -48,12 +42,10 @@
 		/**
 		 * Container constructor with automatic service discovery
 		 * @param string|null $basePath Base path of the application
-		 * @param bool $debug Whether to output debug information
 		 * @param string $configKey The key to look for in composer.json (default: 'di')
 		 */
-		public function __construct(?string $basePath = null, bool $debug = false, string $configKey = 'di') {
+		public function __construct(?string $basePath = null, string $configKey = 'di') {
 			$this->autowire = new Autowirer($this);
-			$this->debug = $debug;
 			$this->basePath = $basePath ?? getcwd();
 			
 			// Create the default provider
@@ -131,14 +123,6 @@
 					array_pop($this->resolutionStack);
 				}
 				
-				if ($this->debug) {
-					echo "[ERROR] Failed to resolve {$className}: {$e->getMessage()}\n";
-					
-					if ($e->getTraceAsString()) {
-						echo $e->getTraceAsString() . "\n";
-					}
-				}
-				
 				return null;
 			}
 		}
@@ -160,18 +144,13 @@
 		
 		/**
 		 * Discover and register service providers
-		 * @param string $configKey The key to look for in composer.json
+		 * @param string $familyName The key to look for in composer.json
 		 * @return self
 		 */
-		protected function discover(string $configKey): self {
-			// Configure discovery
-			$config = new DiscoveryConfig([
-				'debug' => $this->debug
-			]);
-			
+		protected function discover(string $familyName): self {
 			// Create and configure Discover
-			$discover = new Discover($config);
-			$discover->addScanner(new ComposerScanner($configKey, $this->basePath));
+			$discover = new Discover();
+			$discover->addScanner(new ComposerScanner($familyName));
 			
 			// Run discovery
 			$discover->discover();
@@ -180,12 +159,6 @@
 			foreach ($discover->getProviders() as $provider) {
 				if ($provider instanceof Provider\ServiceProviderInterface) {
 					$this->register($provider);
-					continue;
-				}
-				
-				// Show a debug message when provider does not implement Provider\ServiceProviderInterface
-				if ($this->debug) {
-					echo "[WARNING] Provider " . get_class($provider) . " does not implement ServiceProviderInterface\n";
 				}
 			}
 			
