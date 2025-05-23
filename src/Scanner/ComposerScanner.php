@@ -304,7 +304,7 @@
 				if (is_string($definition)) {
 					// Normalize simple string definitions into standard structure
 					$result[] = [
-						'class' => $definition,              // Fully qualified class name
+						'class' => $definition,             // Fully qualified class name
 						'config' => null,                   // No additional configuration
 						'family' => $familyName             // Associate with current family
 					];
@@ -365,8 +365,8 @@
 			if (is_string($definition)) {
 				// Return normalized provider structure with separate config if available
 				return [[
-					'class' => $definition,           // Provider class name
-					'config' => $separateConfig,      // Use family-level config if present
+					'class' => $definition,          // Provider class name
+					'config' => $separateConfig,     // Use family-level config if present
 					'family' => $familyName          // Associate with current family
 				]];
 			}
@@ -384,7 +384,7 @@
 				return [[
 					'class' => $definition['class'],  // Required: provider class name
 					'config' => $finalConfig,         // Resolved configuration with precedence
-					'family' => $familyName          // Associate with current family
+					'family' => $familyName           // Associate with current family
 				]];
 			}
 			
