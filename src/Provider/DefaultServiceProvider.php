@@ -23,10 +23,8 @@
 		
 		/**
 		 * DefaultServiceProvider constructor
-		 * @param Container $container
 		 */
-		public function __construct(Container $container) {
-			parent::__construct($container);
+		public function __construct() {
 			$this->discovery = new Discover();
 			$this->discovery->addScanner(new ComposerScanner());
 		}

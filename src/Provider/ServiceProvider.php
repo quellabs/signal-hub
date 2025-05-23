@@ -15,20 +15,6 @@
 	abstract class ServiceProvider extends AbstractProvider implements ServiceProviderInterface {
 		
 		/**
-		 * This property stores the dependency injection container instance
-		 * that will be used to register and resolve services.
-		 */
-		protected Container $container;
-		
-		/**
-		 * ServiceProvider constructor
-		 * @param Container $container The dependency injection container
-		 */
-		public function __construct(Container $container) {
-			$this->container = $container;
-		}
-		
-		/**
 		 * Implements the required method from ProviderInterface
 		 */
 		public static function getMetadata(): array {

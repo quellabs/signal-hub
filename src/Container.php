@@ -49,7 +49,7 @@
 			$this->basePath = $basePath ?? getcwd();
 			
 			// Create the default provider
-			$this->defaultProvider = new DefaultServiceProvider($this);
+			$this->defaultProvider = new DefaultServiceProvider();
 			
 			// Automatically discover and register service providers
 			$this->discover($configKey);
@@ -165,4 +165,3 @@
 			return $this;
 		}
 	}
-	
