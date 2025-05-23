@@ -11,6 +11,7 @@
     "ext-curl": "*",
     "ext-gd": "*",
     "ext-fileinfo": "*",
+    "quellabs/contracts": "dev-main",
     "quellabs/annotation-reader": "dev-main",
     "quellabs/discover": "dev-main",
     "quellabs/dependency-injection": "dev-main",
