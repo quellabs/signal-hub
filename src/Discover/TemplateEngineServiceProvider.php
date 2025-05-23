@@ -14,6 +14,12 @@
 	class TemplateEngineServiceProvider extends ServiceProvider {
 		
 		/**
+		 * Cached singleton instance of the template engine.
+		 * @var TemplateEngineInterface|null
+		 */
+		private static ?TemplateEngineInterface $instance = null;
+		
+		/**
 		 * Determines if this service provider can handle the given class name.
 		 * @param string $className The fully qualified class name to check
 		 * @return bool True if this provider supports the TemplateEngineInterface
@@ -30,6 +36,11 @@
 		 * @throws \RuntimeException If the preferred template engine is not found
 		 */
 		public function createInstance(string $className, array $dependencies): object {
+			// Return existing instance if already created (singleton behavior)
+			if (self::$instance !== null) {
+				return self::$instance;
+			}
+			
 			// Read template engine config - in real implementation this would come from config file/service
 			$preferredEngine = 'smarty';
 			
@@ -49,9 +60,26 @@
 				throw new \RuntimeException("Template engine '{$preferredEngine}' not found");
 			}
 			
-			// Return the first matching provider (could be enhanced to support priority/ranking)
-			// Note: In a complete implementation, this would likely instantiate the provider
-			// rather than returning the provider class itself
-			return $providers[0];
+			// Get the first matching template engine instance
+			$templateEngine = $providers[0];
+
+			// Ensure the discovered instance implements the expected interface
+			if (!$templateEngine instanceof TemplateEngineInterface) {
+				throw new \RuntimeException("Discovered template engine does not implement TemplateEngineInterface");
+			}
+			
+			// Cache the instance for future requests (singleton pattern)
+			self::$instance = $templateEngine;
+			
+			// Return the singleton instance
+			return self::$instance;
+		}
+		
+		/**
+		 * Reset the singleton instance (useful for testing or configuration changes).
+		 * @return void
+		 */
+		public static function resetInstance(): void {
+			self::$instance = null;
 		}
 	}
