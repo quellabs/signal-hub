@@ -223,16 +223,48 @@ You can also register your own discoverable services:
 
 ## Configuration
 
-Canvas favors convention over configuration, but allows customization when needed:
+Canvas follows a convention-over-configuration approach, providing sensible defaults while offering flexibility for customization when your application requires it.
+
+### Creating a Configuration File
+
+Start by creating a configuration file in your project. For this example, we'll place it at `src/config/database.php`:
 
 ```php
 <?php
-    return [
-        'name' => 'My Canvas App',
-        'env' => env('APP_ENV', 'production'),
-        'debug' => env('APP_DEBUG', false),
-    ];
+
+return [
+    'driver'   => 'mysql',
+    'host'     => 'localhost',
+    'database' => 'my_database',
+    'username' => 'root',
+    'password' => 'root',
+];
 ```
+
+This example shows a basic configuration structure. You can define any configuration values your service needs.
+
+### Registering the Configuration
+
+Next, register your configuration file by adding its path to your `composer.json` file:
+
+```json
+{
+  "extra": {
+    "discover": {
+      "di": {
+        "providers": [
+          {
+            "class": "Quellabs\\Canvas\\Discover\\ObjectQuelServiceProvider",
+            "config": "src/config/database.php"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+After updating your `composer.json`, run `composer dump-autoload` to ensure the changes are recognized.
 
 ## Package Development
 
