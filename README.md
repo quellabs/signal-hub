@@ -41,11 +41,12 @@ The container supports contextual service resolution through the `for()` method,
 $objectQuelEM = $container->for('objectquel')->get(EntityManagerInterface::class);
 $doctrineEM = $container->for('doctrine')->get(EntityManagerInterface::class);
 
-// Reuse context for multiple services
+// Create a contextual container with 'objectquel' context
 $objectQuelContainer = $container->for('objectquel');
-$em = $objectQuelContainer->get(EntityManagerInterface::class);
-$migrator = $objectQuelContainer->get(MigratorInterface::class);
-$queryBuilder = $objectQuelContainer->get(QueryBuilderInterface::class);
+
+// Now get multiple services, all using the 'objectquel' context
+$em = $objectQuelContainer->get(EntityManagerInterface::class);           // ObjectQuel EntityManager
+$queryBuilder = $objectQuelContainer->get(QueryBuilderInterface::class);  // ObjectQuel QueryBuilder
 
 // Use complex context with multiple parameters
 $cache = $container->for(['driver' => 'redis', 'cluster' => 'main'])->get(CacheInterface::class);
