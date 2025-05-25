@@ -36,6 +36,7 @@
     "quellabs/annotation-reader": "dev-main",
     "quellabs/sculpt": "dev-main",
     "quellabs/discover": "dev-main",
+    "quellabs/dependency-injection": "dev-main",
     "robmorgan/phinx": "^0.13.4",
     "cakephp/database": "^4.4",
     "softcreatr/jsonpath": "*"
@@ -50,6 +51,14 @@
       "sculpt": {
         "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
       }
+    },
+    "di": {
+      "providers": [
+        {
+          "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
+          "config": "src/config/database.php"
+        }
+      ]
     }
   }
 }
