@@ -6,59 +6,118 @@
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	
 	class Parser {
+
+		// Default keys used throughout the parser
+		private const DEFAULT_VALUE_KEY = 'value';
+		private const SWAGGER_PREFIX = 'OA\\';
 		
-		protected Lexer $lexer;
-		protected array $ignore_annotations;
+		/** @var Lexer The lexer instance for tokenizing input */
+		private Lexer $lexer;
+		
+		/** @var array List of annotation names to ignore during parsing */
+		private array $ignore_annotations;
+		
+		/** @var array Fast lookup set for ignored annotations (using array keys for O(1) lookup) */
+		private array $ignore_annotations_set;
+		
+		/**
+		 * @var array<string, array{segments: string[], fqcn: string, lastPart: string, namespace: string}>
+		 * Preprocessed import data for faster class resolution
+		 */
+		private array $preprocessed_imports = [];
+		
+		/**
+		 * @var array<string, string[]>
+		 * Reverse mapping from namespace segments to full namespaces for quick lookups
+		 */
+		private array $namespace_map = [];
 		
 		/**
 		 * @var array<string, string> Map of aliases to fully qualified class names
 		 */
-		protected array $imports = [];
-
+		private array $imports = [];
+		
 		/**
-		 * @var array Cache property
+		 * @var array Cache for resolved class references to avoid repeated resolution
 		 */
 		private array $classReferenceCache = [];
 		
 		/**
-		 * @var array<string, mixed> Configuration array
+		 * @var array<string, mixed> Configuration array for resolving configuration placeholders
 		 */
-		protected array $configuration;
+		private array $configuration;
 		
 		/**
 		 * Parser constructor.
-		 * @param Lexer $lexer
+		 * @param Lexer $lexer The lexer instance for tokenizing input
+		 * @param array<string, mixed> $configuration Configuration array for placeholder resolution
 		 * @param array<string, string> $imports Optional map of aliases to fully qualified class names
 		 */
 		public function __construct(Lexer $lexer, array $configuration=[], array $imports = []) {
+			// Store the lexer instance for token processing
 			$this->lexer = $lexer;
+			
+			// Store configuration for resolving ${config.key} placeholders
 			$this->configuration = $configuration;
+			
+			// Store import mappings for class resolution
 			$this->imports = $imports;
+			
+			// Define standard PHP doc annotations that should be ignored during parsing
 			$this->ignore_annotations = [
-				'param',
-				'return',
-				'var',
-				'type',
-				'throws',
-				'todo',
-				'fixme',
-				'author',
-				'copyright',
-				'license',
-				'package',
-				'template',
-				'url',
-				'note',
-				'deprecated',
-				'since',
-				'see',
-				'example',
-				'inheritdoc',
-				'internal',
-				'api',
-				'version',
-				'category'
+				'param',      // Method parameter documentation
+				'return',     // Return type documentation
+				'var',        // Variable type documentation
+				'type',       // Type hint documentation
+				'throws',     // Exception documentation
+				'todo',       // TODO comments
+				'fixme',      // FIXME comments
+				'author',     // Author information
+				'copyright',  // Copyright information
+				'license',    // License information
+				'package',    // Package information
+				'template',   // Template documentation
+				'url',        // URL references
+				'note',       // General notes
+				'deprecated', // Deprecation notices
+				'since',      // Version since information
+				'see',        // See also references
+				'example',    // Example code
+				'inheritdoc', // Inherit documentation
+				'internal',   // Internal use only
+				'api',        // API documentation
+				'version',    // Version information
+				'category'    // Category classification
 			];
+			
+			// Create a fast lookup set from ignored annotations (O(1) instead of O(n) lookups)
+			$this->ignore_annotations_set = array_flip($this->ignore_annotations);
+			
+			// Preprocess imports for faster class resolution during parsing
+			$this->preprocessImports();
+		}
+		
+		/**
+		 * Preprocess imports for faster class resolution
+		 */
+		private function preprocessImports(): void {
+			foreach ($this->imports as $alias => $fqcn) {
+				// Split each import into segments for easier matching
+				$segments = explode('\\', $fqcn);
+				
+				$this->preprocessed_imports[$alias] = [
+					'segments'  => $segments,
+					'fqcn'      => $fqcn,
+					'lastPart'  => end($segments),
+					'namespace' => implode('\\', array_slice($segments, 0, -1))
+				];
+				
+				// Create reverse mapping for namespace lookups
+				foreach ($segments as $index => $segment) {
+					$partialNamespace = implode('\\', array_slice($segments, 0, $index + 1));
+					$this->namespace_map[$segment][] = $partialNamespace;
+				}
+			}
 		}
 		
 		/**
@@ -109,7 +168,7 @@
 			
 			// Handle a JSON string
 			if ($this->lexer->optionalMatch(Token::CurlyBraceOpen)) {
-				$value = $this->parseJson();
+				$value = $this->parseAttributeList();
 				$this->lexer->match(Token::CurlyBraceClose);
 				return $value;
 			}
@@ -151,11 +210,11 @@
 		 * @return mixed
 		 * @throws LexerException|ParserException|\ReflectionException
 		 */
-		protected function parseJsonValue(): mixed {
+		protected function parseAttributeValue(): mixed {
 			$parameterValue = new Token();
 			
 			if ($this->lexer->optionalMatch(Token::CurlyBraceOpen)) {
-				$value = $this->parseJson();
+				$value = $this->parseAttributeList();
 				$this->lexer->match(Token::CurlyBraceClose);
 			} elseif ($this->lexer->optionalMatch(Token::String, $parameterValue) || $this->lexer->optionalMatch(Token::Number, $parameterValue)) {
 				$value = $parameterValue->getValue();
@@ -174,51 +233,62 @@
 		}
 		
 		/**
-		 * Parses a JSON-like structure into an associative array
-		 * Can handle both key-value pairs and simple value arrays
-		 * @return array The parsed JSON data as an associative or indexed array
-		 * @throws LexerException If the JSON structure is invalid
-		 * @throws ParserException If the JSON structure is invalid
-		 * @throws \ReflectionException
+		 * Parses an attribute list into an associative array
+		 * Can handle annotations, key-value pairs (key=value), and simple value arrays
+		 * @return array The parsed attributes as an associative or indexed array
+		 * @throws LexerException If tokenization fails
+		 * @throws ParserException If the attribute structure is invalid
+		 * @throws \ReflectionException If annotation reflection fails
 		 */
-		protected function parseJson(): array {
-			// Initialize an empty array to store the parsed parameters
-			$parameters = [];
+		protected function parseAttributeList(): array {
+			// Initialize an empty array to store the parsed attributes
+			$attributes = [];
 			
 			do {
-				// Create a new token to store the parameter key
-				$parameterKey = new Token();
+				// Declare variables before use
+				$annotationToken = null;
+				$attributeKey = null;
 				
-				// Try to match a string token for the parameter key
-				if (!$this->lexer->optionalMatch(Token::String, $parameterKey)) {
+				// Handle annotation syntax (@AnnotationName)
+				if ($this->lexer->optionalMatch(Token::Annotation, $annotationToken)) {
+					// Parse the annotation and store it using its class name as the key
+					$annotation = $this->parseAnnotation($annotationToken);
+					
+					$attributes[get_class($annotation)] = $annotation;
+					
+					continue;
+				}
+				
+				// Try to match a string token for the attribute key
+				if (!$this->lexer->optionalMatch(Token::String, $attributeKey)) {
 					// If not a string, try to match a number token
-					if (!$this->lexer->optionalMatch(Token::Number, $parameterKey)) {
+					if (!$this->lexer->optionalMatch(Token::Number, $attributeKey)) {
 						// If neither string nor number, throw an exception
-						throw new ParserException("Expected number or string, got " . $parameterKey->toString($parameterKey->getType()));
+						throw new ParserException("Expected number or string, got " . $attributeKey->toString($attributeKey->getType()));
 					}
 				}
 				
 				// Check if this is a key-value pair (has an equals sign)
 				if (!$this->lexer->optionalMatch(Token::Equals)) {
 					// No equals sign found, treat as a simple array value
-					$parameters[] = $parameterKey->getValue();
+					$attributes[] = $attributeKey->getValue();
 					continue;
 				}
 				
 				// Parse the value part of the key-value pair
-				$value = $this->parseJsonValue();
+				$value = $this->parseAttributeValue();
 				
 				// Ensure the value is valid
 				if ($value === null) {
 					throw new ParserException("Invalid value type");
 				}
 				
-				// Add the key-value pair to the parameter array
-				$parameters[$parameterKey->getValue()] = $value;
-			} while ($this->lexer->optionalMatch(Token::Comma)); // Continue if there's a comma, indicating more parameters
+				// Add the key-value pair to the attributes array
+				$attributes[$attributeKey->getValue()] = $value;
+			} while ($this->lexer->optionalMatch(Token::Comma)); // Continue if there's a comma, indicating more attributes
 			
-			// Return the complete parameters array
-			return $parameters;
+			// Return the complete attributes array
+			return $attributes;
 		}
 		
 		/**
@@ -240,6 +310,7 @@
 						continue;
 					}
 					
+					// Parse the value
 					$value = $this->parseValue($parameterValue);
 					
 					// Early failure if value parsing failed
@@ -251,7 +322,7 @@
 					continue;
 				}
 				
-				// Handle unnamed parameter case
+				// Handle an unnamed parameter case
 				$value = $this->parseValue($parameterKey);
 				
 				// Skip if value parsing failed
@@ -259,11 +330,42 @@
 					continue;
 				}
 				
-				$parameters["value"] = $value;
+				$parameters[self::DEFAULT_VALUE_KEY] = $value;
 				
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			return $parameters;
+		}
+		
+		/**
+		 * Parses an annotation
+		 * @param Token $token
+		 * @return object
+		 * @throws LexerException
+		 * @throws ParserException
+		 * @throws \ReflectionException
+		 */
+		protected function parseAnnotation(Token $token): object {
+			// Fetch the annotation class name
+			$value = $token->getValue();
+			
+			// Resolve the annotation class name using imports
+			$tokenName = $this->resolveClassName($value);
+			
+			// Check if the class exists
+			if (!class_exists($tokenName)) {
+				throw new ParserException("Annotation class not found: {$tokenName}");
+			}
+			
+			// Parse the parameters or use an empty array
+			$parameters = [];
+			
+			if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
+				$parameters = $this->parseParameters();
+				$this->lexer->match(Token::ParenthesesClose);
+			}
+			
+			return new $tokenName($parameters);
 		}
 		
 		/**
@@ -306,21 +408,27 @@
 				return $this->classReferenceCache[$className] = $className;
 			}
 			
-			// Preprocess imports once: explode all into segments
+			// Fetch parts information
 			$parts = explode('\\', $className);
 			$firstPart = $parts[0];
 			$lastPart = end($parts);
+
+			// 1. Look for direct alias match with the first part
+			if (isset($this->preprocessed_imports[$firstPart])) {
+				$import = $this->preprocessed_imports[$firstPart];
+				$candidateClass = $import['namespace'] . '\\' . $className;
+				
+				if (class_exists($candidateClass) || interface_exists($candidateClass)) {
+					return $this->classReferenceCache[$className] = $candidateClass;
+				}
+			}
 			
-			$importSegments = array_map(function ($importedClass) {
-				return explode('\\', $importedClass);
-			}, $this->imports);
-			
-			// 1. Look for an import that contains the first part
-			foreach ($importSegments as $alias => $segments) {
-				$position = array_search($firstPart, $segments, true);
+			// 2. Look for imports that contain the first part in their segments
+			foreach ($this->preprocessed_imports as $import) {
+				$position = array_search($firstPart, $import['segments'], true);
 				
 				if ($position !== false) {
-					$baseNamespace = implode('\\', array_slice($segments, 0, $position));
+					$baseNamespace = implode('\\', array_slice($import['segments'], 0, $position));
 					$candidateClass = $baseNamespace . '\\' . $className;
 					
 					if (class_exists($candidateClass) || interface_exists($candidateClass)) {
@@ -329,34 +437,22 @@
 				}
 			}
 			
-			// 2. Try to match the last part with imported classes that contain the first part
-			foreach ($this->imports as $importedClass) {
-				if (str_ends_with($importedClass, '\\' . $lastPart) && str_contains($importedClass, '\\' . $firstPart . '\\')) {
-					return $this->classReferenceCache[$className] = $importedClass;
+			// 3. Try to match the last part with imported classes that contain the first part
+			foreach ($this->preprocessed_imports as $import) {
+				if ($import['lastPart'] === $lastPart &&
+					in_array($firstPart, $import['segments'], true)) {
+					return $this->classReferenceCache[$className] = $import['fqcn'];
 				}
 			}
 			
-			// 3. Build a list of parent namespaces
-			$potentialNamespaces = [];
-			
-			foreach ($importSegments as $segments) {
-				array_pop($segments); // Remove the class name
-				$currentNamespace = '';
-				
-				foreach ($segments as $segment) {
-					$currentNamespace .= ($currentNamespace ? '\\' : '') . $segment;
-					$potentialNamespaces[] = $currentNamespace;
-				}
-			}
-			
-			// Sort by length descending so deeper namespaces are tried first
-			usort($potentialNamespaces, fn($a, $b) => strlen($b) <=> strlen($a));
-			
-			foreach ($potentialNamespaces as $namespace) {
-				$candidateClass = $namespace . '\\' . $className;
-				
-				if (class_exists($candidateClass) || interface_exists($candidateClass)) {
-					return $this->classReferenceCache[$className] = $candidateClass;
+			// 4. Try namespace-based resolution using the preprocessed namespace map
+			if (isset($this->namespace_map[$firstPart])) {
+				foreach ($this->namespace_map[$firstPart] as $namespace) {
+					$candidateClass = $namespace . '\\' . implode('\\', array_slice($parts, 1));
+					
+					if (class_exists($candidateClass) || interface_exists($candidateClass)) {
+						return $this->classReferenceCache[$className] = $candidateClass;
+					}
 				}
 			}
 			
@@ -407,7 +503,7 @@
 			// Return as is if nothing matched
 			return $className;
 		}
-		
+
 		/**
 		 * Parse the Docblock
 		 * @return array
@@ -428,33 +524,24 @@
 					// Skip ignored annotations
 					$value = $token->getValue();
 					
-					if (in_array($value, $this->ignore_annotations)) {
+					if (isset($this->ignore_annotations_set[$value])) {
 						$token = $this->lexer->get();
 						continue;
 					}
 					
 					// Skip swagger docs
-					if (str_starts_with($value, "OA\\")) {
+					if (str_starts_with($value, self::SWAGGER_PREFIX)) {
 						$token = $this->lexer->get();
 						continue;
 					}
 					
-					// Resolve the annotation class name using imports
-					$tokenName = $this->resolveClassName($value);
+					// Parse the annotation
+					$annotation = $this->parseAnnotation($token);
 					
-					// Check if the class exists
-					if (!class_exists($tokenName)) {
-						throw new ParserException("Annotation class not found: {$tokenName}");
-					}
+					// Add the annotation to the result
+					$result[get_class($annotation)] = $annotation;
 					
-					// Parse the parameters or use an empty array
-					$parameters = [];
-					if ($this->lexer->optionalMatch(Token::ParenthesesOpen)) {
-						$parameters = $this->parseParameters();
-						$this->lexer->match(Token::ParenthesesClose);
-					}
-					
-					$result[$tokenName] = new $tokenName($parameters);
+					// Get the next token
 					$token = $this->lexer->get();
 				}
 				

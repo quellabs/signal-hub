@@ -101,17 +101,25 @@
 		 * @throws LexerException
 		 */
 		public function optionalMatch(int $token, Token &$result = null): bool {
+			// Check if the current lookahead token matches the expected token type
 			if ($this->lookahead->getType() == $token) {
+				// Store the current token before advancing
 				$currentToken = $this->lookahead;
+				
+				// Advance to the next token in the stream
 				$this->lookahead = $this->nextToken();
 				
-				if (!is_null($result)) {
+				// Only assign the matched token to result if a reference parameter was provided
+				// This handles the edge case where passing null by reference doesn't work as expected
+				if (func_num_args() > 1) {
 					$result = $currentToken;
 				}
 				
+				// Return true to indicate successful match
 				return true;
 			}
 			
+			// Token didn't match, return false without consuming any tokens
 			return false;
 		}
 		

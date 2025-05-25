@@ -25,7 +25,10 @@
 	it('reads annotation correctly', function () {
 		$classWithMethodAnnotations = new class {
 			/**
-			 * @Quellabs\AnnotationReader\AnnotationTest\Test(name="test")
+			 * @Quellabs\AnnotationReader\AnnotationTest\Test(
+			 *     name="test",
+			 *     value={@Quellabs\AnnotationReader\AnnotationTest\AnotherTest()}
+			 * )
 			 */
 			public function test() {
 			}
