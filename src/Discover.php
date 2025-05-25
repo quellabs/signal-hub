@@ -118,6 +118,11 @@
 		 * @return ProviderInterface|null The provider instance if found, null otherwise
 		 */
 		public function get(string $className): ?ProviderInterface {
+			// If the class does exist, we do not need to check the provider definitions
+			if (!class_exists($className)) {
+				return null;
+			}
+			
 			// Iterate through all discovered provider definitions.
 			// Each definition contains metadata gathered during discovery without instantiation.
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
@@ -139,6 +144,11 @@
 		 * @return bool True if a provider definition exists for the class, false otherwise
 		 */
 		public function exists(string $className): bool {
+			// If the class does exist, we do not need to check the provider definitions
+			if (!class_exists($className)) {
+				return false;
+			}
+			
 			// Iterate through all discovered provider definitions
 			foreach ($this->providerDefinitions as $definition) {
 				// Check if this definition matches the requested class name
