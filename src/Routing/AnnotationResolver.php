@@ -61,8 +61,8 @@
 		 * @return string Absolute path to controllers directory
 		 */
 		protected function getControllerDirectory(): string {
-			$configuration = $this->kernel->getConfiguration();
-			$directory = $configuration['CONTROLLERS_DIRECTORY'];
+			// Fetch the directory to the controllers
+			$directory = !empty(getenv('CONTROLLERS_DIRECTORY')) ? getenv('CONTROLLERS_DIRECTORY') : dirname(__FILE__) . "/../Controller";
 			
 			// Return an empty string when the user didn't specify CONTROLLERS_DIRECTORY
 			if (empty($directory)) {
