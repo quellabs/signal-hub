@@ -238,7 +238,8 @@ $user = $em->find(User::class, $id);
 $user = new User();
 $user->name = 'John';
 $user->email = 'john@example.com';
-// ObjectQuel handles persistence automatically
+$em->persist($user);
+$em->flush();
 ```
 
 ### Aspect-Oriented Programming
