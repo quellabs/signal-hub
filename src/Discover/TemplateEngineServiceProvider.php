@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Discover;
 	
-	use Quellabs\Canvas\Templating\TemplateEngineInterface;
+	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
@@ -47,13 +47,13 @@
 			
 			// Initialize the discovery system to find available template engines
 			$discover = new Discover();
-			$discover->addScanner(new ComposerScanner('template_engine'));
+			$discover->addScanner(new ComposerScanner('template-engine'));
 			$discover->discover();
 			
 			// Find template engine providers that match our preferred engine type
 			$providers = $discover->findProvidersByMetadata(function ($metadata) use ($preferredEngine) {
 				// Check if the provider's metadata indicates it implements the preferred engine
-				return isset($metadata['engine']) && $metadata['engine'] === $preferredEngine;
+				return isset($metadata['provider']) && $metadata['provider'] === $preferredEngine;
 			});
 			
 			// Ensure we found at least one matching provider

@@ -28,6 +28,7 @@
     "quellabs/objectquel": "dev-main",
     "quellabs/sculpt": "dev-main",
     "quellabs/signal-hub": "dev-main",
+    "quellabs/canvas-smarty": "dev-main",
     "smarty/smarty": "^4.3",
     "symfony/http-foundation": "*",
     "vlucas/phpdotenv": "*"
@@ -41,9 +42,6 @@
     "discover": {
       "di": {
         "provider": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"
-      },
-      "template_engine": {
-        "provider": "Quellabs\\Canvas\\Templating\\SmartyTemplateProvider"
       },
       "sculpt": {
         "provider": "Quellabs\\Canvas\\Sculpt\\RoutesProvider"

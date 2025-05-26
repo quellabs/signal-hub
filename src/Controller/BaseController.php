@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Controller;
 	
-	use Quellabs\Canvas\Templating\TemplateEngineInterface;
+	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\ObjectQuel\EntityManager;
 	
 	/**
