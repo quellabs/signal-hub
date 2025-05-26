@@ -206,19 +206,19 @@
 		
 		/**
 		 * Set directory where proxy classes will be stored
-		 * @param string $proxyDir
+		 * @param string|null $proxyDir
 		 * @return self
 		 */
-		public function setProxyDir(string $proxyDir): self {
+		public function setProxyDir(?string $proxyDir): self {
 			$this->proxyDir = $proxyDir;
 			return $this;
 		}
 		
 		/**
 		 * Get proxy directory
-		 * @return string
+		 * @return string|null
 		 */
-		public function getProxyDir(): string {
+		public function getProxyDir(): ?string {
 			return $this->proxyDir;
 		}
 		

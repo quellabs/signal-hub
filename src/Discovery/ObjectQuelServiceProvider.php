@@ -57,13 +57,17 @@
 			// Create new configuration instance
 			$config = new Configuration();
 			
-			// Set file system paths for ORM components
-			$config->setEntityPath(__DIR__ . '/../Entity');         // Directory containing entity classes
-			$config->setProxyDir(__DIR__ . '/../Proxies');       // Directory for generated proxy classes
+			// Directory containing entity classes
+			$config->setEntityPath($configData["entity_path"] ?? __DIR__ . '/../Entity');
 			
-			// Configure metadata caching for improved performance
-			$config->setUseMetadataCache(true);                          // Enable metadata caching
-			$config->setMetadataCachePath(__DIR__ . '/../Cache/Annotations'); // Cache storage directory
+			// Directory for generated proxy classes
+			$config->setProxyDir($configData["proxy_path"] ?? __DIR__ . '/../Proxies');
+			
+			// Enable metadata caching
+			$config->setUseMetadataCache(true);
+			
+			// Set metadata path
+			$config->setMetadataCachePath($configData["metadata_path"] ?? __DIR__ . '/../Cache/Annotations');
 			
 			// Configure database connection parameters with fallback defaults
 			$config->setDatabaseParams(
