@@ -1,0 +1,35 @@
+{
+  "name": "quellabs/canvas",
+  "description": "A modern, lightweight PHP framework with contextual containers, automatic service discovery, and ObjectQuel ORM integration",
+  "keywords": [
+    "framework",
+    "contextual-containers",
+    "dependency-injection",
+    "templating"
+  ],
+  "type": "library",
+  "license": "MIT",
+  "config": {
+    "platform": {
+      "php": "8.3"
+    }
+  },
+  "require": {
+    "smarty/smarty": "^4.3",
+    "quellabs/discover": "dev-main",
+    "quellabs/dependency-injection": "dev-main",
+    "quellabs/contracts": "dev-main"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\Canvas\\TemplateSystems\\": "src/"
+    }
+  },
+  "extra": {
+    "discover": {
+      "di": {
+        "provider": "Quellabs\\Canvas\\TemplateSystems\\SmartyTemplateProvider"
+      }
+    }
+  }
+}
