@@ -299,6 +299,34 @@ composer require quellabs/canvas-redis     # Redis integration
 
 Canvas automatically discovers and configures new services through Composer metadata.
 
+## CLI Commands
+
+Canvas includes a command-line interface called Sculpt for managing your application:
+
+### Listing Routes
+
+View all registered routes in your application:
+
+```bash
+./vendor/bin/sculpt route:list
+```
+
+This displays a formatted table showing your routes, controllers, and applied aspects:
+
+```
++-------+---------------------------------------+---------+
+| Route | Controller                            | Aspects |
++-------+---------------------------------------+---------+
+| /henk | Quellabs\Canvas\Controller\Test@index | [XYZ]   |
++-------+---------------------------------------+---------+
+```
+
+The route list helps you:
+- See all available routes at a glance
+- Verify route patterns and controller mappings
+- Check which aspects are applied to each route
+- Debug routing issues during development
+
 ## Aspect-Oriented Programming in Detail
 
 Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic.

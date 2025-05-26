@@ -40,12 +40,13 @@
   "extra": {
     "discover": {
       "di": {
-        "providers": [
-          {"class": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"}
-        ]
+        "provider": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"
       },
       "template_engine": {
         "provider": "Quellabs\\Canvas\\Templating\\SmartyTemplateProvider"
+      },
+      "sculpt": {
+        "provider": "Quellabs\\Canvas\\Sculpt\\RoutesProvider"
       }
     }
   }
