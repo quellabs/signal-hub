@@ -3,6 +3,7 @@
     namespace Quellabs\Canvas;
     
     use Dotenv\Dotenv;
+    use Dotenv\Exception\InvalidEncodingException;
     use Dotenv\Exception\InvalidFileException;
     use Dotenv\Exception\InvalidPathException;
     use Quellabs\AnnotationReader\AnnotationReader;
@@ -16,7 +17,6 @@
     
     class Kernel {
 	    
-	    private array $configuration;
 	    private Discover $discover; // Service discovery
 	    private Container $di; // Dependency Injection
 	    private AnnotationReader $annotationsReader; // Annotation reading
@@ -27,12 +27,12 @@
 	    public function __construct() {
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
-			
-			// Register Discovery service
-		    $this->discover = new Discover();
 		    
 		    // Read the environment file
-		    $this->configuration = $this->readEnvironmentFile();
+		    $this->loadEnvironmentFile();
+		    
+		    // Register Discovery service
+		    $this->discover = new Discover();
 		    
 		    // Config for AnnotationsReader
 		    $annotationsReaderConfig = new Configuration();
@@ -42,14 +42,6 @@
 		    $this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
 	    }
 	    
-	    /**
-	     * Returns the parsed contents of the .env file
-	     * @return array
-	     */
-	    public function getConfiguration(): array {
-		    return $this->configuration;
-	    }
-		
 		/**
 	     * Returns the Service Discovery object
 		 * This also provides PSR-4 utilities
@@ -138,24 +130,20 @@
 	    }
 	    
 	    /**
-	     * Reads and parses the .env file into an array
-	     * Uses the vlucas/phpdotenv library to parse environment variables
-	     * Does not load variables into $_ENV or $_SERVER
-	     * @return array Array containing all environment variables as key-value pairs
-	     * @throws InvalidFileException If the .env file format is invalid
-	     * @throws InvalidPathException If the .env file cannot be found
+	     * Loads the .env file into $_ENV, $_SERVER and getenv()
+	     * @return void
 	     */
-	    private function readEnvironmentFile(): array {
-		    // Create a new Dotenv instance pointing to current directory
-		    $dotenv = Dotenv::createImmutable(__DIR__);
-		    
-		    // Fetch the project root
-		    $projectRoot = $this->discover->getProjectRoot();
-		    
-		    // Read raw contents of the .env file from parent directory
-		    $content = file_get_contents($projectRoot . DIRECTORY_SEPARATOR . '.env');
-		    
-		    // Parse the raw content into an associative array using Dotenv parser
-		    return $dotenv->parse($content);
+	    private function loadEnvironmentFile(): void {
+		    try {
+			    // Fetch the project root
+			    $projectRoot = $this->discover->getProjectRoot();
+			    
+			    // Create a new Dotenv instance pointing to project root
+			    $dotenv = Dotenv::createImmutable($projectRoot);
+			    
+			    // Load variables into $_ENV, $_SERVER, and getenv()
+			    $dotenv->load();
+			} catch (InvalidEncodingException |InvalidFileException | InvalidPathException $e) {
+		    }
 	    }
     }
