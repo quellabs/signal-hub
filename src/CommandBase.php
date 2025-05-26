@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Sculpt;
 	
-	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\CommandInterface;
