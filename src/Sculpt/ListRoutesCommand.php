@@ -137,11 +137,17 @@
 					}
 				}
 			}
-			
-			// Sort routes alphabetically by controller name for consistent ordering
+
+			// Sort routes by controller name first, then by method name second
 			// This makes the route list more predictable and easier to debug
 			usort($result, function($a, $b) {
-				return strcmp($a['controller'], $b['controller']);
+				$controllerComparison = strcmp($a['controller'], $b['controller']);
+				
+				if ($controllerComparison === 0) {
+					return strcmp($a['method'], $b['method']);
+				}
+				
+				return $controllerComparison;
 			});
 			
 			return $result;
