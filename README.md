@@ -238,7 +238,7 @@ $user = $em->find(User::class, $id);
 $user = new User();
 $user->name = 'John';
 $user->email = 'john@example.com';
-$em->persist($user);
+$em->persist($user);    
 $em->flush();
 ```
 
@@ -260,7 +260,8 @@ class CacheAspect implements AroundAspect {
             return $cached;
         }
         
-        $result = $proceed();
+        $result = $proceed(... $context->getArguments());
+
         $this->cache->set($key, $result, $this->ttl);
         return $result;
     }
@@ -393,7 +394,7 @@ class TransactionAspect implements AroundAspect {
         $this->db->beginTransaction();
         
         try {
-            $result = $proceed();
+            $result = $proceed(... $context->getArguments());
             $this->db->commit();
             return $result;
         } catch (\Exception $e) {
