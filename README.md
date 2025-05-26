@@ -1,6 +1,6 @@
 # Canvas Smarty Template Engine
 
-A Smarty template engine integration for the Canvas PHP framework with automatic service discovery and dependency injection.
+A Smarty template engine integration for the Canvas PHP framework.
 
 ## Installation
 
@@ -11,7 +11,7 @@ composer require quellabs/canvas-smarty
 ## Requirements
 
 - PHP 8.3 or higher
-- Canvas framework with service discovery
+- Canvas framework
 
 ## Usage
 
@@ -21,8 +21,7 @@ The Smarty template engine is automatically registered with Canvas through the s
 // In your Canvas controller
 class HomeController
 {
-    public function index(SmartyTemplateProvider $smarty)
-    {
+    public function index(TemplateEngineInterface $smarty) {
         return $smarty->render('home.tpl', [
             'title' => 'Welcome to Canvas',
             'user' => $user
