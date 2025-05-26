@@ -267,7 +267,6 @@ class CacheAspect implements AroundAspect {
     }
 }
 
-// Apply to any controller method
 /**
  * @Route("/expensive-operation")
  * @InterceptWith(CacheAspect::class, ttl=3600)
@@ -367,6 +366,7 @@ class RateLimitAspect implements BeforeAspect {
         if ($this->rateLimiter->isExceeded()) {
             return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
         }
+        
         return null;
     }
 }
