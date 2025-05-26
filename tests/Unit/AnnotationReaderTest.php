@@ -26,8 +26,9 @@
 		$classWithMethodAnnotations = new class {
 			/**
 			 * @Quellabs\AnnotationReader\AnnotationTest\Test(
+			 *     Quellabs\AnnotationReader\AnnotationTest\AnotherTest::class,
 			 *     name="test",
-			 *     value={@Quellabs\AnnotationReader\AnnotationTest\AnotherTest()}
+			 *     xyz={@Quellabs\AnnotationReader\AnnotationTest\AnotherTest()}
 			 * )
 			 */
 			public function test() {

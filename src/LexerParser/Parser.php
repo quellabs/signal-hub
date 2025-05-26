@@ -154,6 +154,38 @@
 		}
 		
 		/**
+		 * Parse a class constant reference (e.g., ClassName::class)
+		 * @return string The fully qualified class name
+		 * @throws LexerException|ParserException
+		 */
+		protected function parseClassConstant(): string {
+			$className = '';
+			
+			// Build the class name by consuming parameter tokens separated by backslashes
+			do {
+				if (!empty($className)) {
+					$className .= '\\';
+				}
+				
+				$token = $this->lexer->match(Token::Parameter);
+				$className .= $token->getValue();
+			} while ($this->lexer->optionalMatch(Token::Backslash));
+			
+			// Match the double colon
+			$this->lexer->match(Token::DoubleColon);
+			
+			// Match the 'class' keyword
+			$classToken = $this->lexer->match(Token::Parameter);
+			
+			if ($classToken->getValue() !== 'class') {
+				throw new ParserException("Expected 'class' after '::', got: " . $classToken->getValue());
+			}
+			
+			// Resolve the class name using existing resolution logic
+			return $this->resolveClassName($className);
+		}
+		
+		/**
 		 * Parses a value from the token stream based on its type
 		 * @param Token $token The token to parse
 		 * @return mixed The parsed value (array, string, number, boolean, or null)
@@ -203,6 +235,74 @@
 			
 			// Default case: return null if no other value type matches
 			return null;
+		}
+		
+		/**
+		 * Check if the next tokens form a class constant reference (ClassName::class)
+		 * @return bool True if the next tokens form a class constant reference, false otherwise
+		 */
+		private function isClassConstant(): bool {
+			// Save the current lexer state so we can restore it after lookahead
+			// This ensures the lexer position remains unchanged regardless of the outcome
+			$currentState = $this->lexer->saveState();
+			
+			try {
+				// First check: ensure we start with a Parameter token (class name component)
+				// If not, this definitely isn't a class constant reference
+				if ($this->lexer->peek()->getType() !== Token::Parameter) {
+					return false;
+				}
+				
+				// Consume the first parameter token (initial class name or namespace component)
+				$this->lexer->match(Token::Parameter);
+				
+				// Handle namespace separators and additional namespace/class components
+				// Loop continues as long as we find backslash tokens followed by parameter tokens
+				while ($this->lexer->optionalMatch(Token::Backslash)) {
+					// After a backslash, we must have another parameter token
+					// If not, this isn't a valid class reference pattern
+					if ($this->lexer->peek()->getType() !== Token::Parameter) {
+						// Restore lexer state and return false for invalid pattern
+						$this->lexer->restoreState($currentState);
+						return false;
+					}
+					
+					// Consume the parameter token after the backslash
+					$this->lexer->match(Token::Parameter);
+				}
+				
+				// After the class name (with optional namespace), check for double colon
+				// The :: operator is required for accessing class constants
+				if ($this->lexer->peek()->getType() !== Token::DoubleColon) {
+					// No double colon found, restore state and return false
+					$this->lexer->restoreState($currentState);
+					return false;
+				}
+				
+				// Consume the double colon token
+				$this->lexer->match(Token::DoubleColon);
+				
+				// Final check: verify the next token is the 'class' keyword
+				// This is what makes it specifically a class constant reference
+				$nextToken = $this->lexer->peek();
+				
+				$isClassConstant =
+					$nextToken->getType() === Token::Parameter &&
+					$nextToken->getValue() === 'class';
+				
+				// Always restore the lexer to its original position
+				// This method only performs lookahead and shouldn't consume tokens
+				$this->lexer->restoreState($currentState);
+				
+				return $isClassConstant;
+				
+			} catch (LexerException $e) {
+				// If any lexer error occurs during lookahead (e.g., unexpected end of input),
+				// restore the lexer state and safely return false
+				// This ensures the parser can continue processing from the original position
+				$this->lexer->restoreState($currentState);
+				return false;
+			}
 		}
 		
 		/**
@@ -324,7 +424,17 @@
 		 * @return bool
 		 */
 		private function isNamedParameter(): bool {
-			return $this->lexer->peek()->getType() === Token::Parameter;
+			$savedState = $this->lexer->saveState();
+			
+			try {
+				// Check for pattern: Parameter followed by Equals
+				return
+					$this->lexer->optionalMatch(Token::Parameter) &&
+					$this->lexer->optionalMatch(Token::Equals);
+			} finally {
+				// Always restore lexer state after lookahead
+				$this->lexer->restoreState($savedState);
+			}
 		}
 		
 		/**
@@ -344,6 +454,13 @@
 				
 				// Store annotation as the default/primary value since it's the first parameter
 				$parameters[self::DEFAULT_VALUE_KEY] = $annotation;
+				return;
+			}
+			
+			// Check if the next parameter is a class
+			// Handle class constant reference (e.g., ClassName::class)
+			if ($this->isClassConstant()) {
+				$parameters[self::DEFAULT_VALUE_KEY] = $this->parseClassConstant();
 				return;
 			}
 			
@@ -376,13 +493,8 @@
 			// Extract the parameter name/key token from the lexer
 			$parameterKey = $this->lexer->match(Token::Parameter);
 			
-			// Check if there's actually an equals sign after the parameter name
-			if (!$this->lexer->optionalMatch(Token::Equals)) {
-				// No equals sign found - this means we have a positional parameter, not a named one
-				// Store it as the default value (typically used for the first unnamed parameter)
-				$parameters[self::DEFAULT_VALUE_KEY] = $parameterKey->getValue();
-				return false; // Return false to indicate this wasn't a named parameter
-			}
+			// Match the equals sign
+			$this->lexer->match(Token::Equals);
 			
 			// We found an equals sign, so now parse the value that comes after it
 			// Pass a new Token instance as context for value parsing

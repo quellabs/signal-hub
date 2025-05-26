@@ -72,6 +72,7 @@
 				Token::BinaryShiftLeft      => '<<',
 				Token::BinaryShiftRight     => '>>',
 				Token::Arrow                => '->',
+				Token::DoubleColon          => '::',
 			];
 			
 			$this->lookahead = $this->nextToken();
@@ -528,10 +529,8 @@
 							case 'n': $string .= "\n"; break;
 							case 'r': $string .= "\r"; break;
 							case 't': $string .= "\t"; break;
-							// Most importantly, handle escaped quotes
 							case '"': $string .= '"'; break;
 							case "'": $string .= "'"; break;
-							// Fall back to just adding the character after the backslash
 							default: $string .= $this->string[$this->pos]; break;
 						}
 						++$this->pos;
@@ -616,5 +615,26 @@
 			
 			// Return null if no identifier token was found at current position
 			return null;
+		}
+		
+		/**
+		 * Save the state of the lexer
+		 * @return LexerState
+		 */
+		public function saveState(): LexerState {
+			return new LexerState(
+				$this->pos,
+				$this->lookahead,
+			);
+		}
+		
+		/**
+		 * Restore the state of the lexer
+		 * @param LexerState $state
+		 * @return void
+		 */
+		public function restoreState(LexerState $state): void {
+			$this->pos = $state->getPos();
+			$this->lookahead = $state->getLookahead();
 		}
 	}

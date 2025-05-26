@@ -57,6 +57,7 @@
 		const int BinaryShiftRight = 45;
 		const int Arrow = 46;
 		const int Dollar = 47;
+		const int DoubleColon = 48;
 		
 		protected string|int $type;
 		protected mixed $value;
