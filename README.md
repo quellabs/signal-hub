@@ -6,7 +6,7 @@ A modern, lightweight PHP framework that gets out of your way. Write clean contr
 
 ## What Makes Canvas Different
 
-Canvas combines three powerful concepts to create a framework that feels natural to work with:
+Canvas combines four powerful concepts to create a framework that feels natural to work with:
 
 **🎯 Annotation-Based Routing** - Define routes directly in your controllers using `@Route` annotations. No separate route files to maintain.
 
@@ -14,18 +14,27 @@ Canvas combines three powerful concepts to create a framework that feels natural
 
 **📦 Contextual Containers** - Work with interfaces directly. Canvas intelligently resolves the right implementation based on context.
 
+**⚡ Aspect-Oriented Programming** - Add crosscutting concerns like caching, authentication, and logging without cluttering your business logic.
+
 ```php
 <?php
 namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
 use Quellabs\Canvas\Controller\BaseController;
+use App\Aspects\RequireAuthAspect;
+use App\Aspects\CacheAspect;
 use App\Models\User;
 
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ */
 class UserController extends BaseController {
     
     /**
      * @Route("/users")
+     * @InterceptWith(CacheAspect::class, ttl=300)
      */
     public function index() {
         // ObjectQuel ORM - clean, intuitive queries
@@ -39,6 +48,7 @@ class UserController extends BaseController {
      * @Route("/users/{id}")
      */
     public function show(int $id) {
+        // Inherits RequireAuth from class level
         $user = $this->em->find(User::class, $id);
         return $this->render('users/show.tpl', compact('user'));
     }
@@ -153,6 +163,52 @@ class BlogController extends BaseController {
 }
 ```
 
+### 4. Add Crosscutting Concerns with AOP
+
+Keep your controllers clean by using aspects for authentication, caching, logging, and more:
+
+```php
+<?php
+// src/Controller/AdminController.php
+
+namespace App\Controller;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use Quellabs\Canvas\Controller\BaseController;
+use App\Aspects\RequireAuthAspect;
+use App\Aspects\RequireAdminAspect;
+use App\Aspects\AuditLogAspect;
+
+/**
+ * All admin methods require authentication and admin role
+ * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(RequireAdminAspect::class)
+ * @InterceptWith(AuditLogAspect::class)
+ */
+class AdminController extends BaseController {
+    
+    /**
+     * @Route("/admin/users")
+     */
+    public function users() {
+        // Pure business logic - aspects handle auth, admin check, and audit logging
+        $users = $this->em->findBy(User::class, []);
+        return $this->render('admin/users.tpl', compact('users'));
+    }
+    
+    /**
+     * @Route("/admin/reports")
+     * @InterceptWith(CacheAspect::class, ttl=3600)
+     */
+    public function reports() {
+        // Inherits auth + admin + audit, adds caching
+        $reports = $this->generateReports();
+        return $this->render('admin/reports.tpl', compact('reports'));
+    }
+}
+```
+
 ## Key Features
 
 ### Annotation-Based Routing
@@ -185,6 +241,40 @@ $user->email = 'john@example.com';
 // ObjectQuel handles persistence automatically
 ```
 
+### Aspect-Oriented Programming
+Add crosscutting concerns without polluting your business logic:
+
+```php
+// Create reusable aspects
+class CacheAspect implements AroundAspect {
+    public function __construct(
+        private CacheInterface $cache,
+        private int $ttl = 300
+    ) {}
+    
+    public function around(MethodContext $context, callable $proceed): mixed {
+        $key = $this->generateCacheKey($context);
+        
+        if ($cached = $this->cache->get($key)) {
+            return $cached;
+        }
+        
+        $result = $proceed();
+        $this->cache->set($key, $result, $this->ttl);
+        return $result;
+    }
+}
+
+// Apply to any controller method
+/**
+ * @Route("/expensive-operation")
+ * @InterceptWith(CacheAspect::class, ttl=3600)
+ */
+public function expensiveOperation() {
+    // Method automatically cached for 1 hour
+}
+```
+
 ### Contextual Service Resolution
 When you need different implementations of the same interface, context makes it simple:
 
@@ -208,6 +298,153 @@ composer require quellabs/canvas-redis     # Redis integration
 ```
 
 Canvas automatically discovers and configures new services through Composer metadata.
+
+## Aspect-Oriented Programming in Detail
+
+Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic.
+
+### Creating Aspects
+
+Aspects implement one of three interfaces depending on when they should execute:
+
+```php
+<?php
+namespace App\Aspects;
+
+use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
+use Quellabs\Canvas\AOP\MethodContext;
+use Symfony\Component\HttpFoundation\Response;
+
+class RequireAuthAspect implements BeforeAspect {
+    public function __construct(private AuthService $auth) {}
+    
+    public function before(MethodContext $context): ?Response {
+        if (!$this->auth->isAuthenticated()) {
+            return new RedirectResponse('/login');
+        }
+        
+        return null; // Continue execution
+    }
+}
+```
+
+### Aspect Types
+
+**Before Aspects** - Execute before the method, can stop execution:
+```php
+class RateLimitAspect implements BeforeAspect {
+    public function before(MethodContext $context): ?Response {
+        if ($this->rateLimiter->isExceeded()) {
+            return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
+        }
+        return null;
+    }
+}
+```
+
+**After Aspects** - Execute after the method, can modify the response:
+```php
+class AuditLogAspect implements AfterAspect {
+    public function after(MethodContext $context, mixed $result): ?Response {
+        $this->logger->info('Method executed', [
+            'controller' => get_class($context->getTarget()),
+            'method' => $context->getMethodName(),
+            'user' => $this->auth->getCurrentUser()?->id
+        ]);
+        
+        return null; // Don't modify response
+    }
+}
+```
+
+**Around Aspects** - Wrap the entire method execution:
+```php
+class TransactionAspect implements AroundAspect {
+    public function around(MethodContext $context, callable $proceed): mixed {
+        $this->db->beginTransaction();
+        
+        try {
+            $result = $proceed();
+            $this->db->commit();
+            return $result;
+        } catch (\Exception $e) {
+            $this->db->rollback();
+            throw $e;
+        }
+    }
+}
+```
+
+### Applying Aspects
+
+**Class-level aspects** apply to all methods:
+```php
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ */
+class UserController extends BaseController {
+    // All methods require authentication
+}
+```
+
+**Method-level aspects** apply to specific methods:
+```php
+class UserController extends BaseController {
+    
+    /**
+     * @Route("/users")
+     * @InterceptWith(CacheAspect::class, ttl=300)
+     * @InterceptWith(RateLimitAspect::class, limit=100)
+     */
+    public function index() {
+        // Method has caching and rate limiting
+    }
+}
+```
+
+**Combined aspects** - class-level and method-level merge:
+```php
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ */
+class AdminController extends BaseController {
+    
+    /**
+     * @Route("/admin/reports")
+     * @InterceptWith(RequireAdminAspect::class)
+     * @InterceptWith(CacheAspect::class, ttl=3600)
+     */
+    public function reports() {
+        // Gets: RequireAuth + RequireAdmin + Cache
+    }
+}
+```
+
+### Aspect Parameters
+
+Pass configuration to aspects through annotation parameters:
+
+```php
+/**
+ * @InterceptWith(CacheAspect::class, ttl=3600, tags={"reports", "admin"})
+ * @InterceptWith(RateLimitAspect::class, limit=10, window=60)
+ */
+public function heavyOperation() {
+    // Cached for 1 hour with tags, rate limited to 10/minute
+}
+```
+
+The aspect receives these as constructor parameters:
+
+```php
+class CacheAspect implements AroundAspect {
+    public function __construct(
+        private CacheInterface $cache,
+        private int $ttl = 300,
+        private array $tags = []
+    ) {}
+}
+```
 
 ## Configuration
 
@@ -247,56 +484,104 @@ Register it in `composer.json`:
 
 ## Advanced Examples
 
-### RESTful API Controller
+### RESTful API with AOP
 
 ```php
 <?php
 namespace App\Controller\Api;
 
 use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
 use Quellabs\Canvas\Controller\BaseController;
+use App\Aspects\RequireAuthAspect;
+use App\Aspects\RateLimitAspect;
+use App\Aspects\ValidateJsonAspect;
 use App\Models\Product;
 
 /**
- * @Route("/api/products")
+ * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(RateLimitAspect::class, limit=100)
  */
 class ProductController extends BaseController {
     
     /**
-     * @Route("/", methods={"GET"})
+     * @Route("/api/products", methods={"GET"})
+     * @InterceptWith(CacheAspect::class, ttl=300)
      */
     public function index() {
         $products = $this->em->findBy(Product::class, ['active' => true]);
-                             
         return $this->json($products);
     }
     
     /**
-     * @Route("/", methods={"POST"})
+     * @Route("/api/products", methods={"POST"})
+     * @InterceptWith(ValidateJsonAspect::class, schema="product-create")
+     * @InterceptWith(RateLimitAspect::class, limit=10)
      */
     public function create() {
         $data = $this->getJsonRequest();
         $product = new Product();
-        // Set properties from request data
+        
         foreach ($data as $key => $value) {
             $product->$key = $value;
         }
         
         return $this->json($product, 201);
     }
+}
+```
+
+### Complex Aspect Composition
+
+```php
+<?php
+namespace App\Controller;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use App\Aspects\{
+    RequireAuthAspect,
+    RequirePermissionAspect,
+    CacheAspect,
+    AuditLogAspect,
+    PerformanceTrackingAspect,
+    TransactionAspect
+};
+
+/**
+ * Base security and logging for all admin operations
+ * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(AuditLogAspect::class)
+ * @InterceptWith(PerformanceTrackingAspect::class)
+ */
+class AdminController extends BaseController {
     
     /**
-     * @Route("/{id}", methods={"PUT"})
+     * @Route("/admin/users/{id}")
+     * @InterceptWith(RequirePermissionAspect::class, permission="users.view")
+     * @InterceptWith(CacheAspect::class, ttl=300)
      */
-    public function update(int $id) {
-        $product = $this->em->find(Product::class, $id);
+    public function showUser(int $id) {
+        // Gets: Auth + Audit + Performance + Permission + Cache
+        return $this->em->find(User::class, $id);
+    }
+    
+    /**
+     * @Route("/admin/users/{id}", methods={"PUT"})
+     * @InterceptWith(RequirePermissionAspect::class, permission="users.edit")
+     * @InterceptWith(TransactionAspect::class)
+     * @InterceptWith(RateLimitAspect::class, limit=5, window=60)
+     */
+    public function updateUser(int $id) {
+        // Gets: Auth + Audit + Performance + Permission + Transaction + RateLimit
+        $user = $this->em->find(User::class, $id);
         $data = $this->getJsonRequest();
         
         foreach ($data as $key => $value) {
-            $product->$key = $value;
+            $user->$key = $value;
         }
         
-        return $this->json($product);
+        return $this->json($user);
     }
 }
 ```
@@ -331,16 +616,17 @@ Canvas is built for performance:
 - **ObjectQuel Optimization**: Built-in query caching and optimization
 - **Minimal Reflection**: Efficient autowiring with caching
 - **Zero Configuration Overhead**: Sensible defaults eliminate config parsing
+- **Efficient AOP**: Aspects only applied when methods are called, no global overhead
 
 ## Why Canvas?
 
-**For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, and dependency injection work out of the box.
+**For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, dependency injection, and AOP work out of the box.
 
-**For Clean Code**: Annotation-based routes keep logic close to implementation. ObjectQuel queries read like natural language.
+**For Clean Code**: Annotation-based routes and aspects keep logic close to implementation. ObjectQuel queries read like natural language.
 
-**For Flexibility**: Contextual containers let you use different implementations without complex configuration.
+**For Flexibility**: Contextual containers and composable aspects let you use different implementations without complex configuration.
 
-**For Growth**: Modular architecture scales from simple websites to complex applications.
+**For Growth**: Modular architecture scales from simple websites to complex applications with enterprise-grade crosscutting concerns.
 
 ## Contributing
 
