@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\Canvas\Templating;
 	
-	use Smarty;
-	use Quellabs\Discover\Provider\AbstractProvider;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Discover\Provider\AbstractProvider;
+	use Smarty;
 	
 	class SmartyTemplateProvider extends AbstractProvider implements TemplateEngineInterface, ProviderInterface {
 		

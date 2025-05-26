@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\Canvas\Resolvers;
+	namespace Quellabs\Canvas\Routing;
 	
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\Kernel;

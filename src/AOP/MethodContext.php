@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\Canvas;
+	namespace Quellabs\Canvas\AOP;
 	
 	/**
 	 * Context object that encapsulates information about a method call.

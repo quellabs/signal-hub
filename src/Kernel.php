@@ -7,7 +7,8 @@
     use Dotenv\Exception\InvalidPathException;
     use Quellabs\AnnotationReader\AnnotationReader;
     use Quellabs\AnnotationReader\Configuration;
-    use Quellabs\Canvas\Resolvers\AnnotationResolver;
+    use Quellabs\Canvas\AOP\AspectDispatcher;
+    use Quellabs\Canvas\Routing\AnnotationResolver;
     use Quellabs\DependencyInjection\Container;
     use Quellabs\Discover\Discover;
     use Symfony\Component\HttpFoundation\Request;
@@ -120,13 +121,15 @@
 			    // Get the controller instance from the dependency injection container
 			    // $urlData["controller"] contains the controller class name
 			    $controller = $this->di->get($urlData["controller"]);
+
+				// Create aspect-aware dispatcher
+			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->di);
 			    
-			    // Call the method on the controller with the resolved variables using the DI container
-			    // The DI container handles method invocation and dependency injection
-			    // - $controller: The controller instance
-			    // - $urlData["method"]: The controller method to execute
-			    // - $urlData["variables"]: Route parameters extracted from the URL
-			    return $this->di->invoke($controller, $urlData["method"], $urlData["variables"]);
+			    return $aspectDispatcher->dispatch(
+				    $controller,
+				    $urlData["method"],
+				    $urlData["variables"]
+			    );
 		    } catch (\Exception $e) {
 			    // If any exception occurs during execution, return it as the response
 			    // with the exception message as content and exception code as HTTP status
