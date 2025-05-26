@@ -293,48 +293,112 @@
 		
 		/**
 		 * Parse a string of parameters
+		 * The first parameter can be nameless and can be an annotation
+		 * All subsequent parameters must be named
 		 * @return array
 		 * @throws LexerException|ParserException|\ReflectionException
 		 */
 		protected function parseParameters(): array {
 			$parameters = [];
+			$isFirstParameter = true;
 			
 			do {
-				$parameterKey = new Token();
-				$parameterValue = new Token();
-				
-				// Handle named parameter case
-				if ($this->lexer->optionalMatch(Token::Parameter, $parameterKey)) {
-					// Skip if no equals sign follows the parameter name
-					if (!$this->lexer->optionalMatch(Token::Equals)) {
-						continue;
-					}
-					
-					// Parse the value
-					$value = $this->parseValue($parameterValue);
-					
-					// Early failure if value parsing failed
-					if ($value === null) {
-						throw new ParserException("Expected number or string, got " . $parameterValue->toString($parameterValue->getType()));
-					}
-					
-					$parameters[$parameterKey->getValue()] = $value;
+				// The first parameter can be nameless. It will be stored under the key self::DEFAULT_VALUE_KEY
+				if ($isFirstParameter) {
+					$this->parseFirstParameter($parameters);
+					$isFirstParameter = false;
 					continue;
 				}
 				
-				// Handle an unnamed parameter case
-				$value = $this->parseValue($parameterKey);
-				
-				// Skip if value parsing failed
-				if ($value === null) {
-					continue;
+				// All subsequent parameters must be named
+				if (!$this->parseNamedParameter($parameters)) {
+					throw new ParserException("All parameters after the first must be named (parameter=value)");
 				}
-				
-				$parameters[self::DEFAULT_VALUE_KEY] = $value;
-				
 			} while ($this->lexer->optionalMatch(Token::Comma));
 			
 			return $parameters;
+		}
+		
+		/**
+		 * Check if the next tokens form a named parameter (parameter=value)
+		 * @return bool
+		 */
+		private function isNamedParameter(): bool {
+			return $this->lexer->peek()->getType() === Token::Parameter;
+		}
+		
+		/**
+		 * Parse the first parameter which can be an annotation, named parameter, or unnamed value
+		 * @param array &$parameters Reference to parameters array to modify
+		 * @throws LexerException|ParserException|\ReflectionException
+		 */
+		private function parseFirstParameter(array &$parameters): void {
+			// Check if the next token is an annotation (e.g., @annotation)
+			// Use peek() to look ahead without consuming the token
+			if ($this->lexer->peek()->getType() === Token::Annotation) {
+				// Consume the annotation token from the lexer
+				$annotationToken = $this->lexer->match(Token::Annotation);
+				
+				// Parse the annotation into its structured form
+				$annotation = $this->parseAnnotation($annotationToken);
+				
+				// Store annotation as the default/primary value since it's the first parameter
+				$parameters[self::DEFAULT_VALUE_KEY] = $annotation;
+				return;
+			}
+			
+			// Check if this looks like a named parameter (parameter=value format)
+			if ($this->isNamedParameter()) {
+				// Delegate to specialized named parameter parsing logic
+				$this->parseNamedParameter($parameters);
+				return;
+			}
+			
+			// If it's neither annotation nor named parameter, treat as unnamed value
+			// This handles cases like simple literals, expressions, or other value types
+			$value = $this->parseValue(new Token());
+			
+			// Only store the value if parsing was successful (not null)
+			// Null could indicate empty input or parsing failure
+			if ($value !== null) {
+				// Store as default value since this is an unnamed first parameter
+				$parameters[self::DEFAULT_VALUE_KEY] = $value;
+			}
+		}
+		
+		/**
+		 * Parse a named parameter and add it to the parameters array
+		 * @param array &$parameters Reference to parameters array to modify
+		 * @return bool True if successfully parsed as named parameter, false otherwise
+		 * @throws LexerException|ParserException|\ReflectionException
+		 */
+		private function parseNamedParameter(array &$parameters): bool {
+			// Extract the parameter name/key token from the lexer
+			$parameterKey = $this->lexer->match(Token::Parameter);
+			
+			// Check if there's actually an equals sign after the parameter name
+			if (!$this->lexer->optionalMatch(Token::Equals)) {
+				// No equals sign found - this means we have a positional parameter, not a named one
+				// Store it as the default value (typically used for the first unnamed parameter)
+				$parameters[self::DEFAULT_VALUE_KEY] = $parameterKey->getValue();
+				return false; // Return false to indicate this wasn't a named parameter
+			}
+			
+			// We found an equals sign, so now parse the value that comes after it
+			// Pass a new Token instance as context for value parsing
+			$value = $this->parseValue(new Token());
+			
+			// Validate that we successfully parsed a value
+			if ($value === null) {
+				// Throw exception if no valid value was found after the equals sign
+				throw new ParserException("Expected valid value for parameter: " . $parameterKey->getValue());
+			}
+			
+			// Store the parsed value using the parameter name as the key
+			$parameters[$parameterKey->getValue()] = $value;
+			
+			// Return true to indicate successful parsing of a named parameter
+			return true;
 		}
 		
 		/**
