@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\Canvas\TemplateSystems;
+	namespace Quellabs\Canvas\Smarty;
 	
 	use Smarty;
 	use Quellabs\Contracts\Discovery\ProviderInterface;

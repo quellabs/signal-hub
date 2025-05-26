@@ -1,34 +1,52 @@
 {
-  "name": "quellabs/canvas",
-  "description": "A modern, lightweight PHP framework with contextual containers, automatic service discovery, and ObjectQuel ORM integration",
+  "name": "quellabs/canvas-smarty",
+  "description": "Smarty template engine integration for the Canvas PHP framework with contextual containers and automatic service discovery",
   "keywords": [
-    "framework",
-    "contextual-containers",
-    "dependency-injection",
-    "templating"
+    "canvas-framework",
+    "smarty-template",
+    "template-integration",
+    "php-templating"
   ],
   "type": "library",
   "license": "MIT",
+  "homepage": "https://github.com/quellabs/canvas-smarty",
+  "support": {
+    "issues": "https://github.com/quellabs/canvas-smarty/issues",
+    "source": "https://github.com/quellabs/canvas-smarty"
+  },
+  "authors": [
+    {
+      "name": "Quellabs",
+      "email": "info@quellabs.com",
+      "homepage": "https://quellabs.com"
+    }
+  ],
+  "minimum-stability": "stable",
+  "prefer-stable": true,
   "config": {
     "platform": {
       "php": "8.3"
-    }
+    },
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "classmap-authoritative": true
   },
   "require": {
-    "smarty/smarty": "^4.3",
-    "quellabs/discover": "dev-main",
-    "quellabs/dependency-injection": "dev-main",
-    "quellabs/contracts": "dev-main"
+    "php": ">=8.3",
+    "smarty/smarty": "^4.3|^5.0",
+    "quellabs/discover": "^1.0|dev-main",
+    "quellabs/dependency-injection": "^1.0|dev-main",
+    "quellabs/contracts": "^1.0|dev-main"
   },
   "autoload": {
     "psr-4": {
-      "Quellabs\\Canvas\\TemplateSystems\\": "src/"
+      "Quellabs\\Canvas\\Smarty\\": "src/"
     }
   },
   "extra": {
     "discover": {
       "di": {
-        "provider": "Quellabs\\Canvas\\TemplateSystems\\SmartyTemplateProvider"
+        "provider": "Quellabs\\Canvas\\Smarty\\SmartyTemplateProvider"
       }
     }
   }
