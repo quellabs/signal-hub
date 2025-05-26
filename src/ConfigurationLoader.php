@@ -24,10 +24,10 @@
 		
 		/**
 		 * Loads configuration for CLI tool
-		 * @return Configuration
+		 * @return Configuration|null
 		 * @throws OrmException
 		 */
-		public static function loadCliConfiguration(): Configuration {
+		public static function loadCliConfiguration(): ?Configuration {
 			// First check if the config path is specified in the environment
 			if (isset($_ENV['OBJECTQUEL_CONFIG_PATH']) && file_exists($_ENV['OBJECTQUEL_CONFIG_PATH'])) {
 				return self::loadFromFile($_ENV['OBJECTQUEL_CONFIG_PATH']);
@@ -57,13 +57,8 @@
 				}
 			}
 			
-			// No configuration found
-			throw new OrmException(
-				"ObjectQuel CLI configuration file not found. Please create one of the following files:\n" .
-				"- {$configFile}\n" .
-				implode("\n- ", $alternativeLocations) . "\n" .
-				"Or set the OBJECTQUEL_CONFIG_PATH environment variable."
-			);
+			// No config found
+			return null;
 		}
 		
 		/**

@@ -17,22 +17,27 @@
 		 * @param Application $application
 		 */
 		public function register(Application $application): void {
+			// Load the cli configuration
+			$configuration = $this->getConfiguration();
+			
 			// Register the commands into the Sculpt application
-			$this->registerCommands($application, [
-				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\QuelMigrateCommand::class,
-				\Quellabs\ObjectQuel\Sculpt\Commands\QuelCreatePhinxConfigCommand::class,
-			]);
+			if ($configuration !== null) {
+				$this->registerCommands($application, [
+					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
+					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
+					\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
+					\Quellabs\ObjectQuel\Sculpt\Commands\QuelMigrateCommand::class,
+					\Quellabs\ObjectQuel\Sculpt\Commands\QuelCreatePhinxConfigCommand::class,
+				]);
+			}
 		}
 		
 		/**
 		 * Load and return the ObjectQuel CLI configuration
-		 * @return Configuration The ObjectQuel configuration for CLI operations
+		 * @return Configuration|null The ObjectQuel configuration for CLI operations
 		 * @throws OrmException If the configuration cannot be loaded
 		 */
-		public function getConfiguration(): Configuration {
+		public function getConfiguration(): ?Configuration {
 			return ConfigurationLoader::loadCliConfiguration();
 		}
 		
