@@ -11,7 +11,6 @@ composer require quellabs/canvas-smarty
 ## Requirements
 
 - PHP 8.3 or higher
-- Smarty 4.3+ or 5.0+
 - Canvas framework with service discovery
 
 ## Usage
