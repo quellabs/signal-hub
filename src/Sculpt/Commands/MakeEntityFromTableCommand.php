@@ -6,7 +6,7 @@
 	 * Import required classes for entity management and console interaction
 	 */
 	
-	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\DatabaseAdapter\DatabaseAdapter;
 	use Quellabs\ObjectQuel\OrmException;

@@ -4,7 +4,7 @@
 	
 	use Phinx\Config\Config;
 	use Phinx\Migration\Manager;
-	use Quellabs\Discover\Provider\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Sculpt\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
