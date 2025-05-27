@@ -143,7 +143,8 @@ class BlogController extends BaseController {
     public function index() {
         // Simple ObjectQuel queries
         $posts = $this->em->findBy(Post::class, ['published' => true]);
-                          
+
+        // Render the tpl file                          
         return $this->render('blog/index.tpl', compact('posts'));
     }
     
@@ -238,7 +239,11 @@ $user = $em->find(User::class, $id);
 $user = new User();
 $user->name = 'John';
 $user->email = 'john@example.com';
-$em->persist($user);    
+
+// Tell the EntityManager to keep track of entity changes
+$em->persist($user);
+
+// Flush the changes to the database
 $em->flush();
 ```
 
@@ -261,12 +266,13 @@ class CacheAspect implements AroundAspect {
         }
         
         $result = $proceed(... $context->getArguments());
-
+        
         $this->cache->set($key, $result, $this->ttl);
         return $result;
     }
 }
 
+// Apply to any controller method
 /**
  * @Route("/expensive-operation")
  * @InterceptWith(CacheAspect::class, ttl=3600)
@@ -330,7 +336,7 @@ The route list helps you:
 
 ## Aspect-Oriented Programming in Detail
 
-Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic.
+Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Canvas supports four types of aspects that execute at different stages of the request lifecycle.
 
 ### Creating Aspects
 
@@ -366,7 +372,6 @@ class RateLimitAspect implements BeforeAspect {
         if ($this->rateLimiter->isExceeded()) {
             return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
         }
-        
         return null;
     }
 }
@@ -394,13 +399,42 @@ class TransactionAspect implements AroundAspect {
         $this->db->beginTransaction();
         
         try {
-            $result = $proceed(... $context->getArguments());
+            $result = $proceed();
             $this->db->commit();
             return $result;
         } catch (\Exception $e) {
             $this->db->rollback();
             throw $e;
         }
+    }
+}
+```
+
+### Execution Order
+
+Aspects execute in a specific order to ensure proper request processing:
+
+1. **Request Aspects** - Transform request data and add context
+2. **Before Aspects** - Handle authentication, validation, rate limiting
+3. **Around Aspects** - Wrap method execution with caching, transactions
+4. **After Aspects** - Log results, modify responses
+
+```php
+/**
+ * @InterceptWith(SecuritySanitizationAspect::class)    // 1. Request transformation
+ * @InterceptWith(RequireAuthAspect::class)             // 2. Before execution
+ * @InterceptWith(TransactionAspect::class)             // 3. Around execution  
+ * @InterceptWith(AuditLogAspect::class)                // 4. After execution
+ */
+class AdminController extends BaseController {
+    
+    /**
+     * @Route("/admin/users")
+     * @InterceptWith(CacheAspect::class, ttl=300)       // Additional around aspect
+     */
+    public function users() {
+        // Method executes with clean request, authentication, transaction, and caching
+        return $this->em->findBy(User::class, []);
     }
 }
 ```
@@ -526,9 +560,13 @@ use Quellabs\Canvas\Controller\BaseController;
 use App\Aspects\RequireAuthAspect;
 use App\Aspects\RateLimitAspect;
 use App\Aspects\ValidateJsonAspect;
+use App\Aspects\ContentNegotiationAspect;
+use App\Aspects\SecuritySanitizationAspect;
 use App\Models\Product;
 
 /**
+ * @InterceptWith(SecuritySanitizationAspect::class)
+ * @InterceptWith(ContentNegotiationAspect::class)
  * @InterceptWith(RequireAuthAspect::class)
  * @InterceptWith(RateLimitAspect::class, limit=100)
  */
@@ -539,6 +577,8 @@ class ProductController extends BaseController {
      * @InterceptWith(CacheAspect::class, ttl=300)
      */
     public function index() {
+        // Request already sanitized and content negotiated
+        $format = $this->request->attributes->get('response_format', 'json');
         $products = $this->em->findBy(Product::class, ['active' => true]);
         return $this->json($products);
     }

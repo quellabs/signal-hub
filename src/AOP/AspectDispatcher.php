@@ -30,17 +30,17 @@
 		 * @param Request $request
 		 * @param object $controller
 		 * @param string $method
-		 * @param array $parameters
+		 * @param array $arguments
 		 * @return Response
 		 * @throws ParserException
 		 * @throws \ReflectionException
 		 */
-		public function dispatch(Request $request, object $controller, string $method, array $parameters): Response {
+		public function dispatch(Request $request, object $controller, string $method, array $arguments): Response {
 			// Create method context
 			$context = new MethodContext(
 				target: $controller,
 				methodName: $method,
-				arguments: $parameters,
+				arguments: $arguments,
 				reflection: new \ReflectionMethod($controller, $method),
 				annotations: $this->annotationReader->getMethodAnnotations($controller, $method),
 				request: $request
@@ -68,7 +68,7 @@
 			}
 			
 			// Execute method with around aspects
-			$result = $this->executeWithAroundAspects($controller, $method, $parameters, $aspects, $context);
+			$result = $this->executeWithAroundAspects($controller, $method, $aspects, $context);
 			
 			// Execute after aspects
 			foreach ($aspects as $aspect) {
@@ -137,31 +137,25 @@
 		 * Around aspects can intercept, modify, or completely replace method execution
 		 * @param object $controller The controller instance
 		 * @param string $method The method name to execute
-		 * @param array $parameters Method parameters
 		 * @param array $aspects All resolved aspects for this method
 		 * @param MethodContext $context Context information about the method call
 		 * @return mixed The result from the method or final around aspect
 		 */
-		private function executeWithAroundAspects(object $controller, string $method, array $parameters, array $aspects, MethodContext $context): mixed {
+		private function executeWithAroundAspects(object $controller, string $method, array $aspects, MethodContext $context): mixed {
 			// Filter to get only around aspects from all resolved aspects
 			$aroundAspects = array_filter($aspects, fn($aspect) => $aspect instanceof AroundAspect);
 			
-			// If one of the parameters is of type Request, add the request object to the parameter list
-			foreach($context->getMethodArguments() as $methodArgument) {
-				if ($methodArgument['type'] === Request::class) {
-					$parameters[$methodArgument['name']] = $context->getRequest();
-					break;
-				}
-			}
+			// Fetch and complete arguments
+			$arguments = $context->getArguments();
 			
 			// If no around aspects exist, execute the method directly without interception
 			if (empty($aroundAspects)) {
-				return $this->di->invoke($controller, $method, $parameters);
+				return $this->di->invoke($controller, $method, $arguments);
 			}
 			
 			// Create the base "proceed" function that calls the actual controller method
 			// This is the innermost function in the chain
-			$proceed = fn() => $this->di->invoke($controller, $method, $parameters);
+			$proceed = fn() => $this->di->invoke($controller, $method, $arguments);
 			
 			// Build nested chain of around aspects in reverse order
 			// Reverse order ensures first declared aspect becomes outermost wrapper

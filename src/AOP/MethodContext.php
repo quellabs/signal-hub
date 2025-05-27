@@ -63,26 +63,16 @@
 		 * @return array Array of method arguments in order
 		 */
 		public function getArguments(): array {
-			return $this->arguments;
-		}
-		
-		/**
-		 * Get a specific argument by its position index.
-		 * @param int $index Zero-based index of the argument
-		 * @return mixed The argument value, or null if index doesn't exist
-		 */
-		public function getArgument(int $index): mixed {
-			return $this->arguments[$index] ?? null;
-		}
-		
-		/**
-		 * Modify an argument at a specific position.
-		 * Useful for interceptors that need to transform method parameters.
-		 * @param int $index Zero-based index of the argument to modify
-		 * @param mixed $value New value for the argument
-		 */
-		public function setArgument(int $index, mixed $value): void {
-			$this->arguments[$index] = $value;
+			$arguments = $this->arguments;
+			
+			foreach($this->getMethodArguments() as $methodArgument) {
+				if ($methodArgument['type'] === Request::class) {
+					$arguments[$methodArgument['name']] = $this->getRequest();
+					break;
+				}
+			}
+			
+			return $arguments;
 		}
 		
 		/**
