@@ -45,8 +45,9 @@
   },
   "extra": {
     "discover": {
-      "template-engine": {
-        "provider": "Quellabs\\Canvas\\Smarty\\SmartyTemplateProvider"
+      "di": {
+        "provider": "Quellabs\\Canvas\\Smarty\\ServiceProvider",
+        "config": "src/config/smarty.php"
       }
     }
   }

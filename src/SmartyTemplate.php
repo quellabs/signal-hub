@@ -3,43 +3,51 @@
 	namespace Quellabs\Canvas\Smarty;
 	
 	use Smarty;
-	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
-	use Quellabs\Discover\Provider\AbstractProvider;
 	
-	class SmartyTemplateProvider extends AbstractProvider implements TemplateEngineInterface, ProviderInterface {
+	class SmartyTemplate implements TemplateEngineInterface {
 		
 		/**
 		 * @var Smarty|null Smarty instance
 		 */
-		private ?Smarty $smarty = null;
+		private ?Smarty $smarty;
 		
 		/**
-		 * Returns the provider's metadata, which can be used to discover this class
-		 * @return array
+		 * @var array Configuration data provided by ServiceProvider
 		 */
-		public static function getMetadata(): array {
-			return [
-				'type'         => 'template_engine',
-				'provider'     => 'smarty',
-				'capabilities' => ['caching', 'inheritance', 'plugins'],
-				'extensions'   => ['.tpl', '.smarty'],
-				'version'      => '1.0.0'
-			];
-		}
+		private array $config;
 		
 		/**
-		 * Returns the default settings for this provider
-		 * @return array
+		 * SmartyTemplate constructor
+		 * @param array $configuration
 		 */
-		public static function getDefaults(): array {
-			return [
-				'template_dir' => dirname(__FILE__) . '/../Templates/',
-				'compile_dir'  => dirname(__FILE__) . '/../Cache/Compile/',
-				'cache_dir'    => dirname(__FILE__) . '/../Cache/Cache/',
-				'debugging'    => false,
-				'caching'      => true
-			];
+		public function __construct(array $configuration) {
+			// Store the configuration
+			$this->config = $configuration;
+			
+			// Create Smarty instance
+			$this->smarty = new Smarty();
+			$this->smarty->setTemplateDir($configuration['template_dir']);
+			$this->smarty->setCompileDir($configuration['compile_dir']);
+			$this->smarty->setCacheDir($configuration['cache_dir']);
+			$this->smarty->setDebugging($configuration['debugging']);
+			$this->smarty->setCaching($configuration['caching']);
+			
+			// Set cache lifetime if specified
+			// Only configure cache lifetime if explicitly provided in config
+			if (isset($config['cache_lifetime'])) {
+				$this->smarty->cache_lifetime = $config['cache_lifetime'];
+			}
+			
+			// Enable security if specified
+			// Optionally enable Smarty's security policy to restrict template operations
+			if (isset($config['security']) && $config['security']) {
+				try {
+					$this->smarty->enableSecurity();
+				} catch (\SmartyException $e) {
+					error_log("SmartyTemplateProvider: unable to set Smarty security ({$e->getMessage()}");
+				}
+			}
 		}
 		
 		/**
@@ -71,13 +79,10 @@
 		 * @return void
 		 */
 		public function addGlobal(string $key, mixed $value): void {
-			// Get the configured Smarty template engine instance
-			$smarty = $this->getEngineInstance();
-			
 			// Assign the variable globally to the Smarty instance
 			// This makes the variable available in all subsequent template renders
 			// until the engine instance is reset or the variable is overwritten
-			$smarty->assign($key, $value);
+			$this->smarty->assign($key, $value);
 		}
 		
 		/**
@@ -87,12 +92,9 @@
 		 */
 		public function exists(string $template): bool {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Use Smarty's built-in method to check if the template file exists
 				// This method considers the configured template directory and search paths
-				return $smarty->templateExists($template);
+				return $this->smarty->templateExists($template);
 			} catch (\Exception $e) {
 				// If any exception occurs during the check (e.g., permission issues,
 				// invalid paths, or Smarty configuration problems), treat it as "not found"
@@ -108,23 +110,17 @@
 		 */
 		public function clearCache(): void {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Clear all cache
 				// This removes all cached template output, forcing templates to be
 				// re-rendered and re-cached on the next request
-				$smarty->clearAllCache();
-				
-				// Fetch the configuration
-				$config = $this->getConfig();
+				$this->smarty->clearAllCache();
 				
 				// Also clear compiled templates if needed
 				// Check configuration to see if compiled templates should also be cleared
-				if (isset($config['clear_compiled']) && $config['clear_compiled']) {
+				if (isset($this->config['clear_compiled']) && $this->config['clear_compiled']) {
 					// Clear compiled PHP templates that Smarty generates from template files
 					// This is useful when template syntax or structure has changed
-					$smarty->clearCompiledTemplate();
+					$this->smarty->clearCompiledTemplate();
 				}
 			} catch (\Exception $e) {
 				// If cache clearing fails, wrap the exception with more context
@@ -145,12 +141,9 @@
 		 */
 		public function registerFunction(string $name, callable $callback): void {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Register the callback as a 'function' type plugin in Smarty
 				// This allows the function to be called directly in templates
-				$smarty->registerPlugin('function', $name, $callback);
+				$this->smarty->registerPlugin('function', $name, $callback);
 			} catch (\SmartyException $e) {
 				error_log("SmartyTemplateProvider: unable to register function {$name} ({$e->getMessage()}");
 			}
@@ -164,12 +157,9 @@
 		 */
 		public function registerModifier(string $name, callable $callback): void {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Register the callback as a 'modifier' type plugin in Smarty
 				// This allows the modifier to be used with the pipe operator on variables
-				$smarty->registerPlugin('modifier', $name, $callback);
+				$this->smarty->registerPlugin('modifier', $name, $callback);
 			} catch (\SmartyException $e) {
 				error_log("SmartyTemplateProvider: unable to register modifier {$name} ({$e->getMessage()}");
 			}
@@ -183,12 +173,9 @@
 		 */
 		public function registerBlock(string $name, callable $callback): void {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Register the callback as a 'block' type plugin in Smarty
 				// This allows the function to wrap and process template content
-				$smarty->registerPlugin('block', $name, $callback);
+				$this->smarty->registerPlugin('block', $name, $callback);
 			} catch (\SmartyException $e) {
 				error_log("SmartyTemplateProvider: unable to register block {$name} ({$e->getMessage()}");
 			}
@@ -202,12 +189,9 @@
 		 * @return void
 		 */
 		public function clearTemplateCache(string $template): void {
-			// Get the configured Smarty template engine instance
-			$smarty = $this->getEngineInstance();
-			
 			// Clear cache only for the specified template
 			// This is more efficient than clearing all cache when only one template changed
-			$smarty->clearCache($template);
+			$this->smarty->clearCache($template);
 		}
 		
 		/**
@@ -217,61 +201,12 @@
 		 */
 		public function isCached(string $template): bool {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Check if Smarty has a cached version of this template available
 				// Returns true if cached and valid, false if needs rendering
-				return $smarty->isCached($template);
+				return $this->smarty->isCached($template);
 			} catch (\SmartyException | \Exception $e) {
 				return false;
 			}
-		}
-		
-		/**
-		 * Gets or creates the Smarty template engine instance with proper configuration
-		 * @return Smarty The configured Smarty template engine instance
-		 */
-		private function getEngineInstance(): Smarty {
-			// Lazy initialization - only create Smarty instance if it doesn't exist yet
-			if ($this->smarty === null) {
-				// Create a new Smarty instance
-				$this->smarty = new Smarty();
-				
-				// Get the current configuration settings for this wrapper
-				$config = $this->getConfig();
-				
-				// Configure Smarty directories
-				// Set up the three core directories Smarty needs, using config values
-				// or falling back to class defaults if not specified
-				$this->smarty->setTemplateDir($config['template_dir'] ?? static::getDefaults()['template_dir']);
-				$this->smarty->setCompileDir($config['compile_dir'] ?? static::getDefaults()['compile_dir']);
-				$this->smarty->setCacheDir($config['cache_dir'] ?? static::getDefaults()['cache_dir']);
-				
-				// Configure debugging and caching
-				// Set up basic operational modes with fallback to defaults
-				$this->smarty->debugging = $config['debugging'] ?? static::getDefaults()['debugging'];
-				$this->smarty->caching = $config['caching'] ?? static::getDefaults()['caching'];
-				
-				// Set cache lifetime if specified
-				// Only configure cache lifetime if explicitly provided in config
-				if (isset($config['cache_lifetime'])) {
-					$this->smarty->cache_lifetime = $config['cache_lifetime'];
-				}
-				
-				// Enable security if specified
-				// Optionally enable Smarty's security policy to restrict template operations
-				if (isset($config['security']) && $config['security']) {
-					try {
-						$this->smarty->enableSecurity();
-					} catch (\SmartyException $e) {
-						error_log("SmartyTemplateProvider: unable to set Smarty security ({$e->getMessage()}");
-					}
-				}
-			}
-			
-			// Return the configured (or previously configured) Smarty instance
-			return $this->smarty;
 		}
 		
 		/**
@@ -284,13 +219,10 @@
 		 */
 		private function renderTemplate(string $template, array $data, bool $isString): string {
 			try {
-				// Get the configured Smarty template engine instance
-				$smarty = $this->getEngineInstance();
-				
 				// Create a data object with local scope that inherits from the Smarty instance
 				// This allows access to global variables while keeping local variables isolated
 				// Local variables will override global ones with the same name
-				$localData = $smarty->createData($smarty);
+				$localData = $this->smarty->createData($this->smarty);
 				
 				// Assign variables to the local data object scope
 				// These variables will only be available for this specific render call
@@ -303,7 +235,7 @@
 				$templateSource = $isString ? 'string:' . $template : $template;
 				
 				// Fetch/render the template with local data scope
-				return $smarty->fetch($templateSource, $localData);
+				return $this->smarty->fetch($templateSource, $localData);
 			} catch (\Exception $e) {
 				// Create the appropriate error message based on the template type
 				if ($isString) {
