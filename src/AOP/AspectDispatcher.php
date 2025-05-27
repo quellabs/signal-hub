@@ -146,6 +146,14 @@
 			// Filter to get only around aspects from all resolved aspects
 			$aroundAspects = array_filter($aspects, fn($aspect) => $aspect instanceof AroundAspect);
 			
+			// If one of the parameters is of type Request, add the request object to the parameter list
+			foreach($context->getMethodArguments() as $methodArgument) {
+				if ($methodArgument['type'] === Request::class) {
+					$parameters[$methodArgument['name']] = $context->getRequest();
+					break;
+				}
+			}
+			
 			// If no around aspects exist, execute the method directly without interception
 			if (empty($aroundAspects)) {
 				return $this->di->invoke($controller, $method, $parameters);

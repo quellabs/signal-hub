@@ -118,4 +118,22 @@
 		public function setRequest(Request $request): void {
 			$this->request = $request;
 		}
+		
+		/**
+		 * Returns the method arguments
+		 * @return array
+		 */
+		public function getMethodArguments(): array {
+			$result = [];
+			
+			foreach($this->getReflection()->getParameters() as $parameter) {
+				$result[] = [
+					'name'          => $parameter->getName(),
+					'type'          => $parameter->getType()->getName(),
+					'default_value' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null
+				];
+			}
+			
+			return $result;
+		}
 	}
