@@ -52,7 +52,7 @@
 			// Execute request aspects
 			foreach ($aspects as $aspect) {
 				if ($aspect instanceof RequestAspect) {
-					$request = $aspect->transformRequest($request);
+					$aspect->transformRequest($request);
 				}
 			}
 			

@@ -1,5 +1,4 @@
 <?php
-	
 	namespace Quellabs\Canvas\AOP\Contracts;
 	
 	use Symfony\Component\HttpFoundation\Request;
@@ -10,9 +9,10 @@
 	interface RequestAspect extends AspectAnnotation {
 		
 		/**
-		 * Executed before the request is processed by the routing system.
-		 * @param Request $request The incoming HTTP request object
-		 * @return Request Returns the modified request object
+		 * Transform the request before it's processed by business logic.
+		 * Modify the request object directly - no return value needed.
+		 * @param Request $request The incoming HTTP request object to modify
+		 * @return void
 		 */
-		public function transformRequest(Request $request): Request;
+		public function transformRequest(Request $request): void;
 	}
