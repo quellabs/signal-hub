@@ -40,9 +40,6 @@
   },
   "extra": {
     "discover": {
-      "di": {
-        "provider": "Quellabs\\Canvas\\Discover\\TemplateEngineServiceProvider"
-      },
       "sculpt": {
         "provider": "Quellabs\\Canvas\\Sculpt\\RoutesProvider"
       }
