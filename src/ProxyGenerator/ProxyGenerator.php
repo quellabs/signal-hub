@@ -28,60 +28,83 @@
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
 			$this->annotationReader = $entityStore->getAnnotationReader();
 			$this->servicesPath = realpath($configuration->getEntityPath());
-			$this->proxyPath =  $configuration->getProxyDir() ? realpath($configuration->getProxyDir()) : false;
+			$this->proxyPath =  $configuration->getProxyDir() ? realpath($configuration->getProxyDir()) : "";
 			$this->proxyNamespace = $configuration->getProxyNamespace() ?: 'Quellabs\\ObjectQuel\\Proxy\\Runtime';
 			$this->types = ["int", "float", "bool", "string", "array", "object", "resource", "null", "callable", "iterable", "mixed", "false", "void", "static"];
 			
-			// Only initialize proxies if a proxy path is set
-			if ($this->proxyPath !== false) {
+			// Only initialize proxies if a servicesPath and proxyPath is set
+			if (!empty($this->servicesPath) && !empty($this->proxyPath)) {
 				$this->initializeProxies();
 			}
 		}
 		
 		/**
-		 * Deze functie initialiseert alle entiteiten in de "Entity"-directory.
+		 * This function initializes all entities in the "Entity" directory by scanning for entity files
+		 * and generating/updating their corresponding proxy files when necessary.
+		 * Proxies are used for lazy loading and performance optimization of entity objects.
 		 * @return void
 		 */
 		private function initializeProxies(): void {
+			// Scan the services directory to get all files that might contain entities
 			$entityFiles = scandir($this->servicesPath);
 			
+			// Iterate through each file in the directory to process potential entity files
 			foreach ($entityFiles as $fileName) {
-				// Controleer of het bestand een php bestand is. Zoniet, ga naar volgende bestand
+				// Filter out non-PHP files (like directories, text files, etc.)
+				// Only process .php files as they are the only ones that can contain PHP entities
 				if (!$this->isPHPFile($fileName)) {
 					continue;
 				}
 				
-				// Controleer of het bestand een entity is. Zoniet, ga naar volgende bestand
+				// Extract the entity name from the filename and check if it's a valid entity class
+				// This prevents processing of regular PHP files that aren't entity classes
 				$entityName = $this->constructEntityName($fileName);
 				
 				if (!$this->isEntity($entityName)) {
 					continue;
 				}
 				
-				// Check of we moeten updaten
+				// Check if the proxy file is outdated compared to the source entity file
+				// Proxies need to be regenerated when the original entity has been modified
 				if ($this->isOutdated($fileName)) {
-					// Maak een lock file aan om race conditions te voorkomen
+					// Create a lock file to prevent race conditions in multi-threaded/multi-process environments
+					// This ensures that only one process generates the proxy at a time
 					$lockFile = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName . '.lock';
 					$lockHandle = fopen($lockFile, 'c+');
 					
+					// If we can't create the lock file, log the error and skip this entity
+					// This prevents the process from hanging or corrupting proxy files
 					if ($lockHandle === false) {
-						error_log("Kon geen lock file aanmaken voor entity: {$fileName}");
+						error_log("Could not create lock file for entity: {$fileName}");
 						continue;
 					}
 					
 					try {
+						// Acquire an exclusive lock to ensure only this process modifies the proxy
 						if (flock($lockHandle, LOCK_EX)) {
-							// Double-check of een ander proces het inmiddels niet al heeft gedaan
+							// Double-check if the file is still outdated after acquiring the lock
+							// Another process might have already updated it while we were waiting
 							if ($this->isOutdated($fileName)) {
+								// Generate the full path for the proxy file
 								$proxyFilePath = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName;
+								
+								// Generate the proxy code content for this specific entity
 								$proxyContents = $this->makeProxy($entityName);
+								
+								// Write the generated proxy content to the file system
 								file_put_contents($proxyFilePath, $proxyContents);
 							}
 							
+							// Release the exclusive lock so other processes can proceed
 							flock($lockHandle, LOCK_UN);
 						}
 					} finally {
+						// Always clean up resources, even if an exception occurs
+						// Close the file handle to free system resources
 						fclose($lockHandle);
+						
+						// Remove the lock file (@ suppresses warnings if file doesn't exist)
+						// This cleanup ensures no stale lock files remain in the system
 						@unlink($lockFile);
 					}
 				}
@@ -89,9 +112,9 @@
 		}
 		
 		/**
-		 * Controleert of het opgegeven bestand een PHP-bestand is.
-		 * @param string $fileName Naam van het bestand.
-		 * @return bool True als het een PHP-bestand is, anders false.
+		 * Checks if the specified file is a PHP file.
+		 * @param string $fileName Name of the file.
+		 * @return bool True if it's a PHP file, otherwise false.
 		 */
 		private function isPHPFile(string $fileName): bool {
 			$fileExtension = pathinfo($fileName, PATHINFO_EXTENSION);
@@ -147,9 +170,9 @@
 		}
 		
 		/**
-		 * Haalt de klassenaam van een gegeven entiteit op, zonder de namespace.
-		 * @param mixed $classNameWithNamespace De entiteit waarvan we de klassenaam willen ophalen.
-		 * @return string De klassenaam zonder de namespace.
+		 * Retrieves the class name of a given entity, without the namespace.
+		 * @param mixed $classNameWithNamespace The entity from which we want to retrieve the class name.
+		 * @return string The class name without the namespace.
 		 */
 		protected function getClassNameWithoutNamespace(mixed $classNameWithNamespace): string {
 			return ltrim(strrchr($classNameWithNamespace, '\\'), '\\');
