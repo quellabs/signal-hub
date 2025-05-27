@@ -20,7 +20,7 @@
 		
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
-
+			
 			// Config for AnnotationsReader
 			$annotationsReaderConfig = new Configuration();
 			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
@@ -46,6 +46,9 @@
 			// Transform route data into table format for display
 			$tableData = array_map(function (array $entry) {
 				return [
+					// HTTP method
+					implode(", ", $entry["http_methods"]),
+					
 					// Format route path with leading slash
 					"/" . $entry['route']->getRoute(),
 					
@@ -58,7 +61,7 @@
 			}, $routes);
 			
 			// Display routes in a formatted table with headers
-			$this->getOutput()->table(['Route', 'Controller', 'Aspects'], $tableData);
+			$this->getOutput()->table(['HTTP methods', 'Route', 'Controller', 'Aspects'], $tableData);
 			
 			// Return success status
 			return 0;
@@ -73,20 +76,20 @@
 		private function getAspectsOfMethod(string $class, string $method): array {
 			// Collect class-level interceptors that apply to all methods in this controller
 			// These are typically used for controller-wide concerns like authentication or CORS
-			$aspectsClass = array_filter($this->annotationsReader->getClassAnnotations($class), function($annotation) {
+			$aspectsClass = array_filter($this->annotationsReader->getClassAnnotations($class), function ($annotation) {
 				return $annotation instanceof InterceptWith;
 			});
 			
 			// Collect method-specific interceptors that apply only to this particular route handler
 			// These are used for method-specific concerns like input validation or caching
-			$aspectsMethod = array_filter($this->annotationsReader->getMethodAnnotations($class, $method), function($annotation) {
+			$aspectsMethod = array_filter($this->annotationsReader->getMethodAnnotations($class, $method), function ($annotation) {
 				return $annotation instanceof InterceptWith;
 			});
 			
 			// Merge interceptors with class-level aspects first (executed first in the chain)
 			// then method-level aspects (executed closer to the actual method call)
 			// Extract the actual interceptor class names from the InterceptWith annotation objects
-			return array_map(function($e) {
+			return array_map(function ($e) {
 				return $e->getInterceptClass();
 			}, array_merge($aspectsClass, $aspectsMethod));
 		}
@@ -108,12 +111,12 @@
 			$result = [];
 			
 			// Iterate through each discovered controller class
-			foreach($controllers as $controller) {
+			foreach ($controllers as $controller) {
 				// Create reflection object to inspect the controller class structure
 				$classReflection = new \ReflectionClass($controller);
 				
 				// Examine each method in the current controller
-				foreach($classReflection->getMethods() as $method) {
+				foreach ($classReflection->getMethods() as $method) {
 					// Look for Route annotations on this method
 					// Only methods with Route annotations are considered route handlers
 					$routes = $this->annotationsReader->getMethodAnnotations(
@@ -126,10 +129,11 @@
 					foreach ($routes as $route) {
 						// Build complete route configuration including metadata
 						$result[] = [
-							'controller' => $controller,               // Controller class name
-							'method'     => $method->getName(),        // Method name that handles this route
-							'route'      => $route,                    // Route annotation object with path/HTTP method info
-							'aspects'   => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
+							'http_methods' => $route->getMethods(),
+							'controller'   => $controller,               // Controller class name
+							'method'       => $method->getName(),        // Method name that handles this route
+							'route'        => $route,                    // Route annotation object with path/HTTP method info
+							'aspects'      => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
 								$method->getDeclaringClass()->getName(),
 								$method->getName()
 							),
@@ -137,10 +141,10 @@
 					}
 				}
 			}
-
+			
 			// Sort routes by controller name first, then by method name second
 			// This makes the route list more predictable and easier to debug
-			usort($result, function($a, $b) {
+			usort($result, function ($a, $b) {
 				$controllerComparison = strcmp($a['controller'], $b['controller']);
 				
 				if ($controllerComparison === 0) {
