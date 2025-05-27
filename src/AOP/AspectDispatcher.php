@@ -3,11 +3,13 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\Contracts\AfterAspect;
 	use Quellabs\Canvas\AOP\Contracts\AroundAspect;
 	use Quellabs\Canvas\AOP\Contracts\AspectAnnotation;
 	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
 	use Quellabs\DependencyInjection\Container;
+	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	class AspectDispatcher {
@@ -24,21 +26,23 @@
 		
 		/**
 		 * Dispatch a call
+		 * @param Request $request
 		 * @param object $controller
 		 * @param string $method
 		 * @param array $parameters
 		 * @return Response
-		 * @throws \Quellabs\AnnotationReader\Exception\ParserException
+		 * @throws ParserException
 		 * @throws \ReflectionException
 		 */
-		public function dispatch(object $controller, string $method, array $parameters): Response {
+		public function dispatch(Request $request, object $controller, string $method, array $parameters): Response {
 			// Create method context
 			$context = new MethodContext(
 				target: $controller,
 				methodName: $method,
 				arguments: $parameters,
 				reflection: new \ReflectionMethod($controller, $method),
-				annotations: $this->annotationReader->getMethodAnnotations($controller, $method)
+				annotations: $this->annotationReader->getMethodAnnotations($controller, $method),
+				request: $request
 			);
 			
 			// Get and instantiate aspects
@@ -103,7 +107,7 @@
 			foreach ($allAnnotations as $annotation) {
 				// Extract the aspect class name from the 'value' parameter
 				// This comes from @InterceptWith(CacheAspect::class, ttl=300)
-				$aspectClass = $annotation->value; // e.g., CacheAspect::class
+				$aspectClass = $annotation->getInterceptClass(); // e.g., CacheAspect::class
 				
 				// Get all annotation parameters except 'value' to pass to aspect constructor
 				// For @InterceptWith(CacheAspect::class, ttl=300), this gives us ['ttl' => 300]

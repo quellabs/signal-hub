@@ -118,6 +118,7 @@
 			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->di);
 			    
 			    return $aspectDispatcher->dispatch(
+					$request,
 				    $controller,
 				    $urlData["method"],
 				    $urlData["variables"]

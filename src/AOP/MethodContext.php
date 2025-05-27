@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\Canvas\AOP;
 	
+	use Symfony\Component\HttpFoundation\Request;
+	
 	/**
 	 * Context object that encapsulates information about a method call.
 	 * Used in AOP (Aspect-Oriented Programming) scenarios to provide
@@ -9,6 +11,7 @@
 	 */
 	class MethodContext {
 		
+		private Request $request;
 		private object $target;
 		private string $methodName;
 		private array $arguments;
@@ -24,12 +27,14 @@
 		 * @param array $annotations Parsed annotations/attributes associated with the method
 		 */
 		public function __construct(
+			Request $request,              // The request object
 			object $target,                // The original object instance
 			string $methodName,            // Method being called
 			array $arguments,              // Method parameters
 			\ReflectionMethod $reflection, // For metadata
 			array $annotations = []        // Parsed annotations
 		) {
+			$this->request = $request;
 			$this->target = $target;
 			$this->methodName = $methodName;
 			$this->arguments = $arguments;
@@ -95,5 +100,22 @@
 		 */
 		public function getReflection(): \ReflectionMethod {
 			return $this->reflection;
+		}
+		
+		/**
+		 * Returns the request object
+		 * @return Request
+		 */
+		public function getRequest(): Request {
+			return $this->request;
+		}
+		
+		/**
+		 * Sets the request object
+		 * @param Request $request
+		 * @return void
+		 */
+		public function setRequest(Request $request): void {
+			$this->request = $request;
 		}
 	}
