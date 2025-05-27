@@ -3,6 +3,7 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Symfony\Component\HttpFoundation\Request;
+	use Symfony\Component\HttpFoundation\Session\SessionInterface;
 	
 	/**
 	 * Context object that encapsulates information about a method call.
@@ -66,9 +67,14 @@
 			$arguments = $this->arguments;
 			
 			foreach($this->getMethodArguments() as $methodArgument) {
-				if ($methodArgument['type'] === Request::class) {
-					$arguments[$methodArgument['name']] = $this->getRequest();
-					break;
+				switch($methodArgument['type']) {
+					case Request::class :
+						$arguments[$methodArgument['name']] = $this->getRequest();
+						break;
+						
+					case SessionInterface::class :
+						$arguments[$methodArgument['name']] = $this->getRequest()->getSession();
+						break;
 				}
 			}
 			
