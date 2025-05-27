@@ -52,12 +52,10 @@
         "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
       },
       "di": {
-        "providers": [
-          {
-            "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
-            "config": "src/config/database.php"
-          }
-        ]
+        "provider": {
+          "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
+          "config": "src/config/database.php"
+        }
       }
     }
   }
