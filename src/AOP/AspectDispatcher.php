@@ -8,6 +8,7 @@
 	use Quellabs\Canvas\AOP\Contracts\AroundAspect;
 	use Quellabs\Canvas\AOP\Contracts\AspectAnnotation;
 	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
+	use Quellabs\Canvas\AOP\Contracts\RequestAspect;
 	use Quellabs\DependencyInjection\Container;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
@@ -47,6 +48,13 @@
 			
 			// Get and instantiate aspects
 			$aspects = $this->resolveAspects($controller, $method);
+			
+			// Execute request aspects
+			foreach ($aspects as $aspect) {
+				if ($aspect instanceof RequestAspect) {
+					$request = $aspect->transformRequest($request);
+				}
+			}
 			
 			// Execute before aspects
 			foreach ($aspects as $aspect) {
