@@ -145,21 +145,18 @@
 			// Filter to get only around aspects from all resolved aspects
 			$aroundAspects = array_filter($aspects, fn($aspect) => $aspect instanceof AroundAspect);
 			
-			// Fetch and complete arguments
-			$arguments = $context->getArguments();
-			
 			// If no around aspects exist, execute the method directly without interception
 			if (empty($aroundAspects)) {
-				return $this->di->invoke($controller, $method, $arguments);
+				return $this->di->invoke($controller, $method, $context->getArguments());
 			}
 			
 			// Create the base "proceed" function that calls the actual controller method
 			// This is the innermost function in the chain
-			$proceed = fn() => $this->di->invoke($controller, $method, $arguments);
+			$proceed = fn() => $this->di->invoke($controller, $method, $context->getArguments());
 			
-			// Build nested chain of around aspects in reverse order
-			// Reverse order ensures first declared aspect becomes outermost wrapper
-			// Each aspect wraps the previous proceed function, creating nested calls
+			// Build nested chain of around aspects in reverse order.
+			// Reverse order ensures first declared aspect becomes outermost wrapper.
+			// Each aspect wraps the previous proceed function, creating nested calls.
 			foreach (array_reverse($aroundAspects) as $aspect) {
 				$currentProceed = $proceed; // Capture current proceed function in closure
 				$proceed = fn() => $aspect->around($context, $currentProceed); // Wrap with this aspect
