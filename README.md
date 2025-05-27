@@ -261,12 +261,15 @@ class CacheAspect implements AroundAspect {
     public function around(MethodContext $context, callable $proceed): mixed {
         $key = $this->generateCacheKey($context);
         
+        // Fetch response from cache
         if ($cached = $this->cache->get($key)) {
             return $cached;
         }
         
-        $result = $proceed(... $context->getArguments());
+        // Call the original function
+        $result = $proceed();
         
+        // Put the result in cache
         $this->cache->set($key, $result, $this->ttl);
         return $result;
     }
