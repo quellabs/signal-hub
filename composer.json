@@ -13,8 +13,12 @@
     "issues": "https://github.com/quellabs/dependency-injection/issues",
     "source": "https://github.com/quellabs/dependency-injection"
   },
+  "config": {
+    "platform": {
+      "php": "8.2"
+    }
+  },
   "require": {
-    "php": ">=8.3",
     "quellabs/discover": "dev-main",
     "quellabs/contracts": "dev-main"
   },
