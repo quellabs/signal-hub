@@ -1,6 +1,6 @@
 <?php
 	
-	namespace Quellabs\Canvas\Controller;
+	namespace Quellabs\Canvas\Controllers;
 	
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\ObjectQuel\EntityManager;

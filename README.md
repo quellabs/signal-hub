@@ -22,7 +22,7 @@ namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Controllers\BaseController;
 use App\Aspects\RequireAuthAspect;
 use App\Aspects\CacheAspect;
 use App\Models\User;
@@ -100,7 +100,7 @@ Canvas automatically discovers your controllers and registers their routes:
 namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Controllers\BaseController;
 use Symfony\Component\HttpFoundation\Response;
 
 class HomeController extends BaseController {
@@ -132,7 +132,7 @@ ObjectQuel provides an intuitive way to interact with your data:
 namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Controllers\BaseController;
 use App\Models\Post;
 
 class BlogController extends BaseController {
@@ -176,7 +176,7 @@ namespace App\Controller;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Controllers\BaseController;
 use App\Aspects\RequireAuthAspect;
 use App\Aspects\RequireAdminAspect;
 use App\Aspects\AuditLogAspect;
@@ -559,7 +559,7 @@ namespace App\Controller\Api;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controller\BaseController;
+use Quellabs\Canvas\Controllers\BaseController;
 use App\Aspects\RequireAuthAspect;
 use App\Aspects\RateLimitAspect;
 use App\Aspects\ValidateJsonAspect;

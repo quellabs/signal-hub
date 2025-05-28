@@ -60,24 +60,11 @@
 		 * @return string Absolute path to controllers directory
 		 */
 		protected function getControllerDirectory(): string {
-			// Fetch the directory to the controllers
-			$directory = !empty(getenv('CONTROLLERS_DIRECTORY')) ? getenv('CONTROLLERS_DIRECTORY') : dirname(__FILE__) . "/../Controller";
-			
-			// Return an empty string when the user didn't specify CONTROLLERS_DIRECTORY
-			if (empty($directory)) {
-				return "";
-			}
-			
-			// If it's already an absolute path, normalize and check it
-			if (is_dir($directory)) {
-				return realpath($directory);
-			}
-			
-			// Otherwise, treat it as a relative path from project root
+			// Get the project root
 			$projectRoot = $this->kernel->getDiscover()->getProjectRoot();
 			
 			// Construct the full path
-			$fullPath = $projectRoot . DIRECTORY_SEPARATOR . $directory;
+			$fullPath = $projectRoot . DIRECTORY_SEPARATOR . "src" . DIRECTORY_SEPARATOR . "Controllers";
 			
 			// Make sure the directory exists
 			if (!is_dir($fullPath)) {
