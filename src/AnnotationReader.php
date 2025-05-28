@@ -284,8 +284,13 @@
 			// Load the use statements of this file
 			$imports = $this->use_statement_parser->getImportsForClass($reflection);
 			
-			// Resolve the annotations with imports
-			$result['class'] = $this->getAnnotationsWithImports($reflection->getDocComment(), $imports);
+			// Read the doc comment of the class
+			$docComment = $reflection->getDocComment();
+			
+			// Parse the annotations inside these comments
+			if (!empty($docComment)) {
+				$result['class'] = $this->getAnnotationsWithImports($docComment, $imports);
+			}
 			
 			// Parse the annotations and return result
 			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports);
