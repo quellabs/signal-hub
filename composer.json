@@ -29,8 +29,12 @@
   "bin": [
     "src/bin/sculpt"
   ],
+  "config": {
+    "platform": {
+      "php": "8.2"
+    }
+  },
   "require": {
-    "php": ">=8.3",
     "quellabs/contracts": "dev-main",
     "quellabs/discover": "dev-main"
   },
