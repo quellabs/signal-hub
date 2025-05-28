@@ -3,8 +3,6 @@
 	namespace Quellabs\ObjectQuel\Sculpt;
 	
 	use Quellabs\ObjectQuel\Configuration;
-	use Quellabs\ObjectQuel\ConfigurationLoader;
-	use Quellabs\ObjectQuel\OrmException;
 	use Quellabs\Sculpt\Application;
 	
 	/**
@@ -17,11 +15,8 @@
 		 * @param Application $application
 		 */
 		public function register(Application $application): void {
-			// Load the cli configuration
-			$configuration = $this->getConfiguration();
-			
 			// Register the commands into the Sculpt application
-			if ($configuration !== null) {
+			if (!empty($this->getConfig())) {
 				$this->registerCommands($application, [
 					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
@@ -33,47 +28,77 @@
 		}
 		
 		/**
-		 * Load and return the ObjectQuel CLI configuration
-		 * @return Configuration|null The ObjectQuel configuration for CLI operations
-		 * @throws OrmException If the configuration cannot be loaded
-		 */
-		public function getConfiguration(): ?Configuration {
-			return ConfigurationLoader::loadCliConfiguration();
-		}
-		
-		/**
 		 * Returns the default configuration
 		 * @return array[]
 		 */
 		public static function getDefaults(): array {
-			return [];
+			return [
+				'driver'              => 'mysql',
+				'host'                => '',
+				'database'            => '',
+				'username'            => '',
+				'password'            => '',
+				'port'                => 3306,
+				'encoding'            => 'utf8mb4',
+				'collation'           => 'utf8mb4_unicode_ci',
+				'migrations_path'     => '',
+				'entity_namespace'    => '',
+				'entity_path'         => '',
+				'proxy_namespace'     => 'Quellabs\\ObjectQuel\\Proxy\\Runtime',
+				'proxy_path'          => '',
+				'metadata_cache_path' => ''
+			];
+		}
+		
+		/**
+		 * Creates a configuration object out of the user provided data
+		 * @return Configuration
+		 */
+		public function getConfiguration(): Configuration {
+			$config = $this->getConfig();
+			$defaults = $this->getDefaults();
+			$configuration = new Configuration();
+			$configuration->setEntityNameSpace($configuration['entity_namespace'] ?? $defaults['entity_namespace'] ?? '');
+			$configuration->setMigrationsPath($configuration['migrations_path'] ?? $defaults['migrations_path'] ?? '');
+			
+			$configuration->setConnectionParams([
+				'driver'    => $config['driver'] ?? $defaults['driver'] ?? 'mysql',
+				'host'      => $config['host'] ?? $defaults['host'] ?? 'localhost',
+				'database'  => $config['database'] ?? $defaults['database'] ?? '',
+				'username'  => $config['username'] ?? $defaults['username'] ?? '',
+				'password'  => $config['password'] ?? $defaults['password'] ?? '',
+				'port'      => $config['port'] ?? $defaults['port'] ?? 3306,
+				'encoding'  => $config['encoding'] ?? $defaults['encoding'] ?? 'utf8mb4',
+				'collation' => $config['collation'] ?? $defaults['collation'] ?? 'utf8mb4_unicode_ci',
+			]);
+			
+			return $configuration;
 		}
 		
 		/**
 		 * Returns a Phinx configuration array
 		 * @return array
-		 * @throws OrmException
 		 */
 		public function createPhinxConfig(): array {
-			$configuration = $this->getConfiguration();
-			$connectionParams = $configuration->getConnectionParams();
+			$defaults = $this->getDefaults();
+			$configuration = $this->getConfig();
 			
 			return [
 				'paths'        => [
-					'migrations' => $configuration->getMigrationsPath(),
+					'migrations' => $configuration['migrations_path'] ?? $defaults['migrations_path'] ?? '',
 				],
 				'environments' => [
-					'default_migration_table' => 'phinxlog',
+					'default_migration_table' => $configuration['migration_table'] ?? $defaults['migration_table'] ?? 'phinxlog',
 					'default_environment'     => 'development',
 					'development'             => [
-						'adapter'   => $connectionParams['driver'],
-						'host'      => $connectionParams['host'],
-						'name'      => $connectionParams['database'],
-						'user'      => $connectionParams['username'],
-						'pass'      => $connectionParams['password'],
-						'port'      => $connectionParams['port'] ?? 3306,
-						'charset'   => $connectionParams['encoding'] ?? 'utf8mb4',
-						'collation' => $connectionParams['collation'] ?? 'utf8mb4_unicode_ci',
+						'adapter'   => $configuration['driver'] ?? $defaults['driver'] ?? 'mysql',
+						'host'      => $configuration['host'] ?? $defaults['host'] ?? '',
+						'name'      => $configuration['database'] ?? $defaults['database'] ?? '',
+						'user'      => $configuration['username'] ?? $defaults['username'] ?? '',
+						'pass'      => $configuration['password'] ?? $defaults['password'] ?? '',
+						'port'      => $configuration['port'] ?? $defaults['port'] ?? 3306,
+						'charset'   => $configuration['encoding'] ?? $defaults['encoding'] ?? 'utf8mb4',
+						'collation' => $configuration['collation'] ?? $defaults['collation'] ?? 'utf8mb4_unicode_ci',
 					],
 				],
 			];

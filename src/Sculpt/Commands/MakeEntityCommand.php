@@ -27,9 +27,9 @@
 		
 		/**
 		 * Entity modifier service for handling entity creation/modification operations
-		 * @var EntityModifier
+		 * @var EntityModifier|null
 		 */
-		private EntityModifier $entityModifier;
+		private ?EntityModifier $entityModifier;
 		
 		/**
 		 * Entity store for handling entity metadata

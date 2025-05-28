@@ -49,7 +49,8 @@
   "extra": {
     "discover": {
       "sculpt": {
-        "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider"
+        "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider",
+        "config": "src/config/database.php"
       },
       "di": {
         "provider": {

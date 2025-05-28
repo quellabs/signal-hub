@@ -939,12 +939,6 @@ the creation of entities in your application. This interactive CLI tool guides y
 through a structured process, automatically generating properly formatted entity classes
 with all the necessary components.
 
-### Initialization
-
-Before using the `sculpt` tool, create an `objectquel-cli-config.php` configuration file in your project's root directory (where your `composer.json` file is located). This file must include your database credentials, entity namespace, entity path, and migration path.
-
-For convenience, ObjectQuel provides an `objectquel-cli-config.php.example` file that you can copy and customize with your specific settings. The CLI tools require this configuration file to function properly.
-
 ### Automatic Entity Generation
 
 To create a new entity, run the following command in your terminal:
