@@ -33,7 +33,7 @@
 		public function resolve(Request $request): ?array {
 			// Get the request URL and method
 			$baseUrl = ltrim($request->getRequestUri(), '/');
-			$requestUrl = explode('/', $baseUrl);
+			$requestUrl = array_filter(explode('/', $baseUrl, function($e) { return $e !== ''; }));
 			
 			// Get controller classes from the standard location
 			$controllerDir = $this->getControllerDirectory();
