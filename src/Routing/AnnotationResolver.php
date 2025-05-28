@@ -91,6 +91,7 @@
 				foreach ($routeAnnotations as $method => $routeAnnotation) {
 					// Split the route pattern into segments for comparison
 					$route = explode('/', ltrim($routeAnnotation->getRoute(), '/'));
+					$route = array_filter($route, function($e) { return $e !== ''; });
 					
 					// Skip if URL segments count doesn't match or HTTP method is wrong
 					if (
