@@ -4,6 +4,7 @@
 	
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\ObjectQuel\EntityManager;
+	use Symfony\Component\HttpFoundation\Response;
 	
 	/**
 	 * Base controller providing common functionality for all controllers.
@@ -35,12 +36,11 @@
 		 * Render a template using the injected view renderer
 		 * @param string $template The template file path to render (relative to template directory)
 		 * @param array $data Associative array of data to pass to the template as variables
-		 * @return string The rendered template content as HTML/text
-		 * @throws \RuntimeException If the template engine fails to render the template
+		 * @return Response The response with the rendered template content attached
 		 */
-		protected function render(string $template, array $data = []): string {
+		protected function render(string $template, array $data = []): Response {
 			// Delegate the actual rendering to the injected template engine
 			// The template engine handles template loading, data binding, and output generation
-			return $this->view->render($template, $data);
+			return new Response($this->view->render($template, $data));
 		}
 	}
