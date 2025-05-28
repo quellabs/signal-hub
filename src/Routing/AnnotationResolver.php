@@ -32,7 +32,7 @@
 		 */
 		public function resolve(Request $request): ?array {
 			// Get the request URL and method
-			$baseUrl = ltrim($request->getBaseUrl(), '/');
+			$baseUrl = ltrim($request->getRequestUri(), '/');
 			$requestUrl = explode('/', $baseUrl);
 			
 			// Get controller classes from the standard location
