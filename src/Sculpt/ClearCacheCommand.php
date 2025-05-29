@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Smarty\Sculpt;
 	
-	use Smarty\Smarty;
+	use Smarty;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Contracts\CommandBase;
 	
