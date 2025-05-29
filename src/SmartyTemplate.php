@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Smarty;
 	
-	use Smarty;
+	use Smarty\Smarty;
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	
 	class SmartyTemplate implements TemplateEngineInterface {
@@ -44,7 +44,7 @@
 			if (isset($config['security']) && $config['security']) {
 				try {
 					$this->smarty->enableSecurity();
-				} catch (\SmartyException $e) {
+				} catch (\Exception $e) {
 					error_log("SmartyTemplateProvider: unable to set Smarty security ({$e->getMessage()}");
 				}
 			}
@@ -144,7 +144,7 @@
 				// Register the callback as a 'function' type plugin in Smarty
 				// This allows the function to be called directly in templates
 				$this->smarty->registerPlugin('function', $name, $callback);
-			} catch (\SmartyException $e) {
+			} catch (\Exception $e) {
 				error_log("SmartyTemplateProvider: unable to register function {$name} ({$e->getMessage()}");
 			}
 		}
@@ -160,7 +160,7 @@
 				// Register the callback as a 'modifier' type plugin in Smarty
 				// This allows the modifier to be used with the pipe operator on variables
 				$this->smarty->registerPlugin('modifier', $name, $callback);
-			} catch (\SmartyException $e) {
+			} catch (\Exception $e) {
 				error_log("SmartyTemplateProvider: unable to register modifier {$name} ({$e->getMessage()}");
 			}
 		}
@@ -176,7 +176,7 @@
 				// Register the callback as a 'block' type plugin in Smarty
 				// This allows the function to wrap and process template content
 				$this->smarty->registerPlugin('block', $name, $callback);
-			} catch (\SmartyException $e) {
+			} catch (\Exception $e) {
 				error_log("SmartyTemplateProvider: unable to register block {$name} ({$e->getMessage()}");
 			}
 		}
@@ -204,7 +204,7 @@
 				// Check if Smarty has a cached version of this template available
 				// Returns true if cached and valid, false if needs rendering
 				return $this->smarty->isCached($template);
-			} catch (\SmartyException | \Exception $e) {
+			} catch (\Exception $e) {
 				return false;
 			}
 		}
