@@ -49,7 +49,7 @@
 					implode(", ", $entry["http_methods"]),
 					
 					// Format route path with leading slash
-					"/" . $entry['route']->getRoute(),
+					"/" . ltrim($entry['route']->getRoute(), '/'),
 					
 					// Format controller as ClassName@methodName
 					$entry['controller'] . "@" . $entry['method'],
