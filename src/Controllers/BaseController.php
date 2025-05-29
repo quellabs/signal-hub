@@ -4,6 +4,7 @@
 	
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\ObjectQuel\EntityManager;
+	use Symfony\Component\HttpFoundation\JsonResponse;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	/**
@@ -42,5 +43,14 @@
 			// Delegate the actual rendering to the injected template engine
 			// The template engine handles template loading, data binding, and output generation
 			return new Response($this->view->render($template, $data));
+		}
+		
+		/**
+		 * Returns JSON data
+		 * @param array $data
+		 * @return Response
+		 */
+		protected function json(array $data = []): Response {
+			return new JsonResponse($data);
 		}
 	}
