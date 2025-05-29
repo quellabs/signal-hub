@@ -5,7 +5,7 @@
 	use Phinx\Config\Config;
 	use Phinx\Migration\Manager;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
-	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\Contracts\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
