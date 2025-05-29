@@ -126,7 +126,7 @@
 		    } catch (\Exception $e) {
 			    // If any exception occurs during execution, return it as the response
 			    // with the exception message as content and exception code as HTTP status
-			    return new Response($e->getMessage(), $e->getCode());
+			    return new Response($e->getMessage(), 500);
 		    }
 	    }
 	    
