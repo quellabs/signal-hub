@@ -169,7 +169,7 @@
 		 * @return array
 		 * @throws ParserException
 		 */
-		public function getAnnotations($string): array {
+		public function getAnnotations(string $string): array {
 			try {
 				$lexer = new Lexer($string);
 				$parser = new Parser($lexer, $this->configuration);
@@ -194,7 +194,10 @@
 		 * @return array
 		 */
 		protected function readCacheFromFile(string $cacheFilename): array {
+			// Create the cache path
 			$cachePath = "{$this->annotationCachePath}/{$cacheFilename}";
+			
+			// Get the file contents and deserialize
 			return unserialize(file_get_contents($cachePath));
 		}
 		
@@ -205,7 +208,19 @@
 		 * @return void
 		 */
 		protected function writeCacheToFile(string $cacheFilename, array $annotations): void {
-			$cachePath = "{$this->annotationCachePath}/{$cacheFilename}";
+			// Ensure the cache directory exists before attempting to create files
+			// This is important for first-time setup or when deploying to new environments
+			if (!is_dir($this->annotationCachePath)) {
+				// Create the directory structure recursively with standard permissions
+				// 0755 allows the owner to read/write/execute and others to read/execute
+				// The 'true' parameter creates parent directories as needed
+				mkdir($this->annotationCachePath, 0755, true);
+			}
+			
+			// Create the cache path
+			$cachePath = $this->annotationCachePath . DIRECTORY_SEPARATOR . $cacheFilename;
+
+			// Write the file to the path
 			file_put_contents($cachePath, serialize($annotations));
 		}
 		
