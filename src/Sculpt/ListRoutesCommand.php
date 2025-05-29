@@ -104,7 +104,7 @@
 			
 			// Scan the Controller directory to find all controller classes
 			// This assumes controllers are located in /src/Controller relative to project root
-			$controllers = $discover->findClassesInDirectory($discover->getProjectRoot() . "/src/Controller");
+			$controllers = $discover->findClassesInDirectory($discover->getProjectRoot() . "/src/Controllers");
 			
 			// Initialize array to store all discovered route configurations
 			$result = [];
