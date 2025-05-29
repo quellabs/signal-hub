@@ -36,21 +36,23 @@
 		/**
 		 * Render a template using the injected view renderer
 		 * @param string $template The template file path to render (relative to template directory)
+		 * @param int $statusCode The http status code to return
 		 * @param array $data Associative array of data to pass to the template as variables
 		 * @return Response The response with the rendered template content attached
 		 */
-		protected function render(string $template, array $data = []): Response {
+		protected function render(string $template, array $data = [], int $statusCode=200): Response {
 			// Delegate the actual rendering to the injected template engine
 			// The template engine handles template loading, data binding, and output generation
-			return new Response($this->view->render($template, $data));
+			return new Response($this->view->render($template, $data), $statusCode);
 		}
 		
 		/**
 		 * Returns JSON data
 		 * @param array $data
+		 * @param int $statusCode The http status code to return
 		 * @return Response
 		 */
-		protected function json(array $data = []): Response {
-			return new JsonResponse($data);
+		protected function json(array $data = [], int $statusCode=200): Response {
+			return new JsonResponse($data, $statusCode);
 		}
 	}
