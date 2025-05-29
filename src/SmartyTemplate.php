@@ -55,7 +55,7 @@
 		 * @param string $template The template file name/path to render
 		 * @param array $data Associative array of variables to pass to the template
 		 * @return string The rendered template content as a string
-		 * @throws \RuntimeException If template rendering fails for any reason
+		 * @throws \Exception If template rendering fails for any reason
 		 */
 		public function render(string $template, array $data = []): string {
 			return $this->renderTemplate($template, $data, false);
@@ -66,7 +66,7 @@
 		 * @param string $templateString The template content as a string
 		 * @param array $data Associative array of variables to pass to the template
 		 * @return string The rendered template content
-		 * @throws \RuntimeException If template rendering fails for any reason
+		 * @throws \Exception If template rendering fails for any reason
 		 */
 		public function renderString(string $templateString, array $data = []): string {
 			return $this->renderTemplate($templateString, $data, true);
@@ -106,7 +106,7 @@
 		/**
 		 * Clears the Smarty template cache and optionally compiled templates
 		 * @return void
-		 * @throws \RuntimeException If cache clearing fails for any reason
+		 * @throws \Exception If cache clearing fails for any reason
 		 */
 		public function clearCache(): void {
 			try {
@@ -125,7 +125,7 @@
 			} catch (\Exception $e) {
 				// If cache clearing fails, wrap the exception with more context
 				// This could happen due to file permission issues or disk space problems
-				throw new \RuntimeException("Failed to clear cache: " . $e->getMessage(), 0, $e);
+				throw new \Exception("Failed to clear cache: " . $e->getMessage(), 0, $e);
 			}
 		}
 		
@@ -215,7 +215,7 @@
 		 * @param array $data Associative array of variables to pass to the template
 		 * @param bool $isString Whether the template parameter is a string (true) or file path (false)
 		 * @return string The rendered template content
-		 * @throws \RuntimeException If template rendering fails for any reason
+		 * @throws \Exception
 		 */
 		private function renderTemplate(string $template, array $data, bool $isString): string {
 			try {
@@ -245,7 +245,7 @@
 					$errorContext = "template '{$template}'";
 				}
 				
-				throw new \RuntimeException("Failed to render {$errorContext}: " . $e->getMessage(), 0, $e);
+				throw new \Exception("Failed to render {$errorContext}: " . $e->getMessage(), 0, $e);
 			}
 		}
 	}
