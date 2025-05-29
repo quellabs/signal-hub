@@ -1,11 +1,10 @@
 <?php
 	
-	namespace Quellabs\Sculpt;
+	namespace Quellabs\Sculpt\Contracts;
 	
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
-	use Quellabs\Sculpt\Contracts\CommandInterface;
 	
 	/**
 	 * Abstract base class for all command implementations
