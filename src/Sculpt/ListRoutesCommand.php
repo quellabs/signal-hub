@@ -6,10 +6,9 @@
 	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\Canvas\Annotations\InterceptWith;
 	use Quellabs\Canvas\Annotations\Route;
-	use Quellabs\Canvas\AOP\Contracts\AspectAnnotation;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Discover\Discover;
-	use Quellabs\Sculpt\CommandBase;
+	use Quellabs\Sculpt\Contracts\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
