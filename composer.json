@@ -47,11 +47,11 @@
     "discover": {
       "di": {
         "provider": "Quellabs\\Canvas\\Smarty\\ServiceProvider",
-        "config": "src/config/smarty.php"
+        "config": "config/smarty.php"
       },
       "sculpt": {
         "provider": "Quellabs\\Canvas\\Smarty\\Sculpt\\ServiceProvider",
-        "config": "src/config/smarty.php"
+        "config": "config/smarty.php"
       }
     }
   }
