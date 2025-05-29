@@ -2,14 +2,15 @@
 	
 	namespace Quellabs\Canvas\Smarty\Sculpt;
 	
-	use Quellabs\Sculpt\ConfigurationManager;
 	use Smarty\Smarty;
+	use Quellabs\Sculpt\ConfigurationManager;
+	use Quellabs\Sculpt\Contracts\CommandBase;
 	
 	/**
 	 * Command class for clearing Smarty template cache
 	 * Extends the base command contract to provide cache clearing functionality
 	 */
-	class ClearCacheCommand extends \Quellabs\Sculpt\Contracts\CommandBase {
+	class ClearCacheCommand extends CommandBase {
 		
 		/**
 		 * Define the command signature/name that will be used to invoke this command
