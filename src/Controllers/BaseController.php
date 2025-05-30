@@ -5,6 +5,7 @@
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	use Quellabs\ObjectQuel\EntityManager;
 	use Symfony\Component\HttpFoundation\JsonResponse;
+	use Symfony\Component\HttpFoundation\RedirectResponse;
 	use Symfony\Component\HttpFoundation\Response;
 	
 	/**
@@ -54,5 +55,24 @@
 		 */
 		protected function json(array $data = [], int $statusCode=200): Response {
 			return new JsonResponse($data, $statusCode);
+		}
+		
+		/**
+		 * Redirect the user to a different URL
+		 * @param string $url The URL to redirect to
+		 * @param int $statusCode The HTTP status code for the redirect (default: 302 for temporary redirect)
+		 * @return RedirectResponse The redirect response
+		 */
+		protected function redirect(string $url, int $statusCode = 302): RedirectResponse {
+			return new RedirectResponse($url, $statusCode);
+		}
+		
+		/**
+		 * Return a 404 Not Found response
+		 * @param string $message The error message to display (default: 'Not Found')
+		 * @return Response The 404 response
+		 */
+		protected function notFound(string $message = 'Not Found'): Response {
+			return new Response($message, 404);
 		}
 	}
