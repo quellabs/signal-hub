@@ -52,13 +52,13 @@
 		/**
 		 * Gets the HTTP methods allowed for this route
 		 * @return array List of allowed HTTP methods
-		 *               If not specified, defaults to all main HTTP methods (GET, POST, PATCH, DELETE)
+		 *               If not specified, defaults to GET
 		 *               If specified as a string, converts to a single-element array
 		 */
 		public function getMethods(): array {
-			// If no methods specified, return all standard HTTP methods
+			// If no methods specified, default to GET
 			if (empty($this->parameters["methods"])) {
-				return ["GET", "POST", "PATCH", "DELETE"];
+				return ["GET"];
 			}
 			
 			// If methods is already an array, return it as is
