@@ -54,12 +54,12 @@
     "discover": {
       "sculpt": {
         "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider",
-        "config": "config/database.php"
+        "config": "config/database-env.php"
       },
       "di": {
         "provider": {
           "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
-          "config": "config/database.php"
+          "config": "config/database-env.php"
         }
       }
     }
