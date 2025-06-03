@@ -50,6 +50,12 @@
       "Quellabs\\ObjectQuel\\": "src/"
     }
   },
+  "scripts": {
+    "post-install-cmd": [
+      "php -r \"copy('vendor/quellabs/objectquel/config/database-env.php', 'public/config/database-env.php');\"",
+      "php -r \"copy('vendor/quellabs/objectquel/config/database.php', 'public/config/database.php');\""
+    ]
+  },
   "extra": {
     "discover": {
       "sculpt": {
