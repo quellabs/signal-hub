@@ -62,10 +62,10 @@
 			}
 			
 			// First try to fetch the path from a list of known shared hosting formats
-			$root = $this->getSharedHostingRoot($directory);
+			$projectRoot = $this->getSharedHostingRoot($directory);
 			
-			if ($root !== null) {
-				return $root;
+			if ($projectRoot !== null) {
+				return $projectRoot;
 			}
 			
 			// Fallback: Traverse path until we find composer.json
