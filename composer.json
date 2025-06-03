@@ -1,7 +1,12 @@
 {
   "name": "quellabs/contracts",
   "description": "Common interfaces for Quellabs service providers",
-  "keywords": ["contracts", "interfaces", "service-discovery", "quellabs"],
+  "keywords": [
+    "contracts",
+    "interfaces",
+    "service-discovery",
+    "quellabs"
+  ],
   "license": "MIT",
   "config": {
     "platform": {
@@ -11,11 +16,6 @@
   "autoload": {
     "psr-4": {
       "Quellabs\\Contracts\\": "src/"
-    }
-  },
-  "extra": {
-    "branch-alias": {
-      "dev-main": "1.x-dev"
     }
   }
 }
