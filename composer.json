@@ -35,8 +35,8 @@
     }
   },
   "require": {
-    "quellabs/contracts": "dev-main",
-    "quellabs/discover": "dev-main"
+    "quellabs/contracts": "^1.0",
+    "quellabs/discover": "^1.0"
   },
   "autoload": {
     "psr-4": {
