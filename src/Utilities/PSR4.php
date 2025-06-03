@@ -61,17 +61,16 @@
 				return $this->projectRootPathCache;
 			}
 			
-			// First try the standard composer.json detection
-			$root = $this->getProjectRootFromComposerJson($directory);
+			// First try to fetch the path from a list of known shared hosting formats
+			$root = $this->getSharedHostingRoot($directory);
 			
 			if ($root !== null) {
 				return $root;
 			}
 			
-			// Fallback: detect shared hosting structure
-			return $this->getSharedHostingRoot($directory);
+			// Fallback: Traverse path until we find composer.json
+			return $this->getProjectRootFromComposerJson($directory);
 		}
-		
 		
 		/**
 		 * Find the path to the local composer.json file
