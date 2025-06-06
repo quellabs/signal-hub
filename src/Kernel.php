@@ -116,7 +116,6 @@
 
 				// Create aspect-aware dispatcher
 			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->di);
-			    
 			    return $aspectDispatcher->dispatch(
 					$request,
 				    $controller,

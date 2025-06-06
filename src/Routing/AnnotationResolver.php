@@ -295,7 +295,8 @@
 				if ($this->isSingleWildcard($routeSegment)) {
 					// Extract the wildcard value and store it in variables
 					$this->handleSingleWildcard($routeSegment, $requestUrl[$urlIndex], $variables);
-					// Move to next segment in both arrays
+					
+					// Move to the next segment in both arrays
 					++$urlIndex;
 					++$routeIndex;
 					continue;
@@ -307,14 +308,13 @@
 					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
 					
 					// Check if variable handler consumed everything (multi-wildcard case)
+					// if multi-wildcard consumed everything, match is complete
 					if ($result === true) {
-						// Multi-wildcard consumed everything - match is complete
 						return true;
 					}
 					
-					// Check if variable validation failed
+					// Check if variable validation failed.
 					if ($result === false) {
-						// Validation failed - no match
 						return false;
 					}
 					
@@ -445,8 +445,8 @@
 		/**
 		 * Processes a single-segment wildcard and captures one URL segment
 		 *
-		 * Single wildcards match exactly one URL segment. The captured value
-		 * is stored either anonymously ('*') or with a custom variable name.
+		 * Single wildcards match exactly one URL segment. Anonymous wildcards
+		 * are stored in an indexed array to handle multiple occurrences.
 		 *
 		 * @param string $segment The wildcard route segment
 		 * @param string $urlSegment The current URL segment to capture
@@ -454,11 +454,16 @@
 		 */
 		private function handleSingleWildcard(string $segment, string $urlSegment, array &$variables): void {
 			if ($segment === '*') {
-				$variables['*'] = $urlSegment;
-				return; // Anonymous single wildcard processed
+				// Handle multiple anonymous wildcards by storing in an array
+				if (!isset($variables['*'])) {
+					$variables['*'] = [];
+				}
+				
+				$variables['*'][] = $urlSegment;
+				return;
 			}
 			
-			// Extract variable name from {varName:*} format
+			// Extract variable name from {varName:*} format (though this syntax is now removed)
 			$variableName = $this->extractVariableName($segment);
 			$variables[$variableName] = $urlSegment;
 		}
@@ -480,8 +485,8 @@
 		private function handleVariable(string $segment, array $requestUrl, int $urlIndex, array &$variables): bool|null {
 			$variableName = trim($segment, '{}');
 			
+			// Simple variable like {id} - capture current segment
 			if (!str_contains($variableName, ':')) {
-				// Simple variable like {id} - capture current segment
 				$variables[$variableName] = $requestUrl[$urlIndex];
 				return null; // Continue normal processing
 			}
@@ -511,7 +516,6 @@
 		
 		/**
 		 * Validates a URL segment against a pattern constraint
-		 *
 		 * @param string $segment The URL segment to validate
 		 * @param string $pattern The validation pattern (numeric, alpha, int, etc.)
 		 * @return bool True if segment matches the pattern
@@ -533,7 +537,7 @@
 		 *
 		 * Handles both simple variables and those with patterns:
 		 * - {id} -> 'id'
-		 * - {path:*} -> 'path'
+		 * - {path:int} -> 'path'
 		 * - {files:**} -> 'files'
 		 *
 		 * @param string $segment Route segment containing variable
@@ -549,7 +553,7 @@
 				return $variableName; // Simple variable, no pattern
 			}
 			
-			// For variables with patterns (e.g., "path:*" or "files:**"),
+			// For variables with patterns (e.g., "path:int" or "files:**"),
 			// extract just the name part before the colon
 			// explode() with limit 2 ensures we only split on the first colon
 			return explode(':', $variableName, 2)[0];
