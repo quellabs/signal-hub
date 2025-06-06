@@ -276,69 +276,66 @@
 		 * @return bool True if URL matches pattern
 		 */
 		protected function urlMatchesRoute(array $requestUrl, array $routePattern, array &$variables): bool {
-			// Initialize pointers to track current position in both arrays
-			$routeIndex = 0;  // Current position in route pattern
-			$urlIndex = 0;    // Current position in request URL
+			// Initialize indices to track position in both arrays
+			$routeIndex = 0;
+			$urlIndex = 0;
 			
-			// Main matching loop - continue while there are segments to process
+			// Continue matching while there are segments to process
 			while ($this->hasMoreSegments($routePattern, $routeIndex, $requestUrl, $urlIndex)) {
-				// Get the current route pattern segment to analyze
+				// Get the current route pattern segment
 				$routeSegment = $routePattern[$routeIndex];
 				
-				// Handle multi-segment wildcards (/** or {name:**})
-				// These consume all remaining URL segments
+				// Handle multi-segment wildcards (**) - these consume all remaining URL segments
 				if ($this->isMultiWildcard($routeSegment)) {
-					// Multi-wildcards are terminal - they consume everything remaining
-					// Return the result of processing this wildcard
+					// Multi-wildcards are terminal - they handle all remaining segments
 					return $this->handleMultiWildcard($routeSegment, $requestUrl, $urlIndex, $variables);
 				}
 				
-				// Handle single-segment wildcards (/* or {name:*}).
-				// These match exactly one URL segment
+				// Handle single wildcards (*) - these match exactly one segment
 				if ($this->isSingleWildcard($routeSegment)) {
-					// Process the wildcard and store any named variable
+					// Extract the wildcard value and store it in variables
 					$this->handleSingleWildcard($routeSegment, $requestUrl[$urlIndex], $variables);
-					
-					// Move both pointers forward by one position
+					// Move to next segment in both arrays
 					++$urlIndex;
 					++$routeIndex;
-					
-					// Continue to next iteration
 					continue;
 				}
 				
-				// Handle named variables ({id}, {name}, etc.)
-				// These capture URL segments into named parameters
+				// Handle variable segments ({id}, {name:pattern}, etc.)
 				if ($this->isVariable($routeSegment)) {
-					// Process the variable - may consume multiple segments in some cases
-					if ($this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables)) {
-						// Variable handler indicates it consumed all remaining segments
+					// Process the variable and get result status
+					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
+					
+					// Check if variable handler consumed everything (multi-wildcard case)
+					if ($result === true) {
+						// Multi-wildcard consumed everything - match is complete
 						return true;
 					}
-
-					// Variable consumed one segment, advance both pointers
+					
+					// Check if variable validation failed
+					if ($result === false) {
+						// Validation failed - no match
+						return false;
+					}
+					
+					// Variable processed successfully (result === null), continue matching
 					++$urlIndex;
 					++$routeIndex;
-					
-					// Continue to next iteration
 					continue;
 				}
 				
 				// Handle static segments - must match exactly
-				// These are literal strings that must appear in the URL
 				if ($routeSegment !== $requestUrl[$urlIndex]) {
-					// Static segment doesn't match - route fails
+					// Static segment mismatch - no match
 					return false;
 				}
 				
-				// Static segment matches - advance both pointers manually
-				// (We don't use advanceIndices here for clarity/performance)
+				// Static segment matched - move to next segment in both arrays
 				++$routeIndex;
 				++$urlIndex;
 			}
 			
-			// All segments processed - validate that we have a complete match
-			// This ensures we consumed all required segments and no extra segments remain
+			// All segments processed - validate that we've consumed both arrays appropriately
 			return $this->validateMatch($routePattern, $routeIndex, $requestUrl, $urlIndex);
 		}
 		
@@ -382,17 +379,13 @@
 		 *
 		 * Single wildcards match exactly one URL segment:
 		 * - '*': anonymous single wildcard, stored as $variables['*']
-		 * - '{file:*}': named single wildcard, stored as $variables['file']
+		 * Note: Removed {var:*} syntax - use {var} for simple variables
 		 *
 		 * @param string $segment Route segment to check
 		 * @return bool True if segment matches exactly one URL segment
 		 */
 		private function isSingleWildcard(string $segment): bool {
-			if ($segment === '*') {
-				return true;
-			}
-			
-			return str_ends_with($segment, ':*}');
+			return $segment === '*'; // Only anonymous wildcard now
 		}
 		
 		/**
@@ -475,32 +468,26 @@
 		 *
 		 * Variables can be:
 		 * - Simple: {id} -> captures one segment as $variables['id']
-		 * - With constraints: {id:numeric} -> captures with validation (not implemented)
-		 * - With wildcards: {path:*} or {path:**} -> handled as wildcards
+		 * - With validation: {id:numeric}, {slug:alpha}, {page:int} -> captures with validation
+		 * - Multi-wildcard: {path:**} -> captures all remaining segments
 		 *
 		 * @param string $segment The variable route segment
 		 * @param array $requestUrl Complete URL segments
 		 * @param int $urlIndex Current position in URL
 		 * @param array &$variables Variables array to store captured values
-		 * @return bool True if multi-wildcard consumed everything, false to continue processing
+		 * @return bool|null True if multi-wildcard consumed everything, null to continue processing, false if validation failed
 		 */
-		private function handleVariable(string $segment, array $requestUrl, int $urlIndex, array &$variables): bool {
+		private function handleVariable(string $segment, array $requestUrl, int $urlIndex, array &$variables): bool|null {
 			$variableName = trim($segment, '{}');
 			
 			if (!str_contains($variableName, ':')) {
 				// Simple variable like {id} - capture current segment
 				$variables[$variableName] = $requestUrl[$urlIndex];
-				return false; // Continue normal processing
+				return null; // Continue normal processing
 			}
 			
-			// Handle special patterns like {id:*} or {path:**}
+			// Handle patterns like {id:numeric} or {path:**}
 			[$varName, $pattern] = explode(':', $variableName, 2);
-			
-			if ($pattern === '*') {
-				// Single wildcard variable
-				$variables[$varName] = $requestUrl[$urlIndex];
-				return false; // Continue normal processing
-			}
 			
 			if ($pattern === '**' || $pattern === '.*') {
 				// Multi-segment wildcard variable - consume everything remaining
@@ -509,9 +496,36 @@
 				return true; // Stop processing, everything consumed
 			}
 			
-			// Regular variable with constraint (constraint validation not implemented)
-			$variables[$varName] = $requestUrl[$urlIndex];
-			return false; // Continue normal processing
+			// Variable with validation constraint
+			$urlSegment = $requestUrl[$urlIndex];
+			
+			if (!$this->validateSegment($urlSegment, $pattern)) {
+				// Validation failed - route doesn't match
+				return false;
+			}
+			
+			// Validation passed - store the value
+			$variables[$varName] = $urlSegment;
+			return null; // Continue normal processing
+		}
+		
+		/**
+		 * Validates a URL segment against a pattern constraint
+		 *
+		 * @param string $segment The URL segment to validate
+		 * @param string $pattern The validation pattern (numeric, alpha, int, etc.)
+		 * @return bool True if segment matches the pattern
+		 */
+		private function validateSegment(string $segment, string $pattern): bool {
+			return match ($pattern) {
+				'numeric', 'int', 'integer' => ctype_digit($segment),
+				'alpha' => ctype_alpha($segment),
+				'alnum', 'alphanumeric' => ctype_alnum($segment),
+				'slug' => preg_match('/^[a-z0-9-]+$/', $segment),
+				'uuid' => preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $segment),
+				'email' => filter_var($segment, FILTER_VALIDATE_EMAIL) !== false,
+				default => true // Unknown patterns always pass (for backward compatibility)
+			};
 		}
 		
 		/**
