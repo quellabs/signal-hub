@@ -53,8 +53,18 @@
 		 * @param int $statusCode The http status code to return
 		 * @return Response
 		 */
-		protected function json(array $data = [], int $statusCode=200): Response {
+		protected function json(array $data, int $statusCode=200): Response {
 			return new JsonResponse($data, $statusCode);
+		}
+		
+		/**
+		 * Returns literal text
+		 * @param string $text
+		 * @param int $statusCode The http status code to return
+		 * @return Response
+		 */
+		protected function text(string $text, int $statusCode=200): Response {
+			return new Response($text, $statusCode);
 		}
 		
 		/**
