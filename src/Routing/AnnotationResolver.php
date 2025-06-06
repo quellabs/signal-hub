@@ -168,7 +168,6 @@
 				'multi_wildcard' => fn($s) => $s === '**',
 				'single_wildcard' => fn($s) => $s === '*',
 				'multi_wildcard_var' => fn($s) => str_ends_with($s, ':**}') || str_ends_with($s, ':.*}'),
-				'single_wildcard_var' => fn($s) => str_ends_with($s, ':*}'),
 				'variable' => fn($s) => !empty($s) && $s[0] === '{',
 				'static' => fn($s) => true // fallback
 			];
@@ -190,7 +189,7 @@
 		private function getSegmentPenalty(string $segmentType): int {
 			return match ($segmentType) {
 				'multi_wildcard', 'multi_wildcard_var' => 200,
-				'single_wildcard', 'single_wildcard_var' => 100,
+				'single_wildcard' => 100,
 				'variable' => 50,
 				default => 0
 			};
