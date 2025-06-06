@@ -117,7 +117,7 @@
 		
 		/**
 		 * Calculate priority for route (higher = more priority)
-		 * Exact routes get higher priority than wildcard routes
+		 * More specific routes get higher priority than generic/wildcard routes
 		 * @param string $routePath
 		 * @return int
 		 */
@@ -125,22 +125,77 @@
 			// Base priority
 			$priority = 1000;
 			
-			// Reduce priority for each wildcard or variable
-			$segments = explode('/', ltrim($routePath, '/'));
+			// Remove leading slash and split into segments
+			$segments = array_filter(explode('/', ltrim($routePath, '/')), function($segment) {
+				return $segment !== '';
+			});
+			
+			$segmentCount = count($segments);
+			$staticSegments = 0;
+			$penalties = 0;
 			
 			foreach ($segments as $segment) {
-				if ($segment === '*' || $segment === '**') {
-					$priority -= 100; // Wildcards get lower priority
-				} elseif (!empty($segment) && $segment[0] === '{') {
-					$priority -= 10; // Variables get slightly lower priority
+				$segmentType = $this->getSegmentType($segment);
+				$penalties += $this->getSegmentPenalty($segmentType);
+				
+				if ($segmentType === 'static') {
+					$staticSegments++;
 				}
 			}
 			
-			// Longer specific paths get higher priority
-			$priority += count($segments) * 5;
+			// Apply penalties
+			$priority -= $penalties;
 			
-			// Return the priority
+			// Bonus points for static segments (more specific routes)
+			$priority += $staticSegments * 20;
+			
+			// Bonus for longer paths (more specific)
+			$priority += $segmentCount * 5;
+			
+			// Additional bonus for completely static routes
+			if ($penalties === 0) {
+				$priority += 100;
+			}
+			
 			return $priority;
+		}
+		
+		/**
+		 * Determine the type of route segment
+		 * @param string $segment
+		 * @return string
+		 */
+		private function getSegmentType(string $segment): string {
+			$segmentTypes = [
+				'multi_wildcard' => fn($s) => $s === '**',
+				'single_wildcard' => fn($s) => $s === '*',
+				'multi_wildcard_var' => fn($s) => str_ends_with($s, ':**}') || str_ends_with($s, ':.*}'),
+				'single_wildcard_var' => fn($s) => str_ends_with($s, ':*}'),
+				'variable' => fn($s) => !empty($s) && $s[0] === '{',
+				'static' => fn($s) => true // fallback
+			];
+			
+			foreach ($segmentTypes as $type => $checker) {
+				if ($checker($segment)) {
+					return $type;
+				}
+			}
+			
+			return 'static';
+		}
+		
+		/**
+		 * Get penalty points for segment type
+		 * @param string $segmentType
+		 * @return int
+		 */
+		private function getSegmentPenalty(string $segmentType): int {
+			return match ($segmentType) {
+				'multi_wildcard', 'multi_wildcard_var' => 200,
+				'single_wildcard', 'single_wildcard_var' => 100,
+				'variable' => 50,
+				default => 0
+			};
 		}
 		
 		/**
