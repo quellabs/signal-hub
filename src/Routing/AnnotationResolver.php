@@ -546,7 +546,7 @@
 		 *
 		 * After processing all segments, we need to ensure:
 		 * 1. All route segments have been consumed (no missing URL parts)
-		 * 2. All URL segments have been consumed (unless route ends with wildcard)
+		 * 2. All URL segments have been consumed (unless route ends with multi-wildcard)
 		 *
 		 * @param array $routePattern The complete route pattern segments
 		 * @param int $routeIndex Current position in route pattern
@@ -565,9 +565,9 @@
 			// If we haven't processed all URL segments, the URL is too long
 			if ($urlIndex < count($requestUrl)) {
 				// URL has extra segments - this is only acceptable if the route
-				// ended with a wildcard that should have consumed them
+				// ended with a MULTI-wildcard that should have consumed them
 				$lastRouteSegment = end($routePattern);
-				return $this->isWildcardSegment($lastRouteSegment);
+				return $this->isMultiWildcard($lastRouteSegment); // Only multi-wildcards allow extra segments
 			}
 			
 			// Perfect match - all segments consumed on both sides
