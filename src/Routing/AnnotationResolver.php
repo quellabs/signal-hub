@@ -464,9 +464,13 @@
 			// Join the consumed segments back into a path string
 			$capturedPath = implode('/', $consumedSegments);
 			
-			// Store the captured value based on wildcard type
+			// Store the captured value based on the wildcard type
 			if ($segment === '**' || $segment === '{**}') {
-				$variables['**'] = $capturedPath;
+				if (!isset($variables['**'])) {
+					$variables['**'] = [];
+				}
+				
+				$variables['**'][] = $capturedPath;
 			} else {
 				$variableName = $this->extractVariableName($segment);
 				$variables[$variableName] = $capturedPath;
