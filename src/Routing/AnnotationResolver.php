@@ -349,6 +349,19 @@
 		}
 		
 		/**
+		 * Determines if a route segment is a single-segment wildcard
+		 *
+		 * Single wildcards match exactly one URL segment:
+		 * - '*': anonymous single wildcard, stored as $variables['*']
+		 *
+		 * @param string $segment Route segment to check
+		 * @return bool True if the segment matches exactly one URL segment
+		 */
+		private function isSingleWildcard(string $segment): bool {
+			return $segment === '*'; // Only anonymous wildcard now
+		}
+		
+		/**
 		 * Determines if a route segment is a multi-segment wildcard
 		 *
 		 * Multi-wildcards consume all remaining URL segments:
@@ -361,38 +374,25 @@
 		 * @return bool True if segment matches multiple URL segments
 		 */
 		private function isMultiWildcard(string $segment): bool {
-			// Handle {**} syntax for anonymous multi-wildcard
-			if ($segment === '{**}') {
-				return true;
-			}
-			
-			// Alternative anonymous syntax without curly braces
+			// Anonymous multi-wildcard
 			if ($segment === '**') {
 				return true;
 			}
 			
-			// Also handle named multi-wildcards
-			if (str_ends_with($segment, ':**}')) {
+			// Alternative anonymous multi-wildcard syntax
+			if ($segment === '{**}') {
 				return true;
 			}
 			
-			return str_ends_with($segment, ':.*}');
+			// Named multi-wildcard
+			if (str_starts_with($segment, '{') && str_ends_with($segment, ':**}')) {
+				return true;
+			}
+			
+			// Named multi-wildcard alternative syntax
+			return str_starts_with($segment, '{') && str_ends_with($segment, ':.*}');
 		}
-		
-		/**
-		 * Determines if a route segment is a single-segment wildcard
-		 *
-		 * Single wildcards match exactly one URL segment:
-		 * - '*': anonymous single wildcard, stored as $variables['*']
-		 * Note: Removed {var:*} syntax - use {var} for simple variables
-		 *
-		 * @param string $segment Route segment to check
-		 * @return bool True if segment matches exactly one URL segment
-		 */
-		private function isSingleWildcard(string $segment): bool {
-			return $segment === '*'; // Only anonymous wildcard now
-		}
-		
+
 		/**
 		 * Determines if a route segment is a variable placeholder
 		 *
@@ -400,7 +400,7 @@
 		 * They can be simple variables or include patterns after a colon.
 		 *
 		 * @param string $segment Route segment to check
-		 * @return bool True if segment is a variable placeholder
+		 * @return bool True if the segment is a variable placeholder
 		 */
 		private function isVariable(string $segment): bool {
 			return !empty($segment) && $segment[0] === '{';
