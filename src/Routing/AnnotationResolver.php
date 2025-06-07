@@ -634,25 +634,6 @@
 		}
 		
 		/**
-		 * Determines if a route segment is any type of wildcard
-		 *
-		 * Wildcards can consume extra URL segments beyond the basic pattern:
-		 * - '*' or '{var:*}': matches exactly one segment
-		 * - '**' or '{var:**}': matches zero or more segments
-		 *
-		 * @param string $segment Route segment to check
-		 * @return bool True if the segment is a wildcard pattern
-		 */
-		private function isWildcardSegment(string $segment): bool {
-			return
-				$segment === '*' ||              // Simple single wildcard
-				$segment === '**' ||             // Simple multi wildcard
-				str_ends_with($segment, ':*}') || // Named single wildcard: {file:*}
-				str_ends_with($segment, ':**}') || // Named multi wildcard: {path:**}
-				str_ends_with($segment, ':.*}'); // Add this line
-		}
-		
-		/**
 		 * Returns all methods with route annotation in the class
 		 * @param object|string $controller The controller class name or object instance to analyze
 		 * @return array Associative array where keys are method names and values are Route annotation objects
