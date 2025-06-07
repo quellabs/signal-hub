@@ -42,8 +42,10 @@
 			// Collect all routes with their priorities
 			$allRoutes = [];
 			foreach ($controllers as $controller) {
-				$routes = $this->getRoutesFromController($controller, $request->getMethod());
-				$allRoutes = array_merge($allRoutes, $routes);
+				$allRoutes = array_merge(
+					$allRoutes,
+					$this->getRoutesFromController($controller, $request->getMethod())
+				);
 			}
 			
 			// Sort routes by priority (higher priority first)
