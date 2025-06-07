@@ -353,6 +353,7 @@
 		 *
 		 * Multi-wildcards consume all remaining URL segments:
 		 * - '**': anonymous multi-wildcard, stored as $variables['**']
+		 * - '{**}': alternative anonymous multi-wildcard syntax
 		 * - '{path:**}': named multi-wildcard, stored as $variables['path']
 		 * - '{files:.*}': alternative syntax for named multi-wildcard
 		 *
@@ -360,10 +361,17 @@
 		 * @return bool True if segment matches multiple URL segments
 		 */
 		private function isMultiWildcard(string $segment): bool {
+			// Handle {**} syntax for anonymous multi-wildcard
+			if ($segment === '{**}') {
+				return true;
+			}
+			
+			// Alternative anonymous syntax without curly braces
 			if ($segment === '**') {
 				return true;
 			}
 			
+			// Also handle named multi-wildcards
 			if (str_ends_with($segment, ':**}')) {
 				return true;
 			}
@@ -413,18 +421,16 @@
 		 */
 		private function handleMultiWildcard(string $segment, array $requestUrl, int $urlIndex, array &$variables): bool {
 			// Extract all remaining URL segments from the current position onward
-			// This captures everything that hasn't been matched yet
 			$remainingSegments = array_slice($requestUrl, $urlIndex);
 			
 			// Join the remaining segments back into a path string using '/' as separator
-			// This reconstructs the original URL structure for the unmatched portion
 			$remainingPath = implode('/', $remainingSegments);
 			
-			// Check if this is an anonymous multi-wildcard (just '**')
-			if ($segment === '**') {
+			// Check if this is an anonymous multi-wildcard
+			if ($segment === '**' || $segment === '{**}') {
 				// Store the captured path under the generic '**' key
 				$variables['**'] = $remainingPath;
-				return true; // Anonymous multi-wildcard processed successfully
+				return true;
 			}
 			
 			// Handle named multi-wildcard in format {varName:**}
@@ -432,10 +438,8 @@
 			$variableName = $this->extractVariableName($segment);
 			
 			// Store the captured path under the custom variable name
-			// This allows routes like {path:**} to access the value via $variables['path']
 			$variables[$variableName] = $remainingPath;
 			
-			// Named multi-wildcard processed successfully
 			return true;
 		}
 		
