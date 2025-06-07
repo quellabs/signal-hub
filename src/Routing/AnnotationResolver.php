@@ -273,66 +273,75 @@
 		 * @return bool True if URL matches pattern
 		 */
 		protected function urlMatchesRoute(array $requestUrl, array $routePattern, array &$variables): bool {
-			// Initialize indices to track position in both arrays
 			$routeIndex = 0;
 			$urlIndex = 0;
 			
-			// Continue matching while there are segments to process
 			while ($this->hasMoreSegments($routePattern, $routeIndex, $requestUrl, $urlIndex)) {
-				// Get the current route pattern segment
 				$routeSegment = $routePattern[$routeIndex];
 				
-				// Handle multi-segment wildcards (**) - these consume all remaining URL segments
+				// Handle multi-segment wildcards
 				if ($this->isMultiWildcard($routeSegment)) {
-					// Multi-wildcards are terminal - they handle all remaining segments
-					return $this->handleMultiWildcard($routeSegment, $requestUrl, $urlIndex, $variables);
-				}
-				
-				// Handle single wildcards (*) - these match exactly one segment
-				if ($this->isSingleWildcard($routeSegment)) {
-					// Extract the wildcard value and store it in variables
-					$this->handleSingleWildcard($routeSegment, $requestUrl[$urlIndex], $variables);
+					// Pass the complete route pattern and current index
+					$result = $this->handleMultiWildcard(
+						$routeSegment,
+						$requestUrl,
+						$urlIndex,
+						$variables,
+						$routePattern,  // NEW: pass complete route pattern
+						$routeIndex     // NEW: pass current route index
+					);
 					
-					// Move to the next segment in both arrays
-					++$urlIndex;
-					++$routeIndex;
-					continue;
-				}
-				
-				// Handle variable segments ({id}, {name:pattern}, etc.)
-				if ($this->isVariable($routeSegment)) {
-					// Process the variable and get result status
-					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
-					
-					// Check if variable handler consumed everything (multi-wildcard case)
-					// if multi-wildcard consumed everything, match is complete
 					if ($result === true) {
+						// Traditional behavior: wildcard consumed everything
 						return true;
 					}
 					
-					// Check if variable validation failed.
-					if ($result === false) {
-						return false;
-					}
+					// New behavior: wildcard consumed some segments, continue matching
+					// Calculate how many segments were consumed
+					$remainingRouteSegments = count($routePattern) - ($routeIndex + 1);
+					$remainingUrlSegments = count($requestUrl) - $urlIndex;
+					$segmentsConsumed = $remainingUrlSegments - $remainingRouteSegments;
 					
-					// Variable processed successfully (result === null), continue matching
+					// Update URL index to skip consumed segments
+					$urlIndex += max(0, $segmentsConsumed);
+					$routeIndex++;
+					continue;
+				}
+				
+				// Handle single wildcards
+				if ($this->isSingleWildcard($routeSegment)) {
+					$this->handleSingleWildcard($routeSegment, $requestUrl[$urlIndex], $variables);
 					++$urlIndex;
 					++$routeIndex;
 					continue;
 				}
 				
-				// Handle static segments - must match exactly
+				// Handle variable segments
+				if ($this->isVariable($routeSegment)) {
+					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
+					
+					if ($result === true) {
+						return true; // Multi-wildcard variable consumed everything
+					}
+					
+					if ($result === false) {
+						return false; // Validation failed
+					}
+					
+					++$urlIndex;
+					++$routeIndex;
+					continue;
+				}
+				
+				// Handle static segments
 				if ($routeSegment !== $requestUrl[$urlIndex]) {
-					// Static segment mismatch - no match
 					return false;
 				}
 				
-				// Static segment matched - move to next segment in both arrays
 				++$routeIndex;
 				++$urlIndex;
 			}
 			
-			// All segments processed - validate that we've consumed both arrays appropriately
 			return $this->validateMatch($routePattern, $routeIndex, $requestUrl, $urlIndex);
 		}
 		
@@ -409,38 +418,63 @@
 		/**
 		 * Processes a multi-segment wildcard and captures remaining URL segments
 		 *
-		 * Multi-wildcards always succeed and consume all remaining URL segments,
-		 * effectively ending the matching process. The captured segments are joined
-		 * with '/' to recreate the original path structure.
+		 * Multi-wildcards consume URL segments, but must respect additional route segments
+		 * that come after the wildcard. If there are more route segments after this wildcard,
+		 * we need to ensure enough URL segments remain to satisfy those requirements.
 		 *
 		 * @param string $segment The wildcard route segment
 		 * @param array $requestUrl Complete URL segments
 		 * @param int $urlIndex Current position in URL
 		 * @param array &$variables Variables array to store captured values
-		 * @return bool Always returns true (multi-wildcards never fail)
+		 * @param array $routePattern Complete route pattern (NEW PARAMETER)
+		 * @param int $routeIndex Current route position (NEW PARAMETER)
+		 * @return bool True if wildcard successfully matched, false if insufficient segments
 		 */
-		private function handleMultiWildcard(string $segment, array $requestUrl, int $urlIndex, array &$variables): bool {
-			// Extract all remaining URL segments from the current position onward
-			$remainingSegments = array_slice($requestUrl, $urlIndex);
+		private function handleMultiWildcard(string $segment, array $requestUrl, int $urlIndex, array &$variables, array $routePattern, int $routeIndex): bool {
+			// Calculate how many route segments come after this wildcard
+			$remainingRouteSegments = count($routePattern) - ($routeIndex + 1);
 			
-			// Join the remaining segments back into a path string using '/' as separator
-			$remainingPath = implode('/', $remainingSegments);
+			// Calculate how many URL segments are available from current position
+			$remainingUrlSegments = count($requestUrl) - $urlIndex;
 			
-			// Check if this is an anonymous multi-wildcard
-			if ($segment === '**' || $segment === '{**}') {
-				// Store the captured path under the generic '**' key
-				$variables['**'] = $remainingPath;
-				return true;
+			// If there are more route segments after this wildcard, we need to reserve
+			// enough URL segments to satisfy those requirements
+			if ($remainingRouteSegments > 0) {
+				// We need at least one URL segment for each remaining route segment
+				if ($remainingUrlSegments < $remainingRouteSegments) {
+					return false; // Not enough URL segments to satisfy the remaining route
+				}
+				
+				// Calculate how many segments the wildcard can consume
+				// (leave enough for the remaining route segments)
+				$segmentsToConsume = $remainingUrlSegments - $remainingRouteSegments;
+				
+				// Multi-wildcards can consume zero or more segments
+				if ($segmentsToConsume < 0) {
+					return false;
+				}
+				
+				// Extract only the segments this wildcard should consume
+				$consumedSegments = array_slice($requestUrl, $urlIndex, $segmentsToConsume);
+			} else {
+				// No more route segments after this wildcard - consume everything remaining
+				$consumedSegments = array_slice($requestUrl, $urlIndex);
 			}
 			
-			// Handle named multi-wildcard in format {varName:**}
-			// Extract the custom variable name from the segment pattern
-			$variableName = $this->extractVariableName($segment);
+			// Join the consumed segments back into a path string
+			$capturedPath = implode('/', $consumedSegments);
 			
-			// Store the captured path under the custom variable name
-			$variables[$variableName] = $remainingPath;
+			// Store the captured value based on wildcard type
+			if ($segment === '**' || $segment === '{**}') {
+				$variables['**'] = $capturedPath;
+			} else {
+				$variableName = $this->extractVariableName($segment);
+				$variables[$variableName] = $capturedPath;
+			}
 			
-			return true;
+			// Return false to continue matching (don't terminate the process)
+			// The caller will need to update the URL index appropriately
+			return false; // Changed: don't terminate matching process
 		}
 		
 		/**
