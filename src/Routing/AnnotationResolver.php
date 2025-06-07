@@ -478,7 +478,7 @@
 			
 			// Return false to continue matching (don't terminate the process)
 			// The caller will need to update the URL index appropriately
-			return false; // Changed: don't terminate matching process
+			return false;
 		}
 		
 		/**
