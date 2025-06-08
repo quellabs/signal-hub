@@ -67,6 +67,12 @@
 			$arguments = $this->arguments;
 			
 			foreach($this->getMethodArguments() as $methodArgument) {
+				// Skip handling argument without a type
+				if ($methodArgument['type'] === null) {
+					continue;
+				}
+				
+				// Special case handling for Request and SessionInterface classes
 				switch($methodArgument['type']) {
 					case Request::class :
 						$arguments[$methodArgument['name']] = $this->getRequest();
@@ -125,7 +131,7 @@
 			foreach($this->getReflection()->getParameters() as $parameter) {
 				$result[] = [
 					'name'          => $parameter->getName(),
-					'type'          => $parameter->getType()->getName(),
+					'type'          => $parameter->getType() ? $parameter->getType()->getName() : null,
 					'default_value' => $parameter->isDefaultValueAvailable() ? $parameter->getDefaultValue() : null
 				];
 			}
