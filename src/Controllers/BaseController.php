@@ -85,4 +85,13 @@
 		protected function notFound(string $message = 'Not Found'): Response {
 			return new Response($message, 404);
 		}
+		
+		/**
+		 * Return a 403 Forbidden HTTP response.
+		 * @param string $message The error message to display
+		 * @return Response HTTP 403 response
+		 */
+		protected function forbidden(string $message = 'Forbidden'): Response {
+			return new Response($message, 403);
+		}
 	}

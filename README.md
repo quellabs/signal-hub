@@ -18,7 +18,7 @@ Canvas combines four powerful concepts to create a framework that feels natural 
 
 ```php
 <?php
-namespace App\Controller;
+namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
@@ -45,7 +45,7 @@ class UserController extends BaseController {
     }
     
     /**
-     * @Route("/users/{id}")
+     * @Route("/users/{id:int}")
      */
     public function show(int $id) {
         // Inherits RequireAuth from class level
@@ -61,7 +61,14 @@ class UserController extends BaseController {
 composer require quellabs/canvas
 ```
 
-Or create a new project:
+Or create a new project using the Canvas skeleton:
+
+```bash
+composer create-project quellabs/canvas-skeleton my-canvas-app
+cd my-canvas-app
+```
+
+Or create a project manually:
 
 ```bash
 mkdir my-canvas-app
@@ -95,9 +102,9 @@ Canvas automatically discovers your controllers and registers their routes:
 
 ```php
 <?php
-// src/Controller/HomeController.php
+// src/Controllers/HomeController.php
 
-namespace App\Controller;
+namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controllers\BaseController;
@@ -113,7 +120,7 @@ class HomeController extends BaseController {
     }
     
     /**
-     * @Route("/welcome/{name}")
+     * @Route("/welcome/{name:alpha}")
      */
     public function welcome(string $name): Response {
         return $this->render('welcome.tpl', ['name' => $name]);
@@ -127,9 +134,9 @@ ObjectQuel provides an intuitive way to interact with your data:
 
 ```php
 <?php
-// src/Controller/BlogController.php
+// src/Controllers/BlogController.php
 
-namespace App\Controller;
+namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controllers\BaseController;
@@ -149,14 +156,14 @@ class BlogController extends BaseController {
     }
     
     /**
-     * @Route("/posts/{slug}")
+     * @Route("/posts/{slug:slug}")
      */
     public function show(string $slug) {
         // Find individual records
         $post = $this->em->find(Post::class, $slug);
                          
         if (!$post) {
-            throw new NotFoundHttpException();
+            return $this->notFound('Post not found');
         }
         
         return $this->render('blog/show.tpl', compact('post'));
@@ -170,9 +177,9 @@ Keep your controllers clean by using aspects for authentication, caching, loggin
 
 ```php
 <?php
-// src/Controller/AdminController.php
+// src/Controllers/AdminController.php
 
-namespace App\Controller;
+namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
@@ -212,13 +219,176 @@ class AdminController extends BaseController {
 
 ## Key Features
 
+### Advanced Routing with Variable Validation and Wildcards
+
+Canvas provides powerful routing capabilities with built-in parameter validation and flexible wildcard matching.
+
+#### Route Parameter Validation
+
+Validate route parameters directly in your route definitions using type constraints:
+
+```php
+class ProductController extends BaseController {
+    
+    /**
+     * @Route("/products/{id:int}")
+     */
+    public function show(int $id) {
+        // Only matches numeric IDs: /products/123 ✓, /products/abc ✗
+    }
+    
+    /**
+     * @Route("/users/{username:alpha}")
+     */
+    public function profile(string $username) {
+        // Only matches alphabetic usernames: /users/john ✓, /users/john123 ✗
+    }
+    
+    /**
+     * @Route("/posts/{slug:slug}")
+     */
+    public function post(string $slug) {
+        // Only matches URL-friendly slugs: /posts/my-blog-post ✓
+    }
+    
+    /**
+     * @Route("/api/items/{uuid:uuid}")
+     */
+    public function item(string $uuid) {
+        // Only matches valid UUIDs: /api/items/550e8400-e29b-41d4-a716-446655440000 ✓
+    }
+    
+    /**
+     * @Route("/contact/{email:email}")
+     */
+    public function contact(string $email) {
+        // Only matches valid email addresses: /contact/user@example.com ✓
+    }
+    
+    /**
+     * @Route("/categories/{name:alnum}")
+     */
+    public function category(string $name) {
+        // Only matches alphanumeric: /categories/tech2024 ✓, /categories/tech-news ✗
+    }
+}
+```
+
+**Available Validation Types:**
+- `{id:int}` - Integers only (`\d+`)
+- `{slug:alpha}` - Alphabetic characters only (`[a-zA-Z]+`)
+- `{name:alnum}` - Alphanumeric characters (`[a-zA-Z0-9]+`)
+- `{item:slug}` - URL-friendly slugs (`[a-zA-Z0-9\-]+`)
+- `{user:uuid}` - UUID format validation
+- `{email:email}` - Email address validation
+
+#### Wildcard Route Matching
+
+Handle dynamic paths and file serving with powerful wildcard support:
+
+```php
+class FileController extends BaseController {
+    
+    /**
+     * @Route("/files/{filename}")
+     */
+    public function serve(string $filename) {
+        // Named parameter - automatically injected
+        // Matches: /files/document.pdf, /files/image.jpg
+        return $this->serveFile($filename);
+    }
+    
+    /**
+     * @Route("/assets/{path:**}")
+     */
+    public function assets(string $path) {
+        // Named multi-segment wildcard
+        // Matches: /assets/css/style.css → path = "css/style.css"
+        // Matches: /assets/js/vendor/jquery.min.js → path = "js/vendor/jquery.min.js"
+        return $this->serveAsset($path);
+    }
+    
+    /**
+     * @Route("/downloads/{content:.*}")
+     */
+    public function downloads(string $content) {
+        // Alternative syntax for multi-segment wildcard
+        // Matches: /downloads/files/reports/2024/january.pdf → content = "files/reports/2024/january.pdf"
+        return $this->handleDownload($content);
+    }
+}
+
+class ApiController extends BaseController {
+    
+    /**
+     * @Route("/api/{remaining:**}")
+     */
+    public function proxy(string $remaining) {
+        // Named multi-segment wildcard - automatically injected
+        // Matches: /api/v1/users/123, /api/v2/posts/456/comments
+        return $this->proxyToMicroservice($remaining);
+    }
+    
+    /**
+     * @Route("/api/{version}/users/{id:int}")
+     */
+    public function user(string $version, int $id) {
+        // Mixed parameters: version string and typed ID
+        // Matches: /api/v1/users/123 → version = "v1", id = 123
+        // Matches: /api/v2.1/users/456 → version = "v2.1", id = 456
+        return $this->getUserByVersion($version, $id);
+    }
+}
+```
+
+**Wildcard Types:**
+- `{filename}` - Named parameter (matches single path segment)
+- `{path:**}` - Named multi-segment wildcard (captures remaining path)
+- `{content:.*}` - Alternative syntax for named multi-segment wildcard
+
+Note: All route variables are automatically injected as method parameters.
+
+#### Complex Route Examples
+
+Combine validation and wildcards for sophisticated routing:
+
+```php
+class AdvancedController extends BaseController {
+    
+    /**
+     * @Route("/users/{id:int}/files/{path:**}")
+     */
+    public function userFiles(int $id, string $path) {
+        // /users/123/files/documents/report.pdf
+        // id = 123, path = "documents/report.pdf"
+    }
+    
+    /**
+     * @Route("/shop/{category:slug}/products/{id:int}")
+     */
+    public function product(string $category, int $id) {
+        // /shop/electronics/products/456
+        // category = "electronics", id = 456
+    }
+    
+    /**
+     * @Route("/proxy/{service:alnum}/{endpoint:**}")
+     */
+    public function serviceProxy(string $service, string $endpoint) {
+        // /proxy/auth/api/v1/login
+        // service = "auth", endpoint = "api/v1/login"
+    }
+}
+```
+
 ### Annotation-Based Routing
+
 No separate route files to maintain. Define routes directly where they belong:
 
 ```php
 /**
- * @Route("/api/users/{id}", methods={"GET", "PUT", "DELETE"})
- * @Route("/users/{id}/edit", name="user.edit")
+ * @Route("/api/users/{id:int}", methods={"GET", "PUT", "DELETE"})
+ * @Route("/users/{id:int}/edit", name="user.edit")
  */
 public function edit(int $id) {
     // Controller logic here
@@ -551,11 +721,11 @@ Register it in `composer.json`:
 
 ## Advanced Examples
 
-### RESTful API with AOP
+### RESTful API with AOP and Advanced Routing
 
 ```php
 <?php
-namespace App\Controller\Api;
+namespace App\Controllers\Api;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
@@ -587,6 +757,16 @@ class ProductController extends BaseController {
     }
     
     /**
+     * @Route("/api/products/{id:int}", methods={"GET"})
+     * @InterceptWith(CacheAspect::class, ttl=600)
+     */
+    public function show(int $id) {
+        // Only accepts integer IDs
+        $product = $this->em->find(Product::class, $id);
+        return $this->json($product);
+    }
+    
+    /**
      * @Route("/api/products", methods={"POST"})
      * @InterceptWith(ValidateJsonAspect::class, schema="product-create")
      * @InterceptWith(RateLimitAspect::class, limit=10)
@@ -600,6 +780,64 @@ class ProductController extends BaseController {
         }
         
         return $this->json($product, 201);
+    }
+    
+    /**
+     * @Route("/api/products/{id:int}/images/{path:**}")
+     */
+    public function productImages(int $id, string $path) {
+        // Handles: /api/products/123/images/thumbnails/large.jpg
+        // id = 123, path = "thumbnails/large.jpg"
+        return $this->serveProductImage($id, $path);
+    }
+}
+```
+
+### File Management with Wildcards
+
+```php
+<?php
+namespace App\Controllers;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use App\Aspects\RequireAuthAspect;
+use App\Aspects\FileSecurityAspect;
+
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(FileSecurityAspect::class)
+ */
+class FileController extends BaseController {
+    
+    /**
+     * @Route("/files/{userId:int}/{path:**}")
+     */
+    public function userFiles(int $userId, string $path) {
+        // Handles deep file paths for specific users
+        // /files/123/documents/2024/reports/quarterly.pdf
+        // userId = 123, path = "documents/2024/reports/quarterly.pdf"
+        
+        $this->validateUserAccess($userId);
+        return $this->serveUserFile($userId, $path);
+    }
+    
+    /**
+     * @Route("/public/assets/{assetPath:**}")
+     */
+    public function publicAssets(string $assetPath) {
+        // Named wildcard parameter injected automatically
+        // /public/assets/css/bootstrap.min.css → assetPath = "css/bootstrap.min.css"
+        return $this->servePublicAsset($assetPath);
+    }
+    
+    /**
+     * @Route("/uploads/{type:alpha}/{filename}")
+     */
+    public function download(string $type, string $filename) {
+        // Both parameters injected: type validation + filename capture
+        // /uploads/images/user-avatar-123.jpg → type = "images", filename = "user-avatar-123.jpg"
+        return $this->downloadFile($type, $filename);
     }
 }
 ```
@@ -630,7 +868,7 @@ use App\Aspects\{
 class AdminController extends BaseController {
     
     /**
-     * @Route("/admin/users/{id}")
+     * @Route("/admin/users/{id:int}")
      * @InterceptWith(RequirePermissionAspect::class, permission="users.view")
      * @InterceptWith(CacheAspect::class, ttl=300)
      */
@@ -640,7 +878,7 @@ class AdminController extends BaseController {
     }
     
     /**
-     * @Route("/admin/users/{id}", methods={"PUT"})
+     * @Route("/admin/users/{id:int}", methods={"PUT"})
      * @InterceptWith(RequirePermissionAspect::class, permission="users.edit")
      * @InterceptWith(TransactionAspect::class)
      * @InterceptWith(RateLimitAspect::class, limit=5, window=60)
@@ -686,6 +924,7 @@ Canvas is built for performance:
 
 - **Lazy Loading**: Services instantiated only when needed
 - **Route Caching**: Annotation routes cached in production
+- **Efficient Route Matching**: Optimized wildcard and validation patterns
 - **ObjectQuel Optimization**: Built-in query caching and optimization
 - **Minimal Reflection**: Efficient autowiring with caching
 - **Zero Configuration Overhead**: Sensible defaults eliminate config parsing
@@ -701,9 +940,411 @@ Canvas is built for performance:
 
 **For Growth**: Modular architecture scales from simple websites to complex applications with enterprise-grade crosscutting concerns.
 
+## Error Handling and Route Fallbacks
+
+Handle routing errors gracefully with custom error controllers and fallback routes.
+
+### Custom 404 Handling
+
+```php
+<?php
+namespace App\Controller;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Controllers\BaseController;
+
+class ErrorController extends BaseController {
+    
+    /**
+     * @Route("/404", name="error.not_found")
+     */
+    public function notFound() {
+        return $this->render('errors/404.tpl', [], 404);
+    }
+    
+    /**
+     * @Route("/error/{code:int}", name="error.generic")
+     */
+    public function error(int $code) {
+        $message = $this->getErrorMessage($code);
+        return $this->render('errors/generic.tpl', compact('code', 'message'), $code);
+    }
+}
+```
+
+### Fallback Routes
+
+Use wildcards to create intelligent fallback handling:
+
+```php
+class FallbackController extends BaseController {
+    
+    /**
+     * @Route("/api/{remaining:**}", priority=-100)
+     */
+    public function apiNotFound(string $remaining) {
+        // Catch all unmatched API routes
+        return $this->json([
+            'error' => 'Endpoint not found',
+            'path' => $remaining,
+            'suggestion' => $this->suggestEndpoint($remaining)
+        ], 404);
+    }
+    
+    /**
+     * @Route("/{path:**}", priority=-200)
+     */
+    public function pageNotFound(string $path) {
+        // Ultimate fallback for any unmatched route
+        // Try to find similar pages
+        $suggestions = $this->findSimilarPages($path);
+        
+        return $this->render('errors/404.tpl', compact('path', 'suggestions'), 404);
+    }
+}
+```
+
+## Security Best Practices
+
+Canvas routing includes several security features to protect your application.
+
+### Input Validation
+
+Route validation patterns help prevent malicious input:
+
+```php
+class SecureController extends BaseController {
+    
+    /**
+     * @Route("/files/{filename:filename}")
+     * @InterceptWith(FileSecurityAspect::class)
+     */
+    public function serveFile(string $filename) {
+        // filename pattern prevents path traversal: ../../../etc/passwd
+        // FileSecurityAspect provides additional validation
+        return $this->serveSecureFile($filename);
+    }
+    
+    /**
+     * @Route("/users/{id:int}")
+     */
+    public function user(int $id) {
+        // int validation prevents SQL injection attempts in URL
+        if ($id <= 0) {
+            return $this->badRequest('Invalid user ID');
+        }
+        
+        return $this->em->find(User::class, $id);
+    }
+}
+```
+
+### Rate Limiting by Route Pattern
+
+Apply different rate limits based on route patterns:
+
+```php
+class RateLimitedController extends BaseController {
+    
+    /**
+     * @Route("/api/public/{endpoint:**}")
+     * @InterceptWith(RateLimitAspect::class, limit=1000, window=3600)
+     */
+    public function publicApi(string $endpoint) {
+        // Generous limits for public API
+        return $this->handlePublicRequest($endpoint);
+    }
+    
+    /**
+     * @Route("/api/admin/{endpoint:**}")
+     * @InterceptWith(RequireAuthAspect::class)
+     * @InterceptWith(RateLimitAspect::class, limit=100, window=3600)
+     */
+    public function adminApi(string $endpoint) {
+        // Stricter limits for admin operations
+        return $this->handleAdminRequest($endpoint);
+    }
+}
+```
+
+## Performance Optimization
+
+### Route Caching
+
+Canvas automatically caches compiled routes in production:
+
+```php
+<?php
+// config/cache.php
+return [
+    'routes' => [
+        'enabled' => true,
+        'path' => storage_path('cache/routes.php'),
+        'ttl' => 3600,
+        'warm_up' => true  // Pre-compile routes on deploy
+    ]
+];
+```
+
+### Optimizing Wildcard Routes
+
+Order routes from most specific to least specific for optimal performance:
+
+```php
+class OptimizedController extends BaseController {
+    
+    /**
+     * @Route("/files/system/config.json", priority=100)
+     */
+    public function systemConfig() {
+        // Most specific - checked first
+        return $this->getSystemConfig();
+    }
+    
+    /**
+     * @Route("/files/system/{file:filename}", priority=50)
+     */
+    public function systemFile(string $file) {
+        // More specific than wildcard
+        return $this->getSystemFile($file);
+    }
+    
+    /**
+     * @Route("/files/{remaining:**}", priority=1)
+     */
+    public function files(string $remaining) {
+        // Least specific - checked last
+        return $this->getFile($remaining);
+    }
+}
+```
+
+## Integration Examples
+
+### RESTful API with Full CRUD
+
+```php
+<?php
+namespace App\Controller\Api;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use App\Models\Article;
+use App\Aspects\{RequireAuthAspect, ValidateJsonAspect, CacheAspect};
+
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ */
+class ArticleApiController extends BaseController {
+    
+    /**
+     * @Route("/api/articles", methods={"GET"})
+     * @InterceptWith(CacheAspect::class, ttl=300)
+     */
+    public function index() {
+        $articles = $this->em->findBy(Article::class, ['published' => true]);
+        return $this->json($articles);
+    }
+    
+    /**
+     * @Route("/api/articles/{id:int}", methods={"GET"})
+     * @InterceptWith(CacheAspect::class, ttl=600)
+     */
+    public function show(int $id) {
+        $article = $this->em->find(Article::class, $id);
+        
+        if (!$article) {
+            return $this->notFound('Article not found');
+        }
+        
+        return $this->json($article);
+    }
+    
+    /**
+     * @Route("/api/articles", methods={"POST"})
+     * @InterceptWith(ValidateJsonAspect::class, schema="article-create")
+     */
+    public function create() {
+        $data = $this->getJsonRequest();
+        
+        $article = new Article();
+        $article->title = $data['title'];
+        $article->content = $data['content'];
+        $article->author_id = $this->getCurrentUser()->id;
+        
+        $this->em->persist($article);
+        $this->em->flush();
+        
+        return $this->json($article, 201);
+    }
+    
+    /**
+     * @Route("/api/articles/{id:int}", methods={"PUT"})
+     * @InterceptWith(ValidateJsonAspect::class, schema="article-update")
+     */
+    public function update(int $id) {
+        $article = $this->em->find(Article::class, $id);
+        
+        if (!$article) {
+            return $this->notFound('Article not found');
+        }
+        
+        $data = $this->getJsonRequest();
+        
+        if (isset($data['title'])) $article->title = $data['title'];
+        if (isset($data['content'])) $article->content = $data['content'];
+        
+        $this->em->flush();
+        
+        return $this->json($article);
+    }
+    
+    /**
+     * @Route("/api/articles/{id:int}", methods={"DELETE"})
+     */
+    public function delete(int $id) {
+        $article = $this->em->find(Article::class, $id);
+        
+        if (!$article) {
+            return $this->notFound('Article not found');
+        }
+        
+        $this->em->remove($article);
+        $this->em->flush();
+        
+        return $this->json(['message' => 'Article deleted'], 200);
+    }
+    
+    /**
+     * @Route("/api/articles/{id:int}/attachments/{path:**}")
+     */
+    public function attachments(int $id, string $path) {
+        $article = $this->em->find(Article::class, $id);
+        
+        if (!$article) {
+            return $this->notFound('Article not found');
+        }
+        
+        return $this->serveAttachment($article, $path);
+    }
+}
+```
+
+### E-commerce Application
+
+```php
+<?php
+namespace App\Controller;
+
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use App\Aspects\{RequireAuthAspect, CacheAspect};
+use App\Models\{Product, Category, Order};
+
+class ShopController extends BaseController {
+    
+    /**
+     * @Route("/shop")
+     * @InterceptWith(CacheAspect::class, ttl=600)
+     */
+    public function index() {
+        $categories = $this->em->findBy(Category::class, ['active' => true]);
+        $featuredProducts = $this->em->findBy(Product::class, ['featured' => true]);
+        
+        return $this->render('shop/index.tpl', compact('categories', 'featuredProducts'));
+    }
+    
+    /**
+     * @Route("/shop/categories/{slug:slug}")
+     * @InterceptWith(CacheAspect::class, ttl=300)
+     */
+    public function category(string $slug) {
+        $category = $this->em->findOneBy(Category::class, ['slug' => $slug]);
+        
+        if (!$category) {
+            return $this->notFound('Category not found');
+        }
+        
+        $products = $this->em->findBy(Product::class, ['category_id' => $category->id]);
+        
+        return $this->render('shop/category.tpl', compact('category', 'products'));
+    }
+    
+    /**
+     * @Route("/shop/products/{id:int}")
+     */
+    public function product(int $id) {
+        $product = $this->em->find(Product::class, $id);
+        
+        if (!$product) {
+            return $this->notFound('Product not found');
+        }
+        
+        $relatedProducts = $this->em->findBy(Product::class, [
+            'category_id' => $product->category_id
+        ]);
+        
+        return $this->render('shop/product.tpl', compact('product', 'relatedProducts'));
+    }
+    
+    /**
+     * @Route("/shop/orders/{id:int}")
+     * @InterceptWith(RequireAuthAspect::class)
+     */
+    public function order(int $id) {
+        $order = $this->em->find(Order::class, $id);
+        
+        if (!$order) {
+            return $this->notFound('Order not found');
+        }
+        
+        return $this->render('shop/order.tpl', compact('order'));
+    }
+    
+    /**
+     * @Route("/shop/downloads/{orderItem:int}/{filename}")
+     * @InterceptWith(RequireAuthAspect::class)
+     */
+    public function download(int $orderItem, string $filename) {
+        // Validate user owns this order item and can download
+        $item = $this->validateDownloadAccess($orderItem, $filename);
+        
+        if (!$item) {
+            return $this->forbidden('Download not authorized');
+        }
+        
+        // Serve the file (implementation would depend on your file storage)
+        return $this->redirect("/protected-downloads/{$filename}");
+    }
+}
+```
+
 ## Contributing
 
-We welcome contributions! Please open an issue or submit a pull request.
+We welcome contributions! Here's how you can help improve Canvas:
+
+### Reporting Issues
+
+- Use GitHub issues for bug reports and feature requests
+- Include minimal reproduction cases
+- Specify Canvas version and PHP version
+
+### Contributing Code
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Follow PSR-12 coding standards
+4. Add tests for new functionality
+5. Update documentation for new features
+6. Submit a pull request
+
+### Contributing Documentation
+
+Documentation improvements are always welcome:
+- Fix typos and improve clarity
+- Add more examples and use cases
+- Improve code comments
+- Create tutorials and guides
 
 ## License
 
