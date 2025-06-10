@@ -223,13 +223,16 @@
 	     * @return array
 	     */
 	    private function getConfigFile(): array {
+			// Fetch the project root
+		    $projectRoot = $this->discover->getProjectRoot();
+			
 			// If the config file is not there, do not attempt any load
-		    if (!file_exists(__DIR__ . '/../config/app.php')) {
+		    if (!file_exists($projectRoot . '/config/app.php')) {
 			    return [];
 		    }
 		    
 			// Otherwise grap the contents
-		    return require_once __DIR__ . '/../config/app.php';
+		    return require_once $projectRoot . '/config/app.php';
 	    }
 		
 		/**
