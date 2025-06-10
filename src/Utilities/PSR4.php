@@ -61,46 +61,15 @@
 				return $this->projectRootPathCache;
 			}
 			
-			// If no directory provided, use current directory
-			// Otherwise, convert the given path to an absolute path if it's not already
-			$directory = $directory !== null ? realpath($directory) : getcwd();
+			// First try to fetch the path from a list of known shared hosting formats
+			$projectRoot = $this->getSharedHostingRoot($directory);
 			
-			// Ensure we have a valid directory
-			if (!$directory || !is_dir($directory)) {
-				return null;
+			if ($projectRoot !== null) {
+				return $projectRoot;
 			}
 			
-			// Start with the provided/default directory
-			$currentDir = $directory;
-			
-			// Continue searching until we reach filesystem root or find composer.json
-			while ($currentDir) {
-				// Construct the potential path to composer.json in the current directory
-				$composerPath = $currentDir . DIRECTORY_SEPARATOR . 'composer.json';
-				
-				// Check if composer.json exists in the current directory
-				if (file_exists($composerPath)) {
-					// Found it - put the result in cache
-					$this->projectRootPathCache = $currentDir;
-					
-					// Return the directory containing composer.json
-					return $currentDir;
-				}
-				
-				// Get parent directory to continue search upward in filesystem hierarchy
-				$parentDir = dirname($currentDir);
-				
-				// Stop if we've reached the filesystem root (dirname returns the same path)
-				if ($parentDir === $currentDir) {
-					break;
-				}
-				
-				// Move up to parent directory for next iteration
-				$currentDir = $parentDir;
-			}
-			
-			// If we get here, composer.json wasn't found in this path or any parent directories
-			return null;
+			// Fallback: Traverse path until we find composer.json
+			return $this->getProjectRootFromComposerJson($directory);
 		}
 		
 		/**
@@ -458,5 +427,91 @@
 		 */
 		private function extractClassNameFromFile(string $filename): string {
 			return pathinfo($filename, PATHINFO_FILENAME);
+		}
+		
+		/**
+		 * Find directory containing composer.json by traversing up from the given directory
+		 * @param string|null $directory Directory to start searching from (defaults to current directory)
+		 * @return string|null Directory containing composer.json if found, null otherwise
+		 */
+		private function getProjectRootFromComposerJson(?string $directory = null): ?string {
+			// If no directory provided, use current directory
+			// Otherwise, convert the given path to an absolute path if it's not already
+			$directory = $directory !== null ? realpath($directory) : getcwd();
+			
+			// Ensure we have a valid directory
+			if (!$directory || !is_dir($directory)) {
+				return null;
+			}
+			
+			// Start with the provided/default directory
+			$currentDir = $directory;
+			
+			// Continue searching until we reach filesystem root or find composer.json
+			while ($currentDir) {
+				// Construct the potential path to composer.json in the current directory
+				$composerPath = $currentDir . DIRECTORY_SEPARATOR . 'composer.json';
+				
+				// Check if composer.json exists in the current directory
+				if (file_exists($composerPath)) {
+					// Found it - put the result in cache
+					$this->projectRootPathCache = $currentDir;
+					
+					// Return the directory containing composer.json
+					return $currentDir;
+				}
+				
+				// Get parent directory to continue search upward in filesystem hierarchy
+				$parentDir = dirname($currentDir);
+				
+				// Stop if we've reached the filesystem root (dirname returns the same path)
+				if ($parentDir === $currentDir) {
+					break;
+				}
+				
+				// Move up to parent directory for next iteration
+				$currentDir = $parentDir;
+			}
+			
+			// If we get here, composer.json wasn't found in this path or any parent directories
+			return null;
+		}
+		
+		/**
+		 * Detect project root based on common shared hosting directory patterns
+		 * @param string|null $directory Directory to start searching from (defaults to current directory)
+		 * @return string|null Project root directory if found, null otherwise
+		 */
+		private function getSharedHostingRoot(?string $directory = null): ?string {
+			$directory = $directory !== null ? realpath($directory) : getcwd();
+			
+			if (!$directory || !is_dir($directory)) {
+				return null;
+			}
+			
+			// Check for common shared hosting patterns
+			$patterns = [
+				// cPanel/Plesk: /var/www/vhosts/domain.com/httpdocs -> /var/www/vhosts/domain.com
+				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public)(/.*)?$#',
+				
+				// Home directories: /home/username/public_html -> /home/username
+				'#^(/home/[^/]+)/(public_html|www)(/.*)?$#',
+			];
+			
+			foreach ($patterns as $pattern) {
+				if (preg_match($pattern, $directory, $matches)) {
+					$projectRoot = $matches[1]; // The domain/username directory, not the web root
+					
+					if (is_dir($projectRoot)) {
+						// Found it - put the result in cache
+						$this->projectRootPathCache = $projectRoot;
+						
+						// Return the directory containing composer.json
+						return $projectRoot;
+					}
+				}
+			}
+			
+			return null;
 		}
 	}
