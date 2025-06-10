@@ -55,31 +55,13 @@
 		 *         array contains: ['controller' => string, 'method' => string, 'variables' => array]
 		 */
 		public function resolveAll(Request $request): array {
-			// Discover all controller classes in the application
-			// This scans the controller directory for PHP classes that can handle routes
-			$controllerDir = $this->getControllerDirectory();
-			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
-			
 			// Build a comprehensive list of all available routes across all controllers
-			$allRoutes = [];
-			foreach ($controllers as $controller) {
-				// Extract routes from each controller that match the HTTP method
-				// This likely uses reflection to read route annotations/attributes
-				$allRoutes = array_merge(
-					$allRoutes,
-					$this->getRoutesFromController($controller, $request->getMethod())
-				);
-			}
-			
-			// Sort routes by priority to ensure best matches are tried first
-			// Higher priority routes (exact matches) take precedence over wildcards
-			// This prevents overly broad routes from stealing requests from more specific ones
-			usort($allRoutes, function ($a, $b) {
-				return $b['priority'] <=> $a['priority'];
-			});
-			
+			$allRoutes = $this->fetchAllRoutes();
+
 			// Split request uri into segments, filtering out empty strings
-			$requestUrl = array_values(array_filter(explode('/', $request->getRequestUri()), function ($e) { return $e !== ''; }));
+			$requestUrl = array_values(array_filter(explode('/', $request->getRequestUri()), function ($e) {
+				return $e !== '';
+			}));
 
 			// Attempt to match the request URL against each route in priority order
 			$result = [];
@@ -87,7 +69,9 @@
 			foreach ($allRoutes as $routeData) {
 				// Try to match the current route pattern against the request URL
 				// This handles URL parameters, wildcards, and exact matches
-				$matchedRoute = $this->tryMatchRoute($routeData, $requestUrl, $request->getRequestUri());
+				$matchedRoute = $this->tryMatchRoute(
+					$routeData, $requestUrl, $request->getRequestUri(), $request->getMethod()
+				);
 				
 				// If this route matches, add it to our results
 				// Multiple routes can match (e.g., for middleware chaining or fallbacks)
@@ -104,10 +88,9 @@
 		/**
 		 * Gets all potential routes from a controller with their priorities
 		 * @param string $controller
-		 * @param string $requestMethod
 		 * @return array
 		 */
-		private function getRoutesFromController(string $controller, string $requestMethod): array {
+		private function getRoutesFromController(string $controller): array {
 			// Initialize an empty array to store matching routes
 			$routes = [];
 			
@@ -118,12 +101,6 @@
 				
 				// Loop through each method and its associated route annotation
 				foreach ($routeAnnotations as $method => $routeAnnotation) {
-					// Filter routes by HTTP method (GET, POST, PUT, DELETE, etc.)
-					// Skip this route if it doesn't support the requested HTTP method
-					if (!in_array($requestMethod, $routeAnnotation->getMethods())) {
-						continue;
-					}
-					
 					// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
 					$routePath = $routeAnnotation->getRoute();
 					
@@ -241,17 +218,20 @@
 		 * @param array $requestUrl Parsed URL segments from the request
 		 * @return array|null Route match data with controller/method/variables, or null if no match
 		 */
-		private function tryMatchRoute(array $routeData, array $requestUrl, string $originalUrl): ?array {
-			// Parse the route path into segments for comparison
-			$routePath = $routeData['route_path'];
-
-			// Check trailing slash compatibility first
-			if ($this->matchTrailingSlashes && !$this->trailingSlashMatches($originalUrl, $routePath)) {
+		private function tryMatchRoute(array $routeData, array $requestUrl, string $originalUrl, string $requestMethod): ?array {
+			// Filter routes by HTTP method (GET, POST, PUT, DELETE, etc.)
+			// Skip this route if it doesn't support the requested HTTP method
+			if (!in_array($requestMethod, $routeData['http_methods'])) {
+				return null;
+			}
+			
+			// Check trailing slash compatibility
+			if ($this->matchTrailingSlashes && !$this->trailingSlashMatches($originalUrl, $routeData['route_path'])) {
 				return null; // Trailing slash mismatch - skip this route
 			}
 			
 			// if URL pattern matches - return route data
-			$routeSegments = $this->parseRoutePath($routePath);
+			$routeSegments = $this->parseRoutePath($routeData['route_path']);
 			$urlVariables = [];
 			
 			if ($this->urlMatchesRoute($requestUrl, $routeSegments, $urlVariables)) {
@@ -739,5 +719,38 @@
 			
 			// They must match - both have trailing slash or both don't
 			return $urlHasTrailingSlash === $routeHasTrailingSlash;
+		}
+		
+		/**
+		 * Returns all routes in an array
+		 * @return array
+		 */
+		private function fetchAllRoutes(): array {
+			// Discover all controller classes in the application
+			// This scans the controller directory for PHP classes that can handle routes
+			$controllerDir = $this->getControllerDirectory();
+			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
+			
+			// Build a comprehensive list of all available routes across all controllers
+			$result = [];
+			
+			foreach ($controllers as $controller) {
+				// Extract routes from each controller that match the HTTP method
+				// This likely uses reflection to read route annotations/attributes
+				$result = array_merge(
+					$result,
+					$this->getRoutesFromController($controller)
+				);
+			}
+			
+			// Sort routes by priority to ensure best matches are tried first
+			// Higher priority routes (exact matches) take precedence over wildcards
+			// This prevents overly broad routes from stealing requests from more specific ones
+			usort($result, function ($a, $b) {
+				return $b['priority'] <=> $a['priority'];
+			});
+			
+			// And return the found routes
+			return $result;
 		}
 	}
