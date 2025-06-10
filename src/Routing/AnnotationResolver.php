@@ -251,9 +251,11 @@
 			
 			if ($this->urlMatchesRoute($requestUrl, $routeSegments, $urlVariables)) {
 				return [
-					'controller' => $routeData['controller'],
-					'method'     => $routeData['method'],
-					'variables'  => $urlVariables
+					'http_methods' => $routeData['http_methods'],
+					'controller'   => $routeData['controller'],
+					'method'       => $routeData['method'],
+					'route'        => $routeData['route'],
+					'variables'    => $urlVariables
 				];
 			}
 			
