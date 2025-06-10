@@ -35,31 +35,47 @@
 		}
 		
 		/**
-		 * Takes a class's docComment, parses it and returns the annotations
+		 * Get class annotations including inherited ones
 		 * @param mixed $class The class object or class name to analyze
 		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
+		 * @param bool $includeInherited Whether to include parent class annotations (default: true)
 		 * @return array
 		 * @throws ParserException
 		 */
-		public function getClassAnnotations(mixed $class, ?string $annotationClass=null): array {
-			// Get all annotations for the class
-			$annotations = $this->getAllObjectAnnotations($class);
-			
-			// If no annotations found, return an empty array
-			if (!isset($annotations['class'])) {
-				return [];
+		public function getClassAnnotations(mixed $class, ?string $annotationClass = null, bool $includeInherited = true): array {
+			try {
+				$reflection = new \ReflectionClass($class);
+				
+				// If not including inherited, just use the single class, otherwise get full chain
+				if ($includeInherited) {
+					$inheritanceChain = $this->getInheritanceChain($reflection);
+				} else {
+					$inheritanceChain = [$reflection];
+				}
+				
+				// Process from parent to child (so child annotations can override)
+				$allAnnotations = [];
+				
+				foreach ($inheritanceChain as $classInChain) {
+					$annotations = $this->getAllObjectAnnotations($classInChain->getName());
+					
+					if (!empty($annotations['class'])) {
+						// Merge annotations (child overrides parent)
+						$allAnnotations = array_merge($allAnnotations, $annotations['class']);
+					}
+				}
+				
+				// Apply annotation class filter if provided
+				if ($annotationClass !== null) {
+					return array_filter($allAnnotations, function ($item) use ($annotationClass) {
+						return $item instanceof $annotationClass;
+					});
+				}
+				
+				return $allAnnotations;
+			} catch (\ReflectionException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
-			
-			// If an annotation class filter is provided, only return annotations of that type
-			if ($annotationClass !== null) {
-				return array_filter($annotations['class'], function ($item) use ($annotationClass) {
-					// Filter the class's annotations to include only instances of the specified class
-					return $item instanceof $annotationClass;
-				});
-			}
-			
-			// Return all annotations for the specified method
-			return $annotations["class"] ?? [];
 		}
 		
 		/**
@@ -256,9 +272,10 @@
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
 		 * @param array $imports The import list
+		 * @param string|null $currentNamespace The namespace of the file we're currently reading
 		 * @return void
 		 */
-		protected function parseAnnotations(array $items, array &$result, array $imports): void {
+		protected function parseAnnotations(array $items, array &$result, array $imports, ?string $currentNamespace=null): void {
 			// Loop through each Reflection item (either property or method)
 			foreach ($items as $item) {
 				// Get the doc comment for the current item
@@ -270,7 +287,7 @@
 				}
 				
 				// Retrieve annotations from the doc comment with imports
-				$annotations = $this->getAnnotationsWithImports($docComment, $imports);
+				$annotations = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
 				
 				// Skip if there are no annotations
 				if (empty($annotations)) {
@@ -299,17 +316,20 @@
 			// Load the use statements of this file
 			$imports = $this->use_statement_parser->getImportsForClass($reflection);
 			
+			// Namespace
+			$currentNamespace = $reflection->getNamespaceName();
+			
 			// Read the doc comment of the class
 			$docComment = $reflection->getDocComment();
 			
 			// Parse the annotations inside these comments
 			if (!empty($docComment)) {
-				$result['class'] = $this->getAnnotationsWithImports($docComment, $imports);
+				$result['class'] = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
 			}
 			
 			// Parse the annotations and return result
-			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports);
-			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $imports);
+			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports, $currentNamespace);
+			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $imports, $currentNamespace);
 			return $result;
 		}
 		
@@ -371,17 +391,36 @@
 		 * Parses a string and returns the found annotations, with import resolution
 		 * @param string $string The docblock to parse
 		 * @param array $imports Map of aliases to fully qualified class names
+		 * @param string|null $currentNamespace Namespace of the file
 		 * @return array
 		 * @throws ParserException
 		 */
-		protected function getAnnotationsWithImports(string $string, array $imports): array {
+		protected function getAnnotationsWithImports(string $string, array $imports, ?string $currentNamespace): array {
 			try {
 				$lexer = new Lexer($string);
-				$parser = new Parser($lexer, $this->configuration, $imports);
+				$parser = new Parser($lexer, $this->configuration, $imports, $currentNamespace);
 				return $parser->parse();
 			} catch (LexerException $e) {
 				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
 		}
 		
+		/**
+		 * Get the full inheritance chain for a class (from parent to child)
+		 * @param \ReflectionClass $reflection
+		 * @return array Array of ReflectionClass objects from parent to child
+		 */
+		protected function getInheritanceChain(\ReflectionClass $reflection): array {
+			$chain = [];
+			$current = $reflection;
+			
+			// Walk up the inheritance chain
+			while ($current !== false) {
+				$chain[] = $current;
+				$current = $current->getParentClass();
+			}
+			
+			// Reverse to get parent-to-child order
+			return array_reverse($chain);
+		}
 	}
