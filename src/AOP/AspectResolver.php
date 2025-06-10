@@ -7,13 +7,15 @@
 	
 	readonly class AspectResolver {
 		
+		private AnnotationReader $annotationReader;
+		
 		/**
 		 * AspectDispatcher constructor
 		 * @param AnnotationReader $annotationReader
 		 */
-		public function __construct(
-			private AnnotationReader $annotationReader
-		) {}
+		public function __construct(AnnotationReader $annotationReader) {
+			$this->annotationReader = $annotationReader;
+		}
 		
 		/**
 		 * Resolves all aspects that should be applied to a controller method
