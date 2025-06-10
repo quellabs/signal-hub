@@ -44,8 +44,8 @@
 			$routes = $urlResolver->resolveAll($request);
 			
 			// Extend routes with AOP information
-			foreach ($routes as $route) {
-				$route['aspects'] = $this->getAspectsOfMethod($route['controller'], $route['method']);
+			for ($i = 0; $i < count($routes); ++$i) {
+				$routes[$i]['aspects'] = $this->getAspectsOfMethod($routes[$i]['controller'], $routes[$i]['method']);
 			}
 
 			// Transform route data into table format for display
