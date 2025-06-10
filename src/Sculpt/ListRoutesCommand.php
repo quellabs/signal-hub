@@ -18,6 +18,12 @@
 		
 		private AnnotationReader $annotationsReader;
 		
+		/**
+		 * ListRoutesCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ProviderInterface|null $provider
+		 */
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			
@@ -26,10 +32,18 @@
 			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
 		}
 		
+		/**
+		 * Returns the signature of this command
+		 * @return string
+		 */
 		public function getSignature(): string {
 			return "route:list";
 		}
 		
+		/**
+		 * Returns a brief description of what this command is for
+		 * @return string
+		 */
 		public function getDescription(): string {
 			return "List routes";
 		}
@@ -97,10 +111,9 @@
 			// This assumes controllers are located in /src/Controller relative to project root
 			$controllers = $discover->findClassesInDirectory($discover->getProjectRoot() . "/src/Controllers");
 			
-			// Initialize array to store all discovered route configurations
-			$result = [];
-			
 			// Iterate through each discovered controller class
+			$result = [];
+
 			foreach ($controllers as $controller) {
 				// Create reflection object to inspect the controller class structure
 				$classReflection = new \ReflectionClass($controller);
@@ -132,16 +145,25 @@
 				}
 			}
 			
-			// Sort routes by controller name first, then by method name second
+			// Sort routes by route first, controller name second, third by method name
 			// This makes the route list more predictable and easier to debug
 			usort($result, function ($a, $b) {
-				$controllerComparison = strcmp($a['controller'], $b['controller']);
+				// Primary sort: by route
+				$routeComparison = $a['route']->getRoute() <=> $b['route']->getRoute();
 				
-				if ($controllerComparison === 0) {
-					return strcmp($a['method'], $b['method']);
+				if ($routeComparison !== 0) {
+					return $routeComparison;
 				}
 				
-				return $controllerComparison;
+				// Secondary sort: by controller
+				$controllerComparison = $a['controller'] <=> $b['controller'];
+				
+				if ($controllerComparison !== 0) {
+					return $controllerComparison;
+				}
+				
+				// Tertiary sort: by method
+				return $a['method'] <=> $b['method'];
 			});
 			
 			return $result;
