@@ -77,7 +77,7 @@
 			});
 			
 			// Split request uri into segments, filtering out empty strings
-			$requestUrl = array_filter(explode('/', $request->getRequestUri()), function ($e) { return $e !== ''; });
+			$requestUrl = array_values(array_filter(explode('/', $request->getRequestUri()), function ($e) { return $e !== ''; }));
 
 			// Attempt to match the request URL against each route in priority order
 			$result = [];
