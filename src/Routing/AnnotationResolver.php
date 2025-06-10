@@ -53,11 +53,6 @@
 		 *         array contains: ['controller' => string, 'method' => string, 'variables' => array]
 		 */
 		public function resolveAll(Request $request): array {
-			// Extract and clean the request URL path
-			// Remove leading slash and split into segments, filtering out empty strings
-			$baseUrl = ltrim($request->getRequestUri(), '/');
-			$requestUrl = array_filter(explode('/', $baseUrl), function ($e) { return $e !== ''; });
-			
 			// Discover all controller classes in the application
 			// This scans the controller directory for PHP classes that can handle routes
 			$controllerDir = $this->getControllerDirectory();
@@ -81,13 +76,16 @@
 				return $b['priority'] <=> $a['priority'];
 			});
 			
+			// Split request uri into segments, filtering out empty strings
+			$requestUrl = array_filter(explode('/', $request->getRequestUri()), function ($e) { return $e !== ''; });
+
 			// Attempt to match the request URL against each route in priority order
 			$result = [];
 			
 			foreach ($allRoutes as $routeData) {
 				// Try to match the current route pattern against the request URL
 				// This handles URL parameters, wildcards, and exact matches
-				$matchedRoute = $this->tryMatchRoute($routeData, $requestUrl);
+				$matchedRoute = $this->tryMatchRoute($routeData, $requestUrl, $request->getRequestUri());
 				
 				// If this route matches, add it to our results
 				// Multiple routes can match (e.g., for middleware chaining or fallbacks)
@@ -241,12 +239,17 @@
 		 * @param array $requestUrl Parsed URL segments from the request
 		 * @return array|null Route match data with controller/method/variables, or null if no match
 		 */
-		private function tryMatchRoute(array $routeData, array $requestUrl): ?array {
+		private function tryMatchRoute(array $routeData, array $requestUrl, string $originalUrl): ?array {
 			// Parse the route path into segments for comparison
 			$routePath = $routeData['route_path'];
-			$routeSegments = $this->parseRoutePath($routePath);
+
+			// Check trailing slash compatibility first
+			if (!$this->trailingSlashMatches($originalUrl, $routePath)) {
+				return null; // Trailing slash mismatch - skip this route
+			}
 			
 			// if URL pattern matches - return route data
+			$routeSegments = $this->parseRoutePath($routePath);
 			$urlVariables = [];
 			
 			if ($this->urlMatchesRoute($requestUrl, $routeSegments, $urlVariables)) {
@@ -716,5 +719,23 @@
 				// Return an empty array if the controller class doesn't exist or can't be reflected
 				return [];
 			}
+		}
+		
+		/**
+		 * Checks if the trailing slash requirements match between URL and route
+		 * @param string $originalUrl The original request URL (before parsing)
+		 * @param string $routePath The route path pattern
+		 * @return bool True if trailing slash requirements are compatible
+		 */
+		private function trailingSlashMatches(string $originalUrl, string $routePath): bool {
+			// Determine if the original URL has a trailing slash
+			// Handle edge cases like root path "/"
+			$urlHasTrailingSlash = strlen($originalUrl) > 1 && str_ends_with($originalUrl, '/');
+			
+			// Determine if the route expects a trailing slash
+			$routeHasTrailingSlash = strlen($routePath) > 1 && str_ends_with($routePath, '/');
+			
+			// They must match - both have trailing slash or both don't
+			return $urlHasTrailingSlash === $routeHasTrailingSlash;
 		}
 	}
