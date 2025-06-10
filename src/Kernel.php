@@ -20,11 +20,16 @@
 	    private Discover $discover; // Service discovery
 	    private Container $di; // Dependency Injection
 	    private AnnotationReader $annotationsReader; // Annotation reading
+	    private array $configuration;
 	    
 	    /**
 	     * Kernel constructor
+	     * @param array $configuration
 	     */
-	    public function __construct() {
+	    public function __construct(array $configuration=[]) {
+			// Store the configuration array
+			$this->configuration =  $configuration;
+			
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
 		    
@@ -91,6 +96,89 @@
 	    }
 	    
 	    /**
+	     * Returns the entire configuration array as passed in the constructor
+	     * @return array
+	     */
+		public function getConfiguration(): array {
+			return $this->configuration;
+		}
+	    
+	    /**
+	     * Check if a configuration key exists
+	     * @param string $key Configuration key
+	     * @return bool
+	     */
+	    public function hasConfig(string $key): bool {
+		    return array_key_exists($key, $this->configuration);
+	    }
+	    
+	    /**
+	     * Get a specific configuration value
+	     * @param string $key Configuration key
+	     * @param mixed|null $default Default value if key doesn't exist
+	     * @return mixed
+	     */
+	    public function getConfig(string $key, mixed $default = null): mixed {
+		    return $this->configuration[$key] ?? $default;
+	    }
+	    
+	    /**
+	     * Get configuration value with type casting
+	     * @param string $key Configuration key
+	     * @param string $type Type to cast to ('string', 'int', 'float', 'bool', 'array')
+	     * @param mixed|null $default Default value
+	     * @return mixed
+	     */
+	    public function getConfigAs(string $key, string $type, mixed $default = null): mixed {
+		    $value = $this->getConfig($key, $default);
+		    
+		    if ($value === null) {
+			    return $default;
+		    }
+		    
+		    switch (strtolower($type)) {
+			    case 'string':
+				    return (string) $value;
+					
+			    case 'int':
+			    case 'integer':
+				    return (int) $value;
+					
+			    case 'float':
+			    case 'double':
+				    return (float) $value;
+					
+			    case 'bool':
+			    case 'boolean':
+				    // Handle common boolean strings
+				    if (is_string($value)) {
+					    return in_array(strtolower($value), ['true', '1', 'yes', 'on']);
+				    }
+					
+				    return (bool) $value;
+					
+			    case 'array':
+				    // Handle comma-separated strings
+				    if (is_string($value)) {
+					    return array_map('trim', explode(',', $value));
+				    }
+					
+				    return is_array($value) ? $value : [$value];
+					
+			    default:
+				    return $value;
+		    }
+	    }
+		
+	    /**
+	     * Get all configuration keys
+	     * @return array
+	     */
+	    public function getConfigKeys(): array {
+		    return array_keys($this->configuration);
+	    }
+		
+		/**
 	     * Lookup the url and returns information about it
 	     * @param Request $request The incoming HTTP request object
 	     * @return Response HTTP response to be sent back to the client

@@ -14,6 +14,7 @@
 		 * @var Kernel Kernel object, used among other things for service discovery
 		 */
 		private Kernel $kernel;
+		private bool $matchTrailingSlashes;
 		
 		/**
 		 * FetchAnnotations constructor.
@@ -21,6 +22,7 @@
 		 */
 		public function __construct(Kernel $kernel) {
 			$this->kernel = $kernel;
+			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
 		}
 		
 		/**
@@ -244,7 +246,7 @@
 			$routePath = $routeData['route_path'];
 
 			// Check trailing slash compatibility first
-			if (!$this->trailingSlashMatches($originalUrl, $routePath)) {
+			if ($this->matchTrailingSlashes && !$this->trailingSlashMatches($originalUrl, $routePath)) {
 				return null; // Trailing slash mismatch - skip this route
 			}
 			
