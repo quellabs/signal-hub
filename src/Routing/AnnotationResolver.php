@@ -133,11 +133,12 @@
 					
 					// Build route data structure with all necessary information
 					$routes[] = [
-						'controller'       => $controller,        // Controller class name
-						'method'           => $method,            // Method name to invoke
-						'route_annotation' => $routeAnnotation,   // Full annotation object
-						'route_path'       => $routePath,         // URL pattern string
-						'priority'         => $priority           // Numeric priority for sorting
+						'http_methods' => $routeAnnotation->getMethods(),
+						'controller'   => $controller,        // Controller class name
+						'method'       => $method,            // Method name to invoke
+						'route'        => $routeAnnotation,   // Full annotation object
+						'route_path'   => $routePath,         // URL pattern string
+						'priority'     => $priority           // Numeric priority for sorting
 					];
 				}
 			} catch (\Exception $e) {
