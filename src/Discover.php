@@ -614,6 +614,6 @@
 			// Include the file and return its contents
 			// This works because PHP's include statement returns the result of the included file,
 			// which should be an array if the file contains 'return []' or similar
-			return include $completeDir;
+			return include_once $completeDir;
 		}
 	}
