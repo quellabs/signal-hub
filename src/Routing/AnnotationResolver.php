@@ -748,7 +748,7 @@
 		private function fetchAllRoutes(): array {
 			// Get from cache if we can
 			if (!$this->debugMode && !$this->cacheExpired()) {
-				return unserialize(file_get_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile), true);
+				return unserialize(file_get_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile));
 			}
 			
 			// Discover all controller classes in the application
