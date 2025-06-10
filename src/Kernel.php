@@ -234,7 +234,7 @@
 		    
 		    // Otherwise grap the contents
 		    if ($this->contents_of_app_php === null) {
-			    $this->contents_of_app_php = require_once $projectRoot . '/config/app.php';
+			    $this->contents_of_app_php = require $projectRoot . '/config/app.php';
 		    }
 		    
 		    return $this->contents_of_app_php;
