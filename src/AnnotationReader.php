@@ -35,31 +35,47 @@
 		}
 		
 		/**
-		 * Takes a class's docComment, parses it and returns the annotations
+		 * Get class annotations including inherited ones
 		 * @param mixed $class The class object or class name to analyze
 		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
+		 * @param bool $includeInherited Whether to include parent class annotations (default: true)
 		 * @return array
 		 * @throws ParserException
 		 */
-		public function getClassAnnotations(mixed $class, ?string $annotationClass=null): array {
-			// Get all annotations for the class
-			$annotations = $this->getAllObjectAnnotations($class);
-			
-			// If no annotations found, return an empty array
-			if (!isset($annotations['class'])) {
-				return [];
+		public function getClassAnnotations(mixed $class, ?string $annotationClass = null, bool $includeInherited = true): array {
+			try {
+				$reflection = new \ReflectionClass($class);
+				
+				// If not including inherited, just use the single class, otherwise get full chain
+				if ($includeInherited) {
+					$inheritanceChain = $this->getInheritanceChain($reflection);
+				} else {
+					$inheritanceChain = [$reflection];
+				}
+				
+				// Process from parent to child (so child annotations can override)
+				$allAnnotations = [];
+				
+				foreach ($inheritanceChain as $classInChain) {
+					$annotations = $this->getAllObjectAnnotations($classInChain->getName());
+					
+					if (!empty($annotations['class'])) {
+						// Merge annotations (child overrides parent)
+						$allAnnotations = array_merge($allAnnotations, $annotations['class']);
+					}
+				}
+				
+				// Apply annotation class filter if provided
+				if ($annotationClass !== null) {
+					return array_filter($allAnnotations, function ($item) use ($annotationClass) {
+						return $item instanceof $annotationClass;
+					});
+				}
+				
+				return $allAnnotations;
+			} catch (\ReflectionException $e) {
+				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
-			
-			// If an annotation class filter is provided, only return annotations of that type
-			if ($annotationClass !== null) {
-				return array_filter($annotations['class'], function ($item) use ($annotationClass) {
-					// Filter the class's annotations to include only instances of the specified class
-					return $item instanceof $annotationClass;
-				});
-			}
-			
-			// Return all annotations for the specified method
-			return $annotations["class"] ?? [];
 		}
 		
 		/**
@@ -384,4 +400,22 @@
 			}
 		}
 		
+		/**
+		 * Get the full inheritance chain for a class (from parent to child)
+		 * @param \ReflectionClass $reflection
+		 * @return array Array of ReflectionClass objects from parent to child
+		 */
+		protected function getInheritanceChain(\ReflectionClass $reflection): array {
+			$chain = [];
+			$current = $reflection;
+			
+			// Walk up the inheritance chain
+			while ($current !== false) {
+				$chain[] = $current;
+				$current = $current->getParentClass();
+			}
+			
+			// Reverse to get parent-to-child order
+			return array_reverse($chain);
+		}
 	}
