@@ -25,7 +25,6 @@
     "quellabs/annotation-reader": "^1.0",
     "quellabs/discover": "^1.0",
     "quellabs/dependency-injection": "^1.0",
-    "quellabs/objectquel": "^1.0",
     "quellabs/sculpt": "^1.0",
     "quellabs/signal-hub": "^1.0",
     "quellabs/canvas-smarty": "^1.0",
