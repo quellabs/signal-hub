@@ -48,14 +48,23 @@
 		private array $configuration;
 		
 		/**
+		 * @var string|null The current namespace context for resolving relative class names
+		 */
+		private ?string $currentNamespace = null;
+
+		/**
 		 * Parser constructor.
 		 * @param Lexer $lexer The lexer instance for tokenizing input
 		 * @param array<string, mixed> $configuration Configuration array for placeholder resolution
 		 * @param array<string, string> $imports Optional map of aliases to fully qualified class names
+		 * @param string|null $currentNamespace Optional namespace of the file we are currently reading
 		 */
-		public function __construct(Lexer $lexer, array $configuration=[], array $imports = []) {
+		public function __construct(Lexer $lexer, array $configuration=[], array $imports = [], ?string $currentNamespace=null) {
 			// Store the lexer instance for token processing
 			$this->lexer = $lexer;
+			
+			// Store the namespace if any
+			$this->currentNamespace = $currentNamespace;
 			
 			// Store configuration for resolving ${config.key} placeholders
 			$this->configuration = $configuration;
@@ -98,6 +107,53 @@
 		}
 		
 		/**
+		 * Parse the Docblock
+		 * @return array
+		 * @throws LexerException|ParserException
+		 */
+		public function parse(): array {
+			try {
+				$result = [];
+				$token = $this->lexer->get();
+				
+				while ($token->getType() !== Token::Eof) {
+					// Skip non-annotation tokens
+					if ($token->getType() !== Token::Annotation) {
+						$token = $this->lexer->get();
+						continue;
+					}
+					
+					// Skip ignored annotations
+					$value = $token->getValue();
+					
+					if (isset($this->ignore_annotations_set[$value])) {
+						$token = $this->lexer->get();
+						continue;
+					}
+					
+					// Skip swagger docs
+					if (str_starts_with($value, self::SWAGGER_PREFIX)) {
+						$token = $this->lexer->get();
+						continue;
+					}
+					
+					// Parse the annotation
+					$annotation = $this->parseAnnotation($token);
+					
+					// Add the annotation to the result
+					$result[get_class($annotation)] = $annotation;
+					
+					// Get the next token
+					$token = $this->lexer->get();
+				}
+				
+				return $result;
+			} catch (\ReflectionException $e) {
+				throw new ParserException("Reflection error: {$e->getMessage()}", $e->getCode(), $e);
+			}
+		}
+
+		/**
 		 * Preprocess imports for faster class resolution
 		 */
 		private function preprocessImports(): void {
@@ -126,7 +182,7 @@
 		 * @return string The parsed configuration key in dot notation
 		 * @throws LexerException
 		 */
-		protected function parseConfigurationKey(): string {
+		private function parseConfigurationKey(): string {
 			// Match the opening curly brace that starts the configuration key
 			$this->lexer->match(Token::CurlyBraceOpen);
 			
@@ -158,7 +214,7 @@
 		 * @return string The fully qualified class name
 		 * @throws LexerException|ParserException
 		 */
-		protected function parseClassConstant(): string {
+		private function parseClassConstant(): string {
 			$className = '';
 			
 			// Build the class name by consuming parameter tokens separated by backslashes
@@ -191,7 +247,7 @@
 		 * @return mixed The parsed value (array, string, number, boolean, or null)
 		 * @throws LexerException|ParserException|\ReflectionException
 		 */
-		protected function parseValue(Token $token): mixed {
+		private function parseValue(Token $token): mixed {
 			// Handle a configuration string (e.g. ${config.cache.default_ttl})
 			if ($this->lexer->optionalMatch(Token::Dollar)) {
 				$configKey = $this->parseConfigurationKey();
@@ -340,7 +396,7 @@
 		 * @throws ParserException If the attribute structure is invalid
 		 * @throws \ReflectionException If annotation reflection fails
 		 */
-		protected function parseAttributeList(): array {
+		private function parseAttributeList(): array {
 			// Initialize an empty array to store the parsed attributes
 			$attributes = [];
 			
@@ -398,7 +454,7 @@
 		 * @return array
 		 * @throws LexerException|ParserException|\ReflectionException
 		 */
-		protected function parseParameters(): array {
+		private function parseParameters(): array {
 			$parameters = [];
 			$isFirstParameter = true;
 			
@@ -521,7 +577,7 @@
 		 * @throws ParserException
 		 * @throws \ReflectionException
 		 */
-		protected function parseAnnotation(Token $token): object {
+		private function parseAnnotation(Token $token): object {
 			// Fetch the annotation class name
 			$value = $token->getValue();
 			
@@ -550,7 +606,7 @@
 		 * @param string $default Value to return if the path doesn't exist
 		 * @return mixed The value found at the path or the default
 		 */
-		protected function resolveNestedValue(string $path, string $default = ''): mixed {
+		private function resolveNestedValue(string $path, string $default = ''): mixed {
 			// Split the path into individual keys
 			$keys = explode('.', $path);
 			$current = $this->configuration;
@@ -636,94 +692,66 @@
 		}
 		
 		/**
-		 * Resolve a class name using the imports
-		 * @param string $className Name or alias of the class
-		 * @return string Fully qualified class name
+		 * Resolves a class name to its fully qualified form using available imports and namespace context.
+		 *
+		 * This method handles multiple resolution strategies:
+		 * 1. Fully qualified names (starting with \)
+		 * 2. Imported aliases and their compound variations
+		 * 3. Current namespace resolution with fallback to global scope
+		 *
+		 * @param string $className The class name to resolve (can be simple name, alias, or compound)
+		 * @return string The fully qualified class name without leading backslash
 		 */
-		protected function resolveClassName(string $className): string {
-			// Already fully qualified
+		private function resolveClassName(string $className): string {
+			// Handle fully qualified names - remove leading backslash and return
 			if (str_starts_with($className, '\\')) {
-				return substr($className, 1); // Remove the leading backslash
+				return substr($className, 1);
 			}
 			
-			// Check if it's an imported alias
+			// Strategy 1: Direct alias lookup
+			// Check if the entire class name matches an imported alias
 			if (isset($this->imports[$className])) {
 				return $this->imports[$className];
 			}
 			
-			// For compound names like Alias\SubClass, resolve the alias part
+			// Strategy 2: Compound name resolution using imports
+			// Handle cases like 'AliasedNamespace\ClassName' where 'AliasedNamespace' is imported
 			if (str_contains($className, '\\')) {
 				$parts = explode('\\', $className, 2);
-				$alias = $parts[0];
-				$rest = $parts[1];
+				$rootAlias = $parts[0];
+				$remainingPath = $parts[1];
 				
-				// Direct match for the first part
-				if (isset($this->imports[$alias])) {
-					return $this->imports[$alias] . '\\' . $rest;
+				// Check if the root part matches an imported alias
+				if (isset($this->imports[$rootAlias])) {
+					return $this->imports[$rootAlias] . '\\' . $remainingPath;
 				}
 				
-				// Try our generic partial namespace resolver
+				// Attempt resolution using generic partial namespace resolver
 				$resolved = $this->resolveClassReference($className);
 				
-				// Remove trailing slash if present
-				if (str_starts_with($resolved, '\\')) {
-					$resolved = substr($resolved, 1);
-				}
-				
-				// Return the fully resolved path
+				// If generic resolver found a different result, use it
 				if ($resolved !== $className) {
-					return $resolved;
+					return ltrim($resolved, '\\');
 				}
 			}
 			
-			// Return as is if nothing matched
-			return $className;
-		}
-
-		/**
-		 * Parse the Docblock
-		 * @return array
-		 * @throws LexerException|ParserException
-		 */
-		public function parse(): array {
-			try {
-				$result = [];
-				$token = $this->lexer->get();
+			// Strategy 3: Current namespace resolution with global fallback
+			// Try to resolve within the current namespace, then fall back to global scope
+			if ($this->currentNamespace !== null) {
+				$candidates = [
+					$this->currentNamespace . '\\' . $className,   // Current namespace
+					$className                                     // Global namespace
+				];
 				
-				while ($token->getType() !== Token::Eof) {
-					// Skip non-annotation tokens
-					if ($token->getType() !== Token::Annotation) {
-						$token = $this->lexer->get();
-						continue;
+				// Test each candidate to see if it exists
+				foreach ($candidates as $candidate) {
+					if (class_exists($candidate) || interface_exists($candidate)) {
+						return $candidate;
 					}
-					
-					// Skip ignored annotations
-					$value = $token->getValue();
-					
-					if (isset($this->ignore_annotations_set[$value])) {
-						$token = $this->lexer->get();
-						continue;
-					}
-					
-					// Skip swagger docs
-					if (str_starts_with($value, self::SWAGGER_PREFIX)) {
-						$token = $this->lexer->get();
-						continue;
-					}
-					
-					// Parse the annotation
-					$annotation = $this->parseAnnotation($token);
-					
-					// Add the annotation to the result
-					$result[get_class($annotation)] = $annotation;
-					
-					// Get the next token
-					$token = $this->lexer->get();
 				}
-				
-				return $result;
-			} catch (\ReflectionException $e) {
-				throw new ParserException("Reflection error: {$e->getMessage()}", $e->getCode(), $e);
 			}
+			
+			// No resolution found - return the original class name unchanged
+			return $className;
 		}
 	}

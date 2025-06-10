@@ -272,9 +272,10 @@
 		 * @param array $items An array of ReflectionProperty or ReflectionMethod objects.
 		 * @param array $result The result array to be updated with parsed annotations.
 		 * @param array $imports The import list
+		 * @param string|null $currentNamespace The namespace of the file we're currently reading
 		 * @return void
 		 */
-		protected function parseAnnotations(array $items, array &$result, array $imports): void {
+		protected function parseAnnotations(array $items, array &$result, array $imports, ?string $currentNamespace=null): void {
 			// Loop through each Reflection item (either property or method)
 			foreach ($items as $item) {
 				// Get the doc comment for the current item
@@ -286,7 +287,7 @@
 				}
 				
 				// Retrieve annotations from the doc comment with imports
-				$annotations = $this->getAnnotationsWithImports($docComment, $imports);
+				$annotations = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
 				
 				// Skip if there are no annotations
 				if (empty($annotations)) {
@@ -315,17 +316,20 @@
 			// Load the use statements of this file
 			$imports = $this->use_statement_parser->getImportsForClass($reflection);
 			
+			// Namespace
+			$currentNamespace = $reflection->getNamespaceName();
+			
 			// Read the doc comment of the class
 			$docComment = $reflection->getDocComment();
 			
 			// Parse the annotations inside these comments
 			if (!empty($docComment)) {
-				$result['class'] = $this->getAnnotationsWithImports($docComment, $imports);
+				$result['class'] = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
 			}
 			
 			// Parse the annotations and return result
-			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports);
-			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $imports);
+			$this->parseAnnotations($reflection->getProperties(), $result['properties'], $imports, $currentNamespace);
+			$this->parseAnnotations($reflection->getMethods(), $result['methods'], $imports, $currentNamespace);
 			return $result;
 		}
 		
@@ -387,13 +391,14 @@
 		 * Parses a string and returns the found annotations, with import resolution
 		 * @param string $string The docblock to parse
 		 * @param array $imports Map of aliases to fully qualified class names
+		 * @param string|null $currentNamespace Namespace of the file
 		 * @return array
 		 * @throws ParserException
 		 */
-		protected function getAnnotationsWithImports(string $string, array $imports): array {
+		protected function getAnnotationsWithImports(string $string, array $imports, ?string $currentNamespace): array {
 			try {
 				$lexer = new Lexer($string);
-				$parser = new Parser($lexer, $this->configuration, $imports);
+				$parser = new Parser($lexer, $this->configuration, $imports, $currentNamespace);
 				return $parser->parse();
 			} catch (LexerException $e) {
 				throw new ParserException($e->getMessage(), $e->getCode(), $e);
