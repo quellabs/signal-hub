@@ -8,6 +8,7 @@
 	use Quellabs\Canvas\AOP\AspectResolver;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Discover\Discover;
+	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Console\ConsoleInput;
 	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\CommandBase;
@@ -34,12 +35,13 @@
 			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
 		}
 		
+
 		/**
 		 * Discovers and builds a complete list of all routes in the application
 		 * by scanning controller classes and their annotated methods
 		 * @return array Array of route configurations with controller, method, route, and aspects info
 		 */
-		protected function getRoutes(): array {
+		protected function getRoutes(ConfigurationManager $config): array {
 			// Initialize the class discovery utility
 			$discover = new Discover();
 			
@@ -101,8 +103,31 @@
 				// Tertiary sort: by method
 				return $a['method'] <=> $b['method'];
 			});
+		
+			// Filter the routes if needed, then return
+			return $this->filterRoutes($result, $config);
+		}
+		
+		/**
+		 * Filter routes based on configuration options
+		 * @param array $routes Collection of routes to filter
+		 * @param ConfigurationManager $config Configuration manager containing filter options
+		 * @return array Filtered routes array
+		 */
+		protected function filterRoutes(array $routes, ConfigurationManager $config): array {
+			// Get the controller filter option from configuration
+			$controllerFilter = $config->get("controller");
 			
-			return $result;
+			// Apply controller filter if specified
+			if ($controllerFilter) {
+				// Filter routes by controller name
+				$routes = array_filter($routes, function ($route) use ($controllerFilter) {
+					return str_contains(strtolower($route['controller']), strtolower($controllerFilter));
+				});
+			}
+			
+			// Return the filtered routes (or original routes if no filter applied)
+			return $routes;
 		}
 		
 		/**

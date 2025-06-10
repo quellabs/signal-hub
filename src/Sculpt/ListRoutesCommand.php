@@ -29,7 +29,7 @@
 		 */
 		public function execute(ConfigurationManager $config): int {
 			// Get all registered routes from the application
-			$routes = $this->getRoutes();
+			$routes = $this->getRoutes($config);
 			
 			// Transform route data into table format for display
 			$tableData = array_map(function (array $entry) {
