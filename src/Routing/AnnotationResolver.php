@@ -26,7 +26,12 @@
 			$this->kernel = $kernel;
 			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
-			$this->cacheDirectory = $kernel->getConfig('cache_dir', __DIR__ . "/../../storage/cache");
+			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
+			
+			// Create cache directory if it doesn't already exist
+			if (!is_dir($this->cacheDirectory)) {
+				mkdir($this->cacheDirectory);
+			}
 		}
 		
 		/**
