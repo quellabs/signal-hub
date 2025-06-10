@@ -13,6 +13,7 @@ The AnnotationReader component provides robust parsing and caching of PHP docblo
 ## Features
 
 - **Annotation parsing**: Parse docblock annotations for classes, properties, and methods
+- **Annotation inheritance**: Class-level annotations are automatically inherited by child classes
 - **Import resolution**: Automatically resolves class imports for fully qualified annotation names
 - **Performance optimization**: Implements smart caching to improve performance
 - **Flexible integration**: Easy to integrate with your existing projects
@@ -25,6 +26,8 @@ composer require quellabs/annotation-reader
 ```
 
 ## Usage
+
+### Basic Usage
 
 ```php
 use Quellabs\AnnotationReader\AnnotationsReader;
@@ -55,6 +58,64 @@ $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName')
 
 // Get annotations for a method, filtered by a specific annotation
 $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName', SomeAnnotation::class);
+```
+
+### Annotation Inheritance
+
+Class-level annotations are automatically inherited from parent classes, making it easy to apply cross-cutting concerns like caching, security, or logging to entire class hierarchies.
+
+```php
+/**
+ * @Cacheable(ttl=3600)
+ * @Transactional
+ */
+abstract class BaseService {
+    // Base service logic
+}
+
+/**
+ * @RateLimited(requests=100, window=60)
+ */
+class UserService extends BaseService {
+    // Inherits @Cacheable and @Transactional from BaseService
+    // Also has its own @RateLimited annotation
+}
+
+// Get all class annotations (including inherited ones)
+$annotations = $reader->getClassAnnotations(UserService::class);
+// Returns: @Cacheable, @Transactional, @RateLimited
+
+// Get only direct class annotations (no inheritance)
+$directAnnotations = $reader->getClassAnnotations(UserService::class, null, false);
+// Returns: @RateLimited only
+```
+
+#### Inheritance Behavior
+
+- **Class annotations**: Inherited from parent classes by default
+- **Method annotations**: Not inherited (direct only)
+- **Property annotations**: Not inherited (direct only)
+- **Inheritance order**: Parent annotations are processed first, child annotations can override
+- **Optional inheritance**: Use the third parameter to disable inheritance: `getClassAnnotations($class, $filter, false)`
+
+#### Common Use Cases for Inheritance
+
+```php
+/**
+ * @Secured(role="ADMIN")
+ * @Logged
+ */
+abstract class AdminController {
+    // Base admin functionality
+}
+
+class UserManagementController extends AdminController {
+    // Automatically secured and logged
+}
+
+class SystemConfigController extends AdminController {
+    // Also automatically secured and logged
+}
 ```
 
 ## Annotation Format
