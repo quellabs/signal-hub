@@ -39,7 +39,7 @@
 			$cacheDirectory = $providerConfig['cache_dir'] ?? $discover->getProjectRoot();
 			
 			// Remove the cache file
-			@unlink($cacheDirectory . "/storage/cache/routes.json");
+			@unlink($cacheDirectory . "/storage/cache/routes.serialized");
 			
 			// Show message
 			$this->output->success("Routes cache cleared");
