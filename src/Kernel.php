@@ -28,7 +28,7 @@
 	     */
 	    public function __construct(array $configuration=[]) {
 			// Store the configuration array
-			$this->configuration =  $configuration;
+			$this->configuration = array_merge($this->getConfigFile(), $configuration);
 			
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
@@ -219,6 +219,20 @@
 	    }
 	    
 	    /**
+	     * Load app.php
+	     * @return array
+	     */
+	    private function getConfigFile(): array {
+			// If the config file is not there, do not attempt any load
+		    if (!file_exists(__DIR__ . '/../config/app.php')) {
+			    return [];
+		    }
+		    
+			// Otherwise grap the contents
+		    return require_once __DIR__ . '/../config/app.php';
+	    }
+		
+		/**
 	     * Loads the .env file into $_ENV, $_SERVER and getenv()
 	     * @return void
 	     */
