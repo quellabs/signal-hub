@@ -804,6 +804,48 @@ This shows you exactly which controller method will be called for a given URL an
 - Understand route precedence and matching order
 - Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
 
+### Route Cache Management
+
+Canvas provides commands to manage route caching for optimal performance:
+
+#### Clear Route Cache
+
+Clear the compiled route cache to force route re-discovery:
+
+```bash
+./vendor/bin/sculpt route:clear_cache
+```
+
+This is useful when:
+- You've added new routes that aren't being recognized
+- Route changes aren't being reflected in your application
+- You're experiencing routing issues after deploying changes
+- You want to force a fresh route compilation
+
+#### Debug Mode Configuration
+
+For development environments, you can disable route caching entirely by setting debug mode in your application configuration:
+
+```php
+<?php
+// config/app.php
+
+return [
+    'debug_mode' => true,  // Disables route caching
+    // other configuration options...
+];
+```
+
+When `debug_mode` is enabled:
+- Routes are discovered and compiled on every request
+- Changes to route annotations are immediately reflected
+- No need to manually clear route cache during development
+- Performance is slightly reduced but development experience is improved
+
+**Note**: Always ensure `debug_mode` is set to `false` in production environments to maintain optimal performance with route caching enabled.
+
+Canvas provides commands to manage route caching for optimal performance:
+
 ## Aspect-Oriented Programming in Detail
 
 Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Canvas supports four types of aspects that execute at different stages of the request lifecycle.
@@ -842,6 +884,7 @@ class RateLimitAspect implements BeforeAspect {
         if ($this->rateLimiter->isExceeded()) {
             return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
         }
+        
         return null;
     }
 }
@@ -850,14 +893,12 @@ class RateLimitAspect implements BeforeAspect {
 **After Aspects** - Execute after the method, can modify the response:
 ```php
 class AuditLogAspect implements AfterAspect {
-    public function after(MethodContext $context, mixed $result): ?Response {
+    public function after(MethodContext $context, Response $response): void {
         $this->logger->info('Method executed', [
             'controller' => get_class($context->getTarget()),
             'method' => $context->getMethodName(),
             'user' => $this->auth->getCurrentUser()?->id
         ]);
-        
-        return null; // Don't modify response
     }
 }
 ```
