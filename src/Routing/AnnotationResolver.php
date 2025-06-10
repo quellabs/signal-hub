@@ -231,8 +231,8 @@
 			}
 			
 			// if URL pattern matches - return route data
-			$routeSegments = $this->parseRoutePath($routeData['route_path']);
 			$urlVariables = [];
+			$routeSegments = $this->parseRoutePath($routeData['route_path']);
 			
 			if ($this->urlMatchesRoute($requestUrl, $routeSegments, $urlVariables)) {
 				return [
@@ -312,8 +312,8 @@
 						$requestUrl,
 						$urlIndex,
 						$variables,
-						$routePattern,  // NEW: pass complete route pattern
-						$routeIndex     // NEW: pass current route index
+						$routePattern,
+						$routeIndex
 					);
 					
 					if ($result === true) {
@@ -345,12 +345,14 @@
 				if ($this->isVariable($routeSegment)) {
 					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
 					
+					// Multi-wildcard variable consumed everything
 					if ($result === true) {
-						return true; // Multi-wildcard variable consumed everything
+						return true;
 					}
 					
+					// Validation failed
 					if ($result === false) {
-						return false; // Validation failed
+						return false;
 					}
 					
 					++$urlIndex;
@@ -743,7 +745,7 @@
 				);
 			}
 			
-			// Sort routes by priority to ensure best matches are tried first
+			// Sort routes by priority to ensure the best matches are tried first
 			// Higher priority routes (exact matches) take precedence over wildcards
 			// This prevents overly broad routes from stealing requests from more specific ones
 			usort($result, function ($a, $b) {
