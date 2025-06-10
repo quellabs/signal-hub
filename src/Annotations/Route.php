@@ -66,7 +66,7 @@
 				return $this->parameters["methods"];
 			}
 			
-			// If methods is a string, convert to single-element array
+			// If methods is a string, convert to a single-element array
 			return [$this->parameters["methods"]];
 		}
 	}

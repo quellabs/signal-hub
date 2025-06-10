@@ -6,7 +6,7 @@
     
     class BeforeFilter implements AnnotationInterface {
         
-        protected $parameters;
+        protected array $parameters;
         
         /**
          * Table constructor.

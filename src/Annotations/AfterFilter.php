@@ -6,7 +6,7 @@
     
     class AfterFilter implements AnnotationInterface {
         
-        protected $parameters;
+        protected array $parameters;
 	    
 	    
         /**
