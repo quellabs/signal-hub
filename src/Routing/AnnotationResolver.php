@@ -17,6 +17,7 @@
 		private bool $debugMode;
 		private bool $matchTrailingSlashes;
 		private string $cacheDirectory;
+		private string $cacheFile;
 		
 		/**
 		 * FetchAnnotations constructor.
@@ -27,6 +28,7 @@
 			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
 			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
+			$this->cacheFile = 'routes.serialized';
 			
 			// Create cache directory if it doesn't already exist
 			if (!is_dir($this->cacheDirectory)) {
@@ -736,7 +738,7 @@
 		 * @return bool True if cache is expired and should be rebuilt, false if cache is still valid
 		 */
 		private function cacheExpired(): bool {
-			return !file_exists($this->cacheDirectory . "/routes.json");
+			return !file_exists($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile);
 		}
 		
 		/**
@@ -746,7 +748,7 @@
 		private function fetchAllRoutes(): array {
 			// Get from cache if we can
 			if (!$this->debugMode && !$this->cacheExpired()) {
-				return json_decode(file_get_contents($this->cacheDirectory . "/routes.json"), true);
+				return unserialize(file_get_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile), true);
 			}
 			
 			// Discover all controller classes in the application
@@ -775,7 +777,7 @@
 			
 			// Store in cache if needed
 			if (!$this->debugMode) {
-				file_put_contents($this->cacheDirectory . "/routes.json", json_encode($result));
+				file_put_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile, serialize($result));
 			}
 			
 			// And return the found routes
