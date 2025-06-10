@@ -3,7 +3,7 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\Canvas\AOP\Contracts\AspectAnnotation;
+	use Quellabs\Canvas\Annotations\InterceptWith;
 	
 	readonly class AspectResolver {
 		
@@ -18,21 +18,21 @@
 		/**
 		 * Resolves all aspects that should be applied to a controller method
 		 * Combines class-level aspects (applied to all methods) with method-level aspects
-		 * @param object $controller The controller instance
+		 * @param object|string $controller The controller instance
 		 * @param string $method The method name being called
 		 * @return array Array of aspect annotation instances
 		 */
-		public function resolve(object $controller, string $method): array {
+		public function resolve(object|string $controller, string $method): array {
 			// Get all annotations from the controller class and filter for aspect annotations
 			// Class-level aspects apply to all methods in the controller
 			$classAnnotations = array_filter($this->annotationReader->getClassAnnotations($controller), function ($e) {
-				return $e instanceof AspectAnnotation;
+				return $e instanceof InterceptWith;
 			});
 			
 			// Get all annotations from the specific method and filter for aspect annotations
 			// Method-level aspects only apply to this specific method
 			$methodAnnotations = array_filter($this->annotationReader->getMethodAnnotations($controller, $method), function ($e) {
-				return $e instanceof AspectAnnotation;
+				return $e instanceof InterceptWith;
 			});
 			
 			// Merge class-level and method-level aspects
@@ -55,7 +55,10 @@
 				}, ARRAY_FILTER_USE_KEY);
 				
 				// Add the aspect class and parameters to the result list
-				$aspects[$aspectClass] = $parameters;
+				$aspects[] = [
+					'class'      => $aspectClass,
+					'parameters' => $parameters
+				];
 			}
 			
 			return $aspects;

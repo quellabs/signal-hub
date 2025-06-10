@@ -6,6 +6,7 @@
 	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\Canvas\Annotations\InterceptWith;
 	use Quellabs\Canvas\Annotations\Route;
+	use Quellabs\Canvas\AOP\AspectResolver;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\Contracts\CommandBase;
@@ -73,24 +74,14 @@
 		 * @return array Array of interceptor class names ordered by precedence (class-level first, then method-level)
 		 */
 		private function getAspectsOfMethod(string $class, string $method): array {
-			// Collect class-level interceptors that apply to all methods in this controller
-			// These are typically used for controller-wide concerns like authentication or CORS
-			$aspectsClass = array_filter($this->annotationsReader->getClassAnnotations($class), function ($annotation) {
-				return $annotation instanceof InterceptWith;
-			});
+			// Initialize the aspect discovery utility
+			$aspectResolver = new AspectResolver($this->annotationsReader);
 			
-			// Collect method-specific interceptors that apply only to this particular route handler
-			// These are used for method-specific concerns like input validation or caching
-			$aspectsMethod = array_filter($this->annotationsReader->getMethodAnnotations($class, $method), function ($annotation) {
-				return $annotation instanceof InterceptWith;
-			});
+			// Fetch all annotation classes in order
+			$aspectsClass = $aspectResolver->resolve($class, $method);
 			
-			// Merge interceptors with class-level aspects first (executed first in the chain)
-			// then method-level aspects (executed closer to the actual method call)
-			// Extract the actual interceptor class names from the InterceptWith annotation objects
-			return array_map(function ($e) {
-				return $e->getInterceptClass();
-			}, array_merge($aspectsClass, $aspectsMethod));
+			// Extract the actual interceptor class names
+			return array_map(function ($e) { return $e['class']; }, $aspectsClass);
 		}
 		
 		/**
@@ -129,9 +120,9 @@
 						// Build complete route configuration including metadata
 						$result[] = [
 							'http_methods' => $route->getMethods(),
-							'controller'   => $controller,               // Controller class name
-							'method'       => $method->getName(),        // Method name that handles this route
-							'route'        => $route,                    // Route annotation object with path/HTTP method info
+							'controller'   => $controller,                // Controller class name
+							'method'       => $method->getName(),         // Method name that handles this route
+							'route'        => $route,                     // Route annotation object with path/HTTP method info
 							'aspects'      => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
 								$method->getDeclaringClass()->getName(),
 								$method->getName()
