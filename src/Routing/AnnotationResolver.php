@@ -14,7 +14,9 @@
 		 * @var Kernel Kernel object, used among other things for service discovery
 		 */
 		private Kernel $kernel;
+		private bool $debugMode;
 		private bool $matchTrailingSlashes;
+		private string $cacheDirectory;
 		
 		/**
 		 * FetchAnnotations constructor.
@@ -22,13 +24,14 @@
 		 */
 		public function __construct(Kernel $kernel) {
 			$this->kernel = $kernel;
+			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
+			$this->cacheDirectory = $kernel->getConfig('cache_dir', __DIR__ . "/../../storage/cache");
 		}
 		
 		/**
 		 * Resolves an HTTP request to find the first matching route
 		 * This is a convenience method that returns only the highest priority match
-		 *
 		 * @param Request $request The incoming HTTP request to resolve
 		 * @return array|null Returns the first matched route info or null if no match found
 		 *                    array contains: ['controller' => string, 'method' => string, 'variables' => array]
@@ -719,8 +722,16 @@
 			// Determine if the route expects a trailing slash
 			$routeHasTrailingSlash = strlen($routePath) > 1 && str_ends_with($routePath, '/');
 			
-			// They must match - both have trailing slash or both don't
+			// They must match - both have trailing slash, or both don't
 			return $urlHasTrailingSlash === $routeHasTrailingSlash;
+		}
+		
+		/**
+		 * Determines if the route cache needs to be rebuilt by checking file modification times
+		 * @return bool True if cache is expired and should be rebuilt, false if cache is still valid
+		 */
+		private function cacheExpired(): bool {
+			return !file_exists($this->cacheDirectory . "/routes.json");
 		}
 		
 		/**
@@ -728,6 +739,11 @@
 		 * @return array
 		 */
 		private function fetchAllRoutes(): array {
+			// Get from cache if we can
+			if (!$this->debugMode && !$this->cacheExpired()) {
+				return json_decode(file_get_contents($this->cacheDirectory . "/routes.json"), true);
+			}
+			
 			// Discover all controller classes in the application
 			// This scans the controller directory for PHP classes that can handle routes
 			$controllerDir = $this->getControllerDirectory();
@@ -751,6 +767,11 @@
 			usort($result, function ($a, $b) {
 				return $b['priority'] <=> $a['priority'];
 			});
+			
+			// Store in cache if needed
+			if (!$this->debugMode) {
+				file_put_contents($this->cacheDirectory . "/routes.json", json_encode($result));
+			}
 			
 			// And return the found routes
 			return $result;
