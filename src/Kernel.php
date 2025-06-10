@@ -27,14 +27,14 @@
 	     * @param array $configuration
 	     */
 	    public function __construct(array $configuration=[]) {
-			// Store the configuration array
+		    // Register Discovery service
+		    $this->discover = new Discover();
+		    
+		    // Store the configuration array
 			$this->configuration = array_merge($this->getConfigFile(), $configuration);
 			
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
-		    
-		    // Register Discovery service
-		    $this->discover = new Discover();
 		    
 		    // Read the environment file
 		    $this->loadEnvironmentFile();
