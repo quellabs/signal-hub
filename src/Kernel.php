@@ -21,6 +21,7 @@
 	    private Container $di; // Dependency Injection
 	    private AnnotationReader $annotationsReader; // Annotation reading
 	    private array $configuration;
+	    private ?array $contents_of_app_php = null;
 	    
 	    /**
 	     * Kernel constructor
@@ -223,16 +224,20 @@
 	     * @return array
 	     */
 	    private function getConfigFile(): array {
-			// Fetch the project root
+		    // Fetch the project root
 		    $projectRoot = $this->discover->getProjectRoot();
-			
-			// If the config file is not there, do not attempt any load
+		    
+		    // If the config file is not there, do not attempt any load
 		    if (!file_exists($projectRoot . '/config/app.php')) {
 			    return [];
 		    }
 		    
-			// Otherwise grap the contents
-		    return require_once $projectRoot . '/config/app.php';
+		    // Otherwise grap the contents
+		    if ($this->contents_of_app_php === null) {
+			    $this->contents_of_app_php = require_once $projectRoot . '/config/app.php';
+		    }
+		    
+		    return $this->contents_of_app_php;
 	    }
 		
 		/**
