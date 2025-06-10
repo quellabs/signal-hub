@@ -501,11 +501,32 @@ This displays a formatted table showing your routes, controllers, and applied as
 +-------+---------------------------------------+---------+
 ```
 
-The route list helps you:
-- See all available routes at a glance
-- Verify route patterns and controller mappings
-- Check which aspects are applied to each route
-- Debug routing issues during development
+Filter routes by controller to focus on specific functionality:
+
+```bash
+./vendor/bin/sculpt route:list --controller=UserController
+```
+
+### Route Matching
+
+Test which controller and method handles a specific URL path:
+
+```bash
+./vendor/bin/sculpt route:match /url/path/10
+```
+
+You can also specify the HTTP method to test method-specific routing:
+
+```bash
+./vendor/bin/sculpt route:match GET /url/path/10
+```
+
+This shows you exactly which controller method will be called for a given URL and HTTP method, helping you:
+- Debug routing issues
+- Verify parameter extraction and validation
+- Test wildcard route matching
+- Understand route precedence and matching order
+- Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
 
 ## Aspect-Oriented Programming in Detail
 

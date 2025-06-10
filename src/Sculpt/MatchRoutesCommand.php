@@ -34,7 +34,7 @@
 			// Fetch a list of matching routes for the given path
 			$kernel = new Kernel();
 			
-			if (in_array($config->getPositional(0), ['GET', 'POST', 'DELETE', 'PATCH'], true)) {
+			if (in_array($config->getPositional(0), ['GET', 'POST', 'DELETE', 'PUT', 'PATCH'], true)) {
 				$request = Request::create($config->getPositional(1), $config->getPositional(0));
 			} else {
 				$request = Request::create($config->getPositional(0));
