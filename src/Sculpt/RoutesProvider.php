@@ -10,7 +10,8 @@
 		public function register(Application $application): void {
 			// Register the commands into the Sculpt application
 			$this->registerCommands($application, [
-				ListRoutesCommand::class
+				ListRoutesCommand::class,
+				MatchRoutesCommand::class
 			]);
 		}
 	}
