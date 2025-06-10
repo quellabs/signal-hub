@@ -24,46 +24,81 @@
 		}
 		
 		/**
+		 * Resolves an HTTP request to find the first matching route
+		 * This is a convenience method that returns only the highest priority match
+		 *
+		 * @param Request $request The incoming HTTP request to resolve
+		 * @return array|null Returns the first matched route info or null if no match found
+		 *                    array contains: ['controller' => string, 'method' => string, 'variables' => array]
+		 */
+		public function resolve(Request $request): ?array {
+			// Get all possible route matches using the main resolution logic
+			$result = $this->resolveAll($request);
+			
+			// If no routes matched, return null to indicate no match found
+			if (empty($result)) {
+				return null;
+			}
+			
+			// Return only the first (highest priority) match
+			// Since resolveAll() sorts by priority, index 0 is the best match
+			return $result[0];
+		}
+		
+		/**
 		 * Resolves an HTTP request to a controller, method, and route variables
 		 * Matches the request URL against controller route annotations to find the correct endpoint
 		 * @param Request $request The incoming HTTP request to resolve
-		 * @return array|null Returns matched route info or null if no match found
+		 * @return array Returns matched route info or null if no match found
 		 *         array contains: ['controller' => string, 'method' => string, 'variables' => array]
 		 */
-		public function resolve(Request $request): ?array {
-			// Get the request URL and method
+		public function resolveAll(Request $request): array {
+			// Extract and clean the request URL path
+			// Remove leading slash and split into segments, filtering out empty strings
 			$baseUrl = ltrim($request->getRequestUri(), '/');
 			$requestUrl = array_filter(explode('/', $baseUrl), function ($e) { return $e !== ''; });
 			
-			// Get controller classes from the standard location
+			// Discover all controller classes in the application
+			// This scans the controller directory for PHP classes that can handle routes
 			$controllerDir = $this->getControllerDirectory();
 			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
 			
-			// Collect all routes with their priorities
+			// Build a comprehensive list of all available routes across all controllers
 			$allRoutes = [];
 			foreach ($controllers as $controller) {
+				// Extract routes from each controller that match the HTTP method
+				// This likely uses reflection to read route annotations/attributes
 				$allRoutes = array_merge(
 					$allRoutes,
 					$this->getRoutesFromController($controller, $request->getMethod())
 				);
 			}
 			
-			// Sort routes by priority (higher priority first)
-			// Exact routes get higher priority than wildcard routes
+			// Sort routes by priority to ensure best matches are tried first
+			// Higher priority routes (exact matches) take precedence over wildcards
+			// This prevents overly broad routes from stealing requests from more specific ones
 			usort($allRoutes, function ($a, $b) {
 				return $b['priority'] <=> $a['priority'];
 			});
 			
-			// Try to match routes in priority order
+			// Attempt to match the request URL against each route in priority order
+			$result = [];
+			
 			foreach ($allRoutes as $routeData) {
+				// Try to match the current route pattern against the request URL
+				// This handles URL parameters, wildcards, and exact matches
 				$matchedRoute = $this->tryMatchRoute($routeData, $requestUrl);
 				
+				// If this route matches, add it to our results
+				// Multiple routes can match (e.g., for middleware chaining or fallbacks)
 				if ($matchedRoute) {
-					return $matchedRoute;
+					$result[] = $matchedRoute;
 				}
 			}
 			
-			return null;
+			// Return all matching routes, sorted by priority
+			// Calling code can decide whether to use first match or handle multiple matches
+			return $result;
 		}
 		
 		/**
