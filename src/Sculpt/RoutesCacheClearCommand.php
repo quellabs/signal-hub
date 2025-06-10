@@ -2,10 +2,8 @@
 	
 	namespace Quellabs\Canvas\Sculpt;
 	
-	use Quellabs\Canvas\Kernel;
-	use Quellabs\Canvas\Routing\AnnotationResolver;
+	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\ConfigurationManager;
-	use Symfony\Component\HttpFoundation\Request;
 	
 	class RoutesCacheClearCommand extends RoutesBase {
 		
@@ -34,11 +32,14 @@
 			// Fetch contents of app.php
 			$providerConfig = $this->getProvider()->getConfig();
 			
+			// Discover utility to fetch the project root
+			$discover = new Discover();
+			
 			// Determine the cache directory
-			$cacheDirectory = $providerConfig['cache_dir'] ?? __DIR__ . "/../../storage/cache";
+			$cacheDirectory = $providerConfig['cache_dir'] ?? $discover->getProjectRoot();
 			
 			// Remove the cache file
-			@unlink($cacheDirectory . "/routes.json");
+			@unlink($cacheDirectory . "/storage/cache/routes.json");
 			
 			// Show message
 			$this->output->success("Routes cache cleared");
