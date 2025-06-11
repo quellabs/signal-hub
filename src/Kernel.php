@@ -232,8 +232,9 @@
 		    // Fetch the project root
 		    $projectRoot = $this->discover->getProjectRoot();
 		    
-		    // If the config file is not there, do not attempt any load
+		    // If the config file does not exist, do not attempt to load it
 		    if (!file_exists($projectRoot . '/config/app.php')) {
+			    $this->contents_of_app_php = [];
 			    return [];
 		    }
 		    
