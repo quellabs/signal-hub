@@ -224,6 +224,11 @@
 	     * @return array
 	     */
 	    private function getConfigFile(): array {
+			// Fetch from cache if we can
+		    if ($this->contents_of_app_php !== null) {
+				return $this->contents_of_app_php;
+		    }
+
 		    // Fetch the project root
 		    $projectRoot = $this->discover->getProjectRoot();
 		    
@@ -232,11 +237,10 @@
 			    return [];
 		    }
 		    
-		    // Otherwise grap the contents
-		    if ($this->contents_of_app_php === null) {
-			    $this->contents_of_app_php = require $projectRoot . '/config/app.php';
-		    }
+		    // Otherwise, grab the contents
+		    $this->contents_of_app_php = require $projectRoot . '/config/app.php';
 		    
+			// And return them
 		    return $this->contents_of_app_php;
 	    }
 		

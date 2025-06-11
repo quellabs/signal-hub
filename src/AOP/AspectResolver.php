@@ -7,6 +7,10 @@
 	
 	readonly class AspectResolver {
 		
+		/**
+		 * AnnotationReader is used to read annotations in docblocks
+		 * @var AnnotationReader
+		 */
 		private AnnotationReader $annotationReader;
 		
 		/**
