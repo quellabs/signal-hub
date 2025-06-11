@@ -18,7 +18,6 @@
     class Kernel {
 	    
 	    private Discover $discover; // Service discovery
-	    private Container $di; // Dependency Injection
 	    private AnnotationReader $annotationsReader; // Annotation reading
 	    private array $configuration;
 	    private ?array $contents_of_app_php = null;
@@ -31,21 +30,18 @@
 		    // Read the environment file
 		    $this->loadEnvironmentFile();
 		    
+		    // Store the configuration array
+		    $this->configuration = array_merge($this->getConfigFile(), $configuration);
+		    
 		    // Register Discovery service
 		    $this->discover = new Discover();
 		    
-		    // Store the configuration array
-			$this->configuration = array_merge($this->getConfigFile(), $configuration);
-			
+		    // Register Annotations Reader
+		    $annotationsReaderConfig = new Configuration();
+		    $this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
+
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
-		    
-		    // Config for AnnotationsReader
-		    $annotationsReaderConfig = new Configuration();
-		    
-		    // Register all services
-		    $this->di = new Container();
-		    $this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
 	    }
 	    
 		/**
@@ -55,14 +51,6 @@
 	     */
 	    public function getDiscover(): Discover {
 		    return $this->discover;
-	    }
-	    
-	    /**
-	     * Returns the Dependency Injection object
-	     * @return Container
-	     */
-	    public function getDi(): Container {
-		    return $this->di;
 	    }
 	    
 	    /**
@@ -187,7 +175,10 @@
 	    public function handle(Request $request): Response {
 			// Instantiate the URL resolver
 		    $urlResolver = new AnnotationResolver($this);
-
+			
+			// Instantiate Dependency Injector
+		    $dependencyInjector = new Container();
+		    
 		    // Retrieve URL data using the resolver service
 		    // This maps the URL to controller, method and parameters
 		    $urlData = $urlResolver->resolve($request);
@@ -201,7 +192,7 @@
 		    try {
 			    // Get the controller instance from the dependency injection container
 			    // $urlData["controller"] contains the controller class name
-			    $controller = $this->di->get($urlData["controller"]);
+			    $controller = $dependencyInjector->get($urlData["controller"]);
 
 				// Create aspect-aware dispatcher
 			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->di);
