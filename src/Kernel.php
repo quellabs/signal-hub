@@ -28,6 +28,9 @@
 	     * @param array $configuration
 	     */
 	    public function __construct(array $configuration=[]) {
+		    // Read the environment file
+		    $this->loadEnvironmentFile();
+		    
 		    // Register Discovery service
 		    $this->discover = new Discover();
 		    
@@ -36,9 +39,6 @@
 			
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
-		    
-		    // Read the environment file
-		    $this->loadEnvironmentFile();
 		    
 		    // Config for AnnotationsReader
 		    $annotationsReaderConfig = new Configuration();
