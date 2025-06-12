@@ -32,7 +32,7 @@
     "classmap-authoritative": true
   },
   "require": {
-    "smarty/smarty": "^4.3|^5.0",
+    "smarty/smarty": "^5.0",
     "quellabs/discover": "^1.0",
     "quellabs/dependency-injection": "^1.0",
     "quellabs/contracts": "^1.0",

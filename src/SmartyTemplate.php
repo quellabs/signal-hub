@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Smarty;
 	
-	use Smarty;
+	use Smarty\Smarty;
 	use Quellabs\Contracts\Templates\TemplateEngineInterface;
 	
 	class SmartyTemplate implements TemplateEngineInterface {
