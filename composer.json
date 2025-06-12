@@ -1,0 +1,59 @@
+{
+  "name": "quellabs/canvas-objectquel",
+  "description": "ObjectQuel integration for the Canvas PHP framework",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Floris van den Berg",
+      "email": "info@quellabs.com"
+    }
+  ],
+  "keywords": [
+    "ORM",
+    "ObjectQuel",
+    "query language",
+    "entity manager"
+  ],
+  "support": {
+    "email": "support@quellabs.com",
+    "issues": "https://github.com/quellabs/objectquel/issues",
+    "forum": "https://github.com/quellabs/objectquel/discussions",
+    "wiki": "https://github.com/quellabs/objectquel/wiki",
+    "docs": "https://objectquel.quellabs.com/docs",
+    "source": "https://github.com/quellabs/objectquel"
+  },
+  "config": {
+    "platform": {
+      "php": "8.2"
+    }
+  },
+  "require": {
+    "quellabs/objectquel": ">=1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\Canvas\\ObjectQuel\\": "src/"
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "php -r \"copy('vendor/quellabs/canvas-objectquel/config/database-env.php', 'config/database-env.php');\"",
+      "php -r \"copy('vendor/quellabs/canvas-objectquel/config/database.php', 'config/database.php');\""
+    ]
+  },
+  "extra": {
+    "discover": {
+      "sculpt": {
+        "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider",
+        "config": "config/database-env.php"
+      },
+      "di": {
+        "provider": {
+          "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
+          "config": "config/database-env.php"
+        }
+      }
+    }
+  }
+}
