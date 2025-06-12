@@ -8,12 +8,18 @@
 	readonly class AspectResolver {
 		
 		/**
+		 * AnnotationReader is used to read annotations in docblocks
+		 * @var AnnotationReader
+		 */
+		private AnnotationReader $annotationReader;
+		
+		/**
 		 * AspectDispatcher constructor
 		 * @param AnnotationReader $annotationReader
 		 */
-		public function __construct(
-			private AnnotationReader $annotationReader
-		) {}
+		public function __construct(AnnotationReader $annotationReader) {
+			$this->annotationReader = $annotationReader;
+		}
 		
 		/**
 		 * Resolves all aspects that should be applied to a controller method

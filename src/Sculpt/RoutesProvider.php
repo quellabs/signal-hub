@@ -11,7 +11,8 @@
 			// Register the commands into the Sculpt application
 			$this->registerCommands($application, [
 				ListRoutesCommand::class,
-				MatchRoutesCommand::class
+				MatchRoutesCommand::class,
+				RoutesCacheClearCommand::class,
 			]);
 		}
 	}

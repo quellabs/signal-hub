@@ -127,7 +127,6 @@
 		 * @return void
 		 */
 		private function handleRequestAspects(array $aspects, Request $request): void {
-			// Execute request aspects
 			foreach ($aspects as $aspect) {
 				if ($aspect instanceof RequestAspect) {
 					// Transform the request object in-place
@@ -161,15 +160,17 @@
 		 * Execute after aspects following controller method execution
 		 * @param array $aspects Array of aspect instances to process
 		 * @param MethodContext $context Context object containing method metadata and parameters
-		 * @param Response $response The response object from the controller method to be modified
+		 * @param Response|null $response The response object from the controller method to be modified
 		 * @return void
 		 */
-		private function handleAfterAspects(array $aspects, MethodContext $context, Response $response): void {
-			foreach ($aspects as $aspect) {
-				if ($aspect instanceof AfterAspect) {
-					// After aspects modify the response object directly.
-					// No return value expected - modifications happen in-place
-					$aspect->after($context, $response);
+		private function handleAfterAspects(array $aspects, MethodContext $context, ?Response $response): void {
+			if ($response !== null) {
+				foreach ($aspects as $aspect) {
+					if ($aspect instanceof AfterAspect) {
+						// After aspects modify the response object directly.
+						// No return value expected - modifications happen in-place
+						$aspect->after($context, $response);
+					}
 				}
 			}
 		}
@@ -196,8 +197,8 @@
 			// This is the innermost function in the chain
 			$proceed = fn() => $this->di->invoke($controller, $method, $context->getArguments());
 			
-			// Build nested chain of around aspects in reverse order.
-			// Reverse order ensures first declared aspect becomes outermost wrapper.
+			// Build a nested chain of around aspects in reverse order.
+			// Reverse order ensures the first declared aspect becomes outermost wrapper.
 			// Each aspect wraps the previous proceed function, creating nested calls.
 			foreach (array_reverse($aroundAspects) as $aspect) {
 				$currentProceed = $proceed; // Capture current proceed function in closure

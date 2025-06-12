@@ -14,6 +14,10 @@
 		 * @var Kernel Kernel object, used among other things for service discovery
 		 */
 		private Kernel $kernel;
+		private bool $debugMode;
+		private bool $matchTrailingSlashes;
+		private string $cacheDirectory;
+		private string $cacheFile;
 		
 		/**
 		 * FetchAnnotations constructor.
@@ -21,12 +25,20 @@
 		 */
 		public function __construct(Kernel $kernel) {
 			$this->kernel = $kernel;
+			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
+			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
+			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
+			$this->cacheFile = 'routes.serialized';
+			
+			// Create cache directory if it doesn't already exist
+			if (!is_dir($this->cacheDirectory)) {
+				mkdir($this->cacheDirectory);
+			}
 		}
 		
 		/**
 		 * Resolves an HTTP request to find the first matching route
 		 * This is a convenience method that returns only the highest priority match
-		 *
 		 * @param Request $request The incoming HTTP request to resolve
 		 * @return array|null Returns the first matched route info or null if no match found
 		 *                    array contains: ['controller' => string, 'method' => string, 'variables' => array]
@@ -53,41 +65,23 @@
 		 *         array contains: ['controller' => string, 'method' => string, 'variables' => array]
 		 */
 		public function resolveAll(Request $request): array {
-			// Extract and clean the request URL path
-			// Remove leading slash and split into segments, filtering out empty strings
-			$baseUrl = ltrim($request->getRequestUri(), '/');
-			$requestUrl = array_filter(explode('/', $baseUrl), function ($e) { return $e !== ''; });
-			
-			// Discover all controller classes in the application
-			// This scans the controller directory for PHP classes that can handle routes
-			$controllerDir = $this->getControllerDirectory();
-			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
-			
 			// Build a comprehensive list of all available routes across all controllers
-			$allRoutes = [];
-			foreach ($controllers as $controller) {
-				// Extract routes from each controller that match the HTTP method
-				// This likely uses reflection to read route annotations/attributes
-				$allRoutes = array_merge(
-					$allRoutes,
-					$this->getRoutesFromController($controller, $request->getMethod())
-				);
-			}
-			
-			// Sort routes by priority to ensure best matches are tried first
-			// Higher priority routes (exact matches) take precedence over wildcards
-			// This prevents overly broad routes from stealing requests from more specific ones
-			usort($allRoutes, function ($a, $b) {
-				return $b['priority'] <=> $a['priority'];
-			});
-			
+			$allRoutes = $this->fetchAllRoutes();
+
+			// Split request uri into segments, filtering out empty strings
+			$requestUrl = array_values(array_filter(explode('/', $request->getRequestUri()), function ($e) {
+				return $e !== '';
+			}));
+
 			// Attempt to match the request URL against each route in priority order
 			$result = [];
 			
 			foreach ($allRoutes as $routeData) {
 				// Try to match the current route pattern against the request URL
 				// This handles URL parameters, wildcards, and exact matches
-				$matchedRoute = $this->tryMatchRoute($routeData, $requestUrl);
+				$matchedRoute = $this->tryMatchRoute(
+					$routeData, $requestUrl, $request->getRequestUri(), $request->getMethod()
+				);
 				
 				// If this route matches, add it to our results
 				// Multiple routes can match (e.g., for middleware chaining or fallbacks)
@@ -104,10 +98,9 @@
 		/**
 		 * Gets all potential routes from a controller with their priorities
 		 * @param string $controller
-		 * @param string $requestMethod
 		 * @return array
 		 */
-		private function getRoutesFromController(string $controller, string $requestMethod): array {
+		private function getRoutesFromController(string $controller): array {
 			// Initialize an empty array to store matching routes
 			$routes = [];
 			
@@ -118,12 +111,6 @@
 				
 				// Loop through each method and its associated route annotation
 				foreach ($routeAnnotations as $method => $routeAnnotation) {
-					// Filter routes by HTTP method (GET, POST, PUT, DELETE, etc.)
-					// Skip this route if it doesn't support the requested HTTP method
-					if (!in_array($requestMethod, $routeAnnotation->getMethods())) {
-						continue;
-					}
-					
 					// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
 					$routePath = $routeAnnotation->getRoute();
 					
@@ -241,13 +228,21 @@
 		 * @param array $requestUrl Parsed URL segments from the request
 		 * @return array|null Route match data with controller/method/variables, or null if no match
 		 */
-		private function tryMatchRoute(array $routeData, array $requestUrl): ?array {
-			// Parse the route path into segments for comparison
-			$routePath = $routeData['route_path'];
-			$routeSegments = $this->parseRoutePath($routePath);
+		private function tryMatchRoute(array $routeData, array $requestUrl, string $originalUrl, string $requestMethod): ?array {
+			// Filter routes by HTTP method (GET, POST, PUT, DELETE, etc.)
+			// Skip this route if it doesn't support the requested HTTP method
+			if (!in_array($requestMethod, $routeData['http_methods'])) {
+				return null;
+			}
+			
+			// Check trailing slash compatibility
+			if ($this->matchTrailingSlashes && !$this->trailingSlashMatches($originalUrl, $routeData['route_path'])) {
+				return null; // Trailing slash mismatch - skip this route
+			}
 			
 			// if URL pattern matches - return route data
 			$urlVariables = [];
+			$routeSegments = $this->parseRoutePath($routeData['route_path']);
 			
 			if ($this->urlMatchesRoute($requestUrl, $routeSegments, $urlVariables)) {
 				return [
@@ -327,8 +322,8 @@
 						$requestUrl,
 						$urlIndex,
 						$variables,
-						$routePattern,  // NEW: pass complete route pattern
-						$routeIndex     // NEW: pass current route index
+						$routePattern,
+						$routeIndex
 					);
 					
 					if ($result === true) {
@@ -360,12 +355,14 @@
 				if ($this->isVariable($routeSegment)) {
 					$result = $this->handleVariable($routeSegment, $requestUrl, $urlIndex, $variables);
 					
+					// Multi-wildcard variable consumed everything
 					if ($result === true) {
-						return true; // Multi-wildcard variable consumed everything
+						return true;
 					}
 					
+					// Validation failed
 					if ($result === false) {
-						return false; // Validation failed
+						return false;
 					}
 					
 					++$urlIndex;
@@ -716,5 +713,74 @@
 				// Return an empty array if the controller class doesn't exist or can't be reflected
 				return [];
 			}
+		}
+		
+		/**
+		 * Checks if the trailing slash requirements match between URL and route
+		 * @param string $originalUrl The original request URL (before parsing)
+		 * @param string $routePath The route path pattern
+		 * @return bool True if trailing slash requirements are compatible
+		 */
+		private function trailingSlashMatches(string $originalUrl, string $routePath): bool {
+			// Determine if the original URL has a trailing slash
+			// Handle edge cases like root path "/"
+			$urlHasTrailingSlash = strlen($originalUrl) > 1 && str_ends_with($originalUrl, '/');
+			
+			// Determine if the route expects a trailing slash
+			$routeHasTrailingSlash = strlen($routePath) > 1 && str_ends_with($routePath, '/');
+			
+			// They must match - both have trailing slash, or both don't
+			return $urlHasTrailingSlash === $routeHasTrailingSlash;
+		}
+		
+		/**
+		 * Determines if the route cache needs to be rebuilt by checking file modification times
+		 * @return bool True if cache is expired and should be rebuilt, false if cache is still valid
+		 */
+		private function cacheExpired(): bool {
+			return !file_exists($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile);
+		}
+		
+		/**
+		 * Returns all routes in an array
+		 * @return array
+		 */
+		private function fetchAllRoutes(): array {
+			// Get from cache if we can
+			if (!$this->debugMode && !$this->cacheExpired()) {
+				return unserialize(file_get_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile));
+			}
+			
+			// Discover all controller classes in the application
+			// This scans the controller directory for PHP classes that can handle routes
+			$controllerDir = $this->getControllerDirectory();
+			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
+			
+			// Build a comprehensive list of all available routes across all controllers
+			$result = [];
+			
+			foreach ($controllers as $controller) {
+				// Extract routes from each controller that match the HTTP method
+				// This likely uses reflection to read route annotations/attributes
+				$result = array_merge(
+					$result,
+					$this->getRoutesFromController($controller)
+				);
+			}
+			
+			// Sort routes by priority to ensure the best matches are tried first
+			// Higher priority routes (exact matches) take precedence over wildcards
+			// This prevents overly broad routes from stealing requests from more specific ones
+			usort($result, function ($a, $b) {
+				return $b['priority'] <=> $a['priority'];
+			});
+			
+			// Store in cache if needed
+			if (!$this->debugMode) {
+				file_put_contents($this->cacheDirectory . DIRECTORY_SEPARATOR . $this->cacheFile, serialize($result));
+			}
+			
+			// And return the found routes
+			return $result;
 		}
 	}
