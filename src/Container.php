@@ -152,6 +152,9 @@
 				// Return the instance
 				return $instance;
 			} catch (\Throwable $e) {
+				// Add error log
+				error_log("DI: Unable to create instance for className '{$className}': {$e->getMessage()}");
+				
 				// Remove from resolution stack on error
 				if (in_array($className, $this->resolutionStack)) {
 					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
