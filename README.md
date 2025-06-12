@@ -340,7 +340,7 @@ class ProductRepository extends Repository {
      * @param float $maxPrice Maximum price threshold
      * @return array<ProductEntity> Matching products
      */
-    public function findFeaturedProducts(): array {
+    public function findFeaturedProducts(): QuelResult {
         return $this->em->executeQuery("
             range of p is App\\Entity\\ProductEntity
             retrieve (p) where p.featured = true
