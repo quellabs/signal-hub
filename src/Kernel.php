@@ -195,7 +195,7 @@
 			    $controller = $dependencyInjector->get($urlData["controller"]);
 
 				// Create aspect-aware dispatcher
-			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->di);
+			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $dependencyInjector);
 				
 			    return $aspectDispatcher->dispatch(
 					$request,
