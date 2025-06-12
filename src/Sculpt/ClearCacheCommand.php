@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Smarty\Sculpt;
 	
-	use Smarty;
+	use Smarty\Smarty;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Contracts\CommandBase;
 	
@@ -55,7 +55,7 @@
 			// Clear all cached templates and compiled files
 			$smarty->clearAllCache();
 			
-			// Display success message to the user
+			// Display a success message to the user
 			$this->getOutput()->success("Cleared the smarty cache");
 			
 			// Return success exit code
