@@ -27,14 +27,14 @@
 	     * @param array $configuration
 	     */
 	    public function __construct(array $configuration=[]) {
+		    // Register Discovery service
+		    $this->discover = new Discover();
+		    
 		    // Read the environment file
 		    $this->loadEnvironmentFile();
 		    
 		    // Store the configuration array
 		    $this->configuration = array_merge($this->getConfigFile(), $configuration);
-		    
-		    // Register Discovery service
-		    $this->discover = new Discover();
 		    
 		    // Register Annotations Reader
 		    $annotationsReaderConfig = new Configuration();
