@@ -360,7 +360,6 @@ class ProductRepository extends Repository {
 
 **Migration commands not available:**
 - Check that the Sculpt service provider is properly registered
-- Ensure your Canvas application has Sculpt CLI support enabled
 
 **Proxy generation errors:**
 - Verify that the `proxy_path` directory exists and is writable
