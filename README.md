@@ -49,8 +49,6 @@ The package requires:
 
 ### ⚙️ **Framework Integration**
 - Seamless Canvas framework integration
-- Automatic configuration file copying during installation
-- Environment-based configuration support
 
 ## Configuration
 
@@ -58,13 +56,12 @@ The package requires:
 
 During installation, the package automatically copies configuration files to your Canvas application:
 
-```bash
-# These files are automatically created:
-config/database-env.php    # Helper functions (do not modify)
-config/database.php        # User configuration (customize as needed)
-```
+Edit `config/database.php` to configure your database connection, or set `DSN` in your `.env` file:
 
-Edit `config/database.php` to configure your database connection:
+```env
+# Database Connection (DSN format)
+DSN=mysql://username:password@localhost:3306/database_name?encoding=utf8mb4
+```
 
 ## Service Discovery
 
@@ -81,14 +78,15 @@ Located in `Quellabs\Canvas\ObjectQuel\Discovery\ObjectQuelServiceProvider`, thi
 ```php
 // The EntityManager is automatically available in your Canvas application
 use Quellabs\Canvas\Controllers\BaseController;
+use Quellabs\Canvas\Annotations\Route;
 
 class ProductController extends BaseController {
-    public function __construct(
-        private EntityManager $entityManager
-    ) {}
     
+    /**
+     * @Route('/')
+     */
     public function index() {
-        $products = $this->entityManager->findBy(ProductEntity::class, [
+        $products = $this->em->findBy(ProductEntity::class, [
             'active' => true
         ]);
         
@@ -182,7 +180,7 @@ php bin/sculpt quel:create-phinx-config
 # Install the package
 composer require quellabs/canvas-objectquel
 
-# Configure your database in config/database-env.php
+# Configure your database in config/database.php
 # Set up your .env file with database credentials
 ```
 
@@ -214,24 +212,28 @@ namespace App\Controllers;
 
 use Quellabs\ObjectQuel\EntityManager;
 use App\Entity\ProductEntity;
+use Quellabs\Canvas\Controllers\BaseController;
+use Quellabs\Canvas\Annotations\Route;
 
-class ProductController {
+class ProductController extends BaseController {
     
-    public function __construct(
-        private EntityManager $entityManager
-    ) {}
-    
+    /**
+     * @Route('/products/create', methods={['POST']})
+     */
     public function create() {
         $product = new ProductEntity();
         $product->setName('New Product');
         $product->setPrice(29.99);
         
-        $this->entityManager->persist($product);
-        $this->entityManager->flush();
+        $this->em->persist($product);
+        $this->em->flush();
         
         return $this->redirect('/products');
     }
     
+    /**
+     * @Route('/products')
+     */
     public function index() {
         $products = $this->em->executeQuery("
             range of p is App\\Entity\\ProductEntity
@@ -270,14 +272,14 @@ The service providers include these default configuration values:
 
 ```php
 use Quellabs\Canvas\Controllers\BaseController;
+use Quellabs\Canvas\Annotations\Route;
 
 // In a Canvas controller with DI
 class OrderController extends BaseController {
     
-    public function __construct(
-        private EntityManager $em
-    ) {}
-    
+    /**
+     * @Route('/orders/{id}', methods={['GET']})
+     */
     public function show(int $id) {
         $order = $this->em->find(OrderEntity::class, $id);
         
@@ -288,6 +290,9 @@ class OrderController extends BaseController {
         return $this->render('orders.show.tpl', compact('order'));
     }
     
+    /**
+     * @Route('/orders/{id}', methods={['PUT', 'PATCH']})
+     */
     public function update(int $id, array $data) {
         $order = $this->em->find(OrderEntity::class, $id);
         $order->setStatus($data['status']);
@@ -329,7 +334,12 @@ class ProductRepository extends Repository {
     public function __construct(EntityManager $entityManager) {
         parent::__construct($entityManager, ProductEntity::class);
     }
-    
+        
+    /**
+     * Find products below a certain price
+     * @param float $maxPrice Maximum price threshold
+     * @return array<ProductEntity> Matching products
+     */
     public function findFeaturedProducts(): array {
         return $this->em->executeQuery("
             range of p is App\\Entity\\ProductEntity
