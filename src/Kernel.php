@@ -26,7 +26,7 @@
 	    private array $configuration;
 	    private ?array $contents_of_app_php = null;
 	    private bool $legacyEnabled;
-	    private LegacyFallthroughHandler $legacyFallbackHandler;
+	    private ?LegacyFallthroughHandler $legacyFallbackHandler;
 	    private Container $dependencyInjector;
 	    
 	    /**
@@ -81,12 +81,12 @@
 		public function isLegacyEnabled(): bool {
 			return $this->legacyEnabled;
 		}
-		
+	    
 	    /**
 	     * Returns the legacy fallback handler object
-	     * @return LegacyFallthroughHandler
+	     * @return LegacyFallthroughHandler|null
 	     */
-	    public function getLegacyHandler(): LegacyFallthroughHandler {
+	    public function getLegacyHandler(): ?LegacyFallthroughHandler {
 		    return $this->legacyFallbackHandler;
 	    }
 	    
@@ -209,7 +209,7 @@
 				$urlData = $urlResolver->resolve($request);
 				
 				// If no matching route was found and legacy is enabled, try legacy fallthrough
-				if (!$urlData && $this->legacyEnabled) {
+				if (!$urlData && $this->legacyEnabled && $this->legacyFallbackHandler) {
 					try {
 						return $this->legacyFallbackHandler->handle($request);
 					} catch (RouteNotFoundException $e) {
@@ -369,14 +369,14 @@
 	     * @return void
 	     */
 	    private function initializeLegacySupport(): void {
-		    // Always initialize the bridge so legacy code can access Canvas services
-		    LegacyBridge::initialize($this->dependencyInjector);
-		    
 		    // Check if legacy fallthrough is enabled
 		    $this->legacyEnabled = $this->getConfigAs('legacy_enabled', 'bool', false);
 		    
 		    if ($this->legacyEnabled) {
-				// Fetch the legacy path
+			    // Only initialize bridge when legacy support is enabled
+			    LegacyBridge::initialize($this->dependencyInjector);
+			    
+			    // Fetch the legacy path
 			    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
 			    
 			    // If legacy_path is relative, make it relative to project root
@@ -384,7 +384,7 @@
 				    $legacyPath = $this->discover->getProjectRoot() . '/' . $legacyPath;
 			    }
 			    
-				// Create the fallthrough handler
+			    // Create the fallthrough handler
 			    $this->legacyFallbackHandler = new LegacyFallthroughHandler($legacyPath);
 		    }
 	    }
