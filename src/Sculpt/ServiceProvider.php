@@ -18,6 +18,7 @@
 			// Register the commands into the Sculpt application
 			if (!empty($this->getConfig())) {
 				$this->registerCommands($application, [
+					\Quellabs\ObjectQuel\Sculpt\Commands\InitCommand::class,
 					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityCommand::class,
 					\Quellabs\ObjectQuel\Sculpt\Commands\MakeEntityFromTableCommand::class,
 					\Quellabs\ObjectQuel\Sculpt\Commands\MakeMigrationsCommand::class,
