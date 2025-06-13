@@ -939,12 +939,43 @@ the creation of entities in your application. This interactive CLI tool guides y
 through a structured process, automatically generating properly formatted entity classes
 with all the necessary components.
 
+### Project Initialization
+
+Before using the sculpt CLI tools for creating entities or running migrations, you need to initialize ObjectQuel configuration in your project. This sets up the configuration files that the sculpt CLI tool needs to connect to your database and know where to generate entities.
+
+> **Note:** These configuration files are used by the sculpt CLI tool and also by the Canvas PHP framework if you're using ObjectQuel within Canvas. For standalone ObjectQuel usage, you'll still need to create a Configuration object programmatically in your application code.
+
+```bash
+php vendor/bin/sculpt quel:init
+```
+
+When you execute this command, the `sculpt` tool will:
+
+1. **Create configuration directory** - Sets up a `config/` directory in your project root if it doesn't exist
+2. **Generate database configuration** - Creates `config/database.php` with your main database settings for sculpt to use
+3. **Setup helper class** - Creates `config/database-env.php` as a helper class for managing environment settings
+4. **Provide setup guidance** - Offers clear next steps to complete your sculpt CLI setup
+
+#### What Gets Created
+
+The initialization process creates configuration files used by both the sculpt CLI tool and the Canvas framework (if applicable):
+
+- **config/database.php**: Database configuration file where sculpt reads your connection settings
+- **config/database-env.php**: Helper class for managing environment settings
+
+After running the init command, you'll need to:
+
+1. Edit `config/database.php` to configure your database connection details for sculpt
+2. Ensure sensitive data like passwords use environment variables for security
+
+> **Important:** If you're using ObjectQuel standalone (without Canvas), your application code will still need to create and configure the ObjectQuel Configuration object programmatically as shown in the [Configuration](#configuration) section. Canvas automatically uses these config files to initialize ObjectQuel for you.
+
 ### Automatic Entity Generation
 
 To create a new entity, run the following command in your terminal:
 
 ```bash
-php bin/sculpt make:entity
+php vendor/bin/sculpt make:entity
 ```
 
 When you execute this command, the `sculpt` tool will:
@@ -959,7 +990,7 @@ When you execute this command, the `sculpt` tool will:
 To generate an entity from an existing database table, run this command in your terminal:
 
 ```bash
-php bin/sculpt make:entity-from-table
+php vendor/bin/sculpt make:entity-from-table
 ```
 
 When executed, the sculpt tool will prompt you to select a table name and automatically create a properly structured entity class based on that table's schema.
@@ -969,7 +1000,7 @@ When executed, the sculpt tool will prompt you to select a table name and automa
 To create migrations for entity changes, use this command:
 
 ```bash
-php bin/sculpt make:migrations
+php vendor/bin/sculpt make:migrations
 ```
 
 When executed, the sculpt tool analyzes differences between your entity definitions and the current database schema. It then automatically generates a migration file containing the necessary SQL statements to synchronize your database with your entities.
@@ -981,7 +1012,7 @@ When executed, the sculpt tool analyzes differences between your entity definiti
 When you add or modify `@Orm\Index` or `@Orm\UniqueIndex` annotations to your entities, the `make:migrations` command will automatically detect these changes and include them in the generated migration files.
 
 ```bash
-php bin/sculpt make:migrations
+php vendor/bin/sculpt make:migrations
 ```
 
 This will produce migrations for index changes similar to:
@@ -1017,7 +1048,7 @@ This guide covers how to run, rollback, and manage migrations effectively.
 To apply all pending migrations to your database:
 
 ```bash
-php bin/sculpt quel:migrate
+php vendor/bin/sculpt quel:migrate
 ```
 
 This command will:
@@ -1031,21 +1062,21 @@ This command will:
 If you need to undo the most recent migration:
 
 ```bash
-php bin/sculpt quel:migrate --rollback
+php vendor/bin/sculpt quel:migrate --rollback
 ```
 
 To roll back multiple migrations at once, specify the number to rollback:
 
 ```bash
-php bin/sculpt quel:migrate --rollback --steps=3
+php vendor/bin/sculpt quel:migrate --rollback --steps=3
 ```
 
 ### Command Help
 
 For a complete list of migration options and detailed help:
-        
+
 ```bash
-php bin/sculpt help quel:migrate
+php vendor/bin/sculpt help quel:migrate
 ```
 
 ### Technology Stack
