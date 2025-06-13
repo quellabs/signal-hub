@@ -16,7 +16,7 @@
 		private array $resolvers = [];
 		
 		/** @var string Base path where legacy files are located */
-		private string $legacyPath = 'legacy/';
+		private string $legacyPath;
 		
 		/**
 		 * Initialize the handler with a base legacy path.
@@ -69,7 +69,6 @@
 		/**
 		 * Perform basic security checks on the resolved file.
 		 * Ensures the file exists, is readable, and has a .php extension.
-		 *
 		 * @param string $file Path to the file to check
 		 * @return bool True if the file is safe to execute
 		 */
