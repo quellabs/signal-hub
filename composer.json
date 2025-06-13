@@ -38,16 +38,12 @@
   },
   "scripts": {
     "post-install-cmd": [
-      "php -r \"copy('vendor/quellabs/canvas-objectquel/config/database-env.php', 'config/database-env.php');\"",
-      "php -r \"copy('vendor/quellabs/canvas-objectquel/config/database.php', 'config/database.php');\""
+      "php -r \"copy('vendor/quellabs/objectquel/config/database-env.php', 'config/database-env.php');\"",
+      "php -r \"copy('vendor/quellabs/objectquel/config/database.php', 'config/database.php');\""
     ]
   },
   "extra": {
     "discover": {
-      "sculpt": {
-        "provider": "Quellabs\\ObjectQuel\\Sculpt\\ServiceProvider",
-        "config": "config/database-env.php"
-      },
       "di": {
         "provider": {
           "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
