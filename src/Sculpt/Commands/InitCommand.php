@@ -69,7 +69,7 @@
 			
 			// Copy database configuration templates
 			$success = true;
-			$templateDir = dirname(__FILE__) . "/config";
+			$templateDir = dirname(__FILE__) . "/../../../config";
 			
 			$filesToCopy = [
 				'database.php'     => 'Main database configuration',
@@ -107,7 +107,6 @@
 			}
 			
 			// Provide clear success feedback and next steps
-			$this->output->writeLn("");
 			$this->output->success("ObjectQuel configuration initialized successfully!");
 			$this->output->writeLn("");
 			$this->output->writeLn("📁 Configuration files created in: {$configDir}");
@@ -116,8 +115,6 @@
 			$this->output->writeLn("1. Edit config/database.php to configure your database connection");
 			$this->output->writeLn("2. Set up environment-specific settings in config/database-env.php");
 			$this->output->writeLn("3. Run 'php sculpt make:entity' to create your first entity");
-			$this->output->writeLn("");
-			$this->output->writeLn("💡 Tip: Use environment variables for sensitive data like passwords");
 			
 			return 0; // Success
 		}
