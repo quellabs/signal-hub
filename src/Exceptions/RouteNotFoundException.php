@@ -15,13 +15,13 @@
 		 * The requested path that could not be found
 		 * @var string|null
 		 */
-		private ?string $requestedPath = null;
+		private ?string $requestedPath;
 		
 		/**
 		 * The HTTP method used for the request
 		 * @var string|null
 		 */
-		private ?string $requestedMethod = null;
+		private ?string $requestedMethod;
 		
 		/**
 		 * RouteNotFoundException constructor
@@ -98,7 +98,7 @@
 		
 		/**
 		 * Check if this exception has request details
-		 * @return bool True if request path is available, false otherwise
+		 * @return bool True if the request path is available, false otherwise
 		 */
 		public function hasRequestDetails(): bool {
 			return $this->requestedPath !== null;
