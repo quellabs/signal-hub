@@ -115,8 +115,6 @@
 			}
 			
 			// If no composer.json was found, use a sensible default
-			// This assumes the command file is located in a standard path:
-			// vendor/quellabs/objectquel/src/Sculpt/Commands/
 			return $this->projectRoot = dirname(__FILE__, 3);
 		}
 	}
