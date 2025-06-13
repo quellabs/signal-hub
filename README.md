@@ -1019,6 +1019,267 @@ Register it in `composer.json`:
 }
 ```
 
+# Legacy PHP Integration
+
+Canvas is designed to work seamlessly alongside existing PHP codebases, allowing you to modernize your applications incrementally without breaking existing functionality. The legacy integration system provides a smooth migration path from traditional PHP applications to Canvas.
+
+## Quick Start with Legacy Code
+
+### 1. Enable Legacy Support
+
+```php
+<?php
+// public/index.php
+use Quellabs\Canvas\Kernel;
+use Symfony\Component\HttpFoundation\Request;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$kernel = new Kernel([
+    'legacy_enabled' => true,
+    'legacy_path' => __DIR__ . '/../legacy/'
+]);
+
+$request = Request::createFromGlobals();
+$response = $kernel->handle($request);
+$response->send();
+```
+
+### 2. Use Canvas Services in Legacy Files
+
+Canvas services are automatically available in your legacy PHP files through the LegacyBridge, but **only when the legacy file is accessed through Canvas routing** (not when run directly):
+
+```php
+<?php
+// legacy/users.php - This file is accessed when visiting /users
+// Note: LegacyBridge is only available when Canvas loads this file
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+// Method 1: Using LegacyBridge directly
+$users = LegacyBridge::get('EntityManager')->findBy(User::class, ['active' => true]);
+$config = LegacyBridge::get('config');
+$container = LegacyBridge::container();
+
+// Method 2: Using the global canvas() function (simpler)
+$em = canvas('EntityManager');
+$posts = canvas('EntityManager')->findBy(Post::class, ['published' => true]);
+
+// Count users using ObjectQuel
+$allUsers = $em->findBy(User::class, []);
+$totalUsers = count($allUsers);
+
+echo "Found " . count($users) . " active users out of " . $totalUsers . " total users<br>";
+
+foreach ($posts as $post) {
+    echo "<h2>{$post->title}</h2>";
+    echo "<p>" . substr($post->content, 0, 200) . "...</p>";
+}
+?>
+```
+
+## How It Works
+
+### Route Fallthrough System
+
+Canvas uses an intelligent fallthrough system that tries Canvas routes first, then automatically looks for corresponding legacy PHP files:
+
+```
+URL Request: /users/profile
+1. Try Canvas route: /users/profile → ❌ Not found in Canvas controllers
+2. Try legacy files:
+   - legacy/users/profile.php → ✅ Found! Execute this file
+   - legacy/users/profile/index.php → Alternative location
+   
+For example:
+- `/users` → `legacy/users.php`
+- `/users` → `legacy/users/index.php`
+- `/admin/dashboard` → `legacy/admin/dashboard.php`
+- `/admin/dashboard` → `legacy/admin/dashboard/index.php`
+```
+
+## Configuration
+
+### Basic Configuration
+
+```php
+<?php
+// config/app.php
+return [
+    'debug_mode' => true,  // Set to false in production
+    
+    // Legacy support configuration
+    'legacy_enabled' => true,
+    'legacy_path' => __DIR__ . '/../legacy/',
+    
+    // Your other Canvas configuration...
+    'site' => [
+        'name' => 'My Canvas Application'
+    ]
+];
+```
+
+### Environment-Based Configuration
+
+```php
+<?php
+// Different configurations per environment
+$config = [
+    'debug_mode'     => true,  // Set to false in production
+    'legacy_enabled' => true,
+    'legacy_path'    => 'legacy/',
+];
+
+// Production settings
+if (!$config['debug_mode']) {
+    // Additional production-specific settings
+    $config['legacy_path'] = '/var/www/legacy/';
+}
+
+$kernel = new Kernel($config);
+```
+
+## Real-World Examples
+
+### Legacy Admin Dashboard
+
+```php
+<?php
+// legacy/admin/dashboard.php
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+$em = canvas('EntityManager');
+
+// Get data using Canvas ORM
+$recentUsers = $em->findBy(User::class, ['active' => true]);
+$totalPosts = count($em->findBy(Post::class, []));
+?>
+<h1>Admin Dashboard</h1>
+<p>Active Users: <?= count($recentUsers) ?></p>
+<p>Total Posts: <?= $totalPosts ?></p>
+```
+
+### Legacy API Endpoint
+
+```php
+<?php
+// legacy/api/users.php
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+header('Content-Type: application/json');
+
+$em = canvas('EntityManager');
+$users = $em->findBy(User::class, ['active' => true]);
+
+echo json_encode([
+    'success' => true,
+    'count' => count($users),
+    'users' => array_map(fn($u) => ['id' => $u->id, 'name' => $u->name], $users)
+]);
+?>
+```
+
+## Error Pages
+
+Canvas supports custom error pages for legacy applications:
+
+### Custom 404 Page
+
+Create a custom 404 page:
+
+```php
+<?php
+// legacy/404.php
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Page Not Found</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>404 - Page Not Found</h1>
+        <p>Sorry, the page you're looking for doesn't exist.</p>
+        <p><a href="/">Return to Homepage</a></p>
+    </div>
+</body>
+</html>
+```
+
+### Custom Error Page
+
+Create a custom 500 error page:
+
+```php
+<?php
+// legacy/500.php
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>500 - Server Error</h1>
+        <p>Something went wrong on our end. Please try again later.</p>
+        <p>If the problem persists, please contact support.</p>
+        <p><a href="/">Return to Homepage</a></p>
+    </div>
+</body>
+</html>
+```
+
+## Benefits of Legacy Integration
+
+### 🚀 **Zero Disruption**
+- Existing URLs continue to work unchanged
+- Legacy code runs without modification
+- Gradual migration at your own pace
+
+### 🔧 **Enhanced Legacy Code**
+- Add Canvas services (ORM, caching, logging) to legacy files
+- Apply modern patterns without rewriting everything
+- Improved performance through Canvas optimizations
+
+### 🔄 **Flexible Migration**
+- Start with services, move to controllers, then to full Canvas
+- Mix and match Canvas and legacy code as needed
+- Roll back changes easily during transition
+
+### 📈 **Immediate Benefits**
+- Better database abstraction through ObjectQuel ORM
+- Access to Canvas configuration system
+- Modern dependency injection
+- Improved error handling and debugging
+
+## Best Practices
+
+### 1. Start Small
+Begin by enabling legacy support and using Canvas services in a few legacy files to verify everything works.
+
+### 2. Use the Bridge Consistently
+Always access Canvas services through `canvas()` or `LegacyBridge::get()` for consistency and proper error handling.
+
+### 3. Plan Your Migration
+- **Phase 1**: Enable legacy support, add Canvas services to existing files
+- **Phase 2**: Move critical routes to Canvas controllers
+- **Phase 3**: Migrate business logic and data structures to Canvas
+- **Phase 4**: Full Canvas implementation
+
+### 4. Maintain Backward Compatibility
+Keep legacy URLs working throughout the migration process to avoid breaking existing bookmarks and external links.
+
+### 5. Test Thoroughly
+Use the test file to verify legacy integration is working correctly across different environments and deployments.
+
 ## Performance
 
 Canvas is built for performance:
