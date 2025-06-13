@@ -10,6 +10,7 @@
     use Quellabs\AnnotationReader\Configuration;
     use Quellabs\AnnotationReader\Exception\ParserException;
     use Quellabs\Canvas\AOP\AspectDispatcher;
+    use Quellabs\Canvas\Exceptions\RouteNotFoundException;
     use Quellabs\Canvas\Legacy\LegacyBridge;
     use Quellabs\Canvas\Legacy\LegacyFallthroughHandler;
     use Quellabs\Canvas\Routing\AnnotationResolver;
@@ -90,7 +91,7 @@
 	    }
 	    
 	    /**
-	     * Custom handler voor onafgehandelde excepties
+	     * Custom handler for exceptions
 	     * @param \Throwable $exception
 	     * @return void
 	     */
@@ -100,19 +101,13 @@
 			    ob_end_clean();
 		    }
 		    
-		    // Set appropriate headers
-		    http_response_code(500);
-		    header('Content-Type: text/html; charset=UTF-8');
+			// Create error response using the existing method
+		    $response = $this->createErrorResponse($exception);
+
+			// Send the response
+		    $response->send();
 		    
-		    // Check if we're in debug mode
-		    $isDebug = $this->getConfigAs('debug', 'bool', false);
-		    
-		    if ($isDebug) {
-			    $this->renderDebugErrorPage($exception);
-		    } else {
-			    $this->renderProductionErrorPage($exception);
-		    }
-		    
+			// Exit
 		    exit(1);
 	    }
 		
@@ -217,7 +212,7 @@
 				if (!$urlData && $this->legacyEnabled) {
 					try {
 						return $this->legacyFallbackHandler->handle($request);
-					} catch (\Exception $e) {
+					} catch (RouteNotFoundException $e) {
 						// Legacy fallthrough also failed, return 404
 						return $this->createNotFoundResponse($request);
 					}
@@ -297,23 +292,16 @@
 	    
 	    /**
 	     * Create an error response from an exception
-	     * @param \Exception $exception
+	     * @param \Throwable $exception
 	     * @return Response
 	     */
-	    private function createErrorResponse(\Exception $exception): Response {
+	    private function createErrorResponse(\Throwable $exception): Response {
 		    $isDevelopment = $this->getConfigAs('debug', 'bool', false);
 		    
 		    if ($isDevelopment) {
-			    // In development, show detailed error information
-			    $content = sprintf(
-				    "Internal Server Error\n\nError: %s\nFile: %s\nLine: %d\n\nTrace:\n%s",
-				    $exception->getMessage(),
-				    $exception->getFile(),
-				    $exception->getLine(),
-				    $exception->getTraceAsString()
-			    );
-				
-			    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'text/plain']);
+			    // In development, show detailed error information as HTML
+			    $content = $this->renderDebugErrorPageContent($exception);
+			    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'text/html']);
 		    }
 		    
 		    // In production, try to include a simple 500.php file if it exists
@@ -327,8 +315,9 @@
 			    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR);
 		    }
 		    
-		    // Ultimate fallback - simple text
-		    return new Response('Internal Server Error', Response::HTTP_INTERNAL_SERVER_ERROR);
+		    // Ultimate fallback - simple HTML page
+		    $content = $this->renderProductionErrorPageContent();
+		    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'text/html']);
 	    }
 		
 		/**
@@ -401,18 +390,18 @@
 	    }
 	    
 	    /**
-	     * Render detailed error page for development
+	     * Render detailed error page content for development
 	     * @param \Throwable $exception
-	     * @return void
+	     * @return string
 	     */
-	    private function renderDebugErrorPage(\Throwable $exception): void {
+	    private function renderDebugErrorPageContent(\Throwable $exception): string {
 		    $errorCode = $exception->getCode();
 		    $errorMessage = $exception->getMessage();
 		    $errorFile = $exception->getFile();
 		    $errorLine = $exception->getLine();
 		    $trace = $exception->getTraceAsString();
 		    
-		    echo "<!DOCTYPE html>
+		    return "<!DOCTYPE html>
 <html>
 <head>
     <title>Canvas Framework Error</title>
@@ -442,12 +431,11 @@
 	    }
 	    
 	    /**
-	     * Render generic error page for production
-	     * @param \Throwable $exception
-	     * @return void
+	     * Render generic error page content for production
+	     * @return string
 	     */
-	    private function renderProductionErrorPage(\Throwable $exception): void {
-		    echo "<!DOCTYPE html>
+	    private function renderProductionErrorPageContent(): string {
+		    return "<!DOCTYPE html>
 <html>
 <head>
     <title>Server Error</title>
