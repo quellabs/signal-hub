@@ -46,7 +46,7 @@
     "discover": {
       "di": {
         "provider": {
-          "class": "Quellabs\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
+          "class": "Quellabs\\Canvas\\ObjectQuel\\Discovery\\ObjectQuelServiceProvider",
           "config": "config/database-env.php"
         }
       }
