@@ -31,6 +31,11 @@
 		protected ?ProviderInterface $provider;
 		
 		/**
+		 * @var string|null Cached $projectRoot
+		 */
+		protected ?string $projectRoot = null;
+		
+		/**
 		 * Initialize a new command instance
 		 * @param ConsoleInput $input Input handler to process command arguments and options
 		 * @param ConsoleOutput $output Output handler to display results and messages
@@ -80,6 +85,11 @@
 		 * @return string The absolute path to the project root directory
 		 */
 		protected function determineProjectRoot(): string {
+			// Fetch from cache if possible
+			if ($this->projectRoot !== null) {
+				return $this->projectRoot;
+			}
+			
 			// Start at the current file's directory
 			$currentDir = dirname(__FILE__);
 			
@@ -92,7 +102,7 @@
 				
 				// If we find composer.json, we've found the project root
 				if (file_exists($parentDir . '/composer.json')) {
-					return $parentDir;
+					return $this->projectRoot = $parentDir;
 				}
 				
 				// We've reached the filesystem root with no success
@@ -107,6 +117,6 @@
 			// If no composer.json was found, use a sensible default
 			// This assumes the command file is located in a standard path:
 			// vendor/quellabs/objectquel/src/Sculpt/Commands/
-			return dirname(__FILE__, 3);
+			return $this->projectRoot = dirname(__FILE__, 3);
 		}
 	}
