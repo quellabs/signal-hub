@@ -8,7 +8,10 @@
     use Dotenv\Exception\InvalidPathException;
     use Quellabs\AnnotationReader\AnnotationReader;
     use Quellabs\AnnotationReader\Configuration;
+    use Quellabs\AnnotationReader\Exception\ParserException;
     use Quellabs\Canvas\AOP\AspectDispatcher;
+    use Quellabs\Canvas\Legacy\LegacyBridge;
+    use Quellabs\Canvas\Legacy\LegacyFallthroughHandler;
     use Quellabs\Canvas\Routing\AnnotationResolver;
     use Quellabs\DependencyInjection\Container;
     use Quellabs\Discover\Discover;
@@ -21,6 +24,9 @@
 	    private AnnotationReader $annotationsReader; // Annotation reading
 	    private array $configuration;
 	    private ?array $contents_of_app_php = null;
+	    private bool $legacyEnabled;
+	    private LegacyFallthroughHandler $legacyFallbackHandler;
+	    private Container $dependencyInjector;
 	    
 	    /**
 	     * Kernel constructor
@@ -39,7 +45,13 @@
 		    // Register Annotations Reader
 		    $annotationsReaderConfig = new Configuration();
 		    $this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
-
+		    
+		    // Instantiate Dependency Injector
+		    $this->dependencyInjector = new Container();
+		    
+		    // Initialize legacy support
+		    $this->initializeLegacySupport();
+		    
 		    // Zet een custom exception handler voor wat mooiere exceptie meldingen
 		    set_exception_handler([$this, 'customExceptionHandler']);
 	    }
@@ -62,28 +74,48 @@
 	    }
 	    
 	    /**
+	     * Returns true if legacy fallback is enabled
+	     * @return bool
+	     */
+		public function isLegacyEnabled(): bool {
+			return $this->legacyEnabled;
+		}
+		
+	    /**
+	     * Returns the legacy fallback handler object
+	     * @return LegacyFallthroughHandler
+	     */
+	    public function getLegacyHandler(): LegacyFallthroughHandler {
+		    return $this->legacyFallbackHandler;
+	    }
+	    
+	    /**
 	     * Custom handler voor onafgehandelde excepties
 	     * @param \Throwable $exception
 	     * @return void
 	     */
 	    public function customExceptionHandler(\Throwable $exception): void {
-		    $errorCode = $exception->getCode();
-		    $errorMessage = $exception->getMessage();
-		    $errorFile = $exception->getFile();
-		    $errorLine = $exception->getLine();
-		    $trace = $exception->getTraceAsString();
+		    // Clear any previous output
+		    if (ob_get_level()) {
+			    ob_end_clean();
+		    }
 		    
-		    // Extract variables to template
-		    extract(compact('errorCode', 'errorMessage', 'errorFile', 'errorLine', 'trace'));
+		    // Set appropriate headers
+		    http_response_code(500);
+		    header('Content-Type: text/html; charset=UTF-8');
 		    
-		    // Buffer de output
-		    ob_start();
-		    include __DIR__ . '/Templates/error.html.php';
-		    echo ob_get_clean();
+		    // Check if we're in debug mode
+		    $isDebug = $this->getConfigAs('debug', 'bool', false);
+		    
+		    if ($isDebug) {
+			    $this->renderDebugErrorPage($exception);
+		    } else {
+			    $this->renderProductionErrorPage($exception);
+		    }
 		    
 		    exit(1);
 	    }
-	    
+		
 	    /**
 	     * Returns the entire configuration array as passed in the constructor
 	     * @return array
@@ -166,8 +198,8 @@
 	    public function getConfigKeys(): array {
 		    return array_keys($this->configuration);
 	    }
-		
-		/**
+	    
+	    /**
 	     * Lookup the url and returns information about it
 	     * @param Request $request The incoming HTTP request object
 	     * @return Response HTTP response to be sent back to the client
@@ -176,41 +208,130 @@
 			// Instantiate the URL resolver
 		    $urlResolver = new AnnotationResolver($this);
 			
-			// Instantiate Dependency Injector
-		    $dependencyInjector = new Container();
-		    
-		    // Retrieve URL data using the resolver service
-		    // This maps the URL to controller, method and parameters
-		    $urlData = $urlResolver->resolve($request);
-		    
-		    // If no matching route was found, return a 404 Not Found response
-		    if (!$urlData) {
-			    return new Response('', Response::HTTP_NOT_FOUND);
-		    }
-		    
-		    // Execute the appropriate controller method based on route information
-		    try {
-			    // Get the controller instance from the dependency injection container
-			    // $urlData["controller"] contains the controller class name
-			    $controller = $dependencyInjector->get($urlData["controller"]);
-
-				// Create aspect-aware dispatcher
-			    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $dependencyInjector);
+			try {
+				// Retrieve URL data using the resolver service
+				// This maps the URL to controller, method and parameters
+				$urlData = $urlResolver->resolve($request);
 				
+				// If no matching route was found and legacy is enabled, try legacy fallthrough
+				if (!$urlData && $this->legacyEnabled) {
+					try {
+						return $this->legacyFallbackHandler->handle($request);
+					} catch (\Exception $e) {
+						// Legacy fallthrough also failed, return 404
+						return $this->createNotFoundResponse($request);
+					}
+				}
+				
+				// If no matching route was found and legacy is disabled, return 404
+				if (!$urlData) {
+					return $this->createNotFoundResponse($request);
+				}
+				
+				// Execute the appropriate controller method based on route information
+				return $this->executeCanvasRoute($request, $urlData);
+			} catch (\Exception $e) {
+				return $this->createErrorResponse($e);
+			}
+	    }
+	    
+	    /**
+	     * Execute a Canvas route
+	     * @param Request $request
+	     * @param array $urlData
+	     * @return Response
+	     */
+	    private function executeCanvasRoute(Request $request, array $urlData): Response {
+		    // Get the controller instance from the dependency injection container
+		    $controller = $this->dependencyInjector->get($urlData["controller"]);
+		    
+		    // Create aspect-aware dispatcher
+		    $aspectDispatcher = new AspectDispatcher($this->annotationsReader, $this->dependencyInjector);
+		    
+			// Run the request through the aspect dispatcher
+		    try {
 			    return $aspectDispatcher->dispatch(
-					$request,
+				    $request,
 				    $controller,
 				    $urlData["method"],
 				    $urlData["variables"]
 			    );
-		    } catch (\Exception $e) {
-			    // If any exception occurs during execution, return it as the response
-			    // with the exception message as content and exception code as HTTP status
-			    return new Response($e->getMessage(), 500);
+		    } catch (ParserException|\ReflectionException $e) {
+				return $this->createErrorResponse($e);
 		    }
 	    }
 	    
 	    /**
+	     * Create a 404 Not Found response
+	     * @param Request $request
+	     * @return Response
+	     */
+	    private function createNotFoundResponse(Request $request): Response {
+		    $isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
+		    
+		    if ($isDevelopment) {
+			    // In development, show helpful debug information
+			    $content = sprintf(
+				    "404 Not Found\n\nRequested: %s %s\n\nTo customize this page:\n- Create a 404.php file in your legacy directory\n- Or add a Canvas route for this path",
+				    $request->getMethod(),
+				    $request->getPathInfo()
+			    );
+				
+			    return new Response($content, Response::HTTP_NOT_FOUND, ['Content-Type' => 'text/plain']);
+		    }
+		    
+		    // In production, try to include a simple 404.php file if it exists
+		    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
+		    $notFoundFile = $legacyPath . '404.php';
+		    
+		    if (file_exists($notFoundFile)) {
+			    ob_start();
+			    include $notFoundFile;
+			    $content = ob_get_clean();
+			    return new Response($content, Response::HTTP_NOT_FOUND);
+		    }
+		    
+		    // Ultimate fallback - simple text
+		    return new Response('Page not found', Response::HTTP_NOT_FOUND);
+	    }
+	    
+	    /**
+	     * Create an error response from an exception
+	     * @param \Exception $exception
+	     * @return Response
+	     */
+	    private function createErrorResponse(\Exception $exception): Response {
+		    $isDevelopment = $this->getConfigAs('debug', 'bool', false);
+		    
+		    if ($isDevelopment) {
+			    // In development, show detailed error information
+			    $content = sprintf(
+				    "Internal Server Error\n\nError: %s\nFile: %s\nLine: %d\n\nTrace:\n%s",
+				    $exception->getMessage(),
+				    $exception->getFile(),
+				    $exception->getLine(),
+				    $exception->getTraceAsString()
+			    );
+				
+			    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR, ['Content-Type' => 'text/plain']);
+		    }
+		    
+		    // In production, try to include a simple 500.php file if it exists
+		    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
+		    $errorFile = $legacyPath . '500.php';
+		    
+		    if (file_exists($errorFile)) {
+			    ob_start();
+			    include $errorFile;
+			    $content = ob_get_clean();
+			    return new Response($content, Response::HTTP_INTERNAL_SERVER_ERROR);
+		    }
+		    
+		    // Ultimate fallback - simple text
+		    return new Response('Internal Server Error', Response::HTTP_INTERNAL_SERVER_ERROR);
+	    }
+		
+		/**
 	     * Load app.php
 	     * @return array
 	     */
@@ -252,5 +373,97 @@
 			    $dotenv->load();
 			} catch (InvalidEncodingException |InvalidFileException | InvalidPathException $e) {
 		    }
+	    }
+	    
+	    /**
+	     * Initialize the legacy support system
+	     * @return void
+	     */
+	    private function initializeLegacySupport(): void {
+		    // Always initialize the bridge so legacy code can access Canvas services
+		    LegacyBridge::initialize($this->dependencyInjector);
+		    
+		    // Check if legacy fallthrough is enabled
+		    $this->legacyEnabled = $this->getConfigAs('legacy_enabled', 'bool', false);
+		    
+		    if ($this->legacyEnabled) {
+				// Fetch the legacy path
+			    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
+			    
+			    // If legacy_path is relative, make it relative to project root
+			    if (!str_starts_with($legacyPath, '/')) {
+				    $legacyPath = $this->discover->getProjectRoot() . '/' . $legacyPath;
+			    }
+			    
+				// Create the fallthrough handler
+			    $this->legacyFallbackHandler = new LegacyFallthroughHandler($legacyPath);
+		    }
+	    }
+	    
+	    /**
+	     * Render detailed error page for development
+	     * @param \Throwable $exception
+	     * @return void
+	     */
+	    private function renderDebugErrorPage(\Throwable $exception): void {
+		    $errorCode = $exception->getCode();
+		    $errorMessage = $exception->getMessage();
+		    $errorFile = $exception->getFile();
+		    $errorLine = $exception->getLine();
+		    $trace = $exception->getTraceAsString();
+		    
+		    echo "<!DOCTYPE html>
+<html>
+<head>
+    <title>Canvas Framework Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .error-box { background: white; padding: 20px; border-left: 5px solid #dc3545; }
+        .error-title { color: #dc3545; margin: 0 0 20px 0; }
+        .error-message { font-size: 18px; margin-bottom: 20px; }
+        .error-details { background: #f8f9fa; padding: 15px; border-radius: 4px; }
+        .trace { background: #2d2d2d; color: #f8f8f2; padding: 15px; overflow-x: auto; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class='error-box'>
+        <h1 class='error-title'>Canvas Framework Error</h1>
+        <div class='error-message'>" . htmlspecialchars($errorMessage) . "</div>
+        <div class='error-details'>
+            <strong>File:</strong> " . htmlspecialchars($errorFile) . "<br>
+            <strong>Line:</strong> " . $errorLine . "<br>
+            <strong>Code:</strong> " . $errorCode . "
+        </div>
+        <h3>Stack Trace:</h3>
+        <pre class='trace'>" . htmlspecialchars($trace) . "</pre>
+    </div>
+</body>
+</html>";
+	    }
+	    
+	    /**
+	     * Render generic error page for production
+	     * @param \Throwable $exception
+	     * @return void
+	     */
+	    private function renderProductionErrorPage(\Throwable $exception): void {
+		    echo "<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; text-align: center; }
+        .error-box { background: white; padding: 40px; border-radius: 8px; display: inline-block; }
+        .error-title { color: #dc3545; margin: 0 0 20px 0; }
+    </style>
+</head>
+<body>
+    <div class='error-box'>
+        <h1 class='error-title'>Server Error</h1>
+        <p>Something went wrong. Please try again later.</p>
+        <p>If the problem persists, please contact support.</p>
+    </div>
+</body>
+</html>";
 	    }
     }
