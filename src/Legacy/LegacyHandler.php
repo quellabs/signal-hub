@@ -11,7 +11,7 @@
 	 * Handles fallthrough routing for legacy PHP files when modern routes don't match.
 	 * This allows gradual migration from legacy PHP files to modern framework routes.
 	 */
-	class LegacyFallthroughHandler {
+	class LegacyHandler {
 		
 		/** @var FileResolverInterface[] Array of file resolvers to try in order */
 		private array $resolvers = [];

@@ -12,7 +12,7 @@
     use Quellabs\Canvas\AOP\AspectDispatcher;
     use Quellabs\Canvas\Exceptions\RouteNotFoundException;
     use Quellabs\Canvas\Legacy\LegacyBridge;
-    use Quellabs\Canvas\Legacy\LegacyFallthroughHandler;
+    use Quellabs\Canvas\Legacy\LegacyHandler;
     use Quellabs\Canvas\Routing\AnnotationResolver;
     use Quellabs\DependencyInjection\Container;
     use Quellabs\Discover\Discover;
@@ -26,7 +26,7 @@
 	    private array $configuration;
 	    private ?array $contents_of_app_php = null;
 	    private bool $legacyEnabled;
-	    private ?LegacyFallthroughHandler $legacyFallbackHandler;
+	    private ?LegacyHandler $legacyFallbackHandler;
 	    private Container $dependencyInjector;
 	    
 	    /**
@@ -84,9 +84,9 @@
 	    
 	    /**
 	     * Returns the legacy fallback handler object
-	     * @return LegacyFallthroughHandler|null
+	     * @return LegacyHandler|null
 	     */
-	    public function getLegacyHandler(): ?LegacyFallthroughHandler {
+	    public function getLegacyHandler(): ?LegacyHandler {
 		    return $this->legacyFallbackHandler;
 	    }
 	    
@@ -385,7 +385,7 @@
 			    }
 			    
 			    // Create the fallthrough handler
-			    $this->legacyFallbackHandler = new LegacyFallthroughHandler($legacyPath);
+			    $this->legacyFallbackHandler = new LegacyHandler($legacyPath);
 		    }
 	    }
 	    
