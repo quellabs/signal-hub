@@ -100,7 +100,7 @@ class HomeController extends BaseController {
 
 ### 3. Work with Your Database Using ObjectQuel
 
-ObjectQuel provides an intuitive way to interact with your data:
+ObjectQuel provides an intuitive way to interact with your data with its powerful entity-based query language:
 
 ```php
 <?php
@@ -111,6 +111,7 @@ namespace App\Controllers;
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controllers\BaseController;
 use App\Models\Post;
+use App\Models\User;
 
 class BlogController extends BaseController {
     
@@ -126,17 +127,90 @@ class BlogController extends BaseController {
     }
     
     /**
+     * @Route("/posts/search")
+     */
+    public function search() {
+        $query = $_GET['q'] ?? '';
+        
+        // ObjectQuel query with search patterns and relationships
+        $results = $this->em->executeQuery("
+            range of p is App\\Entity\\PostEntity
+            range of u is App\\Entity\\UserEntity via p.authorId
+            retrieve (p, u.name) where p.title = :search* or p.content = :search*
+            and p.published = :published
+            sort by p.publishedAt desc
+            window 1 using window_size 20
+        ", [
+            'search' => $query,
+            'published' => true
+        ]);
+            
+        return $this->render('blog/search.tpl', compact('results', 'query'));
+    }
+    
+    /**
      * @Route("/posts/{slug:slug}")
      */
     public function show(string $slug) {
-        // Find individual records
-        $post = $this->em->find(Post::class, $slug);
+        // ObjectQuel query with relationship traversal
+        $results = $this->em->executeQuery("
+            range of p is App\\Entity\\PostEntity
+            range of u is App\\Entity\\UserEntity via p.authorId
+            range of c is App\\Entity\\CommentEntity via p.postId
+            retrieve (p, u.name) where p.slug = :slug
+            and c.approved = :approved
+        ", [
+            'slug' => $slug,
+            'approved' => true
+        ]);
                          
-        if (!$post) {
+        if (empty($results)) {
             return $this->notFound('Post not found');
         }
         
-        return $this->render('blog/show.tpl', compact('post'));
+        $post = $results[0]['p'];
+        $authorName = $results[0]['u.name'];
+        
+        return $this->render('blog/show.tpl', compact('post', 'authorName'));
+    }
+    
+    /**
+     * @Route("/posts/popular")
+     */
+    public function popular() {
+        // ObjectQuel with pattern matching and date ranges
+        $results = $this->em->executeQuery("
+            range of p is App\\Entity\\PostEntity
+            range of v is App\\Entity\\PostViewEntity via p.postId
+            retrieve (p.title, p.slug) where p.published = :published
+            and v.createdAt >= :since
+            sort by p.title asc
+            window 1 using window_size 10
+        ", [
+            'published' => true,
+            'since' => date('Y-m-d', strtotime('-30 days'))
+        ]);
+            
+        return $this->render('blog/popular.tpl', compact('results'));
+    }
+    
+    /**
+     * @Route("/posts/by-category/{category}")
+     */
+    public function byCategory(string $category) {
+        // ObjectQuel with regex pattern matching
+        $results = $this->em->executeQuery("
+            range of p is App\\Entity\\PostEntity
+            range of c is App\\Entity\\CategoryEntity via p.categoryId
+            retrieve (p) where c.name = /^:category/i
+            and p.published = :published
+            sort by p.publishedAt desc
+        ", [
+            'category' => $category,
+            'published' => true
+        ]);
+            
+        return $this->render('blog/category.tpl', compact('results', 'category'));
     }
 }
 ```
