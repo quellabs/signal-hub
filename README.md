@@ -291,7 +291,7 @@ If your legacy application has a different file structure than Canvas's default 
 <?php
 // src/Legacy/CustomFileResolver.php
 
-use Quellabs\Canvas\Legacy\Contracts\FileResolverInterface;
+use Quellabs\Canvas\Legacy\FileResolverInterface;
 
 class CustomFileResolver implements FileResolverInterface {
     
