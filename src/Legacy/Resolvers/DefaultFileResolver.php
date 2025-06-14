@@ -22,7 +22,7 @@
 		 * @param string $legacyPath The base directory path where legacy files are stored
 		 */
 		public function __construct(string $legacyPath) {
-			$this->legacyPath = $legacyPath;
+			$this->legacyPath = rtrim($legacyPath, DIRECTORY_SEPARATOR);
 		}
 		
 		/**
@@ -44,8 +44,8 @@
 			
 			// Try these patterns in order of preference:
 			$candidates = [
-				$this->legacyPath . $path . '.php',           // Direct file: /users -> legacy/users.php
-				$this->legacyPath . $path . '/index.php',     // Index file: /users -> legacy/users/index.php
+				$this->legacyPath .DIRECTORY_SEPARATOR . $path . '.php', // Direct file: /users -> legacy/users.php
+				$this->legacyPath . DIRECTORY_SEPARATOR . $path . DIRECTORY_SEPARATOR . 'index.php',  // Index file: /users -> legacy/users/index.php
 			];
 			
 			// Check each candidate file path

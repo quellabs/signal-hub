@@ -377,12 +377,7 @@
 			    LegacyBridge::initialize($this->dependencyInjector);
 			    
 			    // Fetch the legacy path
-			    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
-			    
-			    // If legacy_path is relative, make it relative to project root
-			    if (!str_starts_with($legacyPath, '/')) {
-				    $legacyPath = $this->discover->getProjectRoot() . '/' . $legacyPath;
-			    }
+			    $legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
 			    
 			    // Create the fallthrough handler
 			    $this->legacyFallbackHandler = new LegacyHandler($legacyPath);
