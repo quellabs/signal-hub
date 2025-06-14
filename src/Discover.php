@@ -490,6 +490,15 @@
 		}
 		
 		/**
+		 * Resolves relative path components without checking file existence
+		 * @param string $path The path to resolve (e.g., "hallo/../test")
+		 * @return string The resolved path (e.g., "test")
+		 */
+		public function resolvePath(string $path): string {
+			return $this->utilities->resolvePath($path);
+		}
+
+		/**
 		 * Get or instantiate a provider from its definition
 		 * @param string $definitionKey Unique key for the provider definition
 		 * @param array $definition Provider definition data

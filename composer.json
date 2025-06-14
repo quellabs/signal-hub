@@ -19,7 +19,8 @@
     }
   },
   "require": {
-    "quellabs/contracts": "^1.0"
+    "quellabs/contracts": "^1.0",
+    "ext-ctype": "*"
   },
   "autoload": {
     "psr-4": {
