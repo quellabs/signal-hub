@@ -491,7 +491,7 @@ Create a custom 500 error page:
 - Modern dependency injection
 - Improved error handling and debugging
 
-## Key Features
+## Advanced Features
 
 ### Advanced Routing with Variable Validation and Wildcards
 
