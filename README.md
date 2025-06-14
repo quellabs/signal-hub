@@ -215,52 +215,6 @@ class BlogController extends BaseController {
 }
 ```
 
-### 4. Add Crosscutting Concerns with AOP
-
-Keep your controllers clean by using aspects for authentication, caching, logging, and more:
-
-```php
-<?php
-// src/Controllers/AdminController.php
-
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\RequireAdminAspect;
-use App\Aspects\AuditLogAspect;
-
-/**
- * All admin methods require authentication and admin role
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(AuditLogAspect::class)
- */
-class AdminController extends BaseController {
-    
-    /**
-     * @Route("/admin/users")
-     */
-    public function users() {
-        // Pure business logic - aspects handle auth, admin check, and audit logging
-        $users = $this->em->findBy(User::class, []);
-        return $this->render('admin/users.tpl', compact('users'));
-    }
-    
-    /**
-     * @Route("/admin/reports")
-     * @InterceptWith(CacheAspect::class, ttl=3600)
-     */
-    public function reports() {
-        // Inherits auth + admin + audit, adds caching
-        $reports = $this->generateReports();
-        return $this->render('admin/reports.tpl', compact('reports'));
-    }
-}
-```
-
 ## Canvas in Action
 
 Here's what a complete Canvas application looks like, showcasing all its core features:
