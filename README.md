@@ -600,42 +600,6 @@ class FileController extends BaseController {
 
 Note: All route variables are automatically injected as method parameters.
 
-### Annotation-Based Routing
-
-No separate route files to maintain. Define routes directly where they belong:
-
-```php
-/**
- * @Route("/api/users/{id:int}", methods={"GET", "PUT", "DELETE"})
- * @Route("/users/{id:int}/edit", name="user.edit")
- */
-public function edit(int $id) {
-    // Controller logic here
-}
-```
-
-### ObjectQuel ORM
-A modern ORM with Data Mapper pattern:
-
-```php
-// Find records with conditions
-$users = $em->findBy(User::class, ['role' => 'admin']);
-
-// Find individual records
-$user = $em->find(User::class, $id);
-
-// Work with your entities naturally
-$user = new User();
-$user->name = 'John';
-$user->email = 'john@example.com';
-
-// Tell the EntityManager to keep track of entity changes
-$em->persist($user);
-
-// Flush the changes to the database
-$em->flush();
-```
-
 ### Aspect-Oriented Programming
 Add crosscutting concerns without polluting your business logic:
 
