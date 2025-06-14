@@ -258,13 +258,13 @@
 	    
 	    /**
 	     * Create a 404 Not Found response
-	     * @param Request $request
+	     * @param Request $request The Request object
 	     * @param bool $legacyAttempted Whether legacy fallthrough was attempted
 	     * @return Response
 	     */
 	    private function createNotFoundResponse(Request $request, bool $legacyAttempted = false): Response {
 		    $isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
-		    $legacyPath = $this->getConfig('legacy_path', 'legacy/');
+		    $legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy');
 		    $notFoundFile = $legacyPath . '404.php';
 		    
 		    if ($isDevelopment) {
@@ -277,10 +277,12 @@
 				    $legacyMessage = "No Canvas route found.\n\n";
 			    }
 			    
-			    if (file_exists($notFoundFile)) {
+			    if ($this->legacyEnabled && file_exists($notFoundFile)) {
 				    $customizationHelp = "Custom 404 file found at: {$notFoundFile}\n- This will be used in production mode\n- Or add a Canvas route for this path";
-			    } else {
+			    } elseif ($this->legacyEnabled) {
 				    $customizationHelp = "To customize this page:\n- Create a 404.php file in your legacy directory ({$legacyPath})\n- Or add a Canvas route for this path";
+			    } else {
+				    $customizationHelp = "To customize this page:\n- Add a Canvas route for this path\n- Or enable legacy mode and create a 404.php file";
 			    }
 			    
 			    $content = sprintf(
@@ -294,8 +296,8 @@
 			    return new Response($content, Response::HTTP_NOT_FOUND, ['Content-Type' => 'text/plain']);
 		    }
 		    
-		    // In production, try to include a custom 404.php file if it exists
-		    if (file_exists($notFoundFile)) {
+		    // In production, try to include a custom 404.php file if it exists and legacy is enabled
+		    if ($this->legacyEnabled && file_exists($notFoundFile)) {
 			    ob_start();
 			    include $notFoundFile;
 			    $content = ob_get_clean();
