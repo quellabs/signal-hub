@@ -53,7 +53,7 @@
 		 * @param int $statusCode The http status code to return
 		 * @return Response
 		 */
-		protected function json(array $data, int $statusCode=200): Response {
+		protected function json(array $data, int $statusCode=Response::HTTP_OK): Response {
 			return new JsonResponse($data, $statusCode);
 		}
 		
@@ -63,7 +63,7 @@
 		 * @param int $statusCode The http status code to return
 		 * @return Response
 		 */
-		protected function text(string $text, int $statusCode=200): Response {
+		protected function text(string $text, int $statusCode=Response::HTTP_OK): Response {
 			return new Response($text, $statusCode);
 		}
 		
@@ -73,7 +73,7 @@
 		 * @param int $statusCode The HTTP status code for the redirect (default: 302 for temporary redirect)
 		 * @return RedirectResponse The redirect response
 		 */
-		protected function redirect(string $url, int $statusCode = 302): RedirectResponse {
+		protected function redirect(string $url, int $statusCode = Response::HTTP_FOUND): RedirectResponse {
 			return new RedirectResponse($url, $statusCode);
 		}
 		
@@ -83,7 +83,7 @@
 		 * @return Response The 404 response
 		 */
 		protected function notFound(string $message = 'Not Found'): Response {
-			return new Response($message, 404);
+			return new Response($message, Response::HTTP_NOT_FOUND);
 		}
 		
 		/**
@@ -92,6 +92,6 @@
 		 * @return Response HTTP 403 response
 		 */
 		protected function forbidden(string $message = 'Forbidden'): Response {
-			return new Response($message, 403);
+			return new Response($message, Response::HTTP_FORBIDDEN);
 		}
 	}

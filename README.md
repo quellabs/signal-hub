@@ -2,11 +2,13 @@
 
 [![Packagist](https://img.shields.io/packagist/v/quellabs/canvas.svg)](https://packagist.org/packages/quellabs/canvas)
 
-A modern, lightweight PHP framework that gets out of your way. Write clean controllers with route annotations, query your database with an intuitive ORM, and let contextual containers handle the complexity.
+A modern, lightweight PHP framework that gets out of your way. Write clean controllers with route annotations, query your database with an intuitive ORM, and let contextual containers handle the complexity. **Built to work seamlessly alongside your existing PHP codebase** - modernize incrementally without breaking what already works.
 
 ## What Makes Canvas Different
 
-Canvas combines four powerful concepts to create a framework that feels natural to work with:
+Canvas combines four powerful concepts with **zero-friction legacy integration** to create a framework that feels natural to work with:
+
+**🔄 Legacy-First Integration** - Drop Canvas into any existing PHP application. Your legacy URLs keep working while you gradually modernize with Canvas services and controllers.
 
 **🎯 Annotation-Based Routing** - Define routes directly in your controllers using `@Route` annotations. No separate route files to maintain.
 
@@ -15,45 +17,6 @@ Canvas combines four powerful concepts to create a framework that feels natural 
 **📦 Contextual Containers** - Work with interfaces directly. Canvas intelligently resolves the right implementation based on context.
 
 **⚡ Aspect-Oriented Programming** - Add crosscutting concerns like caching, authentication, and logging without cluttering your business logic.
-
-```php
-<?php
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\CacheAspect;
-use App\Models\User;
-
-/**
- * @InterceptWith(RequireAuthAspect::class)
- */
-class UserController extends BaseController {
-    
-    /**
-     * @Route("/users")
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     */
-    public function index() {
-        // ObjectQuel ORM - clean, intuitive queries
-        $users = $this->em->findBy(User::class, ['active' => true]);
-        
-        // Contextual template resolution
-        return $this->render('users/index.tpl', compact('users'));
-    }
-    
-    /**
-     * @Route("/users/{id:int}")
-     */
-    public function show(int $id) {
-        // Inherits RequireAuth from class level
-        $user = $this->em->find(User::class, $id);
-        return $this->render('users/show.tpl', compact('user'));
-    }
-}
-```
 
 ## Installation
 
@@ -66,6 +29,13 @@ Or create a new project using the Canvas skeleton:
 ```bash
 composer create-project quellabs/canvas-skeleton my-canvas-app
 cd my-canvas-app
+```
+
+**For existing applications:**
+
+```bash
+cd my-existing-app
+composer require quellabs/canvas
 ```
 
 Or create a project manually:
@@ -130,7 +100,7 @@ class HomeController extends BaseController {
 
 ### 3. Work with Your Database Using ObjectQuel
 
-ObjectQuel provides an intuitive way to interact with your data:
+ObjectQuel provides an intuitive way to interact with your data with its powerful entity-based query language:
 
 ```php
 <?php
@@ -141,6 +111,7 @@ namespace App\Controllers;
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controllers\BaseController;
 use App\Models\Post;
+use App\Models\User;
 
 class BlogController extends BaseController {
     
@@ -148,19 +119,18 @@ class BlogController extends BaseController {
      * @Route("/posts")
      */
     public function index() {
-        // Simple ObjectQuel queries
+        // Simple queries using findBy - perfect for basic filtering
         $posts = $this->em->findBy(Post::class, ['published' => true]);
 
-        // Render the tpl file                          
         return $this->render('blog/index.tpl', compact('posts'));
     }
     
     /**
-     * @Route("/posts/{slug:slug}")
+     * @Route("/posts/{id:int}")
      */
-    public function show(string $slug) {
-        // Find individual records
-        $post = $this->em->find(Post::class, $slug);
+    public function show(int $id) {
+        // Find individual records by primary key - fastest lookup method
+        $post = $this->em->find(Post::class, $id);
                          
         if (!$post) {
             return $this->notFound('Post not found');
@@ -168,54 +138,501 @@ class BlogController extends BaseController {
         
         return $this->render('blog/show.tpl', compact('post'));
     }
+    
+    /**
+     * @Route("/posts/tech")
+     */
+    public function techPosts() {
+        // Advanced ObjectQuel queries with regex patterns and relationships
+        $results = $this->em->executeQuery("
+            range of p is App\\Entity\\PostEntity
+            range of u is App\\Entity\\UserEntity via p.authorId
+            retrieve (p, u.name) where p.title = /^Tech/i
+            and p.published = :published
+            sort by p.publishedAt desc
+        ", [
+            'published' => true
+        ]);
+            
+        return $this->render('blog/tech.tpl', compact('results'));
+    }
 }
 ```
 
-### 4. Add Crosscutting Concerns with AOP
+## Canvas in Action
 
-Keep your controllers clean by using aspects for authentication, caching, logging, and more:
+Here's what a complete Canvas application looks like, showcasing all its core features:
 
 ```php
 <?php
-// src/Controllers/AdminController.php
-
 namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
 use Quellabs\Canvas\Controllers\BaseController;
 use App\Aspects\RequireAuthAspect;
-use App\Aspects\RequireAdminAspect;
-use App\Aspects\AuditLogAspect;
+use App\Aspects\CacheAspect;
+use App\Models\User;
 
 /**
- * All admin methods require authentication and admin role
  * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(AuditLogAspect::class)
  */
-class AdminController extends BaseController {
+class UserController extends BaseController {
     
     /**
-     * @Route("/admin/users")
+     * @Route("/users")
+     * @InterceptWith(CacheAspect::class, ttl=300)
      */
-    public function users() {
-        // Pure business logic - aspects handle auth, admin check, and audit logging
-        $users = $this->em->findBy(User::class, []);
-        return $this->render('admin/users.tpl', compact('users'));
+    public function index() {
+        // ObjectQuel ORM - clean, intuitive queries
+        $users = $this->em->findBy(User::class, ['active' => true]);
+        
+        // Contextual template resolution
+        return $this->render('users/index.tpl', compact('users'));
     }
     
     /**
-     * @Route("/admin/reports")
-     * @InterceptWith(CacheAspect::class, ttl=3600)
+     * @Route("/users/{id:int}")
      */
-    public function reports() {
-        // Inherits auth + admin + audit, adds caching
-        $reports = $this->generateReports();
-        return $this->render('admin/reports.tpl', compact('reports'));
+    public function show(int $id) {
+        // Inherits RequireAuth from class level
+        $user = $this->em->find(User::class, $id);
+        return $this->render('users/show.tpl', compact('user'));
     }
 }
 ```
+
+## Legacy Integration
+
+Canvas is designed to work seamlessly alongside existing PHP codebases, allowing you to modernize your applications incrementally without breaking existing functionality. The legacy integration system provides a smooth migration path from traditional PHP applications to Canvas.
+
+### Quick Start with Legacy Code
+
+**Start using Canvas today in your existing PHP application**. No rewrites required - Canvas's intelligent fallthrough system lets you modernize at your own pace.
+
+First, enable legacy support by updating your `public/index.php`:
+
+```php
+<?php
+// public/index.php
+
+use Quellabs\Canvas\Kernel;
+use Symfony\Component\HttpFoundation\Request;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$kernel = new Kernel([
+    'legacy_enabled' => true,          // Enable legacy support
+    'legacy_path' => __DIR__ . '/../'  // Path to your existing files
+]);
+
+$request = Request::createFromGlobals();
+$response = $kernel->handle($request);
+$response->send();
+```
+
+**That's it!** Your existing application now has Canvas superpowers while everything continues to work exactly as before.
+
+Now you can immediately start using Canvas services in your existing files:
+
+```php
+<?php
+// legacy/users.php - This file is accessed when visiting /users
+// Note: Canvas services only available when Canvas loads this file (not when run directly)
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+// Method 1: Using LegacyBridge directly
+$users = LegacyBridge::get('EntityManager')->findBy(User::class, ['active' => true]);
+$config = LegacyBridge::get('config');
+$container = LegacyBridge::container();
+
+// Method 2: Using the global canvas() function (simpler)
+$em = canvas('EntityManager');
+$posts = canvas('EntityManager')->findBy(Post::class, ['published' => true]);
+
+// Count users using ObjectQuel
+$allUsers = $em->findBy(User::class, []);
+$totalUsers = count($allUsers);
+
+echo "Found " . count($users) . " active users out of " . $totalUsers . " total users<br>";
+
+foreach ($posts as $post) {
+    echo "<h2>{$post->title}</h2>";
+    echo "<p>" . substr($post->content, 0, 200) . "...</p>";
+}
+?>
+```
+
+### How It Works
+
+#### Route Fallthrough System
+
+Canvas uses an intelligent fallthrough system that tries Canvas routes first, then automatically looks for corresponding legacy PHP files:
+
+```
+URL Request: /users/profile
+1. Try Canvas route: /users/profile → ❌ Not found in Canvas controllers
+2. Try legacy files:
+   - legacy/users/profile.php → ✅ Found! Execute this file
+   - legacy/users/profile/index.php → Alternative location
+   
+For example:
+- `/users` → `legacy/users.php`
+- `/users` → `legacy/users/index.php`
+- `/admin/dashboard` → `legacy/admin/dashboard.php`
+- `/admin/dashboard` → `legacy/admin/dashboard/index.php`
+```
+
+### Custom File Resolvers
+
+If your legacy application has a different file structure than Canvas's default conventions, you can write custom file resolvers to handle your specific patterns:
+
+```php
+<?php
+// src/Legacy/CustomFileResolver.php
+
+use Quellabs\Canvas\Legacy\FileResolverInterface;
+
+class CustomFileResolver implements FileResolverInterface {
+    
+    public function resolve(string $path): ?string {
+        // Your custom logic for resolving legacy file paths
+        
+        // Example: Handle WordPress-style routing
+        if ($path === '/') {
+            return $this->legacyPath . '/index.php';
+        }
+        
+        // Example: Map URLs to custom file structure
+        if (str_starts_with($path, '/blog/')) {
+            $slug = substr($path, 6); // Remove /blog/
+            return $this->legacyPath . "/wp-content/posts/{$slug}.php";
+        }
+        
+        // Example: Handle custom admin structure
+        if (str_starts_with($path, '/admin/')) {
+            $adminPath = substr($path, 7); // Remove /admin/
+            return $this->legacyPath . "/backend/modules/{$adminPath}.inc.php";
+        }
+        
+        // Fall back to default behavior
+        return null;
+    }
+}
+```
+
+Register your custom resolver with the kernel:
+
+```php
+<?php
+// public/index.php
+
+$kernel = new Kernel([
+    'legacy_enabled' => true,
+    'legacy_path' => __DIR__ . '/../legacy/'
+]);
+
+$kernel->getLegacyHandler()->addResolver(new CustomFileResolver);
+
+$request = Request::createFromGlobals();
+$response = $kernel->handle($request);
+$response->send();
+```
+
+This allows Canvas to work with any legacy file structure, making it compatible with existing WordPress sites, custom MVC frameworks, or any other PHP application structure.
+
+### Real-World Examples
+
+#### Legacy Admin Dashboard
+
+```php
+<?php
+// legacy/admin/dashboard.php
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+$em = canvas('EntityManager');
+
+// Get data using Canvas ORM
+$recentUsers = $em->findBy(User::class, ['active' => true]);
+$totalPosts = count($em->findBy(Post::class, []));
+?>
+<h1>Admin Dashboard</h1>
+<p>Active Users: <?= count($recentUsers) ?></p>
+<p>Total Posts: <?= $totalPosts ?></p>
+```
+
+#### Legacy API Endpoint
+
+```php
+<?php
+// legacy/api/users.php
+use Quellabs\Canvas\Legacy\LegacyBridge;
+
+header('Content-Type: application/json');
+
+$em = canvas('EntityManager');
+$users = $em->findBy(User::class, ['active' => true]);
+
+echo json_encode([
+    'success' => true,
+    'count' => count($users),
+    'users' => array_map(fn($u) => ['id' => $u->id, 'name' => $u->name], $users)
+]);
+?>
+```
+
+### Error Pages
+
+Canvas supports custom error pages for legacy applications:
+
+#### Custom 404 Page
+
+Create a custom 404 page:
+
+```php
+<?php
+// legacy/404.php
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Page Not Found</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>404 - Page Not Found</h1>
+        <p>Sorry, the page you're looking for doesn't exist.</p>
+        <p><a href="/">Return to Homepage</a></p>
+    </div>
+</body>
+</html>
+```
+
+#### Custom Error Page
+
+Create a custom 500 error page:
+
+```php
+<?php
+// legacy/500.php
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Error</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="error-box">
+        <h1>500 - Server Error</h1>
+        <p>Something went wrong on our end. Please try again later.</p>
+        <p>If the problem persists, please contact support.</p>
+        <p><a href="/">Return to Homepage</a></p>
+    </div>
+</body>
+</html>
+```
+
+### Benefits of Legacy Integration
+
+#### 🚀 **Zero Disruption**
+- Existing URLs continue to work unchanged
+- Legacy code runs without modification
+- Gradual migration at your own pace
+
+#### 🔧 **Enhanced Legacy Code**
+- Add Canvas services (ORM, caching, logging) to legacy files
+- Apply modern patterns without rewriting everything
+- Improved performance through Canvas optimizations
+
+#### 🔄 **Flexible Migration**
+- Start with services, move to controllers, then to full Canvas
+- Mix and match Canvas and legacy code as needed
+- Roll back changes easily during transition
+
+#### 📈 **Immediate Benefits**
+- Better database abstraction through ObjectQuel ORM
+- Access to Canvas configuration system
+- Modern dependency injection
+- Improved error handling and debugging
+
+## Advanced Features
+
+### Advanced Routing with Variable Validation and Wildcards
+
+Canvas provides powerful routing capabilities with built-in parameter validation and flexible wildcard matching.
+
+#### Route Parameter Validation
+
+Validate route parameters directly in your route definitions using type constraints:
+
+```php
+class ProductController extends BaseController {
+    
+    /**
+     * @Route("/products/{id:int}")
+     */
+    public function show(int $id) {
+        // Only matches numeric IDs: /products/123 ✓, /products/abc ✗
+    }
+    
+    /**
+     * @Route("/users/{username:alpha}")
+     */
+    public function profile(string $username) {
+        // Only matches alphabetic usernames: /users/john ✓, /users/john123 ✗
+    }
+    
+    /**
+     * @Route("/posts/{slug:slug}")
+     */
+    public function post(string $slug) {
+        // Only matches URL-friendly slugs: /posts/my-blog-post ✓
+    }
+    
+    /**
+     * @Route("/api/items/{uuid:uuid}")
+     */
+    public function item(string $uuid) {
+        // Only matches valid UUIDs: /api/items/550e8400-e29b-41d4-a716-446655440000 ✓
+    }
+    
+    /**
+     * @Route("/contact/{email:email}")
+     */
+    public function contact(string $email) {
+        // Only matches valid email addresses: /contact/user@example.com ✓
+    }
+    
+    /**
+     * @Route("/categories/{name:alnum}")
+     */
+    public function category(string $name) {
+        // Only matches alphanumeric: /categories/tech2024 ✓, /categories/tech-news ✗
+    }
+}
+```
+
+**Available Validation Types:**
+- `{id:int}` - Integers only (`\d+`)
+- `{slug:alpha}` - Alphabetic characters only (`[a-zA-Z]+`)
+- `{name:alnum}` - Alphanumeric characters (`[a-zA-Z0-9]+`)
+- `{item:slug}` - URL-friendly slugs (`[a-zA-Z0-9\-]+`)
+- `{user:uuid}` - UUID format validation
+- `{email:email}` - Email address validation
+
+#### Wildcard Route Matching
+
+Handle dynamic paths and file serving with powerful wildcard support:
+
+```php
+class FileController extends BaseController {
+    
+    /**
+     * @Route("/files/{filename}")
+     */
+    public function serve(string $filename) {
+        // Named parameter - automatically injected
+        // Matches: /files/document.pdf, /files/image.jpg
+        return $this->serveFile($filename);
+    }
+    
+    /**
+     * @Route("/assets/{path:**}")
+     */
+    public function assets(string $path) {
+        // Named multi-segment wildcard
+        // Matches: /assets/css/style.css → path = "css/style.css"
+        // Matches: /assets/js/vendor/jquery.min.js → path = "js/vendor/jquery.min.js"
+        return $this->serveAsset($path);
+    }
+    
+    /**
+     * @Route("/downloads/{content:.*}")
+     */
+    public function downloads(string $content) {
+        // Alternative syntax for multi-segment wildcard
+        // Matches: /downloads/files/reports/2024/january.pdf → content = "files/reports/2024/january.pdf"
+        return $this->handleDownload($content);
+    }
+}
+```
+
+**Wildcard Types:**
+- `{filename}` - Named parameter (matches single path segment)
+- `{path:**}` - Named multi-segment wildcard (captures remaining path)
+- `{content:.*}` - Alternative syntax for named multi-segment wildcard
+
+Note: All route variables are automatically injected as method parameters.
+
+### Aspect-Oriented Programming
+Add crosscutting concerns without polluting your business logic:
+
+```php
+// Create reusable aspects
+class CacheAspect implements AroundAspect {
+    public function __construct(
+        private CacheInterface $cache,
+        private int $ttl = 300
+    ) {}
+    
+    public function around(MethodContext $context, callable $proceed): mixed {
+        $key = $this->generateCacheKey($context);
+        
+        // Fetch response from cache
+        if ($cached = $this->cache->get($key)) {
+            return $cached;
+        }
+        
+        // Call the original function
+        $result = $proceed();
+        
+        // Put the result in cache
+        $this->cache->set($key, $result, $this->ttl);
+        return $result;
+    }
+}
+
+// Apply to any controller method
+/**
+ * @Route("/expensive-operation")
+ * @InterceptWith(CacheAspect::class, ttl=3600)
+ */
+public function expensiveOperation() {
+    // Method automatically cached for 1 hour
+}
+```
+
+### Contextual Service Resolution
+When you need different implementations of the same interface, context makes it simple:
+
+```php
+// Use different template engines based on context
+$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
+$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
+
+// Different cache implementations
+$redis = $this->container->for('redis')->get(CacheInterface::class);
+$file = $this->container->for('file')->get(CacheInterface::class);
+```
+
+### Automatic Discovery
+Add functionality by simply requiring packages:
+
+```bash
+composer require quellabs/canvas-twig      # Twig template engine
+composer require quellabs/canvas-blade     # Blade template engine  
+composer require quellabs/canvas-redis     # Redis integration
+```
+
+Canvas automatically discovers and configures new services through Composer metadata.
 
 ## Inherited Annotations
 
@@ -548,304 +965,6 @@ class ChildController extends ParentController {
 
 **Simplified Testing**: Test aspects once in base controllers rather than in every implementation.
 
-## Key Features
-
-### Advanced Routing with Variable Validation and Wildcards
-
-Canvas provides powerful routing capabilities with built-in parameter validation and flexible wildcard matching.
-
-#### Route Parameter Validation
-
-Validate route parameters directly in your route definitions using type constraints:
-
-```php
-class ProductController extends BaseController {
-    
-    /**
-     * @Route("/products/{id:int}")
-     */
-    public function show(int $id) {
-        // Only matches numeric IDs: /products/123 ✓, /products/abc ✗
-    }
-    
-    /**
-     * @Route("/users/{username:alpha}")
-     */
-    public function profile(string $username) {
-        // Only matches alphabetic usernames: /users/john ✓, /users/john123 ✗
-    }
-    
-    /**
-     * @Route("/posts/{slug:slug}")
-     */
-    public function post(string $slug) {
-        // Only matches URL-friendly slugs: /posts/my-blog-post ✓
-    }
-    
-    /**
-     * @Route("/api/items/{uuid:uuid}")
-     */
-    public function item(string $uuid) {
-        // Only matches valid UUIDs: /api/items/550e8400-e29b-41d4-a716-446655440000 ✓
-    }
-    
-    /**
-     * @Route("/contact/{email:email}")
-     */
-    public function contact(string $email) {
-        // Only matches valid email addresses: /contact/user@example.com ✓
-    }
-    
-    /**
-     * @Route("/categories/{name:alnum}")
-     */
-    public function category(string $name) {
-        // Only matches alphanumeric: /categories/tech2024 ✓, /categories/tech-news ✗
-    }
-}
-```
-
-**Available Validation Types:**
-- `{id:int}` - Integers only (`\d+`)
-- `{slug:alpha}` - Alphabetic characters only (`[a-zA-Z]+`)
-- `{name:alnum}` - Alphanumeric characters (`[a-zA-Z0-9]+`)
-- `{item:slug}` - URL-friendly slugs (`[a-zA-Z0-9\-]+`)
-- `{user:uuid}` - UUID format validation
-- `{email:email}` - Email address validation
-
-#### Wildcard Route Matching
-
-Handle dynamic paths and file serving with powerful wildcard support:
-
-```php
-class FileController extends BaseController {
-    
-    /**
-     * @Route("/files/{filename}")
-     */
-    public function serve(string $filename) {
-        // Named parameter - automatically injected
-        // Matches: /files/document.pdf, /files/image.jpg
-        return $this->serveFile($filename);
-    }
-    
-    /**
-     * @Route("/assets/{path:**}")
-     */
-    public function assets(string $path) {
-        // Named multi-segment wildcard
-        // Matches: /assets/css/style.css → path = "css/style.css"
-        // Matches: /assets/js/vendor/jquery.min.js → path = "js/vendor/jquery.min.js"
-        return $this->serveAsset($path);
-    }
-    
-    /**
-     * @Route("/downloads/{content:.*}")
-     */
-    public function downloads(string $content) {
-        // Alternative syntax for multi-segment wildcard
-        // Matches: /downloads/files/reports/2024/january.pdf → content = "files/reports/2024/january.pdf"
-        return $this->handleDownload($content);
-    }
-}
-```
-
-**Wildcard Types:**
-- `{filename}` - Named parameter (matches single path segment)
-- `{path:**}` - Named multi-segment wildcard (captures remaining path)
-- `{content:.*}` - Alternative syntax for named multi-segment wildcard
-
-Note: All route variables are automatically injected as method parameters.
-
-### Annotation-Based Routing
-
-No separate route files to maintain. Define routes directly where they belong:
-
-```php
-/**
- * @Route("/api/users/{id:int}", methods={"GET", "PUT", "DELETE"})
- * @Route("/users/{id:int}/edit", name="user.edit")
- */
-public function edit(int $id) {
-    // Controller logic here
-}
-```
-
-### ObjectQuel ORM
-A modern ORM with Data Mapper pattern:
-
-```php
-// Find records with conditions
-$users = $em->findBy(User::class, ['role' => 'admin']);
-
-// Find individual records
-$user = $em->find(User::class, $id);
-
-// Work with your entities naturally
-$user = new User();
-$user->name = 'John';
-$user->email = 'john@example.com';
-
-// Tell the EntityManager to keep track of entity changes
-$em->persist($user);
-
-// Flush the changes to the database
-$em->flush();
-```
-
-### Aspect-Oriented Programming
-Add crosscutting concerns without polluting your business logic:
-
-```php
-// Create reusable aspects
-class CacheAspect implements AroundAspect {
-    public function __construct(
-        private CacheInterface $cache,
-        private int $ttl = 300
-    ) {}
-    
-    public function around(MethodContext $context, callable $proceed): mixed {
-        $key = $this->generateCacheKey($context);
-        
-        // Fetch response from cache
-        if ($cached = $this->cache->get($key)) {
-            return $cached;
-        }
-        
-        // Call the original function
-        $result = $proceed();
-        
-        // Put the result in cache
-        $this->cache->set($key, $result, $this->ttl);
-        return $result;
-    }
-}
-
-// Apply to any controller method
-/**
- * @Route("/expensive-operation")
- * @InterceptWith(CacheAspect::class, ttl=3600)
- */
-public function expensiveOperation() {
-    // Method automatically cached for 1 hour
-}
-```
-
-### Contextual Service Resolution
-When you need different implementations of the same interface, context makes it simple:
-
-```php
-// Use different template engines based on context
-$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
-$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
-
-// Different cache implementations
-$redis = $this->container->for('redis')->get(CacheInterface::class);
-$file = $this->container->for('file')->get(CacheInterface::class);
-```
-
-### Automatic Discovery
-Add functionality by simply requiring packages:
-
-```bash
-composer require quellabs/canvas-twig      # Twig template engine
-composer require quellabs/canvas-blade     # Blade template engine  
-composer require quellabs/canvas-redis     # Redis integration
-```
-
-Canvas automatically discovers and configures new services through Composer metadata.
-
-## CLI Commands
-
-Canvas includes a command-line interface called Sculpt for managing your application:
-
-### Listing Routes
-
-View all registered routes in your application:
-
-```bash
-./vendor/bin/sculpt route:list
-```
-
-This displays a formatted table showing your routes, controllers, and applied aspects:
-
-```
-+-------+---------------------------------------+---------+
-| Route | Controller                            | Aspects |
-+-------+---------------------------------------+---------+
-| /henk | Quellabs\Canvas\Controller\Test@index | [XYZ]   |
-+-------+---------------------------------------+---------+
-```
-
-Filter routes by controller to focus on specific functionality:
-
-```bash
-./vendor/bin/sculpt route:list --controller=UserController
-```
-
-### Route Matching
-
-Test which controller and method handles a specific URL path:
-
-```bash
-./vendor/bin/sculpt route:match /url/path/10
-```
-
-You can also specify the HTTP method to test method-specific routing:
-
-```bash
-./vendor/bin/sculpt route:match GET /url/path/10
-```
-
-This shows you exactly which controller method will be called for a given URL and HTTP method, helping you:
-- Debug routing issues
-- Verify parameter extraction and validation
-- Test wildcard route matching
-- Understand route precedence and matching order
-- Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
-
-### Route Cache Management
-
-Canvas provides commands to manage route caching for optimal performance:
-
-#### Clear Route Cache
-
-Clear the compiled route cache to force route re-discovery:
-
-```bash
-./vendor/bin/sculpt route:clear_cache
-```
-
-This is useful when:
-- You've added new routes that aren't being recognized
-- Route changes aren't being reflected in your application
-- You're experiencing routing issues after deploying changes
-- You want to force a fresh route compilation
-
-#### Debug Mode Configuration
-
-For development environments, you can disable route caching entirely by setting debug mode in your application configuration:
-
-```php
-<?php
-// config/app.php
-
-return [
-    'debug_mode' => true,  // Disables route caching
-    // other configuration options...
-];
-```
-
-When `debug_mode` is enabled:
-- Routes are discovered and compiled on every request
-- Changes to route annotations are immediately reflected
-- No need to manually clear route cache during development
-- Performance is slightly reduced but development experience is improved
-
-**Note**: Always ensure `debug_mode` is set to `false` in production environments to maintain optimal performance with route caching enabled.
-
-Canvas provides commands to manage route caching for optimal performance:
-
 ## Aspect-Oriented Programming in Detail
 
 Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Canvas supports four types of aspects that execute at different stages of the request lifecycle.
@@ -1019,6 +1138,95 @@ Register it in `composer.json`:
 }
 ```
 
+## CLI Commands
+
+Canvas includes a command-line interface called Sculpt for managing your application:
+
+### Listing Routes
+
+View all registered routes in your application:
+
+```bash
+./vendor/bin/sculpt route:list
+```
+
+This displays a formatted table showing your routes, controllers, and applied aspects:
+
+```
++-------+---------------------------------------+---------+
+| Route | Controller                            | Aspects |
++-------+---------------------------------------+---------+
+| /henk | Quellabs\Canvas\Controller\Test@index | [XYZ]   |
++-------+---------------------------------------+---------+
+```
+
+Filter routes by controller to focus on specific functionality:
+
+```bash
+./vendor/bin/sculpt route:list --controller=UserController
+```
+
+### Route Matching
+
+Test which controller and method handles a specific URL path:
+
+```bash
+./vendor/bin/sculpt route:match /url/path/10
+```
+
+You can also specify the HTTP method to test method-specific routing:
+
+```bash
+./vendor/bin/sculpt route:match GET /url/path/10
+```
+
+This shows you exactly which controller method will be called for a given URL and HTTP method, helping you:
+- Debug routing issues
+- Verify parameter extraction and validation
+- Test wildcard route matching
+- Understand route precedence and matching order
+- Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
+
+### Route Cache Management
+
+Canvas provides commands to manage route caching for optimal performance:
+
+#### Clear Route Cache
+
+Clear the compiled route cache to force route re-discovery:
+
+```bash
+./vendor/bin/sculpt route:clear_cache
+```
+
+This is useful when:
+- You've added new routes that aren't being recognized
+- Route changes aren't being reflected in your application
+- You're experiencing routing issues after deploying changes
+- You want to force a fresh route compilation
+
+#### Debug Mode Configuration
+
+For development environments, you can disable route caching entirely by setting debug mode in your application configuration:
+
+```php
+<?php
+// config/app.php
+
+return [
+    'debug_mode' => true,  // Disables route caching
+    // other configuration options...
+];
+```
+
+When `debug_mode` is enabled:
+- Routes are discovered and compiled on every request
+- Changes to route annotations are immediately reflected
+- No need to manually clear route cache during development
+- Performance is slightly reduced but development experience is improved
+
+**Note**: Always ensure `debug_mode` is set to `false` in production environments to maintain optimal performance with route caching enabled.
+
 ## Performance
 
 Canvas is built for performance:
@@ -1032,6 +1240,8 @@ Canvas is built for performance:
 - **Efficient AOP**: Aspects only applied when methods are called, no global overhead
 
 ## Why Canvas?
+
+**For Legacy Applications**: Drop into any existing PHP codebase without breaking anything. Start using modern patterns immediately while keeping everything working.
 
 **For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, dependency injection, and AOP work out of the box.
 
