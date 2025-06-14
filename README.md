@@ -140,22 +140,21 @@ class BlogController extends BaseController {
     }
     
     /**
-     * @Route("/posts/search/{pattern}")
+     * @Route("/posts/tech")
      */
-    public function searchByPattern(string $pattern) {
+    public function techPosts() {
         // Advanced ObjectQuel queries with regex patterns and relationships
         $results = $this->em->executeQuery("
             range of p is App\\Entity\\PostEntity
             range of u is App\\Entity\\UserEntity via p.authorId
-            retrieve (p, u.name) where p.title = /:pattern/i
+            retrieve (p, u.name) where p.title = /^Tech/i
             and p.published = :published
             sort by p.publishedAt desc
         ", [
-            'pattern' => $pattern,
             'published' => true
         ]);
             
-        return $this->render('blog/search.tpl', compact('results', 'pattern'));
+        return $this->render('blog/tech.tpl', compact('results'));
     }
 }
 ```
