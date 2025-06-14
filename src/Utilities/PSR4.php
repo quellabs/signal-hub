@@ -215,7 +215,9 @@
 		 */
 		public function resolvePath(string $path): string {
 			// Handle an empty path early
-			if ($path === '') return '';
+			if ($path === '') {
+				return '';
+			}
 			
 			// Detect absolute paths and extract their prefix
 			$isAbsolute = $path[0] === '/';  // Unix absolute path
@@ -227,7 +229,7 @@
 				$path = substr($path, 1);  // Remove leading slash
 			} elseif (isset($path[1]) && $path[1] === ':' && ctype_alpha($path[0])) {
 				// Windows absolute path: C:\Windows\System32
-				$prefix = substr($path, 0, 2);  // Extract drive letter (C:)
+				$prefix = substr($path, 0, 2) . '/';  // Extract drive letter and add separator (C:/)
 				$path = ltrim(substr($path, 2), '/\\');  // Remove drive and leading slashes
 				$isAbsolute = true;
 			}
@@ -239,18 +241,21 @@
 			// Process each path component
 			foreach ($parts as $part) {
 				// Skip empty parts (from double slashes) and current directory references
-				if ($part === '' || $part === '.') continue;
+				if ($part === '' || $part === '.') {
+					continue;
+				}
 				
 				if ($part === '..') {
 					// Parent directory reference
 					if ($resolved && end($resolved) !== '..') {
-						// Go up one level by removing last component (but not if it's also ..)
+						// Go up one level by removing the last component (but not if it's also '..')
 						array_pop($resolved);
 					} elseif (!$isAbsolute) {
-						// For relative paths, keep .. if we can't go up further
+						// For relative paths, keep '..' if we can't go up further
 						$resolved[] = '..';
 					}
-					// For absolute paths, ignore .. that would go above root
+					
+					// For absolute paths, ignore '..' that would go above root
 				} else {
 					// Regular directory or file name
 					$resolved[] = $part;
@@ -263,7 +268,7 @@
 			// Return '.' for empty relative paths, otherwise return the resolved path
 			return $result === '' && !$isAbsolute ? '.' : $result;
 		}
-
+		
 		/**
 		 * Attempts to find namespace from the registered Composer autoloader
 		 * @param string $directory Resolved realpath to directory
@@ -324,7 +329,7 @@
 				
 				// Convert relative paths to absolute paths, as required for path comparison
 				// Example: "src/" becomes "/var/www/project/src/"
-				$absolutePaths = array_map(function($path) use ($projectDir) {
+				$absolutePaths = array_map(function ($path) use ($projectDir) {
 					return realpath($projectDir . DIRECTORY_SEPARATOR . $path) ?: '';
 				}, $paths);
 				
