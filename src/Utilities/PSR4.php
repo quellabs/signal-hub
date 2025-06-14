@@ -209,6 +209,62 @@
 		}
 		
 		/**
+		 * Resolves relative path components without checking file existence
+		 * @param string $path The path to resolve (e.g., "hallo/../test")
+		 * @return string The resolved path (e.g., "test")
+		 */
+		public function resolvePath(string $path): string {
+			// Handle an empty path early
+			if ($path === '') return '';
+			
+			// Detect absolute paths and extract their prefix
+			$isAbsolute = $path[0] === '/';  // Unix absolute path
+			$prefix = '';
+			
+			if ($isAbsolute) {
+				// Unix absolute path: /var/www/html
+				$prefix = '/';
+				$path = substr($path, 1);  // Remove leading slash
+			} elseif (isset($path[1]) && $path[1] === ':' && ctype_alpha($path[0])) {
+				// Windows absolute path: C:\Windows\System32
+				$prefix = substr($path, 0, 2);  // Extract drive letter (C:)
+				$path = ltrim(substr($path, 2), '/\\');  // Remove drive and leading slashes
+				$isAbsolute = true;
+			}
+			
+			// Normalize backslashes to forward slashes and split into components
+			$resolved = [];
+			$parts = explode('/', strtr($path, '\\', '/'));
+			
+			// Process each path component
+			foreach ($parts as $part) {
+				// Skip empty parts (from double slashes) and current directory references
+				if ($part === '' || $part === '.') continue;
+				
+				if ($part === '..') {
+					// Parent directory reference
+					if ($resolved && end($resolved) !== '..') {
+						// Go up one level by removing last component (but not if it's also ..)
+						array_pop($resolved);
+					} elseif (!$isAbsolute) {
+						// For relative paths, keep .. if we can't go up further
+						$resolved[] = '..';
+					}
+					// For absolute paths, ignore .. that would go above root
+				} else {
+					// Regular directory or file name
+					$resolved[] = $part;
+				}
+			}
+			
+			// Reconstruct the final path
+			$result = $prefix . implode('/', $resolved);
+			
+			// Return '.' for empty relative paths, otherwise return the resolved path
+			return $result === '' && !$isAbsolute ? '.' : $result;
+		}
+
+		/**
 		 * Attempts to find namespace from the registered Composer autoloader
 		 * @param string $directory Resolved realpath to directory
 		 * @return string|null Namespace if found
