@@ -264,7 +264,7 @@
 	     */
 	    private function createNotFoundResponse(Request $request, bool $legacyAttempted = false): Response {
 		    $isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
-		    $legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy');
+		    $legacyPath = realpath($this->getConfig('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy'));
 		    $notFoundFile = $legacyPath . '404.php';
 		    
 		    if ($isDevelopment) {
