@@ -220,16 +220,16 @@
 			}
 			
 			// Detect absolute paths and extract their prefix
-			$isAbsolute = $path[0] === '/';  // Unix absolute path
 			$prefix = '';
+			$isAbsolute = $path[0] === '/' || $path[0] === '\\';  // Unix or Windows absolute path
 			
-			if ($isAbsolute) {
-				// Unix absolute path: /var/www/html
-				$prefix = '/';
+			if ($isAbsolute && ($path[0] === '/' || $path[0] === '\\')) {
+				// Unix absolute path: /var/www/html or Windows UNC: \server\share
+				$prefix = DIRECTORY_SEPARATOR;
 				$path = substr($path, 1);  // Remove leading slash
 			} elseif (isset($path[1]) && $path[1] === ':' && ctype_alpha($path[0])) {
 				// Windows absolute path: C:\Windows\System32
-				$prefix = substr($path, 0, 2) . '/';  // Extract drive letter and add separator (C:/)
+				$prefix = substr($path, 0, 2) . DIRECTORY_SEPARATOR;  // Extract drive letter and add separator (C:\)
 				$path = ltrim(substr($path, 2), '/\\');  // Remove drive and leading slashes
 				$isAbsolute = true;
 			}
@@ -248,14 +248,14 @@
 				if ($part === '..') {
 					// Parent directory reference
 					if ($resolved && end($resolved) !== '..') {
-						// Go up one level by removing the last component (but not if it's also '..')
+						// Go up one level by removing last component (but not if it's also ..)
 						array_pop($resolved);
 					} elseif (!$isAbsolute) {
-						// For relative paths, keep '..' if we can't go up further
+						// For relative paths, keep .. if we can't go up further
 						$resolved[] = '..';
 					}
 					
-					// For absolute paths, ignore '..' that would go above root
+					// For absolute paths, ignore .. that would go above root
 				} else {
 					// Regular directory or file name
 					$resolved[] = $part;
@@ -263,7 +263,7 @@
 			}
 			
 			// Reconstruct the final path
-			$result = $prefix . implode('/', $resolved);
+			$result = $prefix . implode(DIRECTORY_SEPARATOR, $resolved);
 			
 			// Return '.' for empty relative paths, otherwise return the resolved path
 			return $result === '' && !$isAbsolute ? '.' : $result;
