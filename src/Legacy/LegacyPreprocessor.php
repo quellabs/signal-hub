@@ -134,8 +134,9 @@ if (!function_exists("canvas_header")) {
      * Canvas-compatible header function that collects headers instead of sending them.
      * @param string $header Header string to send
      * @param bool $replace Whether to replace previous header (default: true)
+     * @return void
      */
-    function canvas_header($header, $replace = true) {
+    function canvas_header(string $header, bool $replace = true): void {
         global $__canvas_headers;
         
         if (!isset($__canvas_headers)) {
