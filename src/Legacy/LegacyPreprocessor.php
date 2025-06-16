@@ -136,7 +136,7 @@
 			$escapedPath = addslashes($helpersPath); // Escape for PHP string
 			
 			// Get include require
-			$helperInclude = "\nrequire_once '{$escapedPath}';\n";
+			$helperInclude = "\n\nrequire_once '{$escapedPath}';\n";
 			
 			// Insert the helper code at the determined position
 			$before = substr($content, 0, $insertPos);
