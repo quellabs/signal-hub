@@ -65,7 +65,6 @@
 			return preg_replace(array_keys($patterns), array_values($patterns), $content);
 		}
 		
-		
 		/**
 		 * Replace header() calls with Canvas header collection function.
 		 * @param string $content The PHP content to process
