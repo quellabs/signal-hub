@@ -70,19 +70,28 @@
 		 * @return string Content with header() calls replaced
 		 */
 		private function replaceHeaderCalls(string $content): string {
-			// Match header() calls with string literals
-			$pattern = '/header\s*\(\s*([\'"])([^\1]*?)\1\s*(?:,\s*(true|false))?\s*\)/';
+			// Match header() calls with string literals and optional parameters
+			$pattern = '/header\s*\(\s*([\'"])([^\1]*?)\1\s*(?:,\s*(true|false))?\s*(?:,\s*(\d+))?\s*\)/';
 			
 			return preg_replace_callback($pattern, function ($matches) {
 				$headerValue = $matches[2];
-				
-				// Handle the replace parameter correctly
 				$replace = $matches[3] ?? 'true';
+				$responseCode = $matches[4] ?? null;
 				
 				// Escape single quotes in the header value
 				$headerValue = str_replace("'", "\\'", $headerValue);
 				
-				return "canvas_header('{$headerValue}', {$replace})";
+				// Build the canvas_header call
+				$call = "canvas_header('{$headerValue}', {$replace}";
+				
+				// Add response code if provided
+				if ($responseCode !== null) {
+					$call .= ", {$responseCode}";
+				}
+				
+				$call .= ")";
+				
+				return $call;
 			}, $content);
 		}
 		

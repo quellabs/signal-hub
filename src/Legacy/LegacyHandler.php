@@ -6,6 +6,7 @@
 	use Quellabs\Canvas\Kernel;
 	use Quellabs\Canvas\Legacy\LegacyExitException;
 	use Quellabs\Canvas\Legacy\Resolvers\DefaultFileResolver;
+	use Symfony\Component\HttpFoundation\RedirectResponse;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
 	
@@ -227,15 +228,19 @@
 		private function determineStatusCode(array $parsedHeaders, int $exitCode): int {
 			// Check if a status header was explicitly set
 			if (isset($parsedHeaders['Status'])) {
-				// Extract the numeric status code (e.g., "404 Not Found" -> 404)
-				$statusCode = (int) $parsedHeaders['Status'];
+				$statusCode = (int)$parsedHeaders['Status'];
 				
 				if ($statusCode > 0) {
 					return $statusCode;
 				}
 			}
 			
-			// Using match expression for status code determination
+			// No explicit status - use defaults based on context
+			if (isset($parsedHeaders['Location'])) {
+				return 302; // Default redirect status
+			}
+			
+			// Regular response based on exit code
 			return match ($exitCode) {
 				0 => 200,
 				1 => 500,
@@ -281,6 +286,11 @@
 			
 			// Determine the status code
 			$statusCode = $this->determineStatusCode($parsedHeaders, $exitCode);
+
+			// Create redirect response if needed
+			if (isset($parsedHeaders['Location']) && in_array($statusCode, [301, 302, 303, 307, 308])) {
+				return new RedirectResponse($parsedHeaders['Location'], $statusCode, $rawHeaders);
+			}
 			
 			// Return response
 			return new Response($content, $statusCode, $rawHeaders);
