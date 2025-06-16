@@ -267,32 +267,6 @@
 		}
 		
 		/**
-		 * Handle 404 responses by loading custom error page if available.
-		 * @param string $content Current content (may be empty)
-		 * @return Response 404 response
-		 */
-		private function handle404(string $content): Response {
-			// Try to load custom 404 page if content is empty
-			if (empty(trim($content))) {
-				$custom404 = $this->legacyPath . '/404.php';
-				
-				if (file_exists($custom404)) {
-					if ($this->preprocessingEnabled) {
-						$fileToExecute = $this->getProcessedFile($custom404);
-					} else {
-						$fileToExecute = $custom404;
-					}
-					
-					ob_start();
-					include $fileToExecute;
-					$content = ob_get_clean();
-				}
-			}
-			
-			return new Response($content, 404);
-		}
-		
-		/**
 		 * Create a Response object with proper status code and headers from Canvas globals.
 		 * @param string $content The output content from the legacy file
 		 * @param int $exitCode The exit code (default: 0 for normal execution)
@@ -301,16 +275,14 @@
 		private function createResponseWithHeaders(string $content, int $exitCode = 0): Response {
 			global $__canvas_headers;
 			
+			// Fetch and parse headers
 			$rawHeaders = $__canvas_headers ?? [];
 			$parsedHeaders = $this->parseHeaders($rawHeaders);
+			
+			// Determine the status code
 			$statusCode = $this->determineStatusCode($parsedHeaders, $exitCode);
 			
-			// Handle 404
-			if ($statusCode === 404) {
-				return $this->handle404($content);
-			}
-			
 			// Return response
-			return new Response($content, $statusCode, $parsedHeaders);
+			return new Response($content, $statusCode, $rawHeaders);
 		}
 	}
