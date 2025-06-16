@@ -407,7 +407,7 @@ $kernel = new Kernel([
 
 While Canvas's legacy preprocessing is powerful, there are important limitations to be aware of:
 
-**🚨 Include/Require File Limitations**
+#### 🚨 Include/Require File Limitations
 
 Canvas preprocessing **only applies to the main legacy file being executed**, not to files that are included or required by that file. This means:
 
@@ -415,6 +415,7 @@ Canvas preprocessing **only applies to the main legacy file being executed**, no
 <?php
 // legacy/main.php - This file gets preprocessed
 header('Content-Type: text/html');  // ✅ Converted by Canvas
+die('Stopping here');              // ✅ Converted to Canvas exception (maintains flow)
 
 include 'includes/helper.php';       // ❌ This file is NOT preprocessed
 ?>
@@ -424,19 +425,21 @@ include 'includes/helper.php';       // ❌ This file is NOT preprocessed
 <?php
 // legacy/includes/helper.php - This file is NOT preprocessed
 header('Location: /redirect');  // ❌ May cause issues
-die('Stopping execution');     // ❌ Will terminate the entire application
+die('Stopping execution');     // ❌ Will terminate the entire application (preprocessing disabled)
 ?>
 ```
 
-**Impact on Legacy Applications**
+#### Impact on Legacy Applications
 
 This limitation can affect legacy applications in several ways:
 
-- **Header Management**: If included files call `header()`, those headers may not be properly managed by Canvas
-- **Flow Control**: If included files call `die()` or `exit()`, they will terminate the entire Canvas application, not just the legacy script
-- **Error Handling**: Canvas cannot catch or handle exceptions from `die()`/`exit()` calls in included files
+**Header Management**: If included files call `header()`, those headers may not be properly managed by Canvas since included files are never preprocessed.
 
-#### Best Practices for Legacy Integration
+**Flow Control**: If included files call `die()` or `exit()`, they will terminate the entire Canvas application, not just the legacy script, since included files bypass preprocessing entirely. When preprocessing is enabled, Canvas handles these calls properly in the main file but cannot process them in included files.
+
+**Error Handling**: Canvas cannot catch or handle exceptions from `die()`/`exit()` calls in included files that bypass preprocessing.
+
+## Best Practices for Legacy Integration
 
 **Audit Include Files**: Before integrating legacy code, audit all included/required files for `header()`, `die()`, and `exit()` calls.
 
@@ -480,7 +483,7 @@ $result = $databaseService->query('SELECT * FROM users');
 ?>
 ```
 
-#### Debugging Legacy Issues
+## Debugging Legacy Issues
 
 If you encounter issues with legacy file execution:
 
