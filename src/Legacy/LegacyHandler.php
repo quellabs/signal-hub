@@ -4,6 +4,7 @@
 	
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Kernel;
+	use Quellabs\Canvas\Legacy\LegacyExitException;
 	use Quellabs\Canvas\Legacy\Resolvers\DefaultFileResolver;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
@@ -178,28 +179,25 @@
 				$fileToExecute = $file;
 			}
 			
-			// Initialize Canvas helper globals if preprocessing is enabled
-			if ($this->preprocessingEnabled) {
-				$this->initializeCanvasGlobals();
-			}
-			
 			// Capture output buffer to get the legacy file's output
 			ob_start();
-			include $fileToExecute;
-			$content = ob_get_clean();
 			
-			// Create response with proper status and headers if preprocessing enabled
-			return $this->preprocessingEnabled ? $this->createResponseWithHeaders($content) : new Response($content);
-		}
-		
-		/**
-		 * Initialize global variables used by Canvas helper functions.
-		 * @return void
-		 */
-		private function initializeCanvasGlobals(): void {
-			global $__canvas_exit_code, $__canvas_headers;
-			$__canvas_exit_code = 0;
-			$__canvas_headers = [];
+			try {
+				// Include the file (original or preprocessed)
+				include $fileToExecute;
+				
+				// Fetch the contents
+				$content = ob_get_clean();
+				
+				// Create response with proper status and headers if preprocessing enabled
+				return $this->preprocessingEnabled ? $this->createResponseWithHeaders($content) : new Response($content);
+			} catch (LegacyExitException $e) {
+				// Legacy code called exit() - get content up to that point
+				$content = ob_get_clean();
+				
+				// Return response with statusCode and headers
+				return $this->createResponseWithHeaders($content, $e->getExitCode());
+			}
 		}
 		
 		/**
@@ -234,8 +232,12 @@
 				}
 			}
 			
-			// Using ternary operators for status code determination
-			return $exitCode === 0 ? 200 : ($exitCode === 1 ? 500 : $exitCode);
+			// Using match expression for status code determination
+			return match ($exitCode) {
+				0 => 200,
+				1 => 500,
+				default => $exitCode,
+			};
 		}
 		
 		/**
@@ -290,19 +292,22 @@
 		/**
 		 * Create a Response object with proper status code and headers from Canvas globals.
 		 * @param string $content The output content from the legacy file
+		 * @param int $exitCode The exit code (default: 0 for normal execution)
 		 * @return Response The response with proper status and headers
 		 */
-		private function createResponseWithHeaders(string $content): Response {
-			global $__canvas_exit_code, $__canvas_headers;
+		private function createResponseWithHeaders(string $content, int $exitCode = 0): Response {
+			global $__canvas_headers;
 			
-			// Using ternary operators for variable assignment
-			$exitCode = isset($__canvas_exit_code) ? $__canvas_exit_code : 0;
-			$headers = isset($__canvas_headers) ? $__canvas_headers : [];
-			
+			$headers = $__canvas_headers ?? [];
 			$statusCode = $this->determineStatusCode($headers, $exitCode);
 			$parsedHeaders = $this->parseHeaders($headers);
 			
-			// Using ternary for return statement
-			return $statusCode === 404 ? $this->handle404($content) : new Response($content, $statusCode, $parsedHeaders);
+			// Handle 404
+			if ($statusCode === 404) {
+				return $this->handle404($content);
+			}
+			
+			// Return response
+			return new Response($content, $statusCode, $parsedHeaders);
 		}
 	}
