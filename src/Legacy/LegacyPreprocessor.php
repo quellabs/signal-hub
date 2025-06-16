@@ -25,7 +25,7 @@
 			// Replace header() calls with Canvas-compatible header collection
 			$content = $this->replaceHeaderCalls($content);
 			
-			// Inject Canvas helper functions at the beginning of the file
+			// Inject Canvas helper functions at the appropriate location
 			return $this->addCanvasHelper($content);
 		}
 		
@@ -75,7 +75,9 @@
 			
 			return preg_replace_callback($pattern, function ($matches) {
 				$headerValue = $matches[2];
-				$replace = isset($matches[3]) && $matches[3] === 'false' ? 'true' : 'false';
+				
+				// Handle the replace parameter correctly
+				$replace = $matches[3] ?? 'true';
 				
 				// Escape single quotes in the header value
 				$headerValue = str_replace("'", "\\'", $headerValue);
@@ -85,17 +87,74 @@
 		}
 		
 		/**
-		 * Add Canvas helper functions to the beginning of the PHP file.
-		 * @param string $content The original PHP content
-		 * @return string Content with Canvas helpers prepended
+		 * Find the best insertion point for Canvas helper code.
+		 * This method analyzes the file structure to inject helpers AFTER namespace
+		 * declaration and use statements, but before any actual code execution.
+		 * @param string $content The PHP file content
+		 * @return int The position where helper code should be inserted
 		 */
-		private function addCanvasHelper(string $content): string {
-			$helper = '<?php
+		private function findInsertionPoint(string $content): int {
+			// Remove comments and strings to avoid false matches
+			$cleanContent = $this->removeCommentsAndStrings($content);
+			
+			// Find <?php opening tag first
+			$insertPos = 0;
+			
+			if (preg_match('/^<\?php\s*/i', $cleanContent, $matches, PREG_OFFSET_CAPTURE)) {
+				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+			}
+			
+			// Look for namespace declaration AFTER <?php
+			if (preg_match('/\bnamespace\s+[^;]+;/i', $cleanContent, $matches, PREG_OFFSET_CAPTURE, $insertPos)) {
+				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+			}
+			
+			// Find all use statements after the namespace (or after <?php if no namespace)
+			$usePattern = '/\buse\s+(?:[^;{]+(?:\{[^}]*\})?[^;]*);/i';
+			$searchPos = $insertPos;
+			
+			// Keep finding use statements and update insertion point to after the last one
+			while (preg_match($usePattern, $cleanContent, $matches, PREG_OFFSET_CAPTURE, $searchPos)) {
+				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+				$searchPos = $insertPos;
+			}
+			
+			// Return the insert position
+			return $insertPos;
+		}
+		
+		/**
+		 * Remove comments and string literals to avoid false matches in code analysis.
+		 * This is a simplified approach that handles most common cases.
+		 *
+		 * @param string $content PHP content to clean
+		 * @return string Content with comments and strings removed
+		 */
+		private function removeCommentsAndStrings(string $content): string {
+			// Remove single-line comments (// and #)
+			$content = preg_replace('/\/\/.*$/m', '', $content);
+			$content = preg_replace('/^\s*#.*$/m', '', $content);
+			
+			// Remove multi-line comments /* ... */
+			$content = preg_replace('/\/\*.*?\*\//s', '', $content);
+			
+			// Remove string literals (both single and double quoted)
+			// This is a simplified approach - doesn't handle escaped quotes perfectly
+			$content = preg_replace('/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"/', '""', $content);
+			$content = preg_replace("/'[^'\\\\]*(?:\\\\.[^'\\\\]*)*'/", "''", $content);
+			
+			return $content;
+		}
+		
+		/**
+		 * Generate the Canvas helper code using fully qualified class names.
+		 * This avoids any conflicts with existing use statements.
+		 * @return string The helper code to inject
+		 */
+		private function generateHelperCode(): string {
+			$helper = <<<'PHP'
+
 // Canvas Legacy Helper Functions - Auto-generated
-
-// Import the LegacyExitException class
-use Quellabs\Canvas\Legacy\LegacyExitException;
-
 if (!function_exists("canvas_header")) {
     /**
      * Canvas-compatible header function that collects headers instead of sending them.
@@ -129,10 +188,35 @@ if (!function_exists("canvas_header")) {
     }
 }
 
-';
+PHP;
 			
-			// Remove existing <?php opening tag if present and add our helper
-			$content = preg_replace('/^\s*<\?php\s*/', '', $content, 1);
-			return $helper . "\n" . $content;
+			return $helper;
+		}
+		
+		/**
+		 * Add Canvas helper functions at the appropriate location in the PHP file.
+		 * This method intelligently finds where to inject the helper code AFTER
+		 * namespace declarations and use statements to avoid syntax errors.
+		 * @param string $content The original PHP content
+		 * @return string Content with Canvas helpers injected at the proper location
+		 */
+		private function addCanvasHelper(string $content): string {
+			// Find the insertion point after namespace and use statements
+			$insertPos = $this->findInsertionPoint($content);
+			
+			// Generate helper code
+			$helper = $this->generateHelperCode();
+			
+			// Insert the helper code at the determined position
+			$before = substr($content, 0, $insertPos);
+			$after = substr($content, $insertPos);
+			
+			// Add appropriate spacing
+			$spacing = "\n";
+			if (!empty(trim($after))) {
+				$spacing .= "\n";
+			}
+			
+			return $before . $spacing . $helper . $spacing . $after;
 		}
 	}
