@@ -219,16 +219,19 @@
 		}
 		
 		/**
-		 * Determine HTTP status code from headers and exit code.
-		 * @param array $headers Array of header strings
+		 * Determine HTTP status code from parsed headers and exit code.
+		 * @param array $parsedHeaders Associative array of parsed headers
 		 * @param int $exitCode Exit code from the legacy script
 		 * @return int HTTP status code
 		 */
-		private function determineStatusCode(array $headers, int $exitCode): int {
-			// Check headers for HTTP status
-			foreach ($headers as $header) {
-				if (preg_match('/^HTTP\/\d\.\d\s+(\d+)/', $header, $matches)) {
-					return (int)$matches[1];
+		private function determineStatusCode(array $parsedHeaders, int $exitCode): int {
+			// Check if a status header was explicitly set
+			if (isset($parsedHeaders['Status'])) {
+				// Extract the numeric status code (e.g., "404 Not Found" -> 404)
+				$statusCode = (int) $parsedHeaders['Status'];
+				
+				if ($statusCode > 0) {
+					return $statusCode;
 				}
 			}
 			
@@ -298,9 +301,9 @@
 		private function createResponseWithHeaders(string $content, int $exitCode = 0): Response {
 			global $__canvas_headers;
 			
-			$headers = $__canvas_headers ?? [];
-			$statusCode = $this->determineStatusCode($headers, $exitCode);
-			$parsedHeaders = $this->parseHeaders($headers);
+			$rawHeaders = $__canvas_headers ?? [];
+			$parsedHeaders = $this->parseHeaders($rawHeaders);
+			$statusCode = $this->determineStatusCode($parsedHeaders, $exitCode);
 			
 			// Handle 404
 			if ($statusCode === 404) {
