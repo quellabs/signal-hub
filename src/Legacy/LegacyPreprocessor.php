@@ -121,54 +121,6 @@
 		}
 		
 		/**
-		 * Generate the Canvas helper code using fully qualified class names.
-		 * This avoids any conflicts with existing use statements.
-		 * @return string The helper code to inject
-		 */
-		private function generateHelperCode(): string {
-			$helper = <<<'PHP'
-
-// Canvas Legacy Helper Functions - Auto-generated
-if (!function_exists("canvas_header")) {
-    /**
-     * Canvas-compatible header function that collects headers instead of sending them.
-     * @param string $header Header string to send
-     * @param bool $replace Whether to replace previous header (default: true)
-     * @return void
-     */
-    function canvas_header(string $header, bool $replace = true): void {
-        global $__canvas_headers;
-        
-        if (!isset($__canvas_headers)) {
-            $__canvas_headers = [];
-        }
-        
-        // If not replacing, just add to the array
-        if (!$replace) {
-            $__canvas_headers[] = $header;
-            return;
-        }
-        
-        // If replacing, remove any existing headers with the same name
-        $headerName = strtolower(explode(":", $header, 2)[0] ?? "");
-        
-        if ($headerName) {
-            $__canvas_headers = array_filter($__canvas_headers, function($existingHeader) use ($headerName) {
-                $existingName = strtolower(explode(":", $existingHeader, 2)[0] ?? "");
-                return $existingName !== $headerName;
-            });
-        }
-        
-        $__canvas_headers[] = $header;
-    }
-}
-
-PHP;
-			
-			return $helper;
-		}
-		
-		/**
 		 * Add Canvas helper functions at the appropriate location in the PHP file.
 		 * This method intelligently finds where to inject the helper code AFTER
 		 * namespace declarations and use statements to avoid syntax errors.
@@ -179,21 +131,18 @@ PHP;
 			// Find the insertion point after namespace and use statements
 			$insertPos = $this->findInsertionPoint($content);
 			
-			// Generate helper code
-			$helper = $this->generateHelperCode();
+			// Get the absolute path to the helpers file within the package
+			$helpersPath = __DIR__ . '/Helpers/LegacyHelper.php';
+			$escapedPath = addslashes($helpersPath); // Escape for PHP string
+			
+			// Get include require
+			$helperInclude = "\nrequire_once '{$escapedPath}';\n";
 			
 			// Insert the helper code at the determined position
 			$before = substr($content, 0, $insertPos);
 			$after = substr($content, $insertPos);
 			
-			// Add appropriate spacing
-			$spacing = "\n";
-			
-			if (!empty(trim($after))) {
-				$spacing .= "\n";
-			}
-			
-			// Return new content
-			return $before . $spacing . $helper . $spacing . $after;
+			// Return modified code
+			return $before . $helperInclude . $after;
 		}
 	}
