@@ -397,8 +397,11 @@
 				// Fetch the legacy path
 				$legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
 				
+				// Fetch the legacy path
+				$preprocessingEnabled = $this->getConfig('legacy_preprocessing', true);
+				
 				// Create the fallthrough handler
-				$this->legacyFallbackHandler = new LegacyHandler($legacyPath);
+				$this->legacyFallbackHandler = new LegacyHandler($this, $legacyPath, $preprocessingEnabled);
 			}
 		}
 		
