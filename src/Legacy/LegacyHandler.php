@@ -168,10 +168,19 @@
 		 * @param string $file Path to the legacy file to execute
 		 * @param Request $request The original HTTP request
 		 * @return Response The response containing the legacy file's output
+		 * @throws \Exception
 		 */
 		private function executeLegacyFile(string $file, Request $request): Response {
 			// Set up basic environment variables for legacy compatibility
 			$this->setupGlobals($request);
+			
+			// Get the absolute path to the original file to ensure we have the correct directory
+			$originalFilePath = realpath($file);
+			$originalFileDir = dirname($originalFilePath);
+			
+			// Store the current working directory before we change it
+			// This might be the project root or wherever the process started
+			$previousWorkingDir = getcwd();
 			
 			// Determine which file to execute (original or preprocessed)
 			if ($this->preprocessingEnabled) {
@@ -189,15 +198,25 @@
 				
 				// Fetch the contents
 				$content = ob_get_clean();
+
+				// Restore the previous working directory
+				chdir($previousWorkingDir);
 				
 				// Create response with proper status and headers if preprocessing enabled
 				return $this->preprocessingEnabled ? $this->createResponseWithHeaders($content) : new Response($content);
 			} catch (LegacyExitException $e) {
 				// Legacy code called exit() - get content up to that point
 				$content = ob_get_clean();
+
+				// Restore the previous working directory
+				chdir($previousWorkingDir);
 				
 				// Return response with statusCode and headers
 				return $this->createResponseWithHeaders($content, $e->getExitCode());
+			} catch (\Exception $e) {
+				// Ensure we always restore the previous working directory
+				chdir($previousWorkingDir);
+				throw $e;
 			}
 		}
 		
