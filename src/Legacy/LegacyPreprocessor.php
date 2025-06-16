@@ -90,23 +90,21 @@
 		 * Find the best insertion point for Canvas helper code.
 		 * This method analyzes the file structure to inject helpers AFTER namespace
 		 * declaration and use statements, but before any actual code execution.
+		 *
 		 * @param string $content The PHP file content
 		 * @return int The position where helper code should be inserted
 		 */
 		private function findInsertionPoint(string $content): int {
-			// Remove comments and strings to avoid false matches
-			$cleanContent = $this->removeCommentsAndStrings($content);
-			
-			// Find <?php opening tag first
 			$insertPos = 0;
 			
-			if (preg_match('/^<\?php\s*/i', $cleanContent, $matches, PREG_OFFSET_CAPTURE)) {
-				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+			// Find <?php opening tag first
+			if (preg_match('/^<\?php\s*/i', $content, $matches, PREG_OFFSET_CAPTURE)) {
+				$insertPos = (int)$matches[0][1] + strlen($matches[0][0]);
 			}
 			
 			// Look for namespace declaration AFTER <?php
-			if (preg_match('/\bnamespace\s+[^;]+;/i', $cleanContent, $matches, PREG_OFFSET_CAPTURE, $insertPos)) {
-				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+			if (preg_match('/\bnamespace\s+[^;]+;/i', $content, $matches, PREG_OFFSET_CAPTURE, $insertPos)) {
+				$insertPos = (int)$matches[0][1] + strlen($matches[0][0]);
 			}
 			
 			// Find all use statements after the namespace (or after <?php if no namespace)
@@ -114,36 +112,13 @@
 			$searchPos = $insertPos;
 			
 			// Keep finding use statements and update insertion point to after the last one
-			while (preg_match($usePattern, $cleanContent, $matches, PREG_OFFSET_CAPTURE, $searchPos)) {
-				$insertPos = $matches[0][1] + strlen($matches[0][0]);
+			while (preg_match($usePattern, $content, $matches, PREG_OFFSET_CAPTURE, $searchPos)) {
+				$insertPos = (int)$matches[0][1] + strlen($matches[0][0]);
 				$searchPos = $insertPos;
 			}
-			
-			// Return the insert position
-			return $insertPos;
-		}
 		
-		/**
-		 * Remove comments and string literals to avoid false matches in code analysis.
-		 * This is a simplified approach that handles most common cases.
-		 *
-		 * @param string $content PHP content to clean
-		 * @return string Content with comments and strings removed
-		 */
-		private function removeCommentsAndStrings(string $content): string {
-			// Remove single-line comments (// and #)
-			$content = preg_replace('/\/\/.*$/m', '', $content);
-			$content = preg_replace('/^\s*#.*$/m', '', $content);
-			
-			// Remove multi-line comments /* ... */
-			$content = preg_replace('/\/\*.*?\*\//s', '', $content);
-			
-			// Remove string literals (both single and double quoted)
-			// This is a simplified approach - doesn't handle escaped quotes perfectly
-			$content = preg_replace('/"[^"\\\\]*(?:\\\\.[^"\\\\]*)*"/', '""', $content);
-			$content = preg_replace("/'[^'\\\\]*(?:\\\\.[^'\\\\]*)*'/", "''", $content);
-			
-			return $content;
+			// Return the insertion point
+			return $insertPos;
 		}
 		
 		/**
@@ -213,10 +188,12 @@ PHP;
 			
 			// Add appropriate spacing
 			$spacing = "\n";
+			
 			if (!empty(trim($after))) {
 				$spacing .= "\n";
 			}
 			
+			// Return new content
 			return $before . $spacing . $helper . $spacing . $after;
 		}
 	}
