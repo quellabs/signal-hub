@@ -90,7 +90,6 @@
 		 * Find the best insertion point for Canvas helper code.
 		 * This method analyzes the file structure to inject helpers AFTER namespace
 		 * declaration and use statements, but before any actual code execution.
-		 *
 		 * @param string $content The PHP file content
 		 * @return int The position where helper code should be inserted
 		 */
