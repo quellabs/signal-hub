@@ -1,5 +1,4 @@
 <?php
-// src/Legacy/LegacyPreprocessor.php
 	
 	namespace Quellabs\Canvas\Legacy;
 	
