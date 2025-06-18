@@ -174,10 +174,6 @@
 			// Set up basic environment variables for legacy compatibility
 			$this->setupGlobals($request);
 			
-			// Get the absolute path to the original file to ensure we have the correct directory
-			$originalFilePath = realpath($file);
-			$originalFileDir = dirname($originalFilePath);
-			
 			// Store the current working directory before we change it
 			// This might be the project root or wherever the process started
 			$previousWorkingDir = getcwd();
@@ -194,7 +190,7 @@
 			
 			try {
 				// Set working directory
-				chdir($originalFileDir);
+				chdir($this->legacyPath);
 				
 				// Include the file (original or preprocessed)
 				include $fileToExecute;
