@@ -367,6 +367,8 @@ When preprocessing is enabled, Canvas automatically transforms legacy PHP code b
 
 **Header Function Conversion**: All calls to `header()` are converted to Canvas's internal header management system, allowing proper HTTP response handling.
 
+**HTTP Response Code Conversion**: All calls to `http_response_code()` are transformed to Canvas's internal response code management, ensuring proper status code handling within the framework's request/response cycle.
+
 **Exit/Die Conversion**: All `die()` and `exit()` calls are converted to Canvas exceptions, preserving the application's control flow instead of terminating the entire process.
 
 ```php
