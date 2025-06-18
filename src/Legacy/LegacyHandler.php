@@ -193,6 +193,9 @@
 			ob_start();
 			
 			try {
+				// Set working directory
+				chdir($originalFileDir);
+				
 				// Include the file (original or preprocessed)
 				include $fileToExecute;
 				
