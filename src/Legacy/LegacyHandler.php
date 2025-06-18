@@ -151,7 +151,7 @@
 		private function getProcessedFile(string $originalFile): string {
 			// Generate a cache key based on file path and modification time
 			$cacheKey = md5($originalFile . filemtime($originalFile));
-			$cachedFile = $this->cacheDir . '/' . $cacheKey . $originalFile;
+			$cachedFile = $this->cacheDir . '/' . $cacheKey . basename($originalFile);
 			
 			// Create a preprocessed file if it doesn't exist
 			if (!file_exists($cachedFile)) {
