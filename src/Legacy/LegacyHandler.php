@@ -275,8 +275,9 @@
 			$headers = [];
 			
 			foreach ($rawHeaders as $header) {
-				// Skip HTTP status lines
-				if (preg_match('/^HTTP\/\d\.\d/', $header)) {
+				// Extract status code from HTTP status lines
+				if (preg_match('/^HTTP\/\d\.\d\s+(\d{3})/', $header, $matches)) {
+					$headers['Status'] = (int)$matches[1];
 					continue;
 				}
 				
