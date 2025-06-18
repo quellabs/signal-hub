@@ -17,6 +17,11 @@
 	function canvas_header(string $header, bool $replace = true, ?int $responseCode = null): void {
 		global $__canvas_headers;
 		
+		// Create variable if it doesn't exist yet
+		if (!isset($__canvas_headers)) {
+			$__canvas_headers = [];
+		}
+		
 		// If a response code is provided, add it as a separate Status header
 		if ($responseCode !== null) {
 			$statusHeader = "Status: {$responseCode}";
