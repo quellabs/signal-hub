@@ -25,6 +25,9 @@
 			// Replace header() calls with Canvas-compatible header collection
 			$content = $this->replaceHeaderCalls($content);
 			
+			// Replace http_response_code() calls with Canvas header collection function
+			$content = $this->replaceHttpResponseCodeCalls($content);
+			
 			// Inject Canvas helper functions at the appropriate location
 			return $this->addCanvasHelper($content);
 		}
@@ -95,6 +98,21 @@
 			}, $content);
 		}
 		
+		/**
+		 * Replace http_response_code() calls with Canvas header collection function.
+		 * @param string $content The PHP content to process
+		 * @return string Content with http_response_code() calls replaced
+		 */
+		private function replaceHttpResponseCodeCalls(string $content): string {
+			// Match http_response_code() calls with numeric arguments
+			$pattern = '/http_response_code\s*\(\s*(\d+)\s*\)/';
+			
+			return preg_replace_callback($pattern, function ($matches) {
+				$statusCode = (int)$matches[1];
+				return "canvas_header('Status: {$statusCode}', true)";
+			}, $content);
+		}
+
 		/**
 		 * Find the best insertion point for Canvas helper code.
 		 * This method analyzes the file structure to inject helpers AFTER namespace
