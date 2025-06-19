@@ -21,17 +21,26 @@
 		
 		/**
 		 * The EntityManager (ObjectQuel)
-		 * @var EntityManager
+		 * @var EntityManager|null
 		 */
-		protected EntityManager $em;
+		protected ?EntityManager $em;
 		
 		/**
 		 * BaseController constructor.
 		 * @param TemplateEngineInterface $templateEngine The template engine to use for rendering
+		 * @param EntityManager|null $entityManager
 		 */
-		public function __construct(TemplateEngineInterface $templateEngine, EntityManager $entityManager) {
+		public function __construct(TemplateEngineInterface $templateEngine, ?EntityManager $entityManager) {
 			$this->view = $templateEngine;
 			$this->em = $entityManager;
+		}
+		
+		/**
+		 * Returns true if an entity manager was installed, false if not.
+		 * @return bool
+		 */
+		protected function hasEntityManager(): bool {
+			return $this->em !== null;
 		}
 		
 		/**
