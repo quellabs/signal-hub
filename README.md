@@ -341,6 +341,173 @@ $response->send();
 
 This allows Canvas to work with any legacy file structure, making it compatible with existing WordPress sites, custom MVC frameworks, or any other PHP application structure.
 
+### Legacy Preprocessing and Limitations
+
+Canvas includes sophisticated preprocessing capabilities to handle legacy PHP files that use common patterns like `header()`, `die()`, and `exit()` functions. Understanding these capabilities and their limitations is crucial for successful legacy integration.
+
+#### Default Configuration
+
+By default, legacy preprocessing is **enabled**. Canvas automatically handles common legacy patterns to maintain proper request flow:
+
+```php
+<?php
+// public/index.php
+
+$kernel = new Kernel([
+    'debug_mode'           => true,
+    'legacy_enabled'       => true,
+    'legacy_path'          => dirname(__FILE__) . "/../legacy",
+    'legacy_preprocessing' => true  // This is the default
+]);
+```
+
+#### What Legacy Preprocessing Does
+
+When preprocessing is enabled, Canvas automatically transforms legacy PHP code before execution:
+
+**Header Function Conversion**: All calls to `header()` are converted to Canvas's internal header management system, allowing proper HTTP response handling.
+
+**HTTP Response Code Conversion**: All calls to `http_response_code()` are transformed to Canvas's internal response code management, ensuring proper status code handling within the framework's request/response cycle.
+
+**Exit/Die Conversion**: All `die()` and `exit()` calls are converted to Canvas exceptions, preserving the application's control flow instead of terminating the entire process.
+
+```php
+<?php
+// Original legacy code
+header('Content-Type: application/json');
+echo json_encode(['data' => $data]);
+die(); // This would normally terminate the entire application
+
+// Canvas automatically converts this to maintain flow control
+```
+
+This preprocessing ensures that legacy files integrate smoothly with Canvas's request/response cycle without breaking the framework's execution flow.
+
+#### Disabling Legacy Preprocessing
+
+If your legacy application doesn't use `header()`, `die()`, or `exit()` functions, or if you need to disable preprocessing for debugging purposes, you can turn it off:
+
+```php
+<?php
+// public/index.php
+
+$kernel = new Kernel([
+    'debug_mode'           => true,
+    'legacy_enabled'       => true,
+    'legacy_path'          => dirname(__FILE__) . "/../legacy",
+    'legacy_preprocessing' => false  // Disable preprocessing
+]);
+```
+
+**When to disable preprocessing:**
+- Your legacy code doesn't use `header()`, `die()`, or `exit()`
+- You're debugging preprocessing-related issues
+- You have specific requirements for direct header/exit handling
+- Your legacy files are already compatible with Canvas's request flow
+
+#### Important Limitations
+
+While Canvas's legacy preprocessing is powerful, there are important limitations to be aware of:
+
+#### 🚨 Include/Require File Limitations
+
+Canvas preprocessing **only applies to the main legacy file being executed**, not to files that are included or required by that file. This means:
+
+```php
+<?php
+// legacy/main.php - This file gets preprocessed
+header('Content-Type: text/html');  // ✅ Converted by Canvas
+die('Stopping here');              // ✅ Converted to Canvas exception (maintains flow)
+
+include 'includes/helper.php';       // ❌ This file is NOT preprocessed
+?>
+```
+
+```php
+<?php
+// legacy/includes/helper.php - This file is NOT preprocessed
+header('Location: /redirect');  // ❌ May cause issues
+die('Stopping execution');     // ❌ Will terminate the entire application (preprocessing disabled)
+?>
+```
+
+#### Impact on Legacy Applications
+
+This limitation can affect legacy applications in several ways:
+
+**Header Management**: If included files call `header()`, those headers may not be properly managed by Canvas since included files are never preprocessed.
+
+**Flow Control**: If included files call `die()` or `exit()`, they will terminate the entire Canvas application, not just the legacy script, since included files bypass preprocessing entirely. When preprocessing is enabled, Canvas handles these calls properly in the main file but cannot process them in included files.
+
+**Error Handling**: Canvas cannot catch or handle exceptions from `die()`/`exit()` calls in included files that bypass preprocessing.
+
+## Best Practices for Legacy Integration
+
+**Audit Include Files**: Before integrating legacy code, audit all included/required files for `header()`, `die()`, and `exit()` calls.
+
+**Refactor Problematic Includes**: Consider refactoring included files that use these functions:
+
+```php
+<?php
+// Instead of this in included files:
+die('Error occurred');
+
+// Use this pattern:
+return false; // Or throw an exception
+?>
+```
+
+**Test Thoroughly**: Test legacy routes that include other files to ensure they work correctly with Canvas preprocessing.
+
+**Use Error Handling**: Implement proper error handling in legacy files rather than relying on `die()`/`exit()`:
+
+```php
+<?php
+// legacy/api.php
+include 'includes/database.php';
+
+if (!$connection) {
+    // Instead of die(), use proper error handling
+    http_response_code(500);
+    echo json_encode(['error' => 'Database connection failed']);
+    return; // Exit gracefully
+}
+?>
+```
+
+**Gradual Migration**: Use Canvas's legacy support as a migration tool. Gradually move functionality from problematic included files into Canvas controllers:
+
+```php
+<?php
+// Start migrating problematic includes to Canvas services
+$databaseService = canvas('DatabaseService');
+$result = $databaseService->query('SELECT * FROM users');
+?>
+```
+
+## Debugging Legacy Issues
+
+If you encounter issues with legacy file execution:
+
+1. **Enable debug mode** and check Canvas logs for preprocessing warnings
+2. **Temporarily disable preprocessing** to isolate the issue
+3. **Check included files** for problematic function calls
+4. **Use Canvas's error reporting** to identify where issues occur
+
+```php
+<?php
+// Enable detailed error reporting for legacy debugging
+$kernel = new Kernel([
+    'debug_mode'           => true,
+    'legacy_enabled'       => true,
+    'legacy_preprocessing' => true,
+    'error_reporting'      => E_ALL
+]);
+?>
+```
+
+Understanding these preprocessing capabilities and limitations will help you successfully integrate Canvas with existing PHP applications while planning an effective migration strategy.
+
 ### Real-World Examples
 
 #### Legacy Admin Dashboard
