@@ -10,6 +10,7 @@
 	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\AspectDispatcher;
+	use Quellabs\Canvas\Discover\KernelProvider;
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Legacy\LegacyBridge;
 	use Quellabs\Canvas\Legacy\LegacyHandler;
@@ -49,6 +50,7 @@
 			
 			// Instantiate Dependency Injector
 			$this->dependencyInjector = new Container();
+			$this->dependencyInjector->register(new KernelProvider($this));
 			
 			// Initialize legacy support
 			$this->initializeLegacySupport();
