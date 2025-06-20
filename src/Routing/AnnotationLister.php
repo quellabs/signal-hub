@@ -42,7 +42,7 @@
 			$result = [];
 			
 			foreach ($controllers as $controller) {
-				// Create reflection object to inspect the controller class structure
+				// Create a reflection object to inspect the controller class structure
 				$classReflection = new \ReflectionClass($controller);
 				
 				// Examine each method in the current controller
