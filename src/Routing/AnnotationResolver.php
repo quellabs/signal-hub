@@ -810,7 +810,7 @@
 					return "/";
 				}
 				
-				return $annotations[0]->getRoutePrefix();
+				return $annotations[array_key_first($annotations)]->getRoutePrefix();
 			} catch (ParserException $e) {
 				return "/";
 			}
