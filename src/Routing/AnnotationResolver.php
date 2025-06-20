@@ -2,7 +2,9 @@
 	
 	namespace Quellabs\Canvas\Routing;
 	
+	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\Canvas\Annotations\RoutePrefix;
 	use Quellabs\Canvas\Kernel;
 	use ReflectionException;
 	use Quellabs\Canvas\Annotations\Route;
@@ -14,6 +16,7 @@
 		 * @var Kernel Kernel object, used among other things for service discovery
 		 */
 		private Kernel $kernel;
+		private AnnotationReader $annotationsReader;
 		private bool $debugMode;
 		private bool $matchTrailingSlashes;
 		private string $cacheDirectory;
@@ -25,6 +28,7 @@
 		 */
 		public function __construct(Kernel $kernel) {
 			$this->kernel = $kernel;
+			$this->annotationsReader = $kernel->getAnnotationsReader();
 			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
 			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
@@ -105,6 +109,9 @@
 			$routes = [];
 			
 			try {
+				// Fetch the route prefix, if any
+				$routePrefix = $this->getRoutePrefix($controller);
+				
 				// Retrieve all route annotations from the controller's methods
 				// This likely uses reflection to scan the controller class for route annotations
 				$routeAnnotations = $this->getMethodRouteAnnotations($controller);
@@ -114,9 +121,12 @@
 					// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
 					$routePath = $routeAnnotation->getRoute();
 					
+					// Combine with prefix
+					$completeRoutePath = $routePrefix . ltrim($routePath, "/");
+					
 					// Calculate priority for route matching order
 					// Routes with more specific patterns typically get higher priority
-					$priority = $this->calculateRoutePriority($routePath);
+					$priority = $this->calculateRoutePriority($completeRoutePath);
 					
 					// Build route data structure with all necessary information
 					$routes[] = [
@@ -124,7 +134,7 @@
 						'controller'   => $controller,        // Controller class name
 						'method'       => $method,            // Method name to invoke
 						'route'        => $routeAnnotation,   // Full annotation object
-						'route_path'   => $routePath,         // URL pattern string
+						'route_path'   => $completeRoutePath, // URL pattern string
 						'priority'     => $priority           // Numeric priority for sorting
 					];
 				}
@@ -689,7 +699,7 @@
 				foreach ($methods as $method) {
 					try {
 						// Retrieve all annotations for current method
-						$annotations = $this->kernel->getAnnotationsReader()->getMethodAnnotations($controller, $method->getName());
+						$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method->getName());
 						
 						// Check each annotation to find Route instances
 						foreach ($annotations as $annotation) {
@@ -782,5 +792,27 @@
 			
 			// And return the found routes
 			return $result;
+		}
+		
+		/**
+		 * Retrieves the route prefix annotation from a given class
+		 * @param string|object $class The class object to examine for route prefix annotations
+		 * @return string The route prefix string, or empty string if no prefix is found
+		 */
+		protected function getRoutePrefix(string|object $class): string {
+			try {
+				// Use the annotations reader to search for RoutePrefix annotations on the class
+				// This returns an array of all RoutePrefix annotations found on the class
+				$annotations = $this->annotationsReader->getClassAnnotations($class, RoutePrefix::class);
+				
+				// Return the prefix if found
+				if (empty($annotations)) {
+					return "/";
+				}
+				
+				return $annotations[0]->getRoutePrefix();
+			} catch (ParserException $e) {
+				return "/";
+			}
 		}
 	}

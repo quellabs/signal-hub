@@ -40,10 +40,10 @@
 		}
 		
 		/**
-		 * Fetches the prefix
-		 * @return string The prefix
+		 * Fetches the route prefix
+		 * @return string The route prefix
 		 */
-		public function getPrefix(): string {
+		public function getRoutePrefix(): string {
 			return rtrim($this->parameters["value"], '/') . "/";
 		}
 	}

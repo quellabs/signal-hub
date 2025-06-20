@@ -4,7 +4,9 @@
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\AnnotationReader\Configuration;
+	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\Annotations\Route;
+	use Quellabs\Canvas\Annotations\RoutePrefix;
 	use Quellabs\Canvas\AOP\AspectResolver;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\ConfigurationManager;
@@ -45,29 +47,41 @@
 				// Create a reflection object to inspect the controller class structure
 				$classReflection = new \ReflectionClass($controller);
 				
+				// Fetch the route prefix, if any
+				$routePrefix = $this->getRoutePrefix($controller);
+				
 				// Examine each method in the current controller
 				foreach ($classReflection->getMethods() as $method) {
-					// Look for Route annotations on this method
-					// Only methods with Route annotations are considered route handlers
-					$routes = $this->annotationsReader->getMethodAnnotations(
-						$method->getDeclaringClass()->getName(),
-						$method->getName(),
-						Route::class
-					);
-					
-					// A single method can have multiple Route annotations (multiple routes to same handler)
-					foreach ($routes as $route) {
-						// Build complete route configuration including metadata
-						$result[] = [
-							'http_methods' => $route->getMethods(),
-							'controller'   => $controller,                // Controller class name
-							'method'       => $method->getName(),         // Method name that handles this route
-							'route'        => $route,                     // Route annotation object with path/HTTP method info
-							'aspects'      => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
-								$method->getDeclaringClass()->getName(),
-								$method->getName()
-							),
-						];
+					try {
+						// Look for Route annotations on this method
+						// Only methods with Route annotations are considered route handlers
+						$routes = $this->annotationsReader->getMethodAnnotations(
+							$method->getDeclaringClass()->getName(),
+							$method->getName(),
+							Route::class
+						);
+						
+						// A single method can have multiple Route annotations (multiple routes to same handler)
+						foreach ($routes as $routeAnnotation) {
+							// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
+							$routePath = $routeAnnotation->getRoute();
+							
+							// Combine route with prefix
+							$completeRoutePath = $routePrefix . ltrim($routePath, "/");
+							
+							// Build complete route configuration including metadata
+							$result[] = [
+								'http_methods' => $routeAnnotation->getMethods(),
+								'controller'   => $controller,                // Controller class name
+								'method'       => $method->getName(),         // Method name that handles this route
+								'route'        => $completeRoutePath,         // Route string
+								'aspects'      => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
+									$method->getDeclaringClass()->getName(),
+									$method->getName()
+								),
+							];
+						}
+					} catch (ParserException $e) {
 					}
 				}
 			}
@@ -134,5 +148,27 @@
 			
 			// Extract the actual interceptor class names
 			return array_map(function ($e) { return $e['class']; }, $aspectsClass);
+		}
+		
+		/**
+		 * Retrieves the route prefix annotation from a given class
+		 * @param string|object $class The class object to examine for route prefix annotations
+		 * @return string The route prefix string, or empty string if no prefix is found
+		 */
+		protected function getRoutePrefix(string|object $class): string {
+			try {
+				// Use the annotations reader to search for RoutePrefix annotations on the class
+				// This returns an array of all RoutePrefix annotations found on the class
+				$annotations = $this->annotationsReader->getClassAnnotations($class, RoutePrefix::class);
+				
+				// Return the prefix if found
+				if (empty($annotations)) {
+					return "/";
+				}
+				
+				return $annotations[0]->getRoutePrefix();
+			} catch (ParserException $e) {
+				return "/";
+			}
 		}
 	}

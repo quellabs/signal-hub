@@ -37,8 +37,8 @@
 					// HTTP method
 					implode(", ", $entry["http_methods"]),
 					
-					// Format route path with leading slash
-					"/" . ltrim($entry['route']->getRoute(), '/'),
+					// Format route path
+					$entry['route'],
 					
 					// Format controller as ClassName@methodName
 					$entry['controller'] . "@" . $entry['method'],
