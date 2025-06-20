@@ -90,7 +90,7 @@
 			// This makes the route list more predictable and easier to debug
 			usort($result, function ($a, $b) {
 				// Primary sort: by route
-				$routeComparison = $a['route']->getRoute() <=> $b['route']->getRoute();
+				$routeComparison = $a['route'] <=> $b['route'];
 				
 				if ($routeComparison !== 0) {
 					return $routeComparison;
