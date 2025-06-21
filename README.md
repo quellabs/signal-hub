@@ -739,712 +739,182 @@ class FileController extends BaseController {
 
 Note: All route variables are automatically injected as method parameters.
 
-### Aspect-Oriented Programming
-Add crosscutting concerns without polluting your business logic:
+### Route Prefixes with @RoutePrefix
 
-```php
-// Create reusable aspects
-class CacheAspect implements AroundAspect {
-    public function __construct(
-        private CacheInterface $cache,
-        private int $ttl = 300
-    ) {}
-    
-    public function around(MethodContext $context, callable $proceed): mixed {
-        $key = $this->generateCacheKey($context);
-        
-        // Fetch response from cache
-        if ($cached = $this->cache->get($key)) {
-            return $cached;
-        }
-        
-        // Call the original function
-        $result = $proceed();
-        
-        // Put the result in cache
-        $this->cache->set($key, $result, $this->ttl);
-        return $result;
-    }
-}
+Canvas supports route prefixes through the `@RoutePrefix` annotation, which can be applied at the class level to automatically prefix all routes within that controller. This feature also supports inheritance, allowing parent classes to define prefixes that child classes inherit.
 
-// Apply to any controller method
-/**
- * @Route("/expensive-operation")
- * @InterceptWith(CacheAspect::class, ttl=3600)
- */
-public function expensiveOperation() {
-    // Method automatically cached for 1 hour
-}
-```
+#### Basic Route Prefixes
 
-### Contextual Service Resolution
-When you need different implementations of the same interface, context makes it simple:
-
-```php
-// Use different template engines based on context
-$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
-$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
-
-// Different cache implementations
-$redis = $this->container->for('redis')->get(CacheInterface::class);
-$file = $this->container->for('file')->get(CacheInterface::class);
-```
-
-### Automatic Discovery
-Add functionality by simply requiring packages:
-
-```bash
-composer require quellabs/canvas-twig      # Twig template engine
-composer require quellabs/canvas-blade     # Blade template engine  
-composer require quellabs/canvas-redis     # Redis integration
-```
-
-Canvas automatically discovers and configures new services through Composer metadata.
-
-## Inherited Annotations
-
-Canvas supports automatic inheritance of class-level annotations in derived classes, allowing you to build powerful controller hierarchies with shared crosscutting concerns. This feature enables clean separation of concerns and reduces code duplication across related controllers.
-
-### How Annotation Inheritance Works
-
-When a controller extends another controller, it automatically inherits all class-level annotations from its parent class. This inheritance is deep - derived classes inherit from their entire ancestry chain, not just their immediate parent.
-
-```php
-<?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\AuditLogAspect;
-
-/**
- * Base controller for all authenticated areas
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(AuditLogAspect::class)
- */
-abstract class AuthenticatedController extends BaseController {
-    
-    protected function getCurrentUser() {
-        return $this->container->get('auth')->getCurrentUser();
-    }
-}
-```
-
-Now any controller extending `AuthenticatedController` automatically gets authentication and audit logging:
+Apply a route prefix to all methods in a controller:
 
 ```php
 <?php
 namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\CacheAspect;
+use Quellabs\Canvas\Annotations\RoutePrefix;
+use Quellabs\Canvas\Controllers\BaseController;
 
-class UserController extends AuthenticatedController {
+/**
+ * @RoutePrefix("/api/v1")
+ */
+class ApiController extends BaseController {
     
     /**
      * @Route("/users")
-     * @InterceptWith(CacheAspect::class, ttl=300)
      */
-    public function index() {
-        // Automatically gets: RequireAuth + AuditLog + Cache
-        $users = $this->em->findBy(User::class, ['active' => true]);
-        return $this->render('users/index.tpl', compact('users'));
+    public function getUsers() {
+        // Actual route: /api/v1/users
+        return $this->json(['users' => []]);
     }
     
     /**
      * @Route("/users/{id:int}")
      */
-    public function show(int $id) {
-        // Automatically gets: RequireAuth + AuditLog (inherited from parent)
-        $user = $this->em->find(User::class, $id);
-        return $this->render('users/show.tpl', compact('user'));
+    public function getUser(int $id) {
+        // Actual route: /api/v1/users/{id}
+        return $this->json(['user' => $this->findUser($id)]);
+    }
+    
+    /**
+     * @Route("/posts")
+     */
+    public function getPosts() {
+        // Actual route: /api/v1/posts
+        return $this->json(['posts' => []]);
     }
 }
 ```
 
-### Multi-Level Inheritance
+#### Route Prefix Inheritance
 
-Annotation inheritance works through multiple levels of inheritance, allowing you to create sophisticated controller hierarchies:
+Route prefixes are inherited from parent classes, allowing you to build hierarchical URL structures:
 
 ```php
 <?php
 namespace App\Controllers\Base;
 
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\AuditLogAspect;
+use Quellabs\Canvas\Annotations\RoutePrefix;
+use Quellabs\Canvas\Controllers\BaseController;
 
 /**
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(AuditLogAspect::class)
+ * @RoutePrefix("/admin")
  */
-abstract class AuthenticatedController extends BaseController {
-    // Base authenticated functionality
+abstract class AdminController extends BaseController {
+    // Base admin functionality
 }
 
 /**
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(RateLimitAspect::class, limit=100)
+ * @RoutePrefix("/api")
  */
-abstract class AdminController extends AuthenticatedController {
-    // Admin-specific functionality
-}
-
-/**
- * @InterceptWith(RequireSuperAdminAspect::class)
- * @InterceptWith(SecurityAuditAspect::class)
- */
-abstract class SuperAdminController extends AdminController {
-    // Super admin functionality
+abstract class AdminApiController extends AdminController {
+    // This controller will use the /api prefix, not /admin/api
+    // Child classes inherit the most specific @RoutePrefix annotation
 }
 ```
 
-A controller extending `SuperAdminController` automatically inherits all aspects from the entire chain:
+When you extend these controllers, you inherit the route prefix from the immediate parent class:
 
 ```php
 <?php
 namespace App\Controllers\Admin;
 
 use Quellabs\Canvas\Annotations\Route;
-use App\Controllers\Base\SuperAdminController;
-
-class SystemController extends SuperAdminController {
-    
-    /**
-     * @Route("/admin/system/settings")
-     */
-    public function settings() {
-        // Automatically gets all inherited aspects:
-        // - RequireAuthAspect (from AuthenticatedController)
-        // - AuditLogAspect (from AuthenticatedController)  
-        // - RequireAdminAspect (from AdminController)
-        // - RateLimitAspect (from AdminController)
-        // - RequireSuperAdminAspect (from SuperAdminController)
-        // - SecurityAuditAspect (from SuperAdminController)
-        
-        return $this->render('admin/system/settings.tpl');
-    }
-}
-```
-
-### Combining Inherited and Local Annotations
-
-Child classes can add their own class-level annotations that combine with inherited ones:
-
-```php
-<?php
-namespace App\Controllers\Api;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\ContentNegotiationAspect;
-use App\Aspects\CorsAspect;
-
-/**
- * @InterceptWith(ContentNegotiationAspect::class)
- * @InterceptWith(CorsAspect::class)
- */
-class ApiController extends AuthenticatedController {
-    
-    /**
-     * @Route("/api/users")
-     */
-    public function users() {
-        // Gets: RequireAuth + AuditLog (inherited) + ContentNegotiation + Cors (local)
-        $users = $this->em->findBy(User::class, []);
-        return $this->json($users);
-    }
-}
-```
-
-### Method-Level Annotation Inheritance
-
-Method-level annotations are combined with all inherited class-level annotations:
-
-```php
-<?php
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\CacheAspect;
-use App\Aspects\RateLimitAspect;
-
-class ReportController extends AuthenticatedController {
-    
-    /**
-     * @Route("/reports/dashboard")
-     * @InterceptWith(CacheAspect::class, ttl=600)
-     */
-    public function dashboard() {
-        // Execution order:
-        // 1. RequireAuthAspect (inherited from AuthenticatedController)
-        // 2. AuditLogAspect (inherited from AuthenticatedController)
-        // 3. CacheAspect (method-level)
-        
-        return $this->generateDashboard();
-    }
-    
-    /**
-     * @Route("/reports/export/{format:alpha}")
-     * @InterceptWith(RateLimitAspect::class, limit=5, window=3600)
-     * @InterceptWith(CacheAspect::class, ttl=1800)
-     */
-    public function export(string $format) {
-        // Gets inherited aspects plus method-specific rate limiting and caching
-        return $this->exportReport($format);
-    }
-}
-```
-
-### Practical Examples
-
-#### Building a RESTful API Hierarchy
-
-```php
-<?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Aspects\ContentNegotiationAspect;
-use App\Aspects\CorsAspect;
-use App\Aspects\RateLimitAspect;
-
-/**
- * Base for all API controllers
- * @InterceptWith(ContentNegotiationAspect::class)
- * @InterceptWith(CorsAspect::class)
- * @InterceptWith(RateLimitAspect::class, limit=1000)
- */
-abstract class ApiController extends BaseController {
-    
-    protected function jsonResponse($data, int $status = 200) {
-        return $this->json($data, $status);
-    }
-}
-
-/**
- * Base for authenticated API endpoints
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(JwtValidationAspect::class)
- */
-abstract class AuthenticatedApiController extends ApiController {
-    // Inherits: ContentNegotiation + Cors + RateLimit + RequireAuth + JwtValidation
-}
-
-/**
- * Base for admin API endpoints
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(SecurityAuditAspect::class)
- */
-abstract class AdminApiController extends AuthenticatedApiController {
-    // Inherits all above plus: RequireAdmin + SecurityAudit
-}
-```
-
-Now implementing specific API controllers is clean and focused:
-
-```php
-<?php
-namespace App\Controllers\Api;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
 use App\Controllers\Base\AdminApiController;
-use App\Aspects\CacheAspect;
 
-class UserApiController extends AdminApiController {
-    
-    /**
-     * @Route("/api/admin/users", methods={"GET"})
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     */
-    public function list() {
-        // Automatically gets all inherited aspects plus caching
-        $users = $this->em->findBy(User::class, []);
-        return $this->jsonResponse($users);
-    }
-    
-    /**
-     * @Route("/api/admin/users", methods={"POST"})
-     * @InterceptWith(ValidateJsonAspect::class, schema="user-create")
-     */
-    public function create() {
-        // Gets inherited aspects plus JSON validation
-        $data = $this->getJsonRequest();
-        $user = $this->createUser($data);
-        return $this->jsonResponse($user, 201);
-    }
-}
-```
-
-### Annotation Execution Order
-
-When multiple annotation sources are present, Canvas executes them in a specific order to ensure predictable behavior:
-
-1. **Inherited class-level annotations** (from parent to child in inheritance order)
-2. **Local class-level annotations** (defined on the current class)
-3. **Method-level annotations** (defined on the specific method)
-
-```php
-<?php
-// Parent class annotations execute first
-/**
- * @InterceptWith(ParentAspect1::class)
- * @InterceptWith(ParentAspect2::class)
- */
-abstract class ParentController extends BaseController {}
-
-// Child class annotations execute second
-/**
- * @InterceptWith(ChildAspect1::class)
- * @InterceptWith(ChildAspect2::class)  
- */
-class ChildController extends ParentController {
-    
-    /**
-     * @Route("/example")
-     * @InterceptWith(MethodAspect1::class)
-     * @InterceptWith(MethodAspect2::class)
-     */
-    public function example() {
-        // Execution order:
-        // 1. ParentAspect1, ParentAspect2 (inherited)
-        // 2. ChildAspect1, ChildAspect2 (local class)  
-        // 3. MethodAspect1, MethodAspect2 (method)
-    }
-}
-```
-
-### Benefits of Annotation Inheritance
-
-**DRY Principle**: Define common aspects once in base controllers rather than repeating them across multiple controllers.
-
-**Maintainable Architecture**: Change security or logging policies in one place and have them apply across entire controller hierarchies.
-
-**Flexible Composition**: Mix and match inherited aspects with method-specific aspects for precise control.
-
-**Clear Separation of Concerns**: Base controllers handle crosscutting concerns while derived controllers focus on business logic.
-
-**Simplified Testing**: Test aspects once in base controllers rather than in every implementation.
-
-## Aspect-Oriented Programming in Detail
-
-Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Canvas supports four types of aspects that execute at different stages of the request lifecycle.
-
-### Creating Aspects
-
-Aspects implement one of three interfaces depending on when they should execute:
-
-```php
-<?php
-namespace App\Aspects;
-
-use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
-use Quellabs\Canvas\AOP\MethodContext;
-use Symfony\Component\HttpFoundation\Response;
-
-class RequireAuthAspect implements BeforeAspect {
-    public function __construct(private AuthService $auth) {}
-    
-    public function before(MethodContext $context): ?Response {
-        if (!$this->auth->isAuthenticated()) {
-            return new RedirectResponse('/login');
-        }
-        
-        return null; // Continue execution
-    }
-}
-```
-
-### Aspect Types
-
-**Before Aspects** - Execute before the method, can stop execution:
-```php
-class RateLimitAspect implements BeforeAspect {
-    public function before(MethodContext $context): ?Response {
-        if ($this->rateLimiter->isExceeded()) {
-            return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
-        }
-        
-        return null;
-    }
-}
-```
-
-**After Aspects** - Execute after the method, can modify the response:
-```php
-class AuditLogAspect implements AfterAspect {
-    public function after(MethodContext $context, Response $response): void {
-        $this->logger->info('Method executed', [
-            'controller' => get_class($context->getTarget()),
-            'method' => $context->getMethodName(),
-            'user' => $this->auth->getCurrentUser()?->id
-        ]);
-    }
-}
-```
-
-**Around Aspects** - Wrap the entire method execution:
-```php
-class TransactionAspect implements AroundAspect {
-    public function around(MethodContext $context, callable $proceed): mixed {
-        $this->db->beginTransaction();
-        
-        try {
-            $result = $proceed();
-            $this->db->commit();
-            return $result;
-        } catch (\Exception $e) {
-            $this->db->rollback();
-            throw $e;
-        }
-    }
-}
-```
-
-### Execution Order
-
-Aspects execute in a specific order to ensure proper request processing:
-
-1. **Request Aspects** - Transform request data and add context
-2. **Before Aspects** - Handle authentication, validation, rate limiting
-3. **Around Aspects** - Wrap method execution with caching, transactions
-4. **After Aspects** - Log results, modify responses
-
-### Applying Aspects
-
-**Class-level aspects** apply to all methods:
-```php
-/**
- * @InterceptWith(RequireAuthAspect::class)
- */
-class UserController extends BaseController {
-    // All methods require authentication
-}
-```
-
-**Method-level aspects** apply to specific methods:
-```php
-class UserController extends BaseController {
+class UserManagementController extends AdminApiController {
     
     /**
      * @Route("/users")
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     * @InterceptWith(RateLimitAspect::class, limit=100)
      */
-    public function index() {
-        // Method has caching and rate limiting
+    public function listUsers() {
+        // Actual route: /api/users
+        // Uses the @RoutePrefix("/api") from AdminApiController
+        return $this->json(['users' => $this->getAllUsers()]);
+    }
+    
+    /**
+     * @Route("/users/{id:int}")
+     */
+    public function getUser(int $id) {
+        // Actual route: /api/users/{id}
+        return $this->json(['user' => $this->findUser($id)]);
     }
 }
 ```
 
-### Aspect Parameters
+#### Practical Examples
 
-Pass configuration to aspects through annotation parameters:
+**Versioned API Structure:**
 
 ```php
+<?php
+// Base API controller with version prefix
 /**
- * @InterceptWith(CacheAspect::class, ttl=3600, tags={"reports", "admin"})
- * @InterceptWith(RateLimitAspect::class, limit=10, window=60)
+ * @RoutePrefix("/api/v1")
  */
-public function heavyOperation() {
-    // Cached for 1 hour with tags, rate limited to 10/minute
+abstract class ApiV1Controller extends BaseController {}
+
+/**
+ * @RoutePrefix("/api/v2") 
+ */
+abstract class ApiV2Controller extends BaseController {}
+
+// Resource-specific controllers
+class UserApiV1Controller extends ApiV1Controller {
+    /**
+     * @Route("/users")  // Results in: /api/v1/users
+     */
+    public function getUsers() {}
+}
+
+class UserApiV2Controller extends ApiV2Controller {
+    /**
+     * @Route("/users")  // Results in: /api/v2/users
+     */
+    public function getUsers() {}
 }
 ```
 
-The aspect receives these as constructor parameters:
-
-```php
-class CacheAspect implements AroundAspect {
-    public function __construct(
-        private CacheInterface $cache,
-        private int $ttl = 300,
-        private array $tags = []
-    ) {}
-}
-```
-
-## Configuration
-
-Canvas follows convention-over-configuration. Create config files only when you need them:
-
-```php
-<?php
-// src/config/database.php
-
-return [
-    'driver'   => 'mysql',
-    'host'     => getenv('DB_HOST') ?: 'localhost',
-    'database' => getenv('DB_NAME') ?: 'canvas',
-    'username' => getenv('DB_USER') ?: 'root',
-    'password' => getenv('DB_PASS') ?: '',
-];
-```
-
-Register it in `composer.json`:
-
-```json
-{
-  "extra": {
-    "discover": {
-      "canvas": {
-        "providers": [
-          {
-            "class": "Quellabs\\Canvas\\Discover\\DatabaseServiceProvider",
-            "config": "src/config/database.php"
-          }
-        ]
-      }
-    }
-  }
-}
-```
-
-## CLI Commands
-
-Canvas includes a command-line interface called Sculpt for managing your application:
-
-### Listing Routes
-
-View all registered routes in your application:
-
-```bash
-./vendor/bin/sculpt route:list
-```
-
-This displays a formatted table showing your routes, controllers, and applied aspects:
-
-```
-+-------+---------------------------------------+---------+
-| Route | Controller                            | Aspects |
-+-------+---------------------------------------+---------+
-| /henk | Quellabs\Canvas\Controller\Test@index | [XYZ]   |
-+-------+---------------------------------------+---------+
-```
-
-Filter routes by controller to focus on specific functionality:
-
-```bash
-./vendor/bin/sculpt route:list --controller=UserController
-```
-
-### Route Matching
-
-Test which controller and method handles a specific URL path:
-
-```bash
-./vendor/bin/sculpt route:match /url/path/10
-```
-
-You can also specify the HTTP method to test method-specific routing:
-
-```bash
-./vendor/bin/sculpt route:match GET /url/path/10
-```
-
-This shows you exactly which controller method will be called for a given URL and HTTP method, helping you:
-- Debug routing issues
-- Verify parameter extraction and validation
-- Test wildcard route matching
-- Understand route precedence and matching order
-- Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
-
-### Route Cache Management
-
-Canvas provides commands to manage route caching for optimal performance:
-
-#### Clear Route Cache
-
-Clear the compiled route cache to force route re-discovery:
-
-```bash
-./vendor/bin/sculpt route:clear_cache
-```
-
-This is useful when:
-- You've added new routes that aren't being recognized
-- Route changes aren't being reflected in your application
-- You're experiencing routing issues after deploying changes
-- You want to force a fresh route compilation
-
-#### Debug Mode Configuration
-
-For development environments, you can disable route caching entirely by setting debug mode in your application configuration:
+**RESTful Resource Structure:**
 
 ```php
 <?php
-// config/app.php
-
-return [
-    'debug_mode' => true,  // Disables route caching
-    // other configuration options...
-];
+/**
+ * @RoutePrefix("/api/v1/blog")
+ */
+class BlogController extends BaseController {
+    
+    /**
+     * @Route("/posts")                    // GET /api/v1/blog/posts
+     */
+    public function getPosts() {}
+    
+    /**
+     * @Route("/posts/{id:int}")           // GET /api/v1/blog/posts/123
+     */
+    public function getPost(int $id) {}
+    
+    /**
+     * @Route("/posts/{id:int}/comments")  // GET /api/v1/blog/posts/123/comments
+     */
+    public function getPostComments(int $id) {}
+    
+    /**
+     * @Route("/categories")               // GET /api/v1/blog/categories
+     */
+    public function getCategories() {}
+}
 ```
 
-When `debug_mode` is enabled:
-- Routes are discovered and compiled on every request
-- Changes to route annotations are immediately reflected
-- No need to manually clear route cache during development
-- Performance is slightly reduced but development experience is improved
+#### Benefits of Route Prefixes
 
-**Note**: Always ensure `debug_mode` is set to `false` in production environments to maintain optimal performance with route caching enabled.
+**Organization**: Group related routes under logical URL segments without repeating prefixes in every route definition.
 
-## Performance
+**Maintainability**: Change the prefix structure for entire controller hierarchies in one place.
 
-Canvas is built for performance:
+**Inheritance**: Route prefixes are inherited from parent classes, with child classes using the most specific prefix defined in their inheritance chain.
 
-- **Lazy Loading**: Services instantiated only when needed
-- **Route Caching**: Annotation routes cached in production
-- **Efficient Route Matching**: Optimized wildcard and validation patterns
-- **ObjectQuel Optimization**: Built-in query caching and optimization
-- **Minimal Reflection**: Efficient autowiring with caching
-- **Zero Configuration Overhead**: Sensible defaults eliminate config parsing
-- **Efficient AOP**: Aspects only applied when methods are called, no global overhead
+**DRY Principle**: Eliminate repetition of common URL segments across multiple route definitions.
 
-## Why Canvas?
-
-**For Legacy Applications**: Drop into any existing PHP codebase without breaking anything. Start using modern patterns immediately while keeping everything working.
-
-**For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, dependency injection, and AOP work out of the box.
-
-**For Clean Code**: Annotation-based routes and aspects keep logic close to implementation. ObjectQuel queries read like natural language.
-
-**For Flexibility**: Contextual containers and composable aspects let you use different implementations without complex configuration.
-
-**For Growth**: Modular architecture scales from simple websites to complex applications with enterprise-grade crosscutting concerns.
-
-## Contributing
-
-We welcome contributions! Here's how you can help improve Canvas:
-
-### Reporting Issues
-
-- Use GitHub issues for bug reports and feature requests
-- Include minimal reproduction cases
-- Specify Canvas version and PHP version
-
-### Contributing Code
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Follow PSR-12 coding standards
-4. Add tests for new functionality
-5. Update documentation for new features
-6. Submit a pull request
-
-### Contributing Documentation
-
-Documentation improvements are always welcome:
-- Fix typos and improve clarity
-- Add more examples and use cases
-- Improve code comments
-- Create tutorials and guides
-
-## License
-
-Canvas is open-sourced software licensed under the [MIT license](LICENSE).
+**Versioning**: Easily create versioned APIs by using different prefix hierarchies for different API versions.
