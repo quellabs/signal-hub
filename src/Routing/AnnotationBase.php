@@ -27,6 +27,7 @@
 		 * @return string The route prefix string, or empty string if no prefix is found
 		 */
 		protected function getRoutePrefix(string|object $class): string {
+			// This variable holds all sections
 			$result = [];
 			
 			// Fetch the inheritance chain
