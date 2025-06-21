@@ -20,6 +20,12 @@
 		private AnnotationReader $annotationsReader;
 		
 		/**
+		 * Cache for repeated route fetching
+		 * @var array|null
+		 */
+		private ?array $cache = null;
+		
+		/**
 		 * AnnotationLister constructor
 		 */
 		public function __construct() {
@@ -33,6 +39,11 @@
 		 * @return array Array of route configurations with controller, method, route, and aspects info
 		 */
 		public function getRoutes(ConfigurationManager $config): array {
+			// Get from cache if possible
+			if (is_array($this->cache)) {
+				return $this->cache;
+			}
+			
 			// Initialize the class discovery utility
 			$discover = new Discover();
 			
@@ -107,8 +118,8 @@
 				return $a['method'] <=> $b['method'];
 			});
 			
-			// Filter the routes if needed, then return
-			return $this->filterRoutes($result, $config);
+			// Filter the routes if needed, then cache and return
+			return $this->cache = $this->filterRoutes($result, $config);
 		}
 		
 		/**
