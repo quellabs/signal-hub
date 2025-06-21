@@ -46,7 +46,12 @@
 					}
 					
 					// Add prefix to the list
-					$result[] = $annotations[array_key_first($annotations)]->getRoutePrefix();
+					$routePrefix = $annotations[array_key_first($annotations)]->getRoutePrefix();
+					
+					// Only add prefix if it's not empty
+					if ($routePrefix !== '') {
+						$result[] = $routePrefix;
+					}
 				} catch (ParserException $e) {
 				}
 			}
