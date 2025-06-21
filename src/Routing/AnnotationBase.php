@@ -48,7 +48,6 @@
 					// Add prefix to the list
 					$result[] = $annotations[array_key_first($annotations)]->getRoutePrefix();
 				} catch (ParserException $e) {
-					return "/";
 				}
 			}
 			
