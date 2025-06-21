@@ -52,7 +52,7 @@
 			}
 			
 			// Return the result
-			return implode("/", $result);
+			return implode("/", $result) . "/";
 		}
 		
 		/**
