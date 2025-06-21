@@ -788,39 +788,18 @@ class ApiController extends BaseController {
 
 #### Route Prefix Inheritance
 
-Route prefixes are inherited from parent classes, allowing you to build hierarchical URL structures:
+Route prefixes are inherited from the immediate parent classes.
 
 ```php
 <?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\RoutePrefix;
-use Quellabs\Canvas\Controllers\BaseController;
-
-/**
- * @RoutePrefix("/admin")
- */
-abstract class AdminController extends BaseController {
-    // Base admin functionality
-}
+use Quellabs\Canvas\Annotations\Route;
 
 /**
  * @RoutePrefix("/api")
  */
-abstract class AdminApiController extends AdminController {
-    // This controller will use the /api prefix, not /admin/api
-    // Child classes inherit the most specific @RoutePrefix annotation
+abstract class AdminApiController extends BaseController {
+    // Base admin functionality
 }
-```
-
-When you extend these controllers, you inherit the route prefix from the immediate parent class:
-
-```php
-<?php
-namespace App\Controllers\Admin;
-
-use Quellabs\Canvas\Annotations\Route;
-use App\Controllers\Base\AdminApiController;
 
 class UserManagementController extends AdminApiController {
     
@@ -843,77 +822,11 @@ class UserManagementController extends AdminApiController {
 }
 ```
 
-#### Practical Examples
-
-**Versioned API Structure:**
-
-```php
-<?php
-// Base API controller with version prefix
-/**
- * @RoutePrefix("/api/v1")
- */
-abstract class ApiV1Controller extends BaseController {}
-
-/**
- * @RoutePrefix("/api/v2") 
- */
-abstract class ApiV2Controller extends BaseController {}
-
-// Resource-specific controllers
-class UserApiV1Controller extends ApiV1Controller {
-    /**
-     * @Route("/users")  // Results in: /api/v1/users
-     */
-    public function getUsers() {}
-}
-
-class UserApiV2Controller extends ApiV2Controller {
-    /**
-     * @Route("/users")  // Results in: /api/v2/users
-     */
-    public function getUsers() {}
-}
-```
-
-**RESTful Resource Structure:**
-
-```php
-<?php
-/**
- * @RoutePrefix("/api/v1/blog")
- */
-class BlogController extends BaseController {
-    
-    /**
-     * @Route("/posts")                    // GET /api/v1/blog/posts
-     */
-    public function getPosts() {}
-    
-    /**
-     * @Route("/posts/{id:int}")           // GET /api/v1/blog/posts/123
-     */
-    public function getPost(int $id) {}
-    
-    /**
-     * @Route("/posts/{id:int}/comments")  // GET /api/v1/blog/posts/123/comments
-     */
-    public function getPostComments(int $id) {}
-    
-    /**
-     * @Route("/categories")               // GET /api/v1/blog/categories
-     */
-    public function getCategories() {}
-}
-```
-
 #### Benefits of Route Prefixes
 
 **Organization**: Group related routes under logical URL segments without repeating prefixes in every route definition.
 
 **Maintainability**: Change the prefix structure for entire controller hierarchies in one place.
-
-**Inheritance**: Route prefixes are inherited from parent classes, with child classes using the most specific prefix defined in their inheritance chain.
 
 **DRY Principle**: Eliminate repetition of common URL segments across multiple route definitions.
 
