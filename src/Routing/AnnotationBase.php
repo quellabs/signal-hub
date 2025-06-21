@@ -37,7 +37,7 @@
 				try {
 					// Use the annotations reader to search for RoutePrefix annotations on the class
 					// This returns an array of all RoutePrefix annotations found on the class
-					$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class);
+					$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class, false);
 					
 					// Return the prefix if found
 					if (empty($annotations)) {
