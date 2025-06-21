@@ -788,7 +788,7 @@ class ApiController extends BaseController {
 
 #### Route Prefix Inheritance
 
-Route prefixes are inherited from the immediate parent classes.
+Route prefixes are inherited from the entire inheritance chain.
 
 ```php
 <?php
