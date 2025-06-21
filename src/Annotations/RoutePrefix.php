@@ -44,6 +44,6 @@
 		 * @return string The route prefix
 		 */
 		public function getRoutePrefix(): string {
-			return "/" . trim($this->parameters["value"], '/') . "/";
+			return trim($this->parameters["value"], '/ ');
 		}
 	}

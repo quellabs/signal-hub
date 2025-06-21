@@ -2,21 +2,18 @@
 	
 	namespace Quellabs\Canvas\Routing;
 	
-	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\AnnotationReader\Exception\ParserException;
-	use Quellabs\Canvas\Annotations\RoutePrefix;
 	use Quellabs\Canvas\Kernel;
 	use ReflectionException;
 	use Quellabs\Canvas\Annotations\Route;
 	use Symfony\Component\HttpFoundation\Request;
 	
-	class AnnotationResolver {
+	class AnnotationResolver extends AnnotationBase {
 		
 		/**
 		 * @var Kernel Kernel object, used among other things for service discovery
 		 */
 		private Kernel $kernel;
-		private AnnotationReader $annotationsReader;
 		private bool $debugMode;
 		private bool $matchTrailingSlashes;
 		private string $cacheDirectory;
@@ -27,8 +24,9 @@
 		 * @param Kernel $kernel
 		 */
 		public function __construct(Kernel $kernel) {
+			parent::__construct($kernel->getAnnotationsReader());
+
 			$this->kernel = $kernel;
-			$this->annotationsReader = $kernel->getAnnotationsReader();
 			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
 			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
@@ -122,7 +120,7 @@
 					$routePath = $routeAnnotation->getRoute();
 					
 					// Combine with prefix
-					$completeRoutePath = $routePrefix . ltrim($routePath, "/");
+					$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
 					
 					// Calculate priority for route matching order
 					// Routes with more specific patterns typically get higher priority
@@ -792,27 +790,5 @@
 			
 			// And return the found routes
 			return $result;
-		}
-		
-		/**
-		 * Retrieves the route prefix annotation from a given class
-		 * @param string|object $class The class object to examine for route prefix annotations
-		 * @return string The route prefix string, or empty string if no prefix is found
-		 */
-		protected function getRoutePrefix(string|object $class): string {
-			try {
-				// Use the annotations reader to search for RoutePrefix annotations on the class
-				// This returns an array of all RoutePrefix annotations found on the class
-				$annotations = $this->annotationsReader->getClassAnnotations($class, RoutePrefix::class);
-				
-				// Return the prefix if found
-				if (empty($annotations)) {
-					return "/";
-				}
-				
-				return $annotations[array_key_first($annotations)]->getRoutePrefix();
-			} catch (ParserException $e) {
-				return "/";
-			}
 		}
 	}

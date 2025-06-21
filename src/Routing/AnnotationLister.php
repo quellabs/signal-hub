@@ -6,18 +6,11 @@
 	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\Annotations\Route;
-	use Quellabs\Canvas\Annotations\RoutePrefix;
 	use Quellabs\Canvas\AOP\AspectResolver;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\ConfigurationManager;
 	
-	class AnnotationLister {
-		
-		/**
-		 * Annotation reader class
-		 * @var AnnotationReader
-		 */
-		private AnnotationReader $annotationsReader;
+	class AnnotationLister extends AnnotationBase {
 		
 		/**
 		 * Cache for repeated route fetching
@@ -34,7 +27,7 @@
 		 */
 		public function __construct() {
 			$annotationsReaderConfig = new Configuration();
-			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
+			parent::__construct(new AnnotationReader($annotationsReaderConfig));
 		}
 		
 		/**
@@ -82,7 +75,7 @@
 							$routePath = $routeAnnotation->getRoute();
 							
 							// Combine route with prefix
-							$completeRoutePath = $routePrefix . ltrim($routePath, "/");
+							$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
 							
 							// Create the record
 							$record = [
@@ -203,27 +196,5 @@
 			
 			// Extract the actual interceptor class names
 			return array_map(function ($e) { return $e['class']; }, $aspectsClass);
-		}
-		
-		/**
-		 * Retrieves the route prefix annotation from a given class
-		 * @param string|object $class The class object to examine for route prefix annotations
-		 * @return string The route prefix string, or empty string if no prefix is found
-		 */
-		protected function getRoutePrefix(string|object $class): string {
-			try {
-				// Use the annotations reader to search for RoutePrefix annotations on the class
-				// This returns an array of all RoutePrefix annotations found on the class
-				$annotations = $this->annotationsReader->getClassAnnotations($class, RoutePrefix::class);
-				
-				// Return the prefix if found
-				if (empty($annotations)) {
-					return "/";
-				}
-				
-				return $annotations[array_key_first($annotations)]->getRoutePrefix();
-			} catch (ParserException $e) {
-				return "/";
-			}
 		}
 	}
