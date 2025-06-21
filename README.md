@@ -793,6 +793,7 @@ Route prefixes are inherited from the entire inheritance chain.
 ```php
 <?php
 use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\RoutePrefix;
 
 /**
  * @RoutePrefix("/api")
