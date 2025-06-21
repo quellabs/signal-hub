@@ -50,6 +50,11 @@
 				} catch (ParserException $e) {
 				}
 			}
+
+			// If no route prefixes were found, return an empty string
+			if (empty($result)) {
+				return "";
+			}
 			
 			// Return the result
 			return implode("/", $result) . "/";
