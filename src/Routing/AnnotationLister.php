@@ -21,9 +21,13 @@
 		
 		/**
 		 * Cache for repeated route fetching
-		 * @var array|null
 		 */
 		private ?array $cache = null;
+		
+		/**
+		 * Cache for route name lookups to avoid repeated searches
+		 */
+		private array $routeNameCache = [];
 		
 		/**
 		 * AnnotationLister constructor
@@ -38,7 +42,7 @@
 		 * by scanning controller classes and their annotated methods
 		 * @return array Array of route configurations with controller, method, route, and aspects info
 		 */
-		public function getRoutes(ConfigurationManager $config): array {
+		public function getRoutes(?ConfigurationManager $config = null): array {
 			// Get from cache if possible
 			if (is_array($this->cache)) {
 				return $this->cache;
@@ -80,17 +84,26 @@
 							// Combine route with prefix
 							$completeRoutePath = $routePrefix . ltrim($routePath, "/");
 							
-							// Build complete route configuration including metadata
-							$result[] = [
-								'http_methods' => $routeAnnotation->getMethods(),
-								'controller'   => $controller,                // Controller class name
-								'method'       => $method->getName(),         // Method name that handles this route
-								'route'        => $completeRoutePath,         // Route string
-								'aspects'      => $this->getAspectsOfMethod(  // Any interceptors/middleware for this method
+							// Create the record
+							$record = [
+								'name'         => $routeAnnotation->getName(),    // The name of the route (can be null)
+								'http_methods' => $routeAnnotation->getMethods(), // A list of http methods
+								'controller'   => $controller,                    // Controller class name
+								'method'       => $method->getName(),             // Method name that handles this route
+								'route'        => $completeRoutePath,             // Route string
+								'aspects'      => $this->getAspectsOfMethod(      // Any interceptors/middleware for this method
 									$method->getDeclaringClass()->getName(),
 									$method->getName()
 								),
 							];
+							
+							// Add to named cache
+							if ($routeAnnotation->getName() !== null) {
+								$this->routeNameCache[$routeAnnotation->getName()] = $record;
+							}
+							
+							// Build complete route configuration including metadata
+							$result[] = $record;
 						}
 					} catch (ParserException $e) {
 					}
@@ -118,8 +131,39 @@
 				return $a['method'] <=> $b['method'];
 			});
 			
+			// Store the list in cache
+			$this->cache = $result;
+			
 			// Filter the routes if needed, then cache and return
-			return $this->cache = $this->filterRoutes($result, $config);
+			return $config ? $this->filterRoutes($result, $config) : $result;
+		}
+		
+		/**
+		 * Check if a route with the given name exists in the route collection.
+		 * Uses the pre-built route name cache for O(1) lookup performance.
+		 * @param string $name The name of the route to search for
+		 * @return bool True if the route exists, false otherwise
+		 */
+		public function routeExists(string $name): bool {
+			// Ensure routes are discovered and the cache is populated
+			$this->getRoutes();
+			
+			// Use the name cache built during route discovery for instant lookup
+			return isset($this->routeNameCache[$name]);
+		}
+		
+		/**
+		 * Retrieve a route by its name from the route collection.
+		 * Uses the pre-built route name cache for O(1) lookup performance.
+		 * @param string $name The name of the route to retrieve
+		 * @return array|null The route array if found, null if not found
+		 */
+		public function getRouteByName(string $name): ?array {
+			// Ensure routes are discovered and the cache is populated
+			$this->getRoutes();
+			
+			// Return route from name cache (null if not found)
+			return $this->routeNameCache[$name] ?? null;
 		}
 		
 		/**
