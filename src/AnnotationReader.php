@@ -39,41 +39,27 @@
 		 * Get class annotations including inherited ones
 		 * @param mixed $class The class object or class name to analyze
 		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
-		 * @param bool $includeInherited Whether to include parent class annotations (default: true)
-		 * @return array
+		 * @return AnnotationCollection
 		 * @throws ParserException
 		 */
-		public function getClassAnnotations(mixed $class, ?string $annotationClass = null, bool $includeInherited = true): array {
+		public function getClassAnnotations(mixed $class, ?string $annotationClass = null): AnnotationCollection {
 			try {
-				$reflection = new \ReflectionClass($class);
-				
-				// If not including inherited, just use the single class, otherwise get full chain
-				if ($includeInherited) {
-					$inheritanceChain = $this->getInheritanceChain($reflection);
-				} else {
-					$inheritanceChain = [$reflection];
-				}
-				
 				// Process from parent to child (so child annotations can override)
-				$allAnnotations = [];
+				$annotations = $this->getAllObjectAnnotations($class);
 				
-				foreach ($inheritanceChain as $classInChain) {
-					$annotations = $this->getAllObjectAnnotations($classInChain->getName());
-					
-					if (!empty($annotations['class'])) {
-						// Merge annotations (child overrides parent)
-						$allAnnotations = $allAnnotations->merge($annotations['class']);
-					}
+				// Return an empty collection if no annotations found
+				if (empty($annotations['class'])) {
+					return new AnnotationCollection();
 				}
 				
 				// Apply annotation class filter if provided
 				if ($annotationClass !== null) {
-					return array_filter($allAnnotations, function ($item) use ($annotationClass) {
+					return $annotations['class']->filter(function ($item) use ($annotationClass) {
 						return $item instanceof $annotationClass;
 					});
 				}
 				
-				return $allAnnotations;
+				return new AnnotationCollection($annotations['class']);
 			} catch (\ReflectionException $e) {
 				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
@@ -98,21 +84,21 @@
 		 * @param mixed $class            The class object or class name to analyze
 		 * @param string $methodName      The name of the method whose annotations to retrieve
 		 * @param string|null $annotationClass Optional filter to return only annotations of a specific class
-		 * @return array                  Array of parsed annotations for the specified method
+		 * @return AnnotationCollection    Array of parsed annotations for the specified method
 		 * @throws ParserException        If there's an error parsing the annotations
 		 */
-		public function getMethodAnnotations(mixed $class, string $methodName, ?string $annotationClass=null): array {
+		public function getMethodAnnotations(mixed $class, string $methodName, ?string $annotationClass=null): AnnotationCollection {
 			// Get all annotations for the method
 			$annotations = $this->getAllObjectAnnotations($class);
 			
 			// If no annotations found, return an empty array
 			if (!isset($annotations['methods'][$methodName])) {
-				return [];
+				return new AnnotationCollection();
 			}
 			
 			// If an annotation class filter is provided, only return annotations of that type
 			if ($annotationClass !== null) {
-				return array_filter($annotations['methods'][$methodName], function ($item) use ($annotationClass) {
+				return $annotations['methods'][$methodName]->filter(function ($item) use ($annotationClass) {
 					// Filter the method's annotations to include only instances of the specified class
 					return $item instanceof $annotationClass;
 				});
@@ -141,28 +127,28 @@
 		 * Takes a property's docComment and parses it
 		 * @param mixed $class
 		 * @param string $propertyName
-		 * @return array
+		 * @return AnnotationCollection
 		 * @throws ParserException
 		 */
-		public function getPropertyAnnotations(mixed $class, string $propertyName, ?string $annotationClass=null): array {
+		public function getPropertyAnnotations(mixed $class, string $propertyName, ?string $annotationClass=null): AnnotationCollection {
 			// Get all annotations for the property
 			$annotations = $this->getAllObjectAnnotations($class);
 			
 			// If no annotations found, return an empty array
 			if (!isset($annotations['properties'][$propertyName])) {
-				return [];
+				return new AnnotationCollection();
 			}
 			
 			// If an annotation class filter is provided, only return annotations of that type
 			if ($annotationClass !== null) {
-				return array_filter($annotations['properties'][$propertyName], function ($item) use ($annotationClass) {
+				return $annotations['properties'][$propertyName]->filter(function ($item) use ($annotationClass) {
 					// Filter the method's annotations to include only instances of the specified class
 					return $item instanceof $annotationClass;
 				});
 			}
 			
 			// Return all annotations for the specified method
-			return $annotations["properties"][$propertyName] ?? [];
+			return $annotations["properties"][$propertyName];
 		}
 		
 		/**
