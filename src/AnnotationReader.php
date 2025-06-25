@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\AnnotationReader;
 	
+	use Quellabs\AnnotationReader\Collection\AnnotationCollection;
 	use Quellabs\AnnotationReader\Exception\LexerException;
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\AnnotationReader\LexerParser\Lexer;
@@ -392,10 +393,10 @@
 		 * @param string $string The docblock to parse
 		 * @param array $imports Map of aliases to fully qualified class names
 		 * @param string|null $currentNamespace Namespace of the file
-		 * @return array
+		 * @return AnnotationCollection
 		 * @throws ParserException
 		 */
-		protected function getAnnotationsWithImports(string $string, array $imports, ?string $currentNamespace): array {
+		protected function getAnnotationsWithImports(string $string, array $imports, ?string $currentNamespace): AnnotationCollection {
 			try {
 				$lexer = new Lexer($string);
 				$parser = new Parser($lexer, $this->configuration, $imports, $currentNamespace);
