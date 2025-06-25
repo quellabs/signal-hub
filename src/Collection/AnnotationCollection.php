@@ -142,6 +142,14 @@
 		}
 		
 		/**
+		 * Returns the first key
+		 * @return mixed
+		 */
+		public function getFirstKey(): mixed {
+			return $this->keys[0] ?? null;
+		}
+		
+		/**
 		 * Check if the collection is empty.
 		 * @return bool True if the collection contains no annotations
 		 */
