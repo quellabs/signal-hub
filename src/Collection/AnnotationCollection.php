@@ -171,7 +171,17 @@
 		 * @return self New filtered collection instance
 		 */
 		public function filter(callable $callback): self {
-			return new self(array_filter($this->annotations, $callback));
+			$filtered = [];
+			
+			foreach ($this->annotations as $annotations) {
+				foreach ($annotations as $annotation) {
+					if ($callback($annotation)) {
+						$filtered[] = $annotation;
+					}
+				}
+			}
+			
+			return new self($filtered);
 		}
 		
 		/**
