@@ -147,7 +147,7 @@
 					}
 					
 					// Add the annotation to the result
-					$result[get_class($annotation)] = $annotation;
+					$result[get_class($annotation)][] = $annotation;
 					
 					// Get the next token
 					$token = $this->lexer->get();

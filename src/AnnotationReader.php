@@ -277,7 +277,7 @@
 				$annotations = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
 				
 				// Skip if there are no annotations
-				if (empty($annotations)) {
+				if ($annotations->isEmpty()) {
 					continue;
 				}
 				
