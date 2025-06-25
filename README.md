@@ -13,11 +13,11 @@ The AnnotationReader component provides robust parsing and caching of PHP docblo
 ## Features
 
 - **Annotation parsing**: Parse docblock annotations for classes, properties, and methods
-- **Annotation inheritance**: Class-level annotations are automatically inherited by child classes
 - **Import resolution**: Automatically resolves class imports for fully qualified annotation names
 - **Performance optimization**: Implements smart caching to improve performance
 - **Flexible integration**: Easy to integrate with your existing projects
 - **Error handling**: Graceful handling of malformed annotations
+- **Collection support**: Returns immutable AnnotationCollection objects with array-like access
 
 ## Installation
 
@@ -60,62 +60,110 @@ $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName')
 $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName', SomeAnnotation::class);
 ```
 
-### Annotation Inheritance
+### Working with AnnotationCollection
 
-Class-level annotations are automatically inherited from parent classes, making it easy to apply cross-cutting concerns like caching, security, or logging to entire class hierarchies.
+All annotation reader methods return an `AnnotationCollection` object that provides array-like access with a clean, flat structure:
 
 ```php
-/**
- * @Cacheable(ttl=3600)
- * @Transactional
- */
-abstract class BaseService {
-    // Base service logic
+$annotations = $reader->getMethodAnnotations(MyClass::class, 'myMethod');
+
+// Array access by class name - returns first annotation of that type
+$interceptor = $annotations[InterceptWith::class];
+
+// Array access by numeric index - returns annotation at that position
+$firstAnnotation = $annotations[0];
+$secondAnnotation = $annotations[1];
+
+// Iterate through all individual annotations
+foreach ($annotations as $annotation) {
+    // Each iteration gives you a single annotation object
 }
 
-/**
- * @RateLimited(requests=100, window=60)
- */
-class UserService extends BaseService {
-    // Inherits @Cacheable and @Transactional from BaseService
-    // Also has its own @RateLimited annotation
+// Get all annotations of a specific type (returns AnnotationCollection)
+$allInterceptors = $annotations->all(InterceptWith::class);
+
+// Check if multiple annotations of same type exist
+if ($annotations->hasMultiple(InterceptWith::class)) {
+    // Process multiple interceptors
 }
 
-// Get all class annotations (including inherited ones)
-$annotations = $reader->getClassAnnotations(UserService::class);
-// Returns: @Cacheable, @Transactional, @RateLimited
+// Collection methods
+$count = count($annotations);
+$isEmpty = $annotations->isEmpty();
+$firstAnnotation = $annotations->first();
+$lastAnnotation = $annotations->last();
 
-// Get only direct class annotations (no inheritance)
-$directAnnotations = $reader->getClassAnnotations(UserService::class, null, false);
-// Returns: @RateLimited only
+// Filtering returns a new AnnotationCollection
+$filtered = $annotations->filter(function($annotation) {
+    return $annotation->isActive();
+});
+
+// Chaining operations
+$activeInterceptors = $annotations
+    ->all(InterceptWith::class)
+    ->filter(fn($interceptor) => $interceptor->isActive());
 ```
 
-#### Inheritance Behavior
+### Handling Multiple Annotations
 
-- **Class annotations**: Inherited from parent classes by default
-- **Method annotations**: Not inherited (direct only)
-- **Property annotations**: Not inherited (direct only)
-- **Inheritance order**: Parent annotations are processed first, child annotations can override
-- **Optional inheritance**: Use the third parameter to disable inheritance: `getClassAnnotations($class, $filter, false)`
-
-#### Common Use Cases for Inheritance
+When you have multiple annotations of the same type, the collection provides clean access patterns:
 
 ```php
 /**
- * @Secured(role="ADMIN")
- * @Logged
+ * @InterceptWith("AuthValidator")
+ * @InterceptWith("LoggingInterceptor") 
+ * @Route("/api/users")
  */
-abstract class AdminController {
-    // Base admin functionality
+public function getUsers() { /* ... */ }
+```
+
+```php
+$annotations = $reader->getMethodAnnotations(MyClass::class, 'getUsers');
+
+// Get first InterceptWith annotation
+$firstInterceptor = $annotations[InterceptWith::class]; 
+
+// Get all InterceptWith annotations as a collection
+$allInterceptors = $annotations->all(InterceptWith::class);
+
+// Check for multiple InterceptWith annotations
+if ($annotations->hasMultiple(InterceptWith::class)) {
+    foreach ($allInterceptors as $interceptor) {
+        // Process each interceptor
+    }
 }
 
-class UserManagementController extends AdminController {
-    // Automatically secured and logged
+// Get single Route annotation
+$route = $annotations[Route::class];
+
+// Iterate through all annotations (individual objects)
+foreach ($annotations as $annotation) {
+    // Gets: AuthValidator, LoggingInterceptor, Route
+}
+```
+
+### Filtered Results
+
+When filtering annotations, the result maintains the same clean structure:
+
+```php
+// Filter by specific annotation class
+$interceptors = $reader->getMethodAnnotations(MyClass::class, 'myMethod', InterceptWith::class);
+
+// Or filter with custom logic
+$activeAnnotations = $annotations->filter(fn($annotation) => $annotation->isActive());
+
+// All results are AnnotationCollection with consistent access
+$first = $interceptors[0];              // First annotation
+$count = count($interceptors);          // Total count
+foreach ($interceptors as $annotation) {
+    // Iterate individual annotations
 }
 
-class SystemConfigController extends AdminController {
-    // Also automatically secured and logged
-}
+// Chain operations
+$result = $annotations
+    ->filter(fn($a) => $a->isActive())
+    ->all(InterceptWith::class);
 ```
 
 ## Annotation Format
@@ -135,6 +183,8 @@ class Product {
     
     /**
      * @Column(type="string", length=255)
+     * @Validate("required")
+     * @Validate("maxLength", 255)
      */
     private $name;
 }
