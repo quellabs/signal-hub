@@ -3,7 +3,6 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\Contracts\AfterAspect;
 	use Quellabs\Canvas\AOP\Contracts\AroundAspect;
 	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
