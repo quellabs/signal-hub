@@ -62,7 +62,7 @@
 					
 					if (!empty($annotations['class'])) {
 						// Merge annotations (child overrides parent)
-						$allAnnotations = array_merge($allAnnotations, $annotations['class']);
+						$allAnnotations = $allAnnotations->merge($annotations['class']);
 					}
 				}
 				
