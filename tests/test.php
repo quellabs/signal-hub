@@ -40,8 +40,12 @@
 	
 
 	$entity = $entityManager->find(\Quellabs\ObjectQuel\Entity\ProductsEntity::class, 1492);
-	$entity->setWoocommerceId("hallo");
-	$entity->setGuid("abc");
+	$entity->setWoocommerceId("baviaan");
+	$entity->setGuid("kip");
 	$entityManager->persist($entity);
 	$entityManager->flush($entity);
+	
+	foreach($entity->productsDescriptions as $description) {
+		echo $description->getLanguageId() . " - " . $description->getProductsDescription() . "\n\n";
+	}
 	

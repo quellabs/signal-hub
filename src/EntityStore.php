@@ -18,7 +18,6 @@
 	namespace Quellabs\ObjectQuel;
     
     use Quellabs\AnnotationReader\AnnotationReader;
-    use Quellabs\AnnotationReader\Collection\AnnotationCollection;
     use Quellabs\AnnotationReader\Exception\ParserException;
     use Quellabs\ObjectQuel\Annotations\Orm\Column;
     use Quellabs\ObjectQuel\Annotations\Orm\Index;
@@ -548,7 +547,7 @@
 						    'precision'     => $columnAnnotation->getPrecision(),  // Decimal precision (for numeric types)
 						    
 						    // Check if this column is an auto-incrementing identity column
-						    'identity'      => $this->isIdentityColumn($propertyAnnotations),
+						    'identity'      => $this->isIdentityColumn($propertyAnnotations->toArray()),
 					    ];
 					} catch (ParserException $e) {
 				    }
@@ -601,9 +600,9 @@
 	    /**
 	     * Retrieves all index annotations defined for a given entity class
 	     * @param mixed $entity The entity class to analyze (can be string classname or object instance)
-	     * @return AnnotationCollection A collection of Index and UniqueIndex annotation objects
+	     * @return array A collection of Index and UniqueIndex annotation objects
 	     */
-	    public function getIndexes(mixed $entity): AnnotationCollection {
+	    public function getIndexes(mixed $entity): array {
 		    // Fetch the owning table of this entity
 		    $owningTable = $this->getOwningTable($entity);
 		    
@@ -626,9 +625,9 @@
 			    });
 				
 				// Cache and return result
-			    return $this->index_cache[$owningTable] = $filteredResults;
+			    return $this->index_cache[$owningTable] = $filteredResults->toArray();
 		    } catch (ParserException $e) {
-			    return new AnnotationCollection();
+			    return [];
 		    }
 	    }
 
@@ -740,10 +739,10 @@
 	     * 2. Either:
 	     *    - Has a PrimaryKeyStrategy annotation with value 'identity', OR
 	     *    - Has no PrimaryKeyStrategy annotation at all (defaulting to auto-increment)
-	     * @param AnnotationCollection $propertyAnnotations The annotations attached to the property
+	     * @param array $propertyAnnotations The annotations attached to the property
 	     * @return bool Returns true if the property is an auto-increment column, false otherwise
 	     */
-	    private function isIdentityColumn(AnnotationCollection $propertyAnnotations): bool {
+	    private function isIdentityColumn(array $propertyAnnotations): bool {
 		    $isPrimaryKey = false;
 		    $hasStrategy = false;
 		    $isIdentityStrategy = false;

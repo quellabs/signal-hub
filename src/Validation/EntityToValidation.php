@@ -55,6 +55,7 @@
 				
 				// Process each annotation
 				foreach ($annotations as $annotation) {
+					// Fetch the class name
 					$annotationClass = get_class($annotation);
 					
 					// Check if there is a corresponding validation rule for this annotation
