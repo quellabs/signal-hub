@@ -141,13 +141,8 @@
 					// Parse the annotation
 					$annotation = $this->parseAnnotation($token);
 					
-					// Create array slot if needed
-					if (!isset($result[get_class($annotation)])) {
-						$result[get_class($annotation)] = [];
-					}
-					
 					// Add the annotation to the result
-					$result[get_class($annotation)][] = $annotation;
+					$result[] = $annotation;
 					
 					// Get the next token
 					$token = $this->lexer->get();

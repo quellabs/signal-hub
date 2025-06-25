@@ -168,11 +168,11 @@
 		
 		/**
 		 * Parses a string and returns the found annotations
-		 * @param $string
-		 * @return array
+		 * @param string $string
+		 * @return AnnotationCollection
 		 * @throws ParserException
 		 */
-		public function getAnnotations(string $string): array {
+		public function getAnnotations(string $string): AnnotationCollection {
 			try {
 				$lexer = new Lexer($string);
 				$parser = new Parser($lexer, $this->configuration);
