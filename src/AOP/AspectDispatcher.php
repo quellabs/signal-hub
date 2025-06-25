@@ -49,7 +49,6 @@
 		 * @param string $method The name of the method to execute on the controller
 		 * @param array $arguments Method arguments resolved from route parameters
 		 * @return Response The final HTTP response after all aspect processing
-		 * @throws ParserException When annotation parsing fails
 		 * @throws \ReflectionException When method reflection fails
 		 */
 		public function dispatch(Request $request, object $controller, string $method, array $arguments): Response {

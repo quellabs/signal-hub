@@ -253,7 +253,7 @@
 					$urlData["method"],
 					$urlData["variables"]
 				);
-			} catch (ParserException|\ReflectionException $e) {
+			} catch (\ReflectionException $e) {
 				return $this->createErrorResponse($e);
 			}
 		}
