@@ -59,7 +59,7 @@
 					});
 				}
 				
-				return new AnnotationCollection($annotations['class']);
+				return $annotations['class'];
 			} catch (\ReflectionException $e) {
 				throw new ParserException($e->getMessage(), $e->getCode(), $e);
 			}
