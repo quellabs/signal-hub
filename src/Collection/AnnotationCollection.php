@@ -10,9 +10,6 @@
 		/** @var array Array to store annotation objects */
 		private array $annotations = [];
 		
-		/** @var array Array to store the actual keys separately */
-		private array $keys = [];
-		
 		/** @var int Current position for iterator implementation */
 		private int $position = 0;
 		
@@ -21,8 +18,7 @@
 		 * @param array $annotations Array of annotation objects to store
 		 */
 		public function __construct(array $annotations = []) {
-			$this->annotations = $annotations;
-			$this->keys = array_keys($annotations);
+			$this->annotations = array_values($annotations); // Always flat numeric array
 		}
 		
 		/**
@@ -31,28 +27,28 @@
 		 * @return bool True if offset exists, false otherwise
 		 */
 		public function offsetExists(mixed $offset): bool {
-			return isset($this->annotations[$offset]);
+			// For numeric access
+			if (is_numeric($offset)) {
+				return isset($this->annotations[$offset]);
+			}
+			
+			// For class name access - check if any annotation is of this type
+			return $this->getFirst($offset) !== null;
 		}
 		
 		/**
-		 * Get the value at the specified offset (returns the first annotation of that type).
-		 * @param mixed $offset The annotation type to retrieve
-		 * @return mixed The first annotation of that type or null if not found
+		 * Get the value at the specified offset.
+		 * @param mixed $offset The annotation type (class name) or numeric index
+		 * @return mixed The first annotation of that type or annotation at index
 		 */
 		public function offsetGet(mixed $offset): mixed {
-			$annotations = $this->annotations[$offset] ?? null;
-			
-			if ($annotations === null) {
-				return null;
+			// Numeric access - return annotation at index
+			if (is_numeric($offset)) {
+				return $this->annotations[$offset] ?? null;
 			}
 			
-			// If it's an array, return the first element
-			if (is_array($annotations)) {
-				return $annotations[0] ?? null;
-			}
-			
-			// If it's a single annotation, return it
-			return $annotations;
+			// Class name access - return first annotation of that type
+			return $this->getFirst($offset);
 		}
 		
 		/**
@@ -87,16 +83,15 @@
 		 * @return mixed The current annotation or null if position is invalid
 		 */
 		public function current(): mixed {
-			$key = $this->keys[$this->position] ?? null;
-			return $key !== null ? $this->annotations[$key] : null;
+			return $this->annotations[$this->position] ?? null;
 		}
 		
 		/**
 		 * Get the current key/position during iteration.
-		 * @return mixed The current key
+		 * @return int The current position
 		 */
-		public function key(): mixed {
-			return $this->keys[$this->position] ?? null;
+		public function key(): int {
+			return $this->position;
 		}
 		
 		/**
@@ -120,7 +115,7 @@
 		 * @return bool True if current position has a valid annotation
 		 */
 		public function valid(): bool {
-			return isset($this->keys[$this->position]);
+			return isset($this->annotations[$this->position]);
 		}
 		
 		/**
@@ -128,8 +123,7 @@
 		 * @return mixed The first annotation or null if collection is empty
 		 */
 		public function first(): mixed {
-			$firstKey = $this->keys[0] ?? null;
-			return $firstKey !== null ? $this->annotations[$firstKey] : null;
+			return $this->annotations[0] ?? null;
 		}
 		
 		/**
@@ -137,16 +131,7 @@
 		 * @return mixed The last annotation or null if collection is empty
 		 */
 		public function last(): mixed {
-			$lastKey = end($this->keys);
-			return $lastKey !== false ? $this->annotations[$lastKey] : null;
-		}
-		
-		/**
-		 * Returns the first key
-		 * @return mixed
-		 */
-		public function getFirstKey(): mixed {
-			return $this->keys[0] ?? null;
+			return end($this->annotations) ?: null;
 		}
 		
 		/**
@@ -173,11 +158,9 @@
 		public function filter(callable $callback): self {
 			$filtered = [];
 			
-			foreach ($this->annotations as $annotations) {
-				foreach ($annotations as $annotation) {
-					if ($callback($annotation)) {
-						$filtered[] = $annotation;
-					}
+			foreach ($this->annotations as $annotation) {
+				if ($callback($annotation)) {
+					$filtered[] = $annotation;
 				}
 			}
 			
@@ -185,28 +168,44 @@
 		}
 		
 		/**
-		 * Check if an annotation type has multiple instances.
-		 * @param string $offset The annotation type to check
-		 * @return bool True if there are multiple annotations of this type
+		 * Get the first annotation of a specific type.
+		 * @param string $className The annotation class name
+		 * @return mixed The first annotation of that type or null if not found
 		 */
-		public function hasMultiple(mixed $offset): bool {
-			$annotations = $this->annotations[$offset] ?? null;
-			return is_array($annotations) && count($annotations) > 1;
+		public function getFirst(string $className): mixed {
+			foreach ($this->annotations as $annotation) {
+				if ($annotation instanceof $className) {
+					return $annotation;
+				}
+			}
+			
+			return null;
 		}
 		
 		/**
 		 * Get all annotations of a specific type.
-		 * @param string $type The annotation type
-		 * @return array Array of annotations of the specified type
+		 * @param string $className The annotation class name
+		 * @return self Collection of annotations of the specified type
 		 */
-		public function getAllOfType(string $type): array {
-			$annotations = $this->annotations[$type] ?? null;
+		public function all(string $className): self {
+			$result = [];
 			
-			if ($annotations === null) {
-				return [];
+			foreach ($this->annotations as $annotation) {
+				if ($annotation instanceof $className) {
+					$result[] = $annotation;
+				}
 			}
 			
-			return is_array($annotations) ? $annotations : [$annotations];
+			return new self($result);
+		}
+		
+		/**
+		 * Check if an annotation type has multiple instances.
+		 * @param string $className The annotation class name
+		 * @return bool True if there are multiple annotations of this type
+		 */
+		public function hasMultiple(string $className): bool {
+			return $this->all($className)->count() > 1;
 		}
 		
 		/**
