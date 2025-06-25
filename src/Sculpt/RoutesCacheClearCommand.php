@@ -12,7 +12,7 @@
 		 * @return string
 		 */
 		public function getSignature(): string {
-			return "route:clear_cache";
+			return "route:clear-cache";
 		}
 		
 		/**

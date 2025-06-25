@@ -160,6 +160,23 @@
 		}
 		
 		/**
+		 * Retrieves all aspect interceptors (middleware/filters) applied to a specific method
+		 * @param string $class The fully qualified class name to inspect
+		 * @param string $method The method name to check for aspects
+		 * @return array Array of interceptor class names ordered by precedence (class-level first, then method-level)
+		 */
+		public function getAspectsOfMethod(string $class, string $method): array {
+			// Initialize the aspect discovery utility
+			$aspectResolver = new AspectResolver($this->annotationsReader);
+			
+			// Fetch all annotation classes in order
+			$aspectsClass = $aspectResolver->resolve($class, $method);
+			
+			// Extract the actual interceptor class names
+			return array_map(function ($e) { return $e['class']; }, $aspectsClass);
+		}
+
+		/**
 		 * Filter routes based on configuration options
 		 * @param array $routes Collection of routes to filter
 		 * @param ConfigurationManager $config Configuration manager containing filter options
@@ -179,22 +196,5 @@
 			
 			// Return the filtered routes (or original routes if no filter applied)
 			return $routes;
-		}
-		
-		/**
-		 * Retrieves all aspect interceptors (middleware/filters) applied to a specific method
-		 * @param string $class The fully qualified class name to inspect
-		 * @param string $method The method name to check for aspects
-		 * @return array Array of interceptor class names ordered by precedence (class-level first, then method-level)
-		 */
-		protected function getAspectsOfMethod(string $class, string $method): array {
-			// Initialize the aspect discovery utility
-			$aspectResolver = new AspectResolver($this->annotationsReader);
-			
-			// Fetch all annotation classes in order
-			$aspectsClass = $aspectResolver->resolve($class, $method);
-			
-			// Extract the actual interceptor class names
-			return array_map(function ($e) { return $e['class']; }, $aspectsClass);
 		}
 	}

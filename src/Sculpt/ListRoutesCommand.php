@@ -43,7 +43,7 @@
 					// Format controller as ClassName@methodName
 					$entry['controller'] . "@" . $entry['method'],
 					
-					// Format aspects as comma-separated list in brackets
+					// Format aspects a comma-separated list in brackets
 					"[" . implode(",", $entry['aspects']) . "]",
 				];
 			}, $routes);

@@ -45,7 +45,7 @@
 			
 			// Extend routes with AOP information
 			for ($i = 0; $i < count($routes); ++$i) {
-				$routes[$i]['aspects'] = $this->getAspectsOfMethod($routes[$i]['controller'], $routes[$i]['method']);
+				$routes[$i]['aspects'] = $this->lister->getAspectsOfMethod($routes[$i]['controller'], $routes[$i]['method']);
 			}
 			
 			// Transform route data into table format for display

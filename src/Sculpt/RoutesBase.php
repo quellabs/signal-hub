@@ -2,6 +2,9 @@
 	
 	namespace Quellabs\Canvas\Sculpt;
 	
+	use AllowDynamicProperties;
+	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\Canvas\Routing\AnnotationLister;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Sculpt\ConfigurationManager;
@@ -25,7 +28,7 @@
 		 */
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
-			
+
 			// Config for AnnotationsReader
 			// Instantiate annotation listing class
 			$this->lister = new AnnotationLister();
