@@ -3,6 +3,8 @@
 	namespace Quellabs\ObjectQuel\ProxyGenerator;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\ObjectQuel\Annotations\Orm\Table;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityStore;
 	use Quellabs\ObjectQuel\ReflectionManagement\ReflectionHandler;
@@ -127,8 +129,20 @@
 		 * @return bool
 		 */
 		private function isEntity(string $entityName): bool {
-			$annotations = $this->annotationReader->getClassAnnotations($entityName);
-			return array_key_exists("Orm\\Table", $annotations);
+			try {
+				// Attempt to read Table annotations from the specified entity class
+				// This will search for @Table annotations on the class definition
+				$annotations = $this->annotationReader->getClassAnnotations($entityName, Table::class);
+				
+				// An entity is considered valid if it has at least one Table annotation
+				// Return true if annotations were found, false if the collection is empty
+				return !$annotations->isEmpty();
+			} catch (ParserException $e) {
+				// Handle cases where annotation parsing fails due to syntax errors or invalid annotations
+				// Return false to indicate the entity is not valid when parsing errors occur
+				// This ensures the method fails safely rather than throwing an exception
+				return false;
+			}
 		}
 		
 		/**

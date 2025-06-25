@@ -4,6 +4,7 @@
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\ObjectQuel\Annotations\Orm\Table;
 	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
@@ -144,8 +145,8 @@
 		 */
 		private function isEntity(string $entityName): bool {
 			try {
-				$annotations = $this->annotationReader->getClassAnnotations($entityName);
-				return array_key_exists("Quellabs\\ObjectQuel\\Annotations\\Orm\\Table", $annotations);
+				$annotations = $this->annotationReader->getClassAnnotations($entityName, Table::class);
+				return !$annotations->isEmpty();
 			} catch (ParserException $e) {
 				return false;
 			}

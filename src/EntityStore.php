@@ -18,6 +18,7 @@
 	namespace Quellabs\ObjectQuel;
     
     use Quellabs\AnnotationReader\AnnotationReader;
+    use Quellabs\AnnotationReader\Collection\AnnotationCollection;
     use Quellabs\AnnotationReader\Exception\ParserException;
     use Quellabs\ObjectQuel\Annotations\Orm\Column;
     use Quellabs\ObjectQuel\Annotations\Orm\Index;
@@ -510,15 +511,15 @@
 			    foreach ($reflection->getProperties() as $property) {
 				    try {
 					    // Retrieve all annotations for the current property
-					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName());
+					    $propertyAnnotations = $this->annotation_reader->getPropertyAnnotations($className, $property->getName(), Column::class);
 						
-						// Find the @Orm\Column annotation
-					    $columnAnnotation = $this->getColumnAnnotation($propertyAnnotations);
-					    
 					    // If not found, go to the next property
-					    if ($columnAnnotation === null) {
+					    if ($propertyAnnotations->isEmpty()) {
 						    continue;
 					    }
+					    
+					    // Find the @Orm\Column annotation
+					    $columnAnnotation = $propertyAnnotations[Column::class];
 					    
 					    // Use the column name from the annotation, not the property name
 					    $columnName = $columnAnnotation->getName();
@@ -600,9 +601,9 @@
 	    /**
 	     * Retrieves all index annotations defined for a given entity class
 	     * @param mixed $entity The entity class to analyze (can be string classname or object instance)
-	     * @return array An array of Index and UniqueIndex annotation objects
+	     * @return AnnotationCollection A collection of Index and UniqueIndex annotation objects
 	     */
-	    public function getIndexes(mixed $entity): array {
+	    public function getIndexes(mixed $entity): AnnotationCollection {
 		    // Fetch the owning table of this entity
 		    $owningTable = $this->getOwningTable($entity);
 		    
@@ -616,18 +617,18 @@
 			    $annotations = $this->annotation_reader->getClassAnnotations($entity);
 			    
 			    // Filter annotations to only include Index and UniqueIndex types
-			    $filteredResults = array_filter($annotations, function($annotation) {
+			    $filteredResults = $annotations->filter(function($annotation) {
 				    // Return true only if the annotation is an index type
 				    // This keeps both regular indexes and unique indexes
 				    return
 					    $annotation instanceof Index ||        // Regular index annotation
 					    $annotation instanceof UniqueIndex;    // Unique constraint index annotation
 			    });
-			    
-			    // Cache and return result
+				
+				// Cache and return result
 			    return $this->index_cache[$owningTable] = $filteredResults;
 		    } catch (ParserException $e) {
-			    return [];
+			    return new AnnotationCollection();
 		    }
 	    }
 
@@ -664,7 +665,7 @@
 	    }
 		
 		/**
-		 * Returns a list of entities and their manytoone dependencies
+		 * Returns a list of entities and their ManyToOne dependencies
 		 * @return array
 		 */
 		private function getAllEntityDependencies(): array {
@@ -739,10 +740,10 @@
 	     * 2. Either:
 	     *    - Has a PrimaryKeyStrategy annotation with value 'identity', OR
 	     *    - Has no PrimaryKeyStrategy annotation at all (defaulting to auto-increment)
-	     * @param array $propertyAnnotations The annotations attached to the property
+	     * @param AnnotationCollection $propertyAnnotations The annotations attached to the property
 	     * @return bool Returns true if the property is an auto-increment column, false otherwise
 	     */
-	    private function isIdentityColumn(array $propertyAnnotations): bool {
+	    private function isIdentityColumn(AnnotationCollection $propertyAnnotations): bool {
 		    $isPrimaryKey = false;
 		    $hasStrategy = false;
 		    $isIdentityStrategy = false;
@@ -768,24 +769,5 @@
 		    // 1. It's a primary key, AND
 		    // 2. EITHER it has an identity strategy OR it has no strategy at all
 		    return $isPrimaryKey && ($isIdentityStrategy || !$hasStrategy);
-	    }
-		
-	    /**
-	     * Retrieves the Column annotation from an array of property annotations.
-	     * @param array $propertyAnnotations An array of annotations attached to a property
-	     * @return Column|null Returns the Column annotation if found, null otherwise
-	     */
-	    private function getColumnAnnotation(array $propertyAnnotations): ?Column {
-		    // Iterate through each annotation for this property
-		    foreach ($propertyAnnotations as $property => $annotation) {
-			    // Check if the current annotation is an instance of Column
-			    if ($annotation instanceof Column) {
-				    // Return the first Column annotation found
-				    return $annotation;
-			    }
-		    }
-		    
-		    // If no Column annotation was found, return null
-		    return null;
 	    }
     }
