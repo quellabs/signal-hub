@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\AnnotationReader\LexerParser;
 	
+	use Quellabs\AnnotationReader\Collection\AnnotationCollection;
 	use Quellabs\AnnotationReader\Exception\LexerException;
 	use Quellabs\AnnotationReader\Exception\ParserException;
 	
@@ -108,10 +109,10 @@
 		
 		/**
 		 * Parse the Docblock
-		 * @return array
+		 * @return AnnotationCollection
 		 * @throws LexerException|ParserException
 		 */
-		public function parse(): array {
+		public function parse(): AnnotationCollection {
 			try {
 				$result = [];
 				$token = $this->lexer->get();
@@ -140,6 +141,11 @@
 					// Parse the annotation
 					$annotation = $this->parseAnnotation($token);
 					
+					// Create array slot if needed
+					if (!isset($result[get_class($annotation)])) {
+						$result[get_class($annotation)] = [];
+					}
+					
 					// Add the annotation to the result
 					$result[get_class($annotation)] = $annotation;
 					
@@ -147,7 +153,7 @@
 					$token = $this->lexer->get();
 				}
 				
-				return $result;
+				return new AnnotationCollection($result);
 			} catch (\ReflectionException $e) {
 				throw new ParserException("Reflection error: {$e->getMessage()}", $e->getCode(), $e);
 			}
@@ -408,7 +414,7 @@
 				// Handle annotation syntax (@AnnotationName)
 				if ($this->lexer->optionalMatch(Token::Annotation, $annotationToken)) {
 					// Parse the annotation and store it using its class name as the key
-					$annotation = $this->parseAnnotation($annotationToken);
+//					$annotation = $this->parseAnnotation($annotationToken);
 					
 					$attributes[get_class($annotation)] = $annotation;
 					
