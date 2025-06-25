@@ -68,7 +68,7 @@
 				// Uses annotation scanning and dependency injection for aspect creation
 				$aspects = $this->getResolvedAspects($controller, $method);
 				
-				// Phase 1: Transform the incoming request
+				// Phase 1: Transform the incoming request.
 				// Request aspects can modify headers, parameters, or add computed attributes
 				$this->handleRequestAspects($aspects, $request);
 				
