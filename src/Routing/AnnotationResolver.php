@@ -762,12 +762,11 @@
 			// Discover all controller classes in the application
 			// This scans the controller directory for PHP classes that can handle routes
 			$controllerDir = $this->getControllerDirectory();
-			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
 			
 			// Build a comprehensive list of all available routes across all controllers
 			$result = [];
 			
-			foreach ($controllers as $controller) {
+			foreach ($this->kernel->getDiscover()->findClassesInDirectory($controllerDir) as $controller) {
 				// Extract routes from each controller that match the HTTP method
 				// This likely uses reflection to read route annotations/attributes
 				$result = array_merge(
