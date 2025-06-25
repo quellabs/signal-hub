@@ -2,7 +2,6 @@
 	
 	namespace Quellabs\Canvas\AOP;
 	
-	use Quellabs\AnnotationReader\Collection\AnnotationCollection;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Session\SessionInterface;
 	
@@ -18,7 +17,6 @@
 		private string $methodName;
 		private array $arguments;
 		private \ReflectionMethod $reflection;
-		private AnnotationCollection $annotations;
 		
 		/**
 		 * Initialize the method context with all relevant call information.
@@ -27,22 +25,19 @@
 		 * @param string $methodName Name of the method being invoked
 		 * @param array $arguments Array of arguments passed to the method
 		 * @param \ReflectionMethod $reflection Reflection object for accessing method metadata
-		 * @param AnnotationCollection $annotations Parsed annotations/attributes associated with the method
 		 */
 		public function __construct(
 			Request $request,              // The request object
 			object $target,                // The original object instance
 			string $methodName,            // Method being called
 			array $arguments,              // Method parameters
-			\ReflectionMethod $reflection, // For metadata
-			AnnotationCollection $annotations  // Parsed annotations
+			\ReflectionMethod $reflection  // For metadata
 		) {
 			$this->request = $request;
 			$this->target = $target;
 			$this->methodName = $methodName;
 			$this->arguments = $arguments;
 			$this->reflection = $reflection;
-			$this->annotations = $annotations;
 		}
 		
 		/**
@@ -87,14 +82,6 @@
 			}
 			
 			return $arguments;
-		}
-		
-		/**
-		 * Get parsed annotations/attributes for the method.
-		 * @return array Array of parsed method annotations
-		 */
-		public function getAnnotations(): array {
-			return $this->annotations;
 		}
 		
 		/**

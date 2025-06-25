@@ -61,8 +61,7 @@
 					target: $controller,
 					methodName: $method,
 					arguments: $arguments,
-					reflection: new \ReflectionMethod($controller, $method),
-					annotations: $this->annotationReader->getMethodAnnotations($controller, $method)
+					reflection: new \ReflectionMethod($controller, $method)
 				);
 				
 				// Discover and instantiate all aspects that apply to this method
