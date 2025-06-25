@@ -168,9 +168,9 @@
 		/**
 		 * Filter annotations based on a callback function.
 		 * @param callable $callback Function to test each annotation
-		 * @return self New filtered collection instance
+		 * @return array New filtered collection
 		 */
-		public function filter(callable $callback): self {
+		public function filter(callable $callback): array {
 			$filtered = [];
 			
 			foreach ($this->annotations as $annotations) {
@@ -181,7 +181,7 @@
 				}
 			}
 			
-			return new self($filtered);
+			return $filtered;
 		}
 		
 		/**
