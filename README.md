@@ -62,26 +62,29 @@ $methodAnnotations = $reader->getMethodAnnotations(MyClass::class, 'methodName',
 
 ### Working with AnnotationCollection
 
-All annotation reader methods return an `AnnotationCollection` object that provides array-like access while handling multiple annotations of the same type elegantly:
+All annotation reader methods return an `AnnotationCollection` object that provides array-like access with a clean, flat structure:
 
 ```php
 $annotations = $reader->getMethodAnnotations(MyClass::class, 'myMethod');
 
-// Array access - returns first annotation of that type
-$interceptor = $annotations['InterceptWith'];
+// Array access by class name - returns first annotation of that type
+$interceptor = $annotations[InterceptWith::class];
 
-// Check if multiple annotations of same type exist
-if ($annotations->hasMultiple('InterceptWith')) {
-    // Get all annotations of a specific type
-    $allInterceptors = $annotations->getAllOfType('InterceptWith');
+// Array access by numeric index - returns annotation at that position
+$firstAnnotation = $annotations[0];
+$secondAnnotation = $annotations[1];
+
+// Iterate through all individual annotations
+foreach ($annotations as $annotation) {
+    // Each iteration gives you a single annotation object
 }
 
-// Iterate through all annotation types
-foreach ($annotations as $annotationType => $annotationArray) {
-    // $annotationType = 'InterceptWith', $annotationArray = [annotation1, annotation2, ...]
-    foreach ($annotationArray as $annotation) {
-        // Process individual annotation
-    }
+// Get all annotations of a specific type (returns AnnotationCollection)
+$allInterceptors = $annotations->all(InterceptWith::class);
+
+// Check if multiple annotations of same type exist
+if ($annotations->hasMultiple(InterceptWith::class)) {
+    // Process multiple interceptors
 }
 
 // Collection methods
@@ -90,19 +93,20 @@ $isEmpty = $annotations->isEmpty();
 $firstAnnotation = $annotations->first();
 $lastAnnotation = $annotations->last();
 
-// Filtering returns a flat AnnotationCollection with numeric keys
+// Filtering returns a new AnnotationCollection
 $filtered = $annotations->filter(function($annotation) {
     return $annotation->isActive();
 });
 
-// After filtering, access works with numeric indices
-$firstFiltered = $filtered[0];
-$secondFiltered = $filtered[1];
+// Chaining operations
+$activeInterceptors = $annotations
+    ->all(InterceptWith::class)
+    ->filter(fn($interceptor) => $interceptor->isActive());
 ```
 
 ### Handling Multiple Annotations
 
-When you have multiple annotations of the same type, the collection handles them intelligently:
+When you have multiple annotations of the same type, the collection provides clean access patterns:
 
 ```php
 /**
@@ -117,34 +121,49 @@ public function getUsers() { /* ... */ }
 $annotations = $reader->getMethodAnnotations(MyClass::class, 'getUsers');
 
 // Get first InterceptWith annotation
-$firstInterceptor = $annotations['InterceptWith']; 
+$firstInterceptor = $annotations[InterceptWith::class]; 
+
+// Get all InterceptWith annotations as a collection
+$allInterceptors = $annotations->all(InterceptWith::class);
 
 // Check for multiple InterceptWith annotations
-if ($annotations->hasMultiple('InterceptWith')) {
-    $allInterceptors = $annotations->getAllOfType('InterceptWith');
-    // Returns: [AuthValidator, LoggingInterceptor]
+if ($annotations->hasMultiple(InterceptWith::class)) {
+    foreach ($allInterceptors as $interceptor) {
+        // Process each interceptor
+    }
 }
 
 // Get single Route annotation
-$route = $annotations['Route'];
+$route = $annotations[Route::class];
+
+// Iterate through all annotations (individual objects)
+foreach ($annotations as $annotation) {
+    // Gets: AuthValidator, LoggingInterceptor, Route
+}
 ```
 
 ### Filtered Results
 
-When filtering annotations by type, the result is a flat AnnotationCollection with numeric keys for intuitive access:
+When filtering annotations, the result maintains the same clean structure:
 
 ```php
-// This returns a flat AnnotationCollection with [0, 1, 2...] keys
-$interceptors = $reader->getMethodAnnotations(MyClass::class, 'myMethod', 'InterceptWith');
+// Filter by specific annotation class
+$interceptors = $reader->getMethodAnnotations(MyClass::class, 'myMethod', InterceptWith::class);
 
-// Access filtered results with numeric indices
-$first = $interceptors[0];
-$second = $interceptors[1];
+// Or filter with custom logic
+$activeAnnotations = $annotations->filter(fn($annotation) => $annotation->isActive());
 
-// Iterate normally
-foreach ($interceptors as $index => $annotation) {
-    // $index is 0, 1, 2... 
+// All results are AnnotationCollection with consistent access
+$first = $interceptors[0];              // First annotation
+$count = count($interceptors);          // Total count
+foreach ($interceptors as $annotation) {
+    // Iterate individual annotations
 }
+
+// Chain operations
+$result = $annotations
+    ->filter(fn($a) => $a->isActive())
+    ->all(InterceptWith::class);
 ```
 
 ## Annotation Format
