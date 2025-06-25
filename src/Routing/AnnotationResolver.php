@@ -8,7 +8,7 @@
 	use Quellabs\Canvas\Annotations\Route;
 	use Symfony\Component\HttpFoundation\Request;
 	
-	class AnnotationResolver {
+	class AnnotationResolver extends AnnotationBase {
 		
 		/**
 		 * @var Kernel Kernel object, used among other things for service discovery
@@ -24,6 +24,8 @@
 		 * @param Kernel $kernel
 		 */
 		public function __construct(Kernel $kernel) {
+			parent::__construct($kernel->getAnnotationsReader());
+
 			$this->kernel = $kernel;
 			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
 			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
@@ -31,8 +33,14 @@
 			$this->cacheFile = 'routes.serialized';
 			
 			// Create cache directory if it doesn't already exist
-			if (!is_dir($this->cacheDirectory)) {
-				mkdir($this->cacheDirectory);
+			if (!$this->debugMode && !is_dir($this->cacheDirectory)) {
+				if (!@mkdir($this->cacheDirectory)) {
+					// If the cache directory couldn't be created, do not attempt to write a file
+					$this->debugMode = true;
+					
+					// Show the user that the cache directory couldn't be created
+					error_log("Cannot create cache directory: {$this->cacheDirectory}");
+				}
 			}
 		}
 		
@@ -105,6 +113,9 @@
 			$routes = [];
 			
 			try {
+				// Fetch the route prefix, if any
+				$routePrefix = $this->getRoutePrefix($controller);
+				
 				// Retrieve all route annotations from the controller's methods
 				// This likely uses reflection to scan the controller class for route annotations
 				$routeAnnotations = $this->getMethodRouteAnnotations($controller);
@@ -114,9 +125,12 @@
 					// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
 					$routePath = $routeAnnotation->getRoute();
 					
+					// Combine with prefix
+					$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
+					
 					// Calculate priority for route matching order
 					// Routes with more specific patterns typically get higher priority
-					$priority = $this->calculateRoutePriority($routePath);
+					$priority = $this->calculateRoutePriority($completeRoutePath);
 					
 					// Build route data structure with all necessary information
 					$routes[] = [
@@ -124,7 +138,7 @@
 						'controller'   => $controller,        // Controller class name
 						'method'       => $method,            // Method name to invoke
 						'route'        => $routeAnnotation,   // Full annotation object
-						'route_path'   => $routePath,         // URL pattern string
+						'route_path'   => $completeRoutePath, // URL pattern string
 						'priority'     => $priority           // Numeric priority for sorting
 					];
 				}
@@ -689,18 +703,12 @@
 				foreach ($methods as $method) {
 					try {
 						// Retrieve all annotations for current method
-						$annotations = $this->kernel->getAnnotationsReader()->getMethodAnnotations($controller, $method->getName());
+						$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method->getName(), Route::class);
 						
 						// Check each annotation to find Route instances
 						foreach ($annotations as $annotation) {
-							// If a Route annotation is found, add it to results and skip to next method
-							if ($annotation instanceof Route) {
-								// Add annotation to list
-								$result[$method->getName()] = $annotation;
-								
-								// Skip to the next method after finding a Route annotation (only one Route per method)
-								continue 2;
-							}
+							// Add annotation to list
+							$result[$method->getName()] = $annotation;
 						}
 					} catch (ParserException $e) {
 						// Silently ignore parser exceptions for individual methods.
@@ -754,12 +762,11 @@
 			// Discover all controller classes in the application
 			// This scans the controller directory for PHP classes that can handle routes
 			$controllerDir = $this->getControllerDirectory();
-			$controllers = $this->kernel->getDiscover()->findClassesInDirectory($controllerDir);
 			
 			// Build a comprehensive list of all available routes across all controllers
 			$result = [];
 			
-			foreach ($controllers as $controller) {
+			foreach ($this->kernel->getDiscover()->findClassesInDirectory($controllerDir) as $controller) {
 				// Extract routes from each controller that match the HTTP method
 				// This likely uses reflection to read route annotations/attributes
 				$result = array_merge(

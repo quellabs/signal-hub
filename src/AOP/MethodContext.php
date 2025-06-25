@@ -17,30 +17,27 @@
 		private string $methodName;
 		private array $arguments;
 		private \ReflectionMethod $reflection;
-		private array $annotations;
 		
 		/**
 		 * Initialize the method context with all relevant call information.
+		 * @param Request $request
 		 * @param object $target The original object instance on which the method is being called
 		 * @param string $methodName Name of the method being invoked
 		 * @param array $arguments Array of arguments passed to the method
 		 * @param \ReflectionMethod $reflection Reflection object for accessing method metadata
-		 * @param array $annotations Parsed annotations/attributes associated with the method
 		 */
 		public function __construct(
 			Request $request,              // The request object
 			object $target,                // The original object instance
 			string $methodName,            // Method being called
 			array $arguments,              // Method parameters
-			\ReflectionMethod $reflection, // For metadata
-			array $annotations = []        // Parsed annotations
+			\ReflectionMethod $reflection  // For metadata
 		) {
 			$this->request = $request;
 			$this->target = $target;
 			$this->methodName = $methodName;
 			$this->arguments = $arguments;
 			$this->reflection = $reflection;
-			$this->annotations = $annotations;
 		}
 		
 		/**
@@ -85,14 +82,6 @@
 			}
 			
 			return $arguments;
-		}
-		
-		/**
-		 * Get parsed annotations/attributes for the method.
-		 * @return array Array of parsed method annotations
-		 */
-		public function getAnnotations(): array {
-			return $this->annotations;
 		}
 		
 		/**

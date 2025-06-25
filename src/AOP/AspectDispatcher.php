@@ -3,7 +3,6 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\Contracts\AfterAspect;
 	use Quellabs\Canvas\AOP\Contracts\AroundAspect;
 	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
@@ -49,7 +48,6 @@
 		 * @param string $method The name of the method to execute on the controller
 		 * @param array $arguments Method arguments resolved from route parameters
 		 * @return Response The final HTTP response after all aspect processing
-		 * @throws ParserException When annotation parsing fails
 		 * @throws \ReflectionException When method reflection fails
 		 */
 		public function dispatch(Request $request, object $controller, string $method, array $arguments): Response {
@@ -61,15 +59,14 @@
 					target: $controller,
 					methodName: $method,
 					arguments: $arguments,
-					reflection: new \ReflectionMethod($controller, $method),
-					annotations: $this->annotationReader->getMethodAnnotations($controller, $method)
+					reflection: new \ReflectionMethod($controller, $method)
 				);
 				
 				// Discover and instantiate all aspects that apply to this method
 				// Uses annotation scanning and dependency injection for aspect creation
 				$aspects = $this->getResolvedAspects($controller, $method);
 				
-				// Phase 1: Transform the incoming request
+				// Phase 1: Transform the incoming request.
 				// Request aspects can modify headers, parameters, or add computed attributes
 				$this->handleRequestAspects($aspects, $request);
 				

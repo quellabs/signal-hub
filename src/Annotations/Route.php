@@ -69,4 +69,12 @@
 			// If methods is a string, convert to a single-element array
 			return [$this->parameters["methods"]];
 		}
+		
+		/**
+		 * Fetches the route name
+		 * @return string|null The name of the route
+		 */
+		public function getName(): ?string {
+			return $this->parameters["name"] ?? null;
+		}
 	}
