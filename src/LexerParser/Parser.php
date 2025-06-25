@@ -413,11 +413,13 @@
 				
 				// Handle annotation syntax (@AnnotationName)
 				if ($this->lexer->optionalMatch(Token::Annotation, $annotationToken)) {
-					// Parse the annotation and store it using its class name as the key
-//					$annotation = $this->parseAnnotation($annotationToken);
+					// Parse the annotation
+					$annotation = $this->parseAnnotation($annotationToken);
 					
+					// Store it using its class name as the key
 					$attributes[get_class($annotation)] = $annotation;
 					
+					// Next loop iteration
 					continue;
 				}
 				
