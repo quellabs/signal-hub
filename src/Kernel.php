@@ -316,7 +316,7 @@
 		 * @return Response
 		 */
 		private function createErrorResponse(\Throwable $exception): Response {
-			$isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
+			$isDevelopment = true; // $this->getConfigAs('debug_mode', 'bool', false);
 			
 			if ($isDevelopment) {
 				// In development, show detailed error information as HTML

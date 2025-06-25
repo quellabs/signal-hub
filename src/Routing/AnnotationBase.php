@@ -9,7 +9,7 @@
 	class AnnotationBase {
 		
 		/**
-		 * AnnotatioReader class
+		 * AnnotationReader class
 		 */
 		protected AnnotationReader $annotationsReader;
 		
@@ -37,16 +37,16 @@
 			foreach ($inheritanceChain as $controllerName) {
 				try {
 					// Use the annotations reader to search for RoutePrefix annotations on the class
-					// This returns an array of all RoutePrefix annotations found on the class
-					$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class, false);
+					// This returns an AnnotationCollection of all RoutePrefix annotations found on the class
+					$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class);
 					
-					// Return the prefix if found
-					if (empty($annotations)) {
+					// Skip if no prefix was found
+					if ($annotations->isEmpty()) {
 						continue;
 					}
 					
 					// Add prefix to the list
-					$routePrefix = $annotations[array_key_first($annotations)]->getRoutePrefix();
+					$routePrefix = $annotations[0]->getRoutePrefix();
 					
 					// Only add prefix if it's not empty
 					if ($routePrefix !== '') {

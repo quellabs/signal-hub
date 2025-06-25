@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\Canvas\AOP;
 	
+	use Quellabs\AnnotationReader\Collection\AnnotationCollection;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Session\SessionInterface;
 	
@@ -17,15 +18,16 @@
 		private string $methodName;
 		private array $arguments;
 		private \ReflectionMethod $reflection;
-		private array $annotations;
+		private AnnotationCollection $annotations;
 		
 		/**
 		 * Initialize the method context with all relevant call information.
+		 * @param Request $request
 		 * @param object $target The original object instance on which the method is being called
 		 * @param string $methodName Name of the method being invoked
 		 * @param array $arguments Array of arguments passed to the method
 		 * @param \ReflectionMethod $reflection Reflection object for accessing method metadata
-		 * @param array $annotations Parsed annotations/attributes associated with the method
+		 * @param AnnotationCollection $annotations Parsed annotations/attributes associated with the method
 		 */
 		public function __construct(
 			Request $request,              // The request object
@@ -33,7 +35,7 @@
 			string $methodName,            // Method being called
 			array $arguments,              // Method parameters
 			\ReflectionMethod $reflection, // For metadata
-			array $annotations = []        // Parsed annotations
+			AnnotationCollection $annotations  // Parsed annotations
 		) {
 			$this->request = $request;
 			$this->target = $target;
