@@ -173,10 +173,10 @@
 		public function filter(callable $callback): self {
 			$filtered = [];
 			
-			foreach ($this->annotations as $type => $annotations) {
+			foreach ($this->annotations as $annotations) {
 				foreach ($annotations as $annotation) {
 					if ($callback($annotation)) {
-						$filtered[$type][] = $annotation;
+						$filtered[] = $annotation;
 					}
 				}
 			}
