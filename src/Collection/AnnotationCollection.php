@@ -150,6 +150,14 @@
 		}
 		
 		/**
+		 * Convert the collection to a plain array.
+		 * @return array The underlying annotations array
+		 */
+		public function toArray(): array {
+			return $this->annotations;
+		}
+		
+		/**
 		 * Filter annotations based on a callback function.
 		 * @param callable $callback Function to test each annotation
 		 * @return self New filtered collection instance
@@ -181,5 +189,14 @@
 			}
 			
 			return is_array($annotations) ? $annotations : [$annotations];
+		}
+		
+		/**
+		 * Merge this AnnotationCollection with another
+		 * @param AnnotationCollection $other
+		 * @return self
+		 */
+		public function merge(AnnotationCollection $other): self {
+			return new self(array_merge($this->annotations, $other->toArray()));
 		}
 	}
