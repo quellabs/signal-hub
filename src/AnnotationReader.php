@@ -73,7 +73,8 @@
 		 */
 		public function classHasAnnotation(mixed $class, string $annotationClass): bool {
 			try {
-				return !empty($this->getClassAnnotations($class, $annotationClass));
+				$annotations = $this->getClassAnnotations($class, $annotationClass);
+				return !$annotations->isEmpty();
 			} catch (ParserException $e) {
 				return false;
 			}
@@ -117,7 +118,8 @@
 		 */
 		public function methodHasAnnotation(mixed $class, string $methodName, string $annotationClass): bool {
 			try {
-				return !empty($this->getMethodAnnotations($class, $methodName, $annotationClass));
+				$annotations = $this->getMethodAnnotations($class, $methodName, $annotationClass);
+				return !$annotations->isEmpty();
 			} catch (ParserException $e) {
 				return false;
 			}
@@ -160,7 +162,8 @@
 		 */
 		public function propertyHasAnnotation(mixed $class, string $propertyName, string $annotationClass): bool {
 			try {
-				return !empty($this->getPropertyAnnotations($class, $propertyName, $annotationClass));
+				$annotations = $this->getPropertyAnnotations($class, $propertyName, $annotationClass);
+				return !$annotations->isEmpty();
 			} catch (ParserException $e) {
 				return false;
 			}
