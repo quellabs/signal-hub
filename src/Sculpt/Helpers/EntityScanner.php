@@ -3,6 +3,7 @@
 	namespace Quellabs\ObjectQuel\Sculpt\Helpers;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
+	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\ObjectQuel\Annotations\Orm\Table;
 	use RecursiveDirectoryIterator;
 	use RecursiveIteratorIterator;
@@ -78,15 +79,27 @@
 		 * @return string|null The table name, or null if no Table annotation exists
 		 */
 		private function extractTableName(string $className): ?string {
-			$classAnnotations = $this->annotationReader->getClassAnnotations($className);
-			
-			foreach ($classAnnotations as $annotation) {
-				if ($annotation instanceof Table) {
-					return $annotation->getName();
+			try {
+				// Use the annotation reader to retrieve all Table annotations from the specified class
+				// This will return a collection of Table annotation instances found on the class
+				$classAnnotations = $this->annotationReader->getClassAnnotations($className, Table::class);
+				
+				// Check if no Table annotations were found on the class
+				// If the collection is empty, this class doesn't have a Table annotation
+				if ($classAnnotations->isEmpty()) {
+					return null;
 				}
+				
+				// Extract the table name from the first (and typically only) Table annotation
+				// We use index [0] since there should only be one Table annotation per class
+				// Call getName() method on the Table annotation to get the configured table name
+				return $classAnnotations[0]->getName();
+			} catch (ParserException $e) {
+				// Handle parsing errors that may occur during annotation reading
+				// This could happen if the annotation syntax is invalid or malformed
+				// Return null to gracefully handle the error and indicate no table name found
+				return null;
 			}
-			
-			return null;
 		}
 		
 		/**
