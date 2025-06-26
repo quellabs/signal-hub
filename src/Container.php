@@ -205,9 +205,6 @@
 				return $instance;
 				
 			} catch (\Throwable $e) {
-				// Log error
-				error_log($e->getMessage());
-				
 				// Error recovery: Clean up the resolution stack to prevent corruption
 				// Find and remove everything up to and including the current class
 				if (in_array($className, $this->resolutionStack)) {
@@ -219,9 +216,15 @@
 					array_pop($this->resolutionStack);
 				}
 				
-				// Return null to indicate resolution failure
-				// Calling code should handle null return appropriately
-				return null;
+				// Log the error for debugging
+				error_log("Failed to resolve dependency '{$className}': " . $e->getMessage());
+				
+				// Wrap and rethrow with additional context
+			    throw new \RuntimeException(
+				    "Failed to resolve dependency '{$className}': " . $e->getMessage(),
+				    0,
+				    $e
+			    );
 			}
 		}
 		
