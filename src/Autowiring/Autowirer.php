@@ -180,6 +180,8 @@
 					// Get the default value if available
 					if ($parameter->isDefaultValueAvailable()) {
 						$param['default_value'] = $parameter->getDefaultValue();
+					} elseif ($parameter->allowsNull()) {
+						$param['default_value'] = null;
 					}
 					
 					// Add the parameter to the parameter list
