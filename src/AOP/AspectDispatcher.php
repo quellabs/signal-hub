@@ -111,7 +111,7 @@
 			foreach($aspects as $entry) {
 				// Use dependency injection container to create aspect instance with its parameters
 				// The DI container handles constructor injection and aspect lifecycle
-				$aspectsResolved[] = $this->di->get($entry['class'], $entry['parameters']);
+				$aspectsResolved[] = $this->di->make($entry['class'], $entry['parameters']);
 			}
 			
 			return $aspectsResolved;
