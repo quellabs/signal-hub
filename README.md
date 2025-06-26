@@ -14,6 +14,7 @@ The AnnotationReader component provides robust parsing and caching of PHP docblo
 
 - **Annotation parsing**: Parse docblock annotations for classes, properties, and methods
 - **Import resolution**: Automatically resolves class imports for fully qualified annotation names
+- **Class constant support**: Supports fully qualified class constants in annotation parameters (e.g., `ObjectName::class`)
 - **Performance optimization**: Implements smart caching to improve performance
 - **Flexible integration**: Easy to integrate with your existing projects
 - **Error handling**: Graceful handling of malformed annotations
@@ -168,12 +169,17 @@ $result = $annotations
 
 ## Annotation Format
 
-Annotations are defined in PHP docblocks using the `@` symbol followed by the annotation name and optional parameters:
+Annotations are defined in PHP docblocks using the `@` symbol followed by the annotation name and optional parameters. The annotation reader supports various parameter formats including strings, numbers, booleans, arrays, and the `::class` magic constant.
+
+### Basic Annotations
+
+Simple annotations with string, numeric, and boolean parameters:
 
 ```php
 /**
  * @Table(name="products")
  * @Entity
+ * @Cache(ttl=3600, enabled=true)
  */
 class Product {
     /**
@@ -187,6 +193,71 @@ class Product {
      * @Validate("maxLength", 255)
      */
     private $name;
+}
+```
+
+### Using Class Constants
+
+Annotations with `::class` magic constants for type-safe class references:
+
+```php
+use App\Models\User;
+use App\Services\ValidationService;
+use App\Events\UserCreated;
+
+/**
+ * @Entity(repository=UserRepository::class)
+ * @EventListener(event=UserCreated::class)
+ */
+class UserService {
+    /**
+     * @Inject(service=ValidationService::class)
+     * @Cache(driver=RedisDriver::class)
+     */
+    private $validator;
+    
+    /**
+     * @Transform(transformer=UserTransformer::class)
+     * @Authorize(policy=UserPolicy::class)
+     */
+    public function getUser(int $id): User {
+        // Method implementation
+    }
+}
+```
+
+
+
+### Supported Parameter Types
+
+The annotation reader supports these parameter formats:
+
+- **Strings**: `"value"` or `'value'`
+- **Numbers**: `42`, `3.14`
+- **Booleans**: `true`, `false`
+- **Arrays**: `{"item1", "item2"}` or `{key="value"}`
+- **Class constants**: Only `::class` magic constant is supported
+- **Magic class constant**: `SomeClass::class`
+- **Fully qualified names**: `\App\Models\User::class`
+- **Imported classes**: `User::class` (when `use App\Models\User;` is present)
+
+### Mixed Parameter Types
+
+You can combine different parameter types within the same annotation:
+
+```php
+/**
+ * @ComplexAnnotation(
+ *     type=User::class,
+ *     name="user_service",
+ *     priority=10,
+ *     enabled=true,
+ *     tags={"user", "service"},
+ *     config=ConfigClass::DEFAULT_CONFIG
+ * )
+ */
+class UserService {
+    // Class implementation
 }
 ```
 
