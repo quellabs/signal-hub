@@ -152,6 +152,7 @@
 			
 			// Then, add class name keys pointing to the first annotation of each type
 			foreach ($this->annotations as $annotation) {
+				// Fetch the class name
 				$className = get_class($annotation);
 				
 				// Only set if not already set (so we get the first occurrence)
