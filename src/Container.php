@@ -120,49 +120,18 @@
 		 * @return object|null
 		 */
 		public function get(string $className, array $parameters = []): ?object {
-			try {
-				// Special case: if someone asks for the container itself
-				if ($className === self::class || $className === ContainerInterface::class) {
-					return $this;
-				}
-				
-				// Check for circular dependencies
-				if (in_array($className, $this->resolutionStack)) {
-					throw new \RuntimeException("Circular dependency detected: " . implode(" -> ", $this->resolutionStack) . " -> {$className}");
-				}
-				
-				// Add to resolution stack
-				$this->resolutionStack[] = $className;
-				
-				// Resolve all constructor dependencies for the class
-				// This will analyze the constructor signature and fetch required dependencies
-				// Any manually provided parameters will override automatic resolution
-				$dependencies = $this->autowire->getMethodArguments($className, '__construct', $parameters);
-				
-				// Fetch the provider
-				$provider = $this->findProvider($className);
-				
-				// Create a new instance of the class using the resolved dependencies
-				// This will invoke the constructor with the correct parameters in the right order
-				$instance = $provider->createInstance($className, $dependencies);
-				
-				// Remove from resolution stack
-				array_pop($this->resolutionStack);
-				
-				// Return the instance
-				return $instance;
-			} catch (\Throwable $e) {
-				// Remove from resolution stack on error
-				if (in_array($className, $this->resolutionStack)) {
-					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
-						array_pop($this->resolutionStack);
-					}
-					
-					array_pop($this->resolutionStack);
-				}
-				
-				return null;
-			}
+			return $this->resolveWithDependencies($className, $parameters, true);
+		}
+		
+		/**
+		 * Create an instance with autowired constructor parameters
+		 * Bypasses service providers - only handles dependency injection
+		 * @param string $className
+		 * @param array $parameters Additional/override parameters
+		 * @return object|null
+		 */
+		public function make(string $className, array $parameters = []): ?object {
+			return $this->resolveWithDependencies($className, $parameters, false);
 		}
 		
 		/**
@@ -178,6 +147,79 @@
 			
 			// Call the method with the resolved arguments
 			return $instance->$methodName(...$args);
+		}
+		
+		/**
+		 * Resolves a class instance with its dependencies, handling circular dependency detection
+		 * and supporting both service provider and direct instantiation methods.
+		 * @param string $className The fully qualified class name to resolve
+		 * @param array $parameters Manual parameters to override autowired dependencies
+		 * @param bool $useServiceProvider Whether to use service provider for instantiation
+		 * @return object|null The resolved instance or null if resolution fails
+		 * @throws \RuntimeException When circular dependencies are detected
+		 */
+		protected function resolveWithDependencies(string $className, array $parameters, bool $useServiceProvider): ?object {
+			try {
+				// Special case: Return container instance when requesting the container itself
+				// This allows for self-injection of the container into other services
+				if ($className === self::class || $className === ContainerInterface::class) {
+					return $this;
+				}
+				
+				// Circular dependency protection: Check if we're already resolving this class
+				// This prevents infinite recursion when Class A depends on Class B which depends on Class A
+				if (in_array($className, $this->resolutionStack)) {
+					throw new \RuntimeException(
+						"Circular dependency detected: " .
+						implode(" -> ", $this->resolutionStack) .
+						" -> {$className}"
+					);
+				}
+				
+				// Track current resolution in the stack for circular dependency detection
+				// This maintains a breadcrumb trail of what we're currently resolving
+				$this->resolutionStack[] = $className;
+				
+				// Autowire constructor dependencies by analyzing the class constructor
+				// Merges manual parameters with automatically resolved dependencies
+				$dependencies = $this->autowire->getMethodArguments($className, '__construct', $parameters);
+				
+				// Choose instantiation method based on configuration
+				if ($useServiceProvider) {
+					// Use service provider pattern for more complex instantiation logic
+					// Service providers can handle custom initialization, configuration, etc.
+					$provider = $this->findProvider($className);
+					$instance = $provider->createInstance($className, $dependencies);
+				} else {
+					// Direct reflection-based instantiation for simple cases
+					// Creates instance directly using PHP's reflection API
+					$reflection = new \ReflectionClass($className);
+					$instance = $reflection->newInstanceArgs($dependencies);
+				}
+				
+				// Clean up: Remove current class from resolution stack since we're done
+				// This allows the same class to be resolved again in different dependency chains
+				array_pop($this->resolutionStack);
+				
+				// Return the instance
+				return $instance;
+				
+			} catch (\Throwable $e) {
+				// Error recovery: Clean up the resolution stack to prevent corruption
+				// Find and remove everything up to and including the current class
+				if (in_array($className, $this->resolutionStack)) {
+					// Remove items from stack until we find our class (handles nested failures)
+					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
+						array_pop($this->resolutionStack);
+					}
+					// Remove the current class itself
+					array_pop($this->resolutionStack);
+				}
+				
+				// Return null to indicate resolution failure
+				// Calling code should handle null return appropriately
+				return null;
+			}
 		}
 		
 		/**

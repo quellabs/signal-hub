@@ -43,6 +43,12 @@
 					continue;
 				}
 				
+				// If that didn't work, try the parameter as camelCase
+				if (isset($parameters[$this->snakeToCamel($paramName)])) {
+					$arguments[] = $parameters[$this->snakeToCamel($paramName)];
+					continue;
+				}
+				
 				// If type is a class/interface, try to get from container
 				if ($paramType && !$this->isBuiltinType($paramType)) {
 					$arguments[] = $this->container->get($paramType);
@@ -135,5 +141,18 @@
 				// Resource (rarely used as a parameter type)
 				'resource',
 			]);
+		}
+		
+		/**
+		 * Converts a snake_case string to camelCase format.
+		 * @param string $snakeStr The snake_case string to convert
+		 * @return string The converted camelCase string
+		 */
+		protected function snakeToCamel(string $snakeStr): string {
+			// Split the string by underscores to get individual words
+			$words = explode('_', $snakeStr);
+			
+			// Keep the first word lowercase, capitalize the first letter of remaining words
+			return $words[0] . implode('', array_map('ucfirst', array_slice($words, 1)));
 		}
 	}
