@@ -143,11 +143,24 @@
 		}
 		
 		/**
-		 * Convert the collection to a plain array.
-		 * @return array The underlying annotations array
+		 * Convert the collection to a plain array with both numeric and class name keys.
+		 * @return array Array with both numeric indices and class names as keys
 		 */
 		public function toArray(): array {
-			return $this->annotations;
+			// First, add all annotations with their numeric keys
+			$result = array_map(function ($annotation) { return $annotation; }, $this->annotations);
+			
+			// Then, add class name keys pointing to the first annotation of each type
+			foreach ($this->annotations as $annotation) {
+				$className = get_class($annotation);
+				
+				// Only set if not already set (so we get the first occurrence)
+				if (!isset($result[$className])) {
+					$result[$className] = $annotation;
+				}
+			}
+			
+			return $result;
 		}
 		
 		/**
