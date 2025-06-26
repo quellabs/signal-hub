@@ -13,7 +13,7 @@
 	 * before the method execution. Uses AOP (Aspect-Oriented Programming) pattern
 	 * to separate validation concerns from business logic.
 	 */
-	class ValidateFormAspect implements BeforeAspect {
+	class ValidateAspect implements BeforeAspect {
 		
 		/**
 		 * @var string The fully qualified class name of the validation rules class
@@ -33,13 +33,13 @@
 		
 		/**
 		 * ValidateFormAspect constructor
-		 * @param string $validation The validation class name that contains the rules
+		 * @param string $validate The validation class name that contains the rules
 		 * @param bool $autoRespond In the case of JSON, send an auto response
 		 * @throws \InvalidArgumentException If validation class doesn't exist or implement interface
 		 */
-		public function __construct(string $validation, bool $autoRespond = false, ?string $formId = null) {
-			$this->validateValidationClass($validation);
-			$this->validationClass = $validation;
+		public function __construct(string $validate, bool $autoRespond = false, ?string $formId = null) {
+			$this->validateValidationClass($validate);
+			$this->validationClass = $validate;
 			$this->autoRespond = $autoRespond;
 			$this->formId = $formId;
 		}
@@ -52,6 +52,15 @@
 		 * @return Response|null Returns JsonResponse for failed API validations, null otherwise
 		 */
 		public function before(MethodContext $context): ?Response {
+			// Extract the request from the method context
+			// The context object wraps the incoming HTTP request and other execution data
+			$request = $context->getRequest();
+
+			// Skip validation if no form data is present
+			if ($this->shouldSkipValidation($request)) {
+				return null;
+			}
+			
 			try {
 				// Instantiate the validation class to get the rules
 				// This creates a new instance of the validation class specified in $this->validationClass
@@ -61,10 +70,6 @@
 				// This could happen if the class doesn't exist or has constructor issues
 				throw new \RuntimeException("Failed to instantiate validation class '{$this->validationClass}': " . $e->getMessage(), 0, $e);
 			}
-			
-			// Extract the request from the method context
-			// The context object wraps the incoming HTTP request and other execution data
-			$request = $context->getRequest();
 			
 			// Validate the request data against the defined rules
 			// This calls a helper method that applies validation rules to the request data
@@ -110,6 +115,39 @@
 				'message' => 'Validation failed',
 				'errors'  => $errors
 			], 422);
+		}
+		
+		/**
+		 * Determines whether request validation should be bypassed based on request method and content.
+		 * @param Request $request The HTTP request object to evaluate
+		 * @return bool True if validation should be skipped, false if validation should proceed
+		 */
+		private function shouldSkipValidation(Request $request): bool {
+			// Skip validation for GET requests that have no query parameters
+			// Rationale: Empty GET requests typically fetch default/index pages and contain no user input
+			if ($request->isMethod('GET') && empty($request->query->all())) {
+				return true;
+			}
+			
+			// Skip validation for data-modifying requests (POST/PUT/PATCH/DELETE) that contain no actual data
+			// This handles cases where:
+			// - Forms are submitted empty (accidental submissions)
+			// - API endpoints are called without payloads
+			// - File upload forms are submitted without files or form data
+			if (
+				in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE']) &&
+				empty($request->request->all()) &&  // No form/JSON data in request body
+				empty($request->files->all()) // No uploaded files
+			) {
+				return true;
+			}
+			
+			// Default behavior: proceed with validation for all other cases
+			// This includes:
+			// - GET requests with query parameters
+			// - POST/PUT/PATCH/DELETE requests with form data or files
+			// - Any other HTTP methods not explicitly handled above
+			return false;
 		}
 		
 		/**
