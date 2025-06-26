@@ -6,6 +6,7 @@ A lightweight, PSR-compliant dependency injection container for PHP with advance
 
 - **Autowiring**: Automatically resolve dependencies through reflection
 - **Service Providers**: Customize how specific services are instantiated
+- **Direct Instantiation**: Use `make()` for simple dependency injection without service providers
 - **Contextual Resolution**: Use the `for()` method to specify which implementation to use when multiple providers support the same interface
 - **Service Discovery**: Automatically discover service providers from Composer configurations
 - **Circular Dependency Detection**: Prevents infinite loops in dependency graphs
@@ -28,8 +29,95 @@ $container = new \Quellabs\DependencyInjection\Container();
 // Get a service (automatically resolves all dependencies)
 $service = $container->get(MyService::class);
 
+// Create a new instance without service providers
+$instance = $container->make(MyService::class);
+
 // Call a method with autowired dependencies
 $result = $container->invoke($service, 'doSomething', ['extraParam' => 'value']);
+```
+
+## Service Resolution Methods
+
+The container provides two primary methods for resolving dependencies:
+
+### `get()` - Service Provider Resolution
+
+The `get()` method uses the full service provider pattern and is the recommended approach for most use cases:
+
+```php
+// Uses service providers (singleton by default)
+$service = $container->get(MyService::class);
+$sameService = $container->get(MyService::class); // Returns the same instance
+
+// Works with contextual resolution
+$objectQuelEM = $container->for('objectquel')->get(EntityManagerInterface::class);
+```
+
+**When to use `get()`:**
+- When you want to leverage service providers for custom instantiation logic
+- When you need singleton behavior (default)
+- When working with interfaces that have multiple implementations
+- For most production use cases where you want consistent service management
+
+### `make()` - Direct Instantiation
+
+The `make()` method bypasses service providers and creates instances directly using reflection:
+
+```php
+// Always creates a new instance, bypassing service providers
+$instance1 = $container->make(MyService::class);
+$instance2 = $container->make(MyService::class); // Creates a different instance
+
+// Still supports parameter injection
+$instance = $container->make(MyService::class, ['customParam' => 'value']);
+```
+
+**When to use `make()`:**
+- When you need a fresh instance every time (transient behavior)
+- For testing scenarios where you want to avoid singleton caching
+- When you want simple dependency injection without custom provider logic
+- For temporary objects or request-specific instances
+- When prototyping or when service provider configuration is overkill
+
+### Key Differences
+
+| Feature | `get()` | `make()` |
+|---------|---------|----------|
+| **Service Providers** | Uses registered providers | Bypasses providers |
+| **Singleton Behavior** | Depends on service provider (DefaultServiceProvider uses singleton) | Always creates new instances |
+| **Contextual Resolution** | Supports `for()` contexts | No context support |
+| **Custom Instantiation** | Provider-defined logic | Direct reflection only |
+| **Interface Resolution** | Via providers | Cannot resolve interfaces |
+| **Performance** | Optimized (caching) | Slightly faster per call |
+
+### Practical Examples
+
+```php
+// Service provider pattern - recommended for services
+$logger = $container->get(LoggerInterface::class);        // Uses LoggerServiceProvider
+$cache = $container->get(CacheInterface::class);          // Uses CacheServiceProvider
+
+// Direct instantiation - good for temporary objects
+$request = $container->make(HttpRequest::class);          // New instance every time
+$validator = $container->make(FormValidator::class);      // Fresh validator
+
+// Mixed usage example
+class OrderService {
+    public function __construct(
+        private LoggerInterface $logger,     // Injected via get() (singleton)
+        private EmailService $emailService  // Injected via get() (singleton)
+    ) {}
+    
+    public function processOrder(array $orderData): void {
+        // Create a fresh order processor for each order
+        $processor = $this->container->make(OrderProcessor::class, [
+            'orderData' => $orderData,
+            'timestamp' => time()
+        ]);
+        
+        $processor->process();
+    }
+}
 ```
 
 ## Contextual Service Resolution
@@ -173,16 +261,16 @@ In your `composer.json`:
 
 ```json
 {
-    "extra": {
-        "discover": {
-          "di": {
-            "providers": [
-              "App\\Providers\\MyServiceProvider",
-              "App\\Providers\\DatabaseServiceProvider"
-            ]
-          }
-        }
+  "extra": {
+    "discover": {
+      "di": {
+        "providers": [
+          "App\\Providers\\MyServiceProvider",
+          "App\\Providers\\DatabaseServiceProvider"
+        ]
+      }
     }
+  }
 }
 ```
 
@@ -190,13 +278,13 @@ For registering just one service provider:
 
 ```json
 {
-    "extra": {
-      "discover": {
-        "di": {
-          "provider": "MyPackage\\MyPackageServiceProvider"
-        }
+  "extra": {
+    "discover": {
+      "di": {
+        "provider": "MyPackage\\MyPackageServiceProvider"
       }
     }
+  }
 }
 ```
 
@@ -245,6 +333,18 @@ class TransientServiceProvider extends ServiceProvider {
         return new $className(...$dependencies);
     }
 }
+```
+
+Alternatively, you can use the `make()` method for simple transient behavior without creating a custom service provider:
+
+```php
+// These will be different instances
+$processor1 = $container->make(OrderProcessor::class);
+$processor2 = $container->make(OrderProcessor::class);
+
+// Versus singleton behavior with get()
+$service1 = $container->get(OrderService::class);
+$service2 = $container->get(OrderService::class); // Same instance as service1
 ```
 
 ## Advanced Configuration
