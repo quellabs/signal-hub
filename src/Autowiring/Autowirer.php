@@ -69,8 +69,8 @@
 				
 				// Strategy 2: Try camelCase version of parameter name
 				// (handles snake_case to camelCase conversion)
-				if (isset($parameters[$this->snakeToCamel($paramName)])) {
-					$arguments[] = $parameters[$this->snakeToCamel($paramName)];
+				if (isset($parameters[$this->camelToSnake($paramName)])) {
+					$arguments[] = $parameters[$this->camelToSnake($paramName)];
 					continue;
 				}
 				
@@ -246,5 +246,24 @@
 			
 			// Keep the first word lowercase, capitalize the first letter of remaining words
 			return $words[0] . implode('', array_map('ucfirst', array_slice($words, 1)));
+		}
+		
+		/**
+		 * Convert camelCase string to snake_case
+		 * @param string $input The camelCase string to convert
+		 * @return string The converted snake_case string
+		 */
+		protected function camelToSnake(string $input): string {
+			// Handle empty strings - return as-is to avoid errors
+			if (empty($input)) {
+				return $input;
+			}
+			
+			// Use regex to find uppercase letters that are not at the start of the string
+			// (?<!^) - negative lookbehind assertion: ensures we don't match the first character
+			// [A-Z]  - matches any uppercase letter A through Z
+			// '_$0'  - replacement: underscore followed by the matched uppercase letter
+			// Then convert the entire result to lowercase
+			return strtolower(preg_replace('/(?<!^)[A-Z]/', '_$0', $input));
 		}
 	}
