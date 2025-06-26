@@ -205,6 +205,9 @@
 				return $instance;
 				
 			} catch (\Throwable $e) {
+				// Log error
+				error_log($e->getMessage());
+				
 				// Error recovery: Clean up the resolution stack to prevent corruption
 				// Find and remove everything up to and including the current class
 				if (in_array($className, $this->resolutionStack)) {
