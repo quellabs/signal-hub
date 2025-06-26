@@ -255,6 +255,11 @@
 				return $this->resolveNestedValue($configKey);
 			}
 			
+			// Handle class constant reference (e.g., ClassName::class)
+			if ($this->isClassConstant()) {
+				return $this->parseClassConstant();
+			}
+			
 			// Handle a JSON string
 			if ($this->lexer->optionalMatch(Token::CurlyBraceOpen)) {
 				$value = $this->parseAttributeList();
