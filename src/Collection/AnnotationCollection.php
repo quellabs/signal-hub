@@ -147,20 +147,59 @@
 		 * @return array Array with both numeric indices and class names as keys
 		 */
 		public function toArray(): array {
-			// First, add all annotations with their numeric keys
-			$result = array_map(function ($annotation) { return $annotation; }, $this->annotations);
+			$result = [];
+			$seenClasses = [];
+			$numericIndex = 0;
 			
-			// Then, add class name keys pointing to the first annotation of each type
 			foreach ($this->annotations as $annotation) {
-				// Fetch the class name
+				// Get the fully qualified class name of the current annotation
 				$className = get_class($annotation);
 				
-				// Only set if not already set (so we get the first occurrence)
-				if (!isset($result[$className])) {
+				// First occurrence of this class: use class name as key
+				if (!isset($seenClasses[$className])) {
 					$result[$className] = $annotation;
+					$seenClasses[$className] = true;
+					continue;
 				}
+				
+				// Subsequent occurrences: use a numeric key
+				$result[$numericIndex++] = $annotation;
 			}
 			
+			return $result;
+		}
+		
+		/**
+		 * Convert the annotations to a linear array format.
+		 * @return array The annotations in linear array format
+		 */
+		public function toIndexedArray(): array {
+			return $this->annotations;
+		}
+		
+		/**
+		 * Convert the collection to a grouped array with class names as keys.
+		 * @return array Associative array where keys are class names and values are
+		 *               indexed arrays of annotations of that type
+		 */
+		public function toGroupedArray(): array {
+			$result = [];
+
+			foreach ($this->annotations as $annotation) {
+				// Get the fully qualified class name of the current annotation
+				$className = get_class($annotation);
+				
+				// If this class name hasn't been encountered yet, create a new array for it
+				if (!isset($result[$className])) {
+					$result[$className] = [];
+				}
+				
+				// Add the current annotation to the array for its class
+				$result[$className][] = $annotation;
+			}
+			
+			// Return the grouped annotations array where keys are class names
+			// and values are arrays of annotation instances of that class
 			return $result;
 		}
 		
@@ -228,6 +267,6 @@
 		 * @return self
 		 */
 		public function merge(AnnotationCollection $other): self {
-			return new self(array_merge($this->annotations, $other->toArray()));
+			return new self(array_merge($this->annotations, $other->toIndexedArray()));
 		}
 	}

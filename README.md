@@ -167,6 +167,120 @@ $result = $annotations
     ->all(InterceptWith::class);
 ```
 
+### Array Conversion Methods
+
+The `AnnotationCollection` provides three different methods to convert the collection to standard PHP arrays, each serving different use cases:
+
+#### toArray() - Mixed Key Format
+
+The `toArray()` method creates an array with hybrid indexing that provides both class-name access for the first occurrence of each annotation type and numeric indexing for duplicates:
+
+```php
+/**
+ * @Route("/api/users")
+ * @InterceptWith("AuthValidator")
+ * @InterceptWith("LoggingInterceptor")
+ * @Cache(ttl=3600)
+ */
+public function getUsers() { /* ... */ }
+
+$annotations = $reader->getMethodAnnotations(MyClass::class, 'getUsers');
+$array = $annotations->toArray();
+
+// Result structure:
+// [
+//     'App\Annotations\Route' => Route("/api/users"),
+//     'App\Annotations\InterceptWith' => InterceptWith("AuthValidator"),
+//     0 => InterceptWith("LoggingInterceptor"),  // Second InterceptWith uses numeric key
+//     'App\Annotations\Cache' => Cache(ttl=3600)
+// ]
+
+// Access patterns:
+$route = $array[Route::class];                    // First (and only) Route
+$firstInterceptor = $array[InterceptWith::class]; // First InterceptWith
+$secondInterceptor = $array[0];                   // Second InterceptWith
+$cache = $array[Cache::class];                    // Cache annotation
+```
+
+This format is ideal when you need both convenient class-name access and want to preserve all duplicate annotations in a single array structure.
+
+#### toIndexedArray() - Linear Format
+
+The `toIndexedArray()` method returns a simple indexed array containing all annotations in their original order:
+
+```php
+$annotations = $reader->getMethodAnnotations(MyClass::class, 'getUsers');
+$array = $annotations->toIndexedArray();
+
+// Result structure:
+// [
+//     0 => Route("/api/users"),
+//     1 => InterceptWith("AuthValidator"),
+//     2 => InterceptWith("LoggingInterceptor"),
+//     3 => Cache(ttl=3600)
+// ]
+
+// Access patterns:
+$firstAnnotation = $array[0];   // Route
+$secondAnnotation = $array[1];  // First InterceptWith
+$thirdAnnotation = $array[2];   // Second InterceptWith
+
+// Iterate through all annotations
+foreach ($array as $index => $annotation) {
+    echo "Annotation {$index}: " . get_class($annotation) . "\n";
+}
+```
+
+This format is perfect for sequential processing, serialization, or when you need a simple list without any special key handling.
+
+#### toGroupedArray() - Grouped by Class
+
+The `toGroupedArray()` method organizes annotations by their class names, with each class name mapping to an array of all annotations of that type:
+
+```php
+$annotations = $reader->getMethodAnnotations(MyClass::class, 'getUsers');
+$array = $annotations->toGroupedArray();
+
+// Result structure:
+// [
+//     'App\Annotations\Route' => [
+//         0 => Route("/api/users")
+//     ],
+//     'App\Annotations\InterceptWith' => [
+//         0 => InterceptWith("AuthValidator"),
+//         1 => InterceptWith("LoggingInterceptor")
+//     ],
+//     'App\Annotations\Cache' => [
+//         0 => Cache(ttl=3600)
+//     ]
+// ]
+
+// Access patterns:
+$routes = $array[Route::class];           // Array of Route annotations
+$interceptors = $array[InterceptWith::class]; // Array of InterceptWith annotations
+
+// Process all interceptors
+foreach ($array[InterceptWith::class] as $interceptor) {
+    // Handle each interceptor
+}
+
+// Check if specific annotation type exists
+if (isset($array[Cache::class])) {
+    $cacheAnnotations = $array[Cache::class];
+}
+
+// Get count of specific annotation type
+$interceptorCount = count($array[InterceptWith::class] ?? []);
+```
+
+This format is excellent for processing annotations by type, configuration systems that need to handle multiple instances of the same annotation, or when building annotation-driven frameworks.
+
+### Choosing the Right Conversion Method
+
+- **Use `toArray()`** when you need convenient access to single annotations by class name but also want to preserve duplicates in the same structure
+- **Use `toIndexedArray()`** for simple sequential processing, serialization, or when working with external APIs that expect indexed arrays
+- **Use `toGroupedArray()`** when building systems that process annotations by type, handling multiple instances of the same annotation class, or creating configuration arrays
+
 ## Annotation Format
 
 Annotations are defined in PHP docblocks using the `@` symbol followed by the annotation name and optional parameters. The annotation reader supports various parameter formats including strings, numbers, booleans, arrays, and the `::class` magic constant.
@@ -226,8 +340,6 @@ class UserService {
 }
 ```
 
-
-
 ### Supported Parameter Types
 
 The annotation reader supports these parameter formats:
@@ -252,8 +364,7 @@ You can combine different parameter types within the same annotation:
  *     name="user_service",
  *     priority=10,
  *     enabled=true,
- *     tags={"user", "service"},
- *     config=ConfigClass::DEFAULT_CONFIG
+ *     tags={"user", "service"}
  * )
  */
 class UserService {
