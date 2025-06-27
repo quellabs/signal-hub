@@ -120,11 +120,11 @@ $techPosts = $this->em->executeQuery("
 
 #### Key Components
 
-**`range`** - Creates an alias for an entity class, similar to SQL's `FROM` clause. Think of it as "let p represent App\Entity\Post"
-**`retrieve`** - Functions like SQL's `SELECT`, specifying what data to return. You can retrieve entire entities (`p`) or specific properties (`u.name`)
-**`where`** - Standard filtering conditions, supporting parameters (`:published`) and regular expressions (`/^Tech/i` matches titles starting with "Tech", case-insensitive)
-**`sort by`** - Equivalent to SQL's `ORDER BY` for result ordering
-**`via`** - Establishes relationships between entities using foreign keys (`p.authorId` links posts to users)
+- **`range`** - Creates an alias for an entity class, similar to SQL's `FROM` clause. Think of it as "let p represent App\Entity\Post"
+- **`retrieve`** - Functions like SQL's `SELECT`, specifying what data to return. You can retrieve entire entities (`p`) or specific properties (`u.name`)
+- **`where`** - Standard filtering conditions, supporting parameters (`:published`) and regular expressions (`/^Tech/i` matches titles starting with "Tech", case-insensitive)
+- **`sort by`** - Equivalent to SQL's `ORDER BY` for result ordering
+- **`via`** - Establishes relationships between entities using foreign keys (`p.authorId` links posts to users)
 
 #### ObjectQuel Features
 
