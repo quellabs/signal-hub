@@ -99,7 +99,7 @@
 			}
 			
 			// Return all matching routes, sorted by priority
-			// Calling code can decide whether to use first match or handle multiple matches
+			// Calling code can decide whether to use the first match or handle multiple matches
 			return $result;
 		}
 		
