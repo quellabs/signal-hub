@@ -22,7 +22,7 @@
 		private Discover $discover;
 		
 		/**
-		 * Constructor - initializes the provider with a discover instance
+		 * Constructor - initializes the provider with a Discover instance
 		 * @param Discover $discover
 		 */
 		public function __construct(Discover $discover) {
