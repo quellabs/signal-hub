@@ -12,6 +12,8 @@
 	use Quellabs\Canvas\Discover\ConfigurationProvider;
 	use Quellabs\Canvas\Discover\DiscoverProvider;
 	use Quellabs\Canvas\Discover\KernelProvider;
+	use Quellabs\Canvas\Discover\RequestProvider;
+	use Quellabs\Canvas\Discover\SessionInterfaceProvider;
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Legacy\LegacyBridge;
 	use Quellabs\Canvas\Legacy\LegacyHandler;
@@ -124,38 +126,53 @@
 		}
 		
 		/**
-		 * Lookup the url and returns information about it
+		 * Process an HTTP request through the controller system and return the response
 		 * @param Request $request The incoming HTTP request object
 		 * @return Response HTTP response to be sent back to the client
 		 */
 		public function handle(Request $request): Response {
-			// Instantiate the URL resolver
-			$urlResolver = new AnnotationResolver($this);
+			// Register providers with dependency injector for this request lifecycle
+			$requestProvider = new RequestProvider($request);
+			$sessionInterfaceProvider = new SessionInterfaceProvider($request->getSession());
+			$this->dependencyInjector->register($requestProvider);
+			$this->dependencyInjector->register($sessionInterfaceProvider);
 			
 			try {
-				// Retrieve URL data using the resolver service
-				// This maps the URL to controller, method and parameters
+				// Initialize URL resolver with annotation-based routing capabilities
+				$urlResolver = new AnnotationResolver($this);
+				
+				// Attempt to resolve the incoming request URL to route data
+				// This maps the URL to controller class, method name, and parameters
 				$urlData = $urlResolver->resolve($request);
 				
-				// If no matching route was found and legacy is enabled, try legacy fallthrough
+				// Handle case where no route matches the request URL
 				if (!$urlData && $this->legacyEnabled && $this->legacyFallbackHandler) {
+					// Legacy system is enabled - attempt fallback to legacy routing system
 					try {
 						return $this->legacyFallbackHandler->handle($request);
 					} catch (RouteNotFoundException $e) {
-						// Legacy fallthrough also failed, return 404 with legacy context
+						// Both new and legacy routing failed - return 404 with legacy context
 						return $this->createNotFoundResponse($request, true);
 					}
 				}
 				
-				// If no matching route was found and legacy is disabled, return 404
+				// No route found and legacy system disabled - return standard 404
 				if (!$urlData) {
 					return $this->createNotFoundResponse($request, false);
 				}
 				
-				// Execute the appropriate controller method based on route information
+				// Route successfully resolved - execute the mapped controller method
 				return $this->executeCanvasRoute($request, $urlData);
+				
 			} catch (\Exception $e) {
+				// Handle any unexpected exceptions during request processing
 				return $this->createErrorResponse($e);
+			} finally {
+				// Critical cleanup: Always unregister to prevent memory leaks
+				// and ensure the dependency injector doesn't retain stale request references
+				// This executes regardless of how the try block exits (return, exception, etc.)
+				$this->dependencyInjector->unregister($sessionInterfaceProvider);
+				$this->dependencyInjector->unregister($requestProvider);
 			}
 		}
 		
