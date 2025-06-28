@@ -4,6 +4,7 @@
 	
 	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
 	use Quellabs\Canvas\AOP\MethodContext;
+	use Quellabs\DependencyInjection\Container;
 	use Symfony\Component\HttpFoundation\JsonResponse;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
@@ -16,9 +17,13 @@
 	class ValidateAspect implements BeforeAspect {
 		
 		/**
+		 * @var Container The Dependency Injector object
+		 */
+		protected Container $di;
+		
+		/**
 		 * @var string The fully qualified class name of the validation rules class
 		 */
-		
 		protected string $validationClass;
 		
 		/**
@@ -33,12 +38,14 @@
 		
 		/**
 		 * ValidateFormAspect constructor
+		 * @param Container $di The Dependency Injector object
 		 * @param string $validate The validation class name that contains the rules
 		 * @param bool $autoRespond In the case of JSON, send an auto response
 		 * @throws \InvalidArgumentException If validation class doesn't exist or implement interface
 		 */
-		public function __construct(string $validate, bool $autoRespond = false, ?string $formId = null) {
+		public function __construct(Container $di, string $validate, bool $autoRespond = false, ?string $formId = null) {
 			$this->validateValidationClass($validate);
+			$this->di = $di;
 			$this->validationClass = $validate;
 			$this->autoRespond = $autoRespond;
 			$this->formId = $formId;
@@ -64,7 +71,7 @@
 			try {
 				// Instantiate the validation class to get the rules
 				// This creates a new instance of the validation class specified in $this->validationClass
-				$validator = new $this->validationClass();
+				$validator = $this->di->make($this->validationClass);
 			} catch (\Throwable $e) {
 				// If validation class instantiation fails, throw a more descriptive runtime exception
 				// This could happen if the class doesn't exist or has constructor issues
@@ -73,7 +80,7 @@
 			
 			// Validate the request data against the defined rules
 			// This calls a helper method that applies validation rules to the request data
-			$errors = $this->validateRequest($request, $validator->getRules());
+			$errors = $this->validateRequest($request, $validator);
 			
 			// Prefix distinguishes validation results when multiple forms are present
 			$prefix = $this->formId ? "{$this->formId}_" : '';
@@ -289,14 +296,14 @@
 		 * Iterates through each field and applies all its validators,
 		 * stopping at the first validation failure per field.
 		 * @param Request $request The HTTP request containing form data
-		 * @param array $rules The validation rules to apply (field => validator(s))
+		 * @param ValidationInterface $rules The validation class containing the rules
 		 * @return array Array of validation errors grouped by field name
 		 */
-		private function validateRequest(Request $request, array $rules): array {
+		private function validateRequest(Request $request, ValidationInterface $rules): array {
 			$errors = [];
 			
 			// Process each field and its validation rules
-			foreach ($rules as $fieldName => $validators) {
+			foreach ($rules->getRules() as $fieldName => $validators) {
 				// Get field value from request (checks both POST and GET data)
 				$fieldValue = $request->get($fieldName);
 				
