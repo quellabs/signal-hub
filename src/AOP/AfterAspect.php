@@ -31,11 +31,11 @@
 		 * - Compressing response content
 		 * - Adding security headers
 		 *
-		 * @param MethodContextInterface $context Contains metadata about the intercepted method
+		 * @param MethodContext $context Contains metadata about the intercepted method
 		 * @param Response $response The response object to be modified in-place.
 		 *                          This is the response returned by the controller method.
 		 *
 		 * @return void No return value expected
 		 */
-		public function after(MethodContextInterface $context, Response $response): void;
+		public function after(MethodContext $context, Response $response): void;
 	}

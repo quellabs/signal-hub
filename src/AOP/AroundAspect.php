@@ -16,7 +16,7 @@
 		 * This allows for pre-processing, post-processing, conditional execution,
 		 * exception handling, and result modification.
 		 *
-		 * @param MethodContextInterface $context Contains metadata about the intercepted method
+		 * @param MethodContext $context Contains metadata about the intercepted method
 		 * @param callable $proceed Callback function that executes the original method.
 		 *                          Call this to invoke the wrapped method with its
 		 *                          original arguments. Can be called zero, one, or
@@ -26,5 +26,5 @@
 		 *               This can be the result from $proceed(), a modified version
 		 *               of it, or a completely different value.
 		 */
-		public function around(MethodContextInterface $context, callable $proceed): mixed;
+		public function around(MethodContext $context, callable $proceed): mixed;
 	}

@@ -9,7 +9,7 @@
 	 * Used in AOP (Aspect-Oriented Programming) scenarios to provide
 	 * interceptors and decorators with complete method execution context.
 	 */
-	interface MethodContextInterface {
+	interface MethodContext {
 		
 		/**
 		 * Get the target object instance.

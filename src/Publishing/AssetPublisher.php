@@ -2,7 +2,7 @@
 
 	namespace Quellabs\Contracts\Publishing;
 	
-	interface AssetPublisherInterface {
+	interface AssetPublisher {
 		
 		/**
 		 * Get a human-readable description of what this publisher does
