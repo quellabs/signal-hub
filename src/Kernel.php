@@ -133,6 +133,7 @@
 		 */
 		public function handle(Request $request): Response {
 			// Prepare request dependencies and register with dependency injector
+			// This typically involves setting up request-scoped services and context
 			$providers = $this->prepareRequest($request);
 			
 			try {
@@ -141,34 +142,31 @@
 				
 				// Attempt to resolve the incoming request URL to route data
 				// This maps the URL to controller class, method name, and parameters
-				$urlData = $urlResolver->resolve($request);
+				try {
+					$urlData = $urlResolver->resolve($request);
+					return $this->executeCanvasRoute($request, $urlData);
+				} catch (RouteNotFoundException $e) {
+					// Route isn't found in primary resolver - fall through to legacy handling
+				}
 				
-				// Handle case where no route matches the request URL
-				if (!$urlData && $this->legacyEnabled && $this->legacyFallbackHandler) {
-					// Legacy system is enabled - attempt fallback to legacy routing system
+				// Fallback to legacy routing if enabled and configured
+				if ($this->legacyEnabled && $this->legacyFallbackHandler) {
 					try {
 						return $this->legacyFallbackHandler->handle($request);
 					} catch (RouteNotFoundException $e) {
-						// Both new and legacy routing failed - return 404 with legacy context
-						return $this->createNotFoundResponse($request, true);
+						// Legacy handler also couldn't find a route
+						// Continue to 404 response generation
 					}
 				}
 				
-				// No route found and legacy system disabled - return standard 404
-				if (!$urlData) {
-					return $this->createNotFoundResponse($request, false);
-				}
-				
-				// Route successfully resolved - execute the mapped controller method
-				return $this->executeCanvasRoute($request, $urlData);
+				// No routes matched in either system - generate 404 Not Found response.
+				// Pass legacy flag to potentially customize 404-behavior based on routing mode
+				return $this->createNotFoundResponse($request, $this->legacyEnabled);
 				
 			} catch (\Exception $e) {
-				// Handle any unexpected exceptions during request processing
 				return $this->createErrorResponse($e);
 			} finally {
 				// Critical cleanup: Always unregister to prevent memory leaks
-				// and ensure the dependency injector doesn't retain stale request references
-				// This executes regardless of how the try block exits (return, exception, etc.)
 				$this->cleanupRequest($providers);
 			}
 		}

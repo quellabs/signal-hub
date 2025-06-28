@@ -3,6 +3,7 @@
 	namespace Quellabs\Canvas\Routing;
 	
 	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Kernel;
 	use ReflectionException;
 	use Quellabs\Canvas\Annotations\Route;
@@ -48,21 +49,21 @@
 		 * Resolves an HTTP request to find the first matching route
 		 * This is a convenience method that returns only the highest priority match
 		 * @param Request $request The incoming HTTP request to resolve
-		 * @return array|null Returns the first matched route info or null if no match found
-		 *                    array contains: ['controller' => string, 'method' => string, 'variables' => array]
+		 * @return array Returns the first matched route info
+		 * @throws RouteNotFoundException
 		 */
-		public function resolve(Request $request): ?array {
+		public function resolve(Request $request): array {
 			// Get all possible route matches using the main resolution logic
 			$result = $this->resolveAll($request);
 			
-			// If no routes matched, return null to indicate no match found
-			if (empty($result)) {
-				return null;
-			}
-			
 			// Return only the first (highest priority) match
 			// Since resolveAll() sorts by priority, index 0 is the best match
-			return $result[0];
+			if (!empty($result)) {
+				return $result[0];
+			}
+			
+			// If no routes matched, throw an exception
+			throw new RouteNotFoundException("Route not found");
 		}
 		
 		/**
