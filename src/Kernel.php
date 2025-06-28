@@ -22,6 +22,7 @@
 	use Quellabs\Discover\Discover;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
+	use Symfony\Component\HttpFoundation\Session\Session;
 	
 	class Kernel {
 		
@@ -131,6 +132,12 @@
 		 * @return Response HTTP response to be sent back to the client
 		 */
 		public function handle(Request $request): Response {
+			// Check if session exists, create if needed
+			if (!$request->hasSession()) {
+				$session = new Session();
+				$request->setSession($session);
+			}
+			
 			// Register providers with dependency injector for this request lifecycle
 			$requestProvider = new RequestProvider($request);
 			$sessionInterfaceProvider = new SessionInterfaceProvider($request->getSession());
