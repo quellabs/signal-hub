@@ -125,35 +125,48 @@
 		}
 		
 		/**
-		 * Determines whether request validation should be bypassed based on request method and content.
+		 * Determines whether request validation should be skipped based on request method and data presence.
 		 * @param Request $request The HTTP request object to evaluate
-		 * @return bool True if validation should be skipped, false if validation should proceed
+		 * @return bool True if validation should be skipped, false otherwise
 		 */
 		private function shouldSkipValidation(Request $request): bool {
 			// Skip validation for GET requests that have no query parameters
-			// Rationale: Empty GET requests typically fetch default/index pages and contain no user input
+			// GET requests without parameters typically don't need validation as they're
+			// just retrieving data without sending any input that could be malformed
 			if ($request->isMethod('GET') && empty($request->query->all())) {
 				return true;
 			}
 			
-			// Skip validation for data-modifying requests (POST/PUT/PATCH/DELETE) that contain no actual data
-			// This handles cases where:
-			// - Forms are submitted empty (accidental submissions)
-			// - API endpoints are called without payloads
-			// - File upload forms are submitted without files or form data
-			if (
-				in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE']) &&
-				empty($request->request->all()) &&  // No form/JSON data in request body
-				empty($request->files->all()) // No uploaded files
-			) {
-				return true;
+			// Skip validation for data-modifying requests with no data
+			// Even POST/PUT/PATCH/DELETE requests might be sent without actual data
+			// (e.g., a DELETE request that only uses the URL path parameter)
+			if (in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'])) {
+				// Check if request contains form data (application/x-www-form-urlencoded or multipart/form-data)
+				$hasFormData = !empty($request->request->all());
+				
+				// Check if request contains uploaded files
+				$hasFiles = !empty($request->files->all());
+				
+				// Check if request contains JSON data in the body
+				// Check both that content exists and Content-Type indicates JSON
+				$contentType = $request->headers->get('Content-Type', '');
+				$hasJsonData =
+					!empty($request->getContent()) && (
+						str_contains($contentType, 'application/json') ||
+						str_contains($contentType, 'application/vnd.api+json')
+					);
+				
+				// If none of the data types are present, skip validation
+				// This covers cases like DELETE /api/users/123 where the ID is in the URL
+				// and no additional data needs validation
+				if (!$hasFormData && !$hasFiles && !$hasJsonData) {
+					return true;
+				}
 			}
 			
-			// Default behavior: proceed with validation for all other cases
-			// This includes:
-			// - GET requests with query parameters
-			// - POST/PUT/PATCH/DELETE requests with form data or files
-			// - Any other HTTP methods not explicitly handled above
+			// Default to requiring validation for all other cases
+			// This includes GET requests with query parameters and any data-modifying
+			// requests that actually contain data to validate
 			return false;
 		}
 		
