@@ -2,11 +2,11 @@
 	
 	namespace Quellabs\DependencyInjection;
 	
+	use Quellabs\Discover\Discover;
+	use Quellabs\Discover\Scanner\ComposerScanner;
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
-	use Quellabs\Discover\Discover;
-	use Quellabs\Discover\Scanner\ComposerScanner;
 	
 	/**
 	 * Container with centralized autowiring for all services
@@ -48,7 +48,7 @@
 		/**
 		 * @var array|string[]
 		 */
-		private array $defaultContext = [];
+		private array $context = [];
 		
 		/**
 		 * Container constructor with automatic service discovery
@@ -72,44 +72,68 @@
 		}
 		
 		/**
-		 * Register a service provider
-		 * @param ServiceProvider $provider
-		 * @return self
+		 * Registers a service provider with the container.
+		 * @param ServiceProvider $provider The service provider instance to register
+		 * @return self Returns the current instance for method chaining
 		 */
 		public function register(ServiceProvider $provider): self {
+			// Store the provider in the providers array using its class name as the key
 			$this->providers[get_class($provider)] = $provider;
+			
+			// Return the current instance to allow method chaining
+			return $this;
+		}
+		
+		/**
+		 * Unregisters a service provider from the container.
+		 * @param ServiceProvider $provider The service provider instance to unregister
+		 * @return self Returns the current instance for method chaining
+		 */
+		public function unregister(ServiceProvider $provider): self {
+			// Remove the provider from the providers array using its class name as the key
+			unset($this->providers[get_class($provider)]);
+			
+			// Return the current instance to allow method chaining
 			return $this;
 		}
 		
 		/**
 		 * Set context for subsequent get() calls
-		 * @param string|array $context
-		 * @return $this
+		 * @param string|array $context Context to apply - string is converted to ['provider' => $context]
+		 * @return self Returns a cloned instance with the specified context applied
 		 */
 		public function for(string|array $context): self {
+			// Create a clone to avoid modifying the original container instance
 			$clone = clone $this;
 			
+			// Handle string context by converting it to a provider-specific array format
+			// Otherwise, use the provided array context directly
 			if (is_string($context)) {
-				$clone->defaultContext = ['provider' => $context];
+				$clone->context = ['provider' => $context];
 			} else {
-				$clone->defaultContext = $context;
+				$clone->context = $context;
 			}
 			
+			// Return the cloned instance with the new context
 			return $clone;
 		}
 		
 		/**
-		 * Find a provider that supports the given class
-		 * @param string $className
-		 * @return ServiceProvider
+		 **
+		 * Find the appropriate service provider for a given class name.
+		 * @param string $className The fully qualified class name to find a provider for
+		 * @return ServiceProvider The provider that supports the class or the default provider
 		 */
 		public function findProvider(string $className): ServiceProvider {
+			// Iterate through all registered providers to find one that supports the class
 			foreach ($this->providers as $provider) {
-				if ($provider->supports($className, $this->defaultContext)) {
+				// Check if this provider supports the class name with the current context
+				if ($provider->supports($className, $this->context)) {
 					return $provider;
 				}
 			}
 			
+			// No specific provider found, return the default provider as fallback
 			return $this->defaultProvider;
 		}
 		
