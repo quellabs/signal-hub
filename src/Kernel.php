@@ -57,7 +57,7 @@
 			// Initialize legacy support
 			$this->initializeLegacySupport();
 			
-			// Zet een custom exception handler voor wat mooiere exceptie meldingen
+			// Add a custom exception handler for some nicer exception messages
 			set_exception_handler([$this, 'customExceptionHandler']);
 		}
 		
