@@ -330,8 +330,9 @@ Aspects implement interfaces based on when they should execute:
 <?php
 namespace App\Aspects;
 
-use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
-use Quellabs\Canvas\AOP\MethodContext;
+use Quellabs\Contracts\AOP\BeforeAspect;
+use Quellabs\Contracts\AOP\AroundAspect;
+use Quellabs\Contracts\AOP\AfterAspect;
 use Symfony\Component\HttpFoundation\Response;
 
 // Before Aspects - Execute before the method, can stop execution

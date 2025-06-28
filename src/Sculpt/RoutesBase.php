@@ -2,9 +2,6 @@
 	
 	namespace Quellabs\Canvas\Sculpt;
 	
-	use AllowDynamicProperties;
-	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Configuration;
 	use Quellabs\Canvas\Routing\AnnotationLister;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Sculpt\ConfigurationManager;

@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\Canvas\Validation;
 	
-	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
-	use Quellabs\Canvas\AOP\MethodContext;
+	use Quellabs\Contracts\AOP\MethodContext;
+	use Quellabs\Contracts\AOP\BeforeAspect;
 	use Quellabs\DependencyInjection\Container;
 	use Symfony\Component\HttpFoundation\JsonResponse;
 	use Symfony\Component\HttpFoundation\Request;

@@ -10,7 +10,7 @@
 	 * Used in AOP (Aspect-Oriented Programming) scenarios to provide
 	 * interceptors and decorators with complete method execution context.
 	 */
-	class MethodContext {
+	class MethodContext implements \Quellabs\Contracts\AOP\MethodContext {
 		
 		private Request $request;
 		private object $target;
