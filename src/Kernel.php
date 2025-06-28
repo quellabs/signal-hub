@@ -7,9 +7,9 @@
 	use Dotenv\Exception\InvalidFileException;
 	use Dotenv\Exception\InvalidPathException;
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Configuration;
-	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\AspectDispatcher;
+	use Quellabs\Canvas\Configuration\Configuration;
+	use Quellabs\Canvas\Discover\ConfigurationProvider;
 	use Quellabs\Canvas\Discover\DiscoverProvider;
 	use Quellabs\Canvas\Discover\KernelProvider;
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
@@ -25,7 +25,7 @@
 		
 		private Discover $discover; // Service discovery
 		private AnnotationReader $annotationsReader; // Annotation reading
-		private array $configuration;
+		private Configuration $configuration;
 		private ?array $contents_of_app_php = null;
 		private bool $legacyEnabled;
 		private ?LegacyHandler $legacyFallbackHandler;
@@ -43,15 +43,16 @@
 			$this->loadEnvironmentFile();
 			
 			// Store the configuration array
-			$this->configuration = array_merge($this->getConfigFile(), $configuration);
+			$this->configuration = new Configuration(array_merge($this->getConfigFile(), $configuration));
 			
 			// Register Annotations Reader
-			$annotationsReaderConfig = new Configuration();
+			$annotationsReaderConfig = new \Quellabs\AnnotationReader\Configuration();
 			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
 			
 			// Instantiate Dependency Injector
 			$this->dependencyInjector = new Container();
 			$this->dependencyInjector->register(new KernelProvider($this));
+			$this->dependencyInjector->register(new ConfigurationProvider($this->configuration));
 			$this->dependencyInjector->register(new DiscoverProvider($this->discover));
 			
 			// Initialize legacy support
@@ -76,6 +77,14 @@
 		 */
 		public function getAnnotationsReader(): AnnotationReader {
 			return $this->annotationsReader;
+		}
+		
+		/**
+		 * Returns the Configuration object
+		 * @return Configuration
+		 */
+		public function getConfiguration(): Configuration {
+			return $this->configuration;
 		}
 		
 		/**
@@ -113,89 +122,6 @@
 			
 			// Exit
 			exit(1);
-		}
-		
-		/**
-		 * Returns the entire configuration array as passed in the constructor
-		 * @return array
-		 */
-		public function getConfiguration(): array {
-			return $this->configuration;
-		}
-		
-		/**
-		 * Check if a configuration key exists
-		 * @param string $key Configuration key
-		 * @return bool
-		 */
-		public function hasConfig(string $key): bool {
-			return array_key_exists($key, $this->configuration);
-		}
-		
-		/**
-		 * Get a specific configuration value
-		 * @param string $key Configuration key
-		 * @param mixed|null $default Default value if key doesn't exist
-		 * @return mixed
-		 */
-		public function getConfig(string $key, mixed $default = null): mixed {
-			return $this->configuration[$key] ?? $default;
-		}
-		
-		/**
-		 * Get configuration value with type casting
-		 * @param string $key Configuration key
-		 * @param string $type Type to cast to ('string', 'int', 'float', 'bool', 'array')
-		 * @param mixed|null $default Default value
-		 * @return mixed
-		 */
-		public function getConfigAs(string $key, string $type, mixed $default = null): mixed {
-			$value = $this->getConfig($key, $default);
-			
-			if ($value === null) {
-				return $default;
-			}
-			
-			switch (strtolower($type)) {
-				case 'string':
-					return (string)$value;
-				
-				case 'int':
-				case 'integer':
-					return (int)$value;
-				
-				case 'float':
-				case 'double':
-					return (float)$value;
-				
-				case 'bool':
-				case 'boolean':
-					// Handle common boolean strings
-					if (is_string($value)) {
-						return in_array(strtolower($value), ['true', '1', 'yes', 'on']);
-					}
-					
-					return (bool)$value;
-				
-				case 'array':
-					// Handle comma-separated strings
-					if (is_string($value)) {
-						return array_map('trim', explode(',', $value));
-					}
-					
-					return is_array($value) ? $value : [$value];
-				
-				default:
-					return $value;
-			}
-		}
-		
-		/**
-		 * Get all configuration keys
-		 * @return array
-		 */
-		public function getConfigKeys(): array {
-			return array_keys($this->configuration);
 		}
 		
 		/**
@@ -267,8 +193,8 @@
 		 * @return Response
 		 */
 		private function createNotFoundResponse(Request $request, bool $legacyAttempted = false): Response {
-			$isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
-			$legacyPath = $this->getDiscover()->resolvePath($this->getConfig('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy'));
+			$isDevelopment = $this->configuration->getAs('debug_mode', 'bool', false);
+			$legacyPath = $this->getDiscover()->resolvePath($this->configuration->get('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy'));
 			$notFoundFile = $legacyPath . '404.php';
 			
 			if ($isDevelopment) {
@@ -318,7 +244,7 @@
 		 * @return Response
 		 */
 		private function createErrorResponse(\Throwable $exception): Response {
-			$isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
+			$isDevelopment = $this->configuration->getAs('debug_mode', 'bool', false);
 			
 			if ($isDevelopment) {
 				// In development, show detailed error information as HTML
@@ -327,7 +253,7 @@
 			}
 			
 			// In production, try to include a simple 500.php file if it exists
-			$legacyPath = $this->getConfig('legacy_path', 'legacy/');
+			$legacyPath = $this->configuration->get('legacy_path', 'legacy/');
 			$errorFile = $legacyPath . '500.php';
 			
 			if (file_exists($errorFile)) {
@@ -392,17 +318,17 @@
 		 */
 		private function initializeLegacySupport(): void {
 			// Check if legacy fallthrough is enabled
-			$this->legacyEnabled = $this->getConfigAs('legacy_enabled', 'bool', false);
+			$this->legacyEnabled = $this->configuration->getAs('legacy_enabled', 'bool', false);
 			
 			if ($this->legacyEnabled) {
 				// Only initialize bridge when legacy support is enabled
 				LegacyBridge::initialize($this->dependencyInjector);
 				
 				// Fetch the legacy path
-				$legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
+				$legacyPath = $this->configuration->get('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
 				
 				// Fetch the legacy path
-				$preprocessingEnabled = $this->getConfig('legacy_preprocessing', true);
+				$preprocessingEnabled = $this->configuration->get('legacy_preprocessing', true);
 				
 				// Create the fallthrough handler
 				$this->legacyFallbackHandler = new LegacyHandler($this, $legacyPath, $preprocessingEnabled);

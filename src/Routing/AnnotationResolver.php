@@ -27,9 +27,9 @@
 			parent::__construct($kernel->getAnnotationsReader());
 
 			$this->kernel = $kernel;
-			$this->debugMode = $kernel->getConfigAs('debug_mode', 'bool', false);
-			$this->matchTrailingSlashes = $kernel->getConfigAs('match_trailing_slashes', 'bool',false);
-			$this->cacheDirectory = $kernel->getConfig('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
+			$this->debugMode = $kernel->getConfiguration()->getAs('debug_mode', 'bool', false);
+			$this->matchTrailingSlashes = $kernel->getConfiguration()->getAs('match_trailing_slashes', 'bool',false);
+			$this->cacheDirectory = $kernel->getConfiguration()->get('cache_dir', $kernel->getDiscover()->getProjectRoot() . "/storage/cache");
 			$this->cacheFile = 'routes.serialized';
 			
 			// Create cache directory if it doesn't already exist
