@@ -174,6 +174,48 @@
 		}
 		
 		/**
+		 * Convert the kernel instance to a string representation.
+		 * @return string A formatted string containing kernel mode, legacy status, and root path
+		 */
+		public function __toString(): string {
+			// Determine legacy feature status - convert boolean to readable string
+			$legacyStatus = $this->legacyEnabled ? 'enabled' : 'disabled';
+			
+			// Get debug mode from configuration with fallback to production mode
+			// Uses type-safe configuration retrieval with default value
+			$debugMode = $this->configuration->getAs('debug_mode', 'bool', false) ? 'debug' : 'production';
+			
+			// Return formatted kernel information string
+			// Format: Canvas\Kernel[mode=debug/production, legacy=enabled/disabled, root=/path/to/project]
+			return sprintf(
+				'Canvas\Kernel[mode=%s, legacy=%s, root=%s]',
+				$debugMode,
+				$legacyStatus,
+				$this->discover->getProjectRoot()
+			);
+		}
+		
+		/**
+		 * Provide debug information when var_dump() or similar functions are called.
+		 * @return array Associative array containing debug-relevant kernel properties
+		 */
+		public function __debugInfo(): array {
+			return [
+				// Project root directory path
+				'project_root'         => $this->discover->getProjectRoot(),
+				
+				// Current debug mode setting (boolean from configuration)
+				'debug_mode'           => $this->configuration->getAs('debug_mode', 'bool', false),
+				
+				// Whether legacy features are enabled
+				'legacy_enabled'       => $this->legacyEnabled,
+				
+				// List of all available configuration keys (for inspecting what's configured)
+				'config_keys'          => array_keys($this->configuration->all()),
+			];
+		}
+		
+		/**
 		 * Prepare the request for processing by ensuring session availability and registering providers
 		 * @param Request $request The incoming HTTP request
 		 * @return array Array containing the registered providers for cleanup
