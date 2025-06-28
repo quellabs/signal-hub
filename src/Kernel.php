@@ -132,17 +132,8 @@
 		 * @return Response HTTP response to be sent back to the client
 		 */
 		public function handle(Request $request): Response {
-			// Check if session exists, create if needed
-			if (!$request->hasSession()) {
-				$session = new Session();
-				$request->setSession($session);
-			}
-			
-			// Register providers with dependency injector for this request lifecycle
-			$requestProvider = new RequestProvider($request);
-			$sessionInterfaceProvider = new SessionInterfaceProvider($request->getSession());
-			$this->dependencyInjector->register($requestProvider);
-			$this->dependencyInjector->register($sessionInterfaceProvider);
+			// Prepare request dependencies and register with dependency injector
+			$providers = $this->prepareRequest($request);
 			
 			try {
 				// Initialize URL resolver with annotation-based routing capabilities
@@ -178,9 +169,41 @@
 				// Critical cleanup: Always unregister to prevent memory leaks
 				// and ensure the dependency injector doesn't retain stale request references
 				// This executes regardless of how the try block exits (return, exception, etc.)
-				$this->dependencyInjector->unregister($sessionInterfaceProvider);
-				$this->dependencyInjector->unregister($requestProvider);
+				$this->cleanupRequest($providers);
 			}
+		}
+		
+		/**
+		 * Prepare the request for processing by ensuring session availability and registering providers
+		 * @param Request $request The incoming HTTP request
+		 * @return array Array containing the registered providers for cleanup
+		 */
+		private function prepareRequest(Request $request): array {
+			// Check if session exists, create if needed
+			if (!$request->hasSession()) {
+				$request->setSession(new Session());
+			}
+			
+			// Register providers with dependency injector for this request lifecycle
+			$requestProvider = new RequestProvider($request);
+			$sessionProvider = new SessionInterfaceProvider($request->getSession());
+			$this->dependencyInjector->register($requestProvider);
+			$this->dependencyInjector->register($sessionProvider);
+			
+			// Return providers for cleanup in finally block
+			return [
+				'request' => $requestProvider,
+				'session' => $sessionProvider
+			];
+		}
+		
+		/**
+		 * Clean up registered providers from the dependency injector
+		 * @param array $providers Array of providers to unregister
+		 */
+		private function cleanupRequest(array $providers): void {
+			$this->dependencyInjector->unregister($providers['session']);
+			$this->dependencyInjector->unregister($providers['request']);
 		}
 		
 		/**
