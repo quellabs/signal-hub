@@ -46,10 +46,9 @@
 			$this->configuration = new Configuration(array_merge($this->getConfigFile(), $configuration));
 			
 			// Register Annotations Reader
-			$annotationsReaderConfig = new \Quellabs\AnnotationReader\Configuration();
-			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
+			$this->annotationsReader = $this->createAnnotationReader();
 			
-			// Instantiate Dependency Injector
+			// Instantiate Dependency Injector and register default providers
 			$this->dependencyInjector = new Container();
 			$this->dependencyInjector->register(new KernelProvider($this));
 			$this->dependencyInjector->register(new ConfigurationProvider($this->configuration));
@@ -158,6 +157,30 @@
 			} catch (\Exception $e) {
 				return $this->createErrorResponse($e);
 			}
+		}
+		
+		/**
+		 * Creates and configures an AnnotationReader instance with optimized caching settings.
+		 * @return AnnotationReader Configured annotation reader instance
+		 */
+		private function createAnnotationReader(): AnnotationReader {
+			// Initialize the annotation reader configuration object
+			$config = new \Quellabs\AnnotationReader\Configuration();
+			
+			// Check if we're NOT in debug mode (i.e., in production or staging)
+			if (!$this->configuration->getAs('debug_mode', 'bool', false)) {
+				// Get the project root directory path for cache storage
+				$rootPath = $this->discover->getProjectRoot();
+				
+				// Enable annotation caching for better performance in production
+				$config->setUseAnnotationCache(true);
+				
+				// Set the cache directory path within the project's storage folder
+				$config->setAnnotationCachePath($rootPath . "/storage/annotations");
+			}
+			
+			// Create and return the configured AnnotationReader instance
+			return new AnnotationReader($config);
 		}
 		
 		/**
