@@ -4,6 +4,7 @@
 	
 	use Quellabs\Canvas\Kernel;
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
+	use Quellabs\Discover\Discover;
 	
 	/**
 	 * Service provider for the Canvas framework kernel.
@@ -12,20 +13,20 @@
 	 * to the dependency injection container. It ensures that the same kernel
 	 * instance is returned whenever the Kernel class is requested.
 	 */
-	class KernelProvider extends ServiceProvider {
+	class DiscoverProvider extends ServiceProvider {
 		
 		/**
-		 * The framework kernel instance to be provided
-		 * @var Kernel
+		 * The framework Discover instance to be provided
+		 * @var Discover
 		 */
-		private Kernel $framework;
+		private Discover $discover;
 		
 		/**
-		 * Constructor - initializes the provider with a kernel instance
-		 * @param Kernel $framework The framework kernel instance to provide
+		 * Constructor - initializes the provider with a discover instance
+		 * @param Discover $discover
 		 */
-		public function __construct(Kernel $framework) {
-			$this->framework = $framework;
+		public function __construct(Discover $discover) {
+			$this->discover = $discover;
 		}
 		
 		/**
@@ -35,16 +36,16 @@
 		 * @return bool True if this provider supports the requested class, false otherwise
 		 */
 		public function supports(string $className, array $metadata = []): bool {
-			return $className === Kernel::class;
+			return $className === Discover::class;
 		}
 		
 		/**
 		 * Creates and returns the kernel instance
 		 * @param string $className The class name being requested (should be Kernel::class)
 		 * @param array $dependencies Dependencies for the class (unused since we return existing instance)
-		 * @return Kernel The framework kernel instance
+		 * @return Discover The framework kernel instance
 		 */
-		public function createInstance(string $className, array $dependencies): Kernel {
-			return $this->framework;
+		public function createInstance(string $className, array $dependencies): Discover {
+			return $this->discover;
 		}
 	}
