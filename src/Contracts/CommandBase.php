@@ -3,8 +3,8 @@
 	namespace Quellabs\Sculpt\Contracts;
 	
 	use Quellabs\Contracts\Discovery\ProviderInterface;
-	use Quellabs\Sculpt\Console\ConsoleInput;
-	use Quellabs\Sculpt\Console\ConsoleOutput;
+	use Quellabs\Contracts\IO\ConsoleInput;
+	use Quellabs\Contracts\IO\ConsoleOutput;
 	
 	/**
 	 * Abstract base class for all command implementations
