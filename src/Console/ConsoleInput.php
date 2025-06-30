@@ -1,10 +1,17 @@
 <?php
 	
-	
 	namespace Quellabs\Sculpt\Console;
 	
-	class ConsoleInput {
+	class ConsoleInput implements \Quellabs\Contracts\IO\ConsoleInput {
+		
+		/**
+		 * @var false|resource The input stream (usually STDIN)
+		 */
 		protected $input;
+		
+		/**
+		 * @var ConsoleOutput Output object
+		 */
 		protected ConsoleOutput $output;
 		
 		/**
@@ -54,17 +61,26 @@
 		 * @return string
 		 */
 		public function choice(string $question, array $choices, $default = null): string {
+			// Display the main question to the user
 			$this->output->writeLn($question);
 			
+			// Loop through all available choices and display them with numbered options
 			foreach ($choices as $key => $choice) {
+				// Format each choice with a number (starting from 1) for user selection
 				$this->output->writeLn(sprintf("  [%d] %s", $key + 1, $choice));
 			}
 			
 			do {
+				// Prompt user to enter their choice
 				$answer = $this->ask('Enter your choice');
+				
+				// Convert user input to zero-based array index (subtract 1 since display starts at 1)
 				$index = (int)$answer - 1;
+				
+				// Continue looping while the selected index doesn't exist in the choices array
 			} while (!isset($choices[$index]));
 			
+			// Return the selected choice text from the choices array
 			return $choices[$index];
 		}
 	}

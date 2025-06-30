@@ -3,9 +3,9 @@
 	namespace Quellabs\Sculpt;
 	
 	use Quellabs\Discover\Discover;
+	use Quellabs\Contracts\IO\ConsoleInput;
+	use Quellabs\Contracts\IO\ConsoleOutput;
 	use Quellabs\Discover\Scanner\ComposerScanner;
-	use Quellabs\Sculpt\Console\ConsoleInput;
-	use Quellabs\Sculpt\Console\ConsoleOutput;
 	use Quellabs\Sculpt\Contracts\CommandInterface;
 	
 	/**

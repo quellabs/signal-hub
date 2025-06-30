@@ -3,8 +3,11 @@
 	
 	namespace Quellabs\Sculpt\Console;
 	
-	class ConsoleOutput {
+	class ConsoleOutput implements \Quellabs\Contracts\IO\ConsoleOutput {
 		
+		/**
+		 * @var false|resource The output stream (usually STDOUT)
+		 */
 		protected $output;
 		
 		/**
@@ -128,7 +131,7 @@
 		 * @return void
 		 */
 		public function success(string $message): void {
-			$prefix = "<bg_green><white>✓ SUCCESS:</white></bg_green> ";  // White text on green background with checkmark symbol
+			$prefix = "<bg_green><white>✓ SUCCESS:</white></bg_green> ";  // White text on a green background with checkmark symbol
 			$this->writeLn($prefix . "<green>{$message}</green>");
 		}
 		
@@ -148,7 +151,7 @@
 		 * @return void
 		 */
 		public function error(string $message): void {
-			$prefix = "<bg_red><white>✖ ERROR:</white></bg_red> ";  // White text on red background with error symbol
+			$prefix = "<bg_red><white>✖ ERROR:</white></bg_red> ";  // White text on a red background with error symbol
 			$this->writeLn($prefix . "<red>{$message}</red>");
 		}
 		
