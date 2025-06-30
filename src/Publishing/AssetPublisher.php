@@ -5,14 +5,22 @@
 	interface AssetPublisher {
 		
 		/**
+		 * Get the tag/name identifier for this publisher
+		 * @return string
+		 */
+		public static function getTag(): string;
+		
+		/**
 		 * Get a human-readable description of what this publisher does
+		 * @return string
 		 */
 		public static function getDescription(): string;
 		
 		/**
-		 * Get the tag/name identifier for this publisher
+		 * Returns extended help information about what this publisher does
+		 * @return string Detailed help text explaining the authentication publisher functionality
 		 */
-		public static function getTag(): string;
+		public static function getHelp(): string;
 		
 		/**
 		 * Publish the assets to the given base path
