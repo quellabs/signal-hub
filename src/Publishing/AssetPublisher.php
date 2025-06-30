@@ -23,6 +23,12 @@
 		public static function getHelp(): string;
 		
 		/**
+		 * Determines if this publisher will prompt for user input during publishing
+		 * @return bool True if the publisher asks questions during publishing, false otherwise
+		 */
+		public function isInteractive(): bool;
+		
+		/**
 		 * Publish the assets to the given base path
 		 * @param string $basePath The project root directory
 		 * @param bool $force Whether to overwrite existing files
