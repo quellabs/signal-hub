@@ -24,9 +24,9 @@
 		
 		/**
 		 * Get instructions to show to the user after successful publishing
-		 * @return string[] Array of instruction strings
+		 * @return string
 		 */
-		public function getPostPublishInstructions(): array;
+		public function getPostPublishInstructions(): string;
 		
 		/**
 		 * Check if this publisher can run (dependencies, requirements, etc.)
