@@ -19,6 +19,13 @@
 		protected ?string $familyName;
 		
 		/**
+		 * The top-level key in composer.json's extra section that contains discovery configuration.
+		 * Defaults to 'discover' but can be customized to use a different section name.
+		 * @var string
+		 */
+		private string $discoverySection;
+		
+		/**
 		 * @var PSR4 PSR-4 utilities
 		 */
 		private PSR4 $utilities;
@@ -40,9 +47,11 @@
 		/**
 		 * ComposerScanner constructor
 		 * @param string|null $familyName The family name for providers, or null to discover all families
+		 * @param string|null $discoverySection The top-level key in composer.json's extra section
 		 */
-		public function __construct(?string $familyName = null) {
+		public function __construct(?string $familyName = null, ?string $discoverySection="discover") {
 			$this->familyName = $familyName;
+			$this->discoverySection = $discoverySection;
 			$this->utilities = new PSR4();
 		}
 		
@@ -136,7 +145,7 @@
 			foreach ($packagesList as $package) {
 				// Check if package has opted into auto-discovery via 'extra.discover' section
 				// This is the standard convention for packages that want their providers discovered
-				if (isset($package['extra']['discover'])) {
+				if (isset($package['extra'][$this->discoverySection])) {
 					// Extract and validate providers from this specific package
 					// Uses the same validation logic as project providers
 					$packageProviders = $this->extractAndValidateProviders($package);
@@ -264,7 +273,7 @@
 		protected function extractProviderClasses(array $composerConfig): array {
 			// Extract the discovery configuration section from composer's extra data
 			// This is the standardized location where packages define their discoverable providers
-			$discoverSection = $composerConfig['extra']['discover'] ?? [];
+			$discoverSection = $composerConfig['extra'][$this->discoverySection] ?? [];
 			
 			// Validate that the discover section is properly formatted as an array
 			// Malformed configuration should be ignored rather than causing errors
