@@ -2,6 +2,17 @@
 
 	namespace Quellabs\Contracts\Publishing;
 	
+	/**
+	 * Asset Publisher Interface
+	 *
+	 * Defines the contract for asset publishing implementations within the Quellabs framework.
+	 * Asset publishers are responsible for deploying, copying, or otherwise making assets
+	 * available in target locations or environments.
+	 *
+	 * Implementations of this interface should handle the publishing of various types of assets
+	 * such as configuration files, templates, static resources, or any other project assets
+	 * that need to be deployed or made available to the application.
+	 */
 	interface AssetPublisher {
 		
 		/**
@@ -21,13 +32,7 @@
 		 * @return string Detailed help text explaining the authentication publisher functionality
 		 */
 		public static function getHelp(): string;
-		
-		/**
-		 * Determines if this publisher will prompt for user input during publishing
-		 * @return bool True if the publisher asks questions during publishing, false otherwise
-		 */
-		public function isInteractive(): bool;
-		
+
 		/**
 		 * Publish the assets to the given base path
 		 * @param string $basePath The project root directory
