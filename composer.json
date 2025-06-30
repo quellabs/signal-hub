@@ -41,9 +41,6 @@
       "sculpt": {
         "provider": "Quellabs\\Canvas\\Sculpt\\CanvasProvider",
         "config": "config/app.php"
-      },
-      "publishers": {
-        "provider": "Quellabs\\Canvas\\Publishing\\AuthenticationPublisher"
       }
     }
   }
