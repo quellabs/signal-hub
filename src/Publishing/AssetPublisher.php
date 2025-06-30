@@ -5,28 +5,42 @@
 	interface AssetPublisher {
 		
 		/**
+		 * Get the tag/name identifier for this publisher
+		 * @return string
+		 */
+		public static function getTag(): string;
+		
+		/**
 		 * Get a human-readable description of what this publisher does
+		 * @return string
 		 */
 		public static function getDescription(): string;
 		
 		/**
-		 * Get the tag/name identifier for this publisher
+		 * Returns extended help information about what this publisher does
+		 * @return string Detailed help text explaining the authentication publisher functionality
 		 */
-		public static function getTag(): string;
+		public static function getHelp(): string;
+		
+		/**
+		 * Determines if this publisher will prompt for user input during publishing
+		 * @return bool True if the publisher asks questions during publishing, false otherwise
+		 */
+		public function isInteractive(): bool;
 		
 		/**
 		 * Publish the assets to the given base path
 		 * @param string $basePath The project root directory
 		 * @param bool $force Whether to overwrite existing files
-		 * @return bool True if publishing succeeded, false otherwise
+		 * @return void
 		 */
-		public function publish(string $basePath, bool $force = false): bool;
+		public function publish(string $basePath, bool $force = false): void;
 		
 		/**
 		 * Get instructions to show to the user after successful publishing
-		 * @return string[] Array of instruction strings
+		 * @return string
 		 */
-		public function getPostPublishInstructions(): array;
+		public function getPostPublishInstructions(): string;
 		
 		/**
 		 * Check if this publisher can run (dependencies, requirements, etc.)
