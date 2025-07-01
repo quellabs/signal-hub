@@ -37,18 +37,20 @@
 		
 		/**
 		 * Get a service with centralized dependency resolution.
-		 * @param string $className Class name to resolve
+		 * @template T
+		 * @param class-string<T> $className Class or interface name to resolve
 		 * @param array $parameters Additional parameters for creation
-		 * @return object|null The resolved service instance or null if resolution fails
+		 * @return T|null The resolved service instance or null if resolution fails
 		 * @throws \RuntimeException When circular dependencies are detected or resolution fails
 		 */
 		public function get(string $className, array $parameters = []): ?object;
 		
 		/**
 		 * Create an instance with autowired constructor parameters.
-		 * @param string $className The fully qualified class name to instantiate
+		 * @template T
+		 * @param class-string<T> $className The fully qualified class name to instantiate
 		 * @param array $parameters Additional/override parameters for constructor
-		 * @return object|null The created instance or null if creation fails
+		 * @return T|null The created instance or null if creation fails
 		 * @throws \RuntimeException When circular dependencies are detected or creation fails
 		 */
 		public function make(string $className, array $parameters = []): ?object;
