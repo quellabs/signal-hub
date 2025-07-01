@@ -3,6 +3,7 @@
 	namespace Quellabs\Canvas\ObjectQuel\Discovery;
 	
 	use Quellabs\DependencyInjection\Provider\ServiceProvider;
+	use Quellabs\Discover\Discover;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityManager;
 	
@@ -32,6 +33,8 @@
 		 * @return array[]
 		 */
 		public static function getDefaults(): array {
+			$discover = new Discover();
+			
 			return [
 				'driver'              => 'mysql',
 				'host'                => '',
@@ -43,7 +46,7 @@
 				'collation'           => 'utf8mb4_unicode_ci',
 				'migrations_path'     => '',
 				'entity_namespace'    => '',
-				'entity_path'         => '',
+				'entity_path'         => $discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Entities',
 				'proxy_namespace'     => 'Quellabs\\ObjectQuel\\Proxy\\Runtime',
 				'proxy_path'          => '',
 				'metadata_cache_path' => ''
