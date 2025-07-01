@@ -276,16 +276,19 @@
 					continue;
 				}
 				
-				// Retrieve annotations from the doc comment with imports
-				$annotations = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
-				
-				// Skip if there are no annotations
-				if ($annotations->isEmpty()) {
-					continue;
+				try {
+					// Retrieve annotations from the doc comment with imports
+					$annotations = $this->getAnnotationsWithImports($docComment, $imports, $currentNamespace);
+					
+					// Skip if there are no annotations
+					if ($annotations->isEmpty()) {
+						continue;
+					}
+					
+					// Add the annotations to the result array
+					$result[$item->getName()] = $annotations;
+				} catch (ParserException $e) {
 				}
-				
-				// Add the annotations to the result array
-				$result[$item->getName()] = $annotations;
 			}
 		}
 		
