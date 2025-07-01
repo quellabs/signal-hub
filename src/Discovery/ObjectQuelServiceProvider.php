@@ -85,10 +85,10 @@
 			$config = new Configuration();
 			
 			// Directory containing entity classes
-			$config->setEntityPath($configData["entity_path"] ?? '');
+			$config->setEntityPath($configData["entity_path"] ?? $defaults["entity_path"] ?? '');
 			
 			// Directory for generated proxy classes
-			$config->setProxyDir($configData["proxy_path"] ?? '');
+			$config->setProxyDir($configData["proxy_path"] ?? $defaults["proxy_path"]  ?? '');
 			
 			// Enable metadata caching
 			if (!empty($configData["metadata_cache_path"])) {
