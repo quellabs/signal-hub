@@ -186,7 +186,11 @@
 			try {
 				// Special case: Return container instance when requesting the container itself
 				// This allows for self-injection of the container into other services
-				if ($className === self::class || $className === \Quellabs\Contracts\DependencyInjection\Container::class) {
+				if (
+					$className === self::class ||
+					$className === \Quellabs\Contracts\DependencyInjection\Container::class ||
+					is_a($this, $className)
+				) {
 					return $this;
 				}
 				
@@ -236,6 +240,7 @@
 					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
 						array_pop($this->resolutionStack);
 					}
+					
 					// Remove the current class itself
 					array_pop($this->resolutionStack);
 				}
