@@ -2,7 +2,6 @@
 	
 	namespace Quellabs\DependencyInjection\Provider;
 	
-	use Quellabs\DependencyInjection\Container;
 	use Quellabs\Discover\Provider\AbstractProvider;
 	
 	/**
@@ -12,7 +11,7 @@
 	 * It implements the ServiceProviderInterface and provides common functionality
 	 * that all service providers will inherit.
 	 */
-	abstract class ServiceProvider extends AbstractProvider implements ServiceProviderInterface {
+	abstract class ServiceProvider extends AbstractProvider implements \Quellabs\Contracts\DependencyInjection\ServiceProvider {
 		
 		/**
 		 * Implements the required method from ProviderInterface
@@ -23,9 +22,10 @@
 		
 		/**
 		 * Creates a new instance of the specified class with the provided dependencies
-		 * @param string $className The fully qualified class name to instantiate
+		 * @template T
+		 * @param class-string<T> $className The fully qualified class name to instantiate
 		 * @param array $dependencies An array of resolved dependencies to pass to the constructor
-		 * @return object The newly created instance of the specified class
+		 * @return T The newly created instance of the specified class
 		 */
 		public function createInstance(string $className, array $dependencies): object {
 			// Use the splat operator (...) to unpack the dependency array

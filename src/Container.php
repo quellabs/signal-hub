@@ -5,13 +5,13 @@
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
 	use Quellabs\DependencyInjection\Autowiring\Autowirer;
+	use Quellabs\Contracts\DependencyInjection\ServiceProvider;
 	use Quellabs\DependencyInjection\Provider\DefaultServiceProvider;
-	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	
 	/**
 	 * Container with centralized autowiring for all services
 	 */
-	class Container implements ContainerInterface {
+	class Container implements \Quellabs\Contracts\DependencyInjection\Container {
 		
 		/**
 		 * Registered service providers
@@ -186,7 +186,11 @@
 			try {
 				// Special case: Return container instance when requesting the container itself
 				// This allows for self-injection of the container into other services
-				if ($className === self::class || $className === ContainerInterface::class) {
+				if (
+					$className === self::class ||
+					$className === \Quellabs\Contracts\DependencyInjection\Container::class ||
+					is_a($this, $className)
+				) {
 					return $this;
 				}
 				
@@ -236,6 +240,7 @@
 					while (end($this->resolutionStack) !== $className && !empty($this->resolutionStack)) {
 						array_pop($this->resolutionStack);
 					}
+					
 					// Remove the current class itself
 					array_pop($this->resolutionStack);
 				}
@@ -259,7 +264,7 @@
 		protected function registerProviders(): self {
 			// Register each discovered provider with the container
 			foreach ($this->discovery->getProviders() as $provider) {
-				if ($provider instanceof Provider\ServiceProviderInterface) {
+				if ($provider instanceof ServiceProvider) {
 					$this->register($provider);
 				}
 			}
