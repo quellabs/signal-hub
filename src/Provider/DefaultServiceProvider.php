@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\DependencyInjection\Provider;
 	
-	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
 	class DefaultServiceProvider extends ServiceProvider {
 		

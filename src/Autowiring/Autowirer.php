@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\DependencyInjection\Autowiring;
 	
-	use Quellabs\DependencyInjection\ContainerInterface;
+	use Quellabs\Contracts\DependencyInjection\Container;
 	
 	/**
 	 * Handles dependency injection through reflection
@@ -10,9 +10,9 @@
 	class Autowirer {
 		
 		/**
-		 * @var ContainerInterface
+		 * @var Container
 		 */
-		private ContainerInterface $container;
+		private Container $container;
 		
 		/**
 		 * Built-in PHP types that cannot be resolved from container
@@ -36,9 +36,9 @@
 
 		/**
 		 * Autowirer constructor
-		 * @param ContainerInterface $container
+		 * @param Container $container
 		 */
-		public function __construct(ContainerInterface $container) {
+		public function __construct(Container $container) {
 			$this->container = $container;
 		}
 		
