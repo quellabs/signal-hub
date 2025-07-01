@@ -5,7 +5,7 @@
 	 * This file returns database credentials with precedence: Environment > User Settings > Defaults
 	 * Called by database-env.php
 	 */
-
+	
 	// User-defined database settings (can be customized by users)
 	$userSettings = [
 		'driver'    => 'mysql',                    // Database driver (mysql, postgresql, sqlite, etc.)
@@ -17,7 +17,7 @@
 		'charset'   => 'utf8mb4',                  // Character set for database connection
 		'collation' => 'utf8mb4_unicode_ci',       // Collation for text comparison and sorting
 	];
-
+	
 	// Return database configuration with proper precedence
 	return [
 		'driver'    => $_ENV['DB_DRIVER'] ?? $userSettings['driver'] ?? null,
@@ -28,4 +28,8 @@
 		'port'      => isset($_ENV['DB_PORT']) ? (int)$_ENV['DB_PORT'] : ($userSettings['port'] ?? null),
 		'charset'   => $_ENV['DB_CHARSET'] ?? $userSettings['charset'] ?? null,
 		'collation' => $_ENV['DB_COLLATION'] ?? $userSettings['collation'] ?? null,
+		
+		'entity_namespace' => "App\\Entities",                                // Entity namespace
+		'entity_path'      => dirname(__FILE__) . '/../src/Entities/',   // Path to the entities folder
+		'migrations_path'  => dirname(__FILE__) . '/../migrations',      // Path to the migrations folder
 	];
