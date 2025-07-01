@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\Sculpt;
 	
-	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\Sculpt\Application;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
 	 * ObjectQuel service provider for the Sculpt framework
@@ -59,8 +59,10 @@
 			$config = $this->getConfig();
 			$defaults = $this->getDefaults();
 			$configuration = new Configuration();
-			$configuration->setEntityNameSpace($configuration['entity_namespace'] ?? $defaults['entity_namespace'] ?? '');
-			$configuration->setMigrationsPath($configuration['migrations_path'] ?? $defaults['migrations_path'] ?? '');
+			
+			$configuration->setEntityPath($config['entity_path'] ?? $defaults['entity_path'] ?? '');
+			$configuration->setEntityNameSpace($config['entity_namespace'] ?? $defaults['entity_namespace'] ?? '');
+			$configuration->setMigrationsPath($config['migrations_path'] ?? $defaults['migrations_path'] ?? '');
 			
 			$configuration->setConnectionParams([
 				'driver'    => $config['driver'] ?? $defaults['driver'] ?? 'mysql',
