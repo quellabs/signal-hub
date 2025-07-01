@@ -59,6 +59,8 @@
 			$config = $this->getConfig();
 			$defaults = $this->getDefaults();
 			$configuration = new Configuration();
+			
+			$configuration->setEntityPath($configuration['entity_path'] ?? $defaults['entity_path'] ?? '');
 			$configuration->setEntityNameSpace($configuration['entity_namespace'] ?? $defaults['entity_namespace'] ?? '');
 			$configuration->setMigrationsPath($configuration['migrations_path'] ?? $defaults['migrations_path'] ?? '');
 			
