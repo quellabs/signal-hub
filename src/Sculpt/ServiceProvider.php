@@ -2,8 +2,8 @@
 	
 	namespace Quellabs\ObjectQuel\Sculpt;
 	
-	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\Sculpt\Application;
+	use Quellabs\ObjectQuel\Configuration;
 	
 	/**
 	 * ObjectQuel service provider for the Sculpt framework
