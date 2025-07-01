@@ -29,8 +29,7 @@
     }
   },
   "require": {
-    "quellabs/objectquel": "dev-bugfix/make-entity-crash",
-    "quellabs/discover": "^1.0"
+    "quellabs/objectquel": "dev-bugfix/make-entity-crash"
   },
   "autoload": {
     "psr-4": {
