@@ -254,7 +254,10 @@
 			
 			// Show files that will be published
 			foreach ($publishData['manifest']['files'] as $file) {
-				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target']);
+				$source = "/" . ltrim($file['source'], '/');
+				$target = "/" . ltrim($file['target'], '/');
+				
+				$this->output->writeLn("  • " . $source . " → " . $target);
 			}
 			
 			// Newline for better formatting
