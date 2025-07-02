@@ -275,7 +275,7 @@
 				
 				if (!file_exists($sourcePath)) {
 					$missingFiles[] = [
-						'source' => $file['source'],
+						'source'     => $file['source'],
 						'sourcePath' => $sourcePath
 					];
 				}
@@ -371,63 +371,147 @@
 		 */
 		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles, bool $overwrite): void {
 			foreach ($publishData['manifest']['files'] as $file) {
+				// Setup source and target paths
 				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
 				// Skip existing files if overwrite is not enabled
 				if (!$overwrite && file_exists($targetPath)) {
-					$this->output->writeLn("  Skipped: {$targetPath} (already exists)");
+					$this->output->writeLn("  • Skipped: {$targetPath} (already exists)");
 					continue;
 				}
 				
+				// Copy the file
 				$this->copyFile($sourcePath, $targetPath, $copiedFiles, $backupFiles);
 			}
 		}
 		
 		/**
-		 * Copy a single file with backup support
-		 * @param string $sourcePath
-		 * @param string $targetPath
-		 * @param array &$copiedFiles Reference to track copied files
-		 * @param array &$backupFiles Reference to track backup files
-		 * @throws \Exception On any file operation failure
+		 * Copy a single file with backup support and comprehensive error handling
+		 *
+		 * This method performs a safe file copy operation with the following features:
+		 * - Validates source file existence
+		 * - Creates timestamped backups of existing target files
+		 * - Ensures target directory structure exists
+		 * - Tracks all operations for potential rollback
+		 *
+		 * @param string $sourcePath Path to the source file to copy
+		 * @param string $targetPath Destination path for the copied file
+		 * @param array &$copiedFiles Reference to array tracking successfully copied files
+		 * @param array &$backupFiles Reference to array mapping original paths to backup paths
+		 * @return void
+		 * @throws \Exception             On any file operation failure with descriptive message
 		 */
 		private function copyFile(string $sourcePath, string $targetPath, array &$copiedFiles, array &$backupFiles): void {
-			// Validate source file exists
+			// Step 1: Validate source file exists and is readable
 			if (!file_exists($sourcePath)) {
 				throw new \Exception("Source file not found: {$sourcePath}");
 			}
 			
-			// Create backup if the target file already exists
-			if (file_exists($targetPath)) {
-				$backupPath = $targetPath . '.backup.' . time();
-				
-				if (!copy($targetPath, $backupPath)) {
-					throw new \Exception("Failed to create backup: {$backupPath}");
-				}
-				
-				$backupFiles[$targetPath] = $backupPath;
-				
-				$this->output->writeLn("  Backed up: {$targetPath} → {$backupPath}");
+			if (!is_readable($sourcePath)) {
+				throw new \Exception("Source file is not readable: {$sourcePath}");
 			}
 			
-			// Create target directory if it doesn't exist
+			// Step 2: Handle existing target file with backup creation
+			if (file_exists($targetPath)) {
+				$this->createBackupFile($targetPath, $backupFiles);
+			}
+			
+			// Step 3: Ensure target directory structure exists
+			$this->ensureTargetDirectory($targetPath);
+			
+			// Step 4: Perform the actual file copy operation
+			$this->performFileCopy($sourcePath, $targetPath);
+			
+			// Step 5: Track successful operation and log result
+			$copiedFiles[] = $targetPath;
+			$this->output->writeLn("  ✓ Copied: {$sourcePath} → {$targetPath}");
+		}
+		
+		/**
+		 * Create a timestamped backup of an existing file
+		 * @param string $targetPath Path to the file that needs backing up
+		 * @param array &$backupFiles Reference to backup tracking array
+		 * @return void
+		 * @throws \Exception           If backup creation fails
+		 */
+		private function createBackupFile(string $targetPath, array &$backupFiles): void {
+			// Generate unique backup filename with timestamp
+			$timestamp = date('Y-m-d_H-i-s');
+			$backupPath = $targetPath . '.backup.' . $timestamp;
+			
+			// Ensure the backup path is unique (handle rapid successive calls)
+			$counter = 1;
+			
+			while (file_exists($backupPath)) {
+				$backupPath = $targetPath . '.backup.' . $timestamp . '_' . $counter;
+				$counter++;
+			}
+			
+			// Create the backup copy
+			if (!copy($targetPath, $backupPath)) {
+				throw new \Exception("Failed to create backup: {$targetPath} → {$backupPath}");
+			}
+			
+			// Track the backup for potential cleanup
+			$backupFiles[$targetPath] = $backupPath;
+			
+			// Show a message
+			$this->output->writeLn("  📁 Backed up: {$targetPath} → {$backupPath}");
+		}
+		
+		/**
+		 * Ensure the target directory structure exists
+		 * @param string $targetPath Full path to the target file
+		 * @return void
+		 * @throws \Exception           If directory creation fails
+		 */
+		private function ensureTargetDirectory(string $targetPath): void {
 			$targetDir = dirname($targetPath);
 			
-			if (!is_dir($targetDir)) {
-				if (!mkdir($targetDir, 0755, true)) {
-					throw new \Exception("Failed to create directory: {$targetDir}");
-				}
+			// Skip if directory already exists
+			if (is_dir($targetDir)) {
+				return;
 			}
 			
-			// Copy the file
+			// Create directory structure with appropriate permissions
+			if (!mkdir($targetDir, 0755, true)) {
+				throw new \Exception("Failed to create target directory: {$targetDir}");
+			}
+			
+			// Show a message
+			$this->output->writeLn("  📂 Created directory: {$targetDir}");
+		}
+		
+		/**
+		 * Perform the actual file copy operation with validation
+		 * @param string $sourcePath Path to source file
+		 * @param string $targetPath Path to target file
+		 * @return void
+		 * @throws \Exception           If copy operation fails
+		 */
+		private function performFileCopy(string $sourcePath, string $targetPath): void {
+			// Attempt the file copy
 			if (!copy($sourcePath, $targetPath)) {
-				throw new \Exception("Failed to copy file: {$sourcePath} to {$targetPath}");
+				// Get more specific error information
+				$error = error_get_last();
+				$errorMessage = $error ? $error['message'] : 'Unknown error';
+				
+				throw new \Exception("Failed to copy file: {$sourcePath} → {$targetPath}. Error: {$errorMessage}");
 			}
 			
-			$copiedFiles[] = $targetPath;
+			// Verify the copy was successful by checking file existence
+			if (!file_exists($targetPath)) {
+				throw new \Exception("Copy operation appeared successful but target file was not created: {$targetPath}");
+			}
 			
-			$this->output->writeLn("  Copied: {$sourcePath} → {$targetPath}");
+			// Optional: Verify file sizes match (for additional safety)
+			$sourceSize = filesize($sourcePath);
+			$targetSize = filesize($targetPath);
+			
+			if ($sourceSize !== $targetSize) {
+				throw new \Exception("File copy verification failed: size mismatch. Source: {$sourceSize} bytes, Target: {$targetSize} bytes");
+			}
 		}
 		
 		/**
