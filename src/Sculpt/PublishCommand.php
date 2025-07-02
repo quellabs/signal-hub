@@ -51,7 +51,6 @@
 		 * This is the main entry point for the canvas:publish command. It handles four scenarios:
 		 * 1. --list flag: Shows all available publishers
 		 * 2. --help flag: Shows detailed help for a specific tag or general usage
-		 * 3. --tag=<name> option: Publishes assets for a specific tag
 		 * 4. No parameters: Shows usage help
 		 *
 		 * @param ConfigurationManager $config Configuration containing command flags and options
