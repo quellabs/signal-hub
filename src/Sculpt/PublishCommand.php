@@ -315,6 +315,7 @@
 				
 				// Report successful completion with actual operation count
 				$operationCount = count($transaction->getExecutedOperations());
+				$this->output->writeLn("");
 				$this->output->writeLn("<info>Successfully committed transaction: {$transaction->getId()} ({$operationCount} operations)</info>");
 				
 				// Display any post-publishing instructions from the target provider
