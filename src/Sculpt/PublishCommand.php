@@ -234,7 +234,7 @@
 			return [
 				'manifest'        => $manifest,
 				'projectRoot'     => $projectRoot,
-				'sourceDirectory' => $sourceDirectory
+				'sourceDirectory' => $this->discover->resolvePath($sourceDirectory)
 			];
 		}
 		
