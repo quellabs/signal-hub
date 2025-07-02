@@ -202,9 +202,13 @@
 		 * @return array|null Returns publish data array or null on error
 		 */
 		private function preparePublishing(AssetPublisher $targetProvider, string $tag): ?array {
+			// Resolve the source directory
+			$sourceDirectory = $this->discover->resolvePath($targetProvider->getSourcePath());
+			
 			// Show information about what we're publishing
 			$this->output->writeLn("Publishing: {$tag}");
 			$this->output->writeLn("Description: " . $targetProvider::getDescription());
+			$this->output->writeLn("<info>Source directory: {$sourceDirectory}</info>");
 			$this->output->writeLn("");
 			
 			// Get the manifest and validate it
@@ -218,7 +222,6 @@
 			// Get project root and source directory
 			$discover = new Discover();
 			$projectRoot = $discover->getProjectRoot();
-			$sourceDirectory = $targetProvider->getSourcePath();
 			
 			// Make source path absolute if it's relative
 			if (!$this->isAbsolutePath($sourceDirectory)) {
@@ -247,8 +250,6 @@
 		 */
 		private function showPublishPreview(array $publishData, bool $force): bool {
 			// Show files that will be published
-			$this->output->writeLn("<info>Source directory: {$publishData["sourceDirectory"]}</info>");
-			$this->output->writeLn("<info>Target directory: {$publishData["projectRoot"]}</info>");
 			$this->output->writeLn("");
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
