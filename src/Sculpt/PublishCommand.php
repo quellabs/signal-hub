@@ -440,11 +440,8 @@
 			// Display the main error message to the user
 			$this->output->error("Cannot publish assets");
 			
-			// Add a blank line for better readability
-			$this->output->writeLn("");
-			
 			// Display the specific reason why publishing failed, obtained from the target provider
-			$this->output->writeLn($targetProvider->getCannotPublishReason());
+			$this->output->error($targetProvider->getCannotPublishReason());
 		}
 		
 		/**
