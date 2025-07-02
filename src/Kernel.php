@@ -42,9 +42,6 @@
 			// Register Discovery service
 			$this->discover = new Discover();
 			
-			// Read the environment file
-			$this->loadEnvironmentFile();
-			
 			// Store the configuration array
 			$this->configuration = new Configuration(array_merge($this->getConfigFile(), $configuration));
 			
@@ -402,24 +399,6 @@
 			
 			// And return them
 			return $this->contents_of_app_php;
-		}
-		
-		/**
-		 * Loads the .env file into $_ENV, $_SERVER and getenv()
-		 * @return void
-		 */
-		private function loadEnvironmentFile(): void {
-			try {
-				// Fetch the project root
-				$projectRoot = $this->discover->getProjectRoot();
-				
-				// Create a new Dotenv instance pointing to project root
-				$dotenv = Dotenv::createImmutable($projectRoot);
-				
-				// Load variables into $_ENV, $_SERVER, and getenv()
-				$dotenv->load();
-			} catch (InvalidEncodingException|InvalidFileException|InvalidPathException $e) {
-			}
 		}
 		
 		/**
