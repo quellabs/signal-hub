@@ -21,6 +21,11 @@
 		private Discover $discover;
 		
 		/**
+		 * @var FileOperationManager operations manager
+		 */
+		private FileOperationManager $operationManager;
+		
+		/**
 		 * PublishCommand constructor
 		 * @param ConsoleInput $input
 		 * @param ConsoleOutput $output
@@ -29,6 +34,7 @@
 		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
 			parent::__construct($input, $output, $provider);
 			$this->discover = new Discover();
+			$this->operationManager = new FileOperationManager($output);
 		}
 		
 		/**
@@ -204,6 +210,9 @@
 		 * @return array|null Returns publish data array or null on error
 		 */
 		private function preparePublishing(AssetPublisher $targetProvider, string $publisher): ?array {
+			// Get project root and source directory
+			$projectRoot = $this->discover->getProjectRoot();
+			
 			// Resolve the source directory
 			$sourceDirectory = $this->discover->resolvePath($targetProvider->getSourcePath());
 			
@@ -220,10 +229,6 @@
 				$this->output->error("Invalid manifest: 'files' key not found or not an array");
 				return null;
 			}
-			
-			// Get project root and source directory
-			$discover = new Discover();
-			$projectRoot = $discover->getProjectRoot();
 			
 			// Make source path absolute if it's relative
 			if (!$this->isAbsolutePath($sourceDirectory)) {
@@ -252,77 +257,21 @@
 		 * @return bool True to proceed, false to cancel
 		 */
 		private function showPublishPreview(array $publishData, bool $force, bool $overwrite): bool {
-			// Validate source files exist
-			if (!$this->validateSourceFiles($publishData)) {
+			// Create a transaction so we can show what it's going to do
+			try {
+				$transaction = $this->operationManager->createTransaction($publishData, $overwrite);
+				
+				// Show what it's going to do
+				$this->operationManager->previewTransaction($transaction);
+				
+				// Get user confirmation
+				return $this->getUserConfirmation($force);
+			} catch (FileOperationException $e) {
+				echo $e->getMessage();
 				return false;
 			}
-			
-			// Show what will happen
-			$this->displayPublishingPreview($publishData, $overwrite);
-			
-			// Get user confirmation
-			return $this->getUserConfirmation($force);
 		}
-		
-		/**
-		 * Validate that all source files exist
-		 * @param array $publishData
-		 * @return bool True if all source files exist, false otherwise
-		 */
-		private function validateSourceFiles(array $publishData): bool {
-			$missingFiles = [];
-			
-			foreach ($publishData['manifest']['files'] as $file) {
-				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
-				
-				if (!file_exists($sourcePath)) {
-					$missingFiles[] = [
-						'source'     => $file['source'],
-						'sourcePath' => $sourcePath
-					];
-				}
-			}
-			
-			if (!empty($missingFiles)) {
-				$this->output->error("Source files not found:");
-				foreach ($missingFiles as $file) {
-					$this->output->writeLn("  • " . $file['source'] . " (expected at: " . $file['sourcePath'] . ")");
-				}
-				return false;
-			}
-			
-			return true;
-		}
-		
-		/**
-		 * Display the publishing preview showing what files will be published
-		 * @param array $publishData
-		 * @param bool $overwrite
-		 * @return void
-		 */
-		private function displayPublishingPreview(array $publishData, bool $overwrite): void {
-			$this->output->writeLn("<info>Files to publish:</info>");
-			
-			foreach ($publishData['manifest']['files'] as $file) {
-				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
-				$exists = file_exists($targetPath);
-				
-				if (!$overwrite && $exists) {
-					$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " <comment>[SKIP - EXISTS]</comment>");
-				} else {
-					$status = $exists ? "<comment>[OVERWRITE]</comment>" : "<info>[NEW]</info>";
-					$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " " . $status);
-				}
-			}
-			
-			$this->output->writeLn("");
-			
-			if (!$overwrite) {
-				$this->output->writeLn("Use --overwrite flag to replace existing files");
-				$this->output->writeLn("");
-			}
-		}
-		
+
 		/**
 		 * Get user confirmation to proceed with publishing
 		 * @param bool $force
@@ -345,15 +294,12 @@
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
 		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
-			// Instantiate FileOperationManager
-			$fileManager = new FileOperationManager($this->output);
-
 			// Start transaction
-			$transaction = $fileManager->createTransaction($publishData, $overwrite, "Publishing files to production");
+			$transaction = $this->operationManager->createTransaction($publishData, $overwrite, "Publishing files to production");
 			
 			try {
 				// Copy all files with backup support
-				$fileManager->commit($transaction);
+				$this->operationManager->commit($transaction);
 
 				// Show success
 				$this->output->writeLn($targetProvider->getPostPublishInstructions());
@@ -362,7 +308,7 @@
 				
 			} catch (FileOperationException $e) {
 				// Something went wrong - rollback everything
-				$fileManager->rollback($transaction);
+				$this->operationManager->rollback($transaction);
 				return 1;
 			}
 		}
