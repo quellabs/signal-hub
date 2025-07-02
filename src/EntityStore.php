@@ -584,7 +584,7 @@
 		    foreach ($annotations as $fieldName => $annotationSet) {
 			    // Use the isIdentityColumn method to determine if this field
 			    // is a primary key with identity strategy or no strategy
-			    if ($this->isIdentityColumn($annotationSet)) {
+			    if ($this->isIdentityColumn($annotationSet->toArray())) {
 				    // Found an auto-increment primary key - cache and return immediately
 				    return $this->auto_increment_column_cache[$owningTable] = $fieldName;
 			    }

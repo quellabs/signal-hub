@@ -87,13 +87,9 @@
 					return;
 				}
 				
-				// Normalize the entity name by removing namespace information
-				// This converts "Namespace\Entity" to just "Entity"
-				$entityNameFixed = basename(str_replace('\\', '/', $entityName));
-				
 				// Validate entity existence in the entity store
 				// Throw an exception with detailed error message if entity doesn't exist
-				if (!$this->entityStore->exists($entityNameFixed)) {
+				if (!$this->entityStore->exists($entityName)) {
 					throw new QuelException("The entity or range {$entityName} referenced in the query does not exist. Please check the query for incorrect references and ensure all specified entities or ranges are correctly defined.");
 				}
 			}
