@@ -206,9 +206,9 @@
 			$sourceDirectory = $this->discover->resolvePath($targetProvider->getSourcePath());
 			
 			// Show information about what we're publishing
-			$this->output->writeLn("Publishing: {$tag}");
+			$this->output->writeLn("Publishing: " . $tag);
 			$this->output->writeLn("Description: " . $targetProvider::getDescription());
-			$this->output->writeLn("<info>Source directory: {$sourceDirectory}</info>");
+			$this->output->writeLn("Source directory: " . $sourceDirectory);
 			$this->output->writeLn("");
 			
 			// Get the manifest and validate it
