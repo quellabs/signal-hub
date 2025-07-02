@@ -249,8 +249,14 @@
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
 			foreach ($publishData['manifest']['files'] as $file) {
+				// Resolve the source path
 				$sourcePath = rtrim($this->discover->resolvePath($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/'));
+				$sourcePath = str_replace($publishData['sourceDirectory'], '<<package>>', $sourcePath);
+				
+				// Resolve the target path
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				
+				// Show copy action
 				$this->output->writeLn("  {$sourcePath} → {$targetPath}");
 			}
 			
