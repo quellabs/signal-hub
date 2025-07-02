@@ -51,7 +51,6 @@
 		 * This is the main entry point for the canvas:publish command. It handles four scenarios:
 		 * 1. --list flag: Shows all available publishers
 		 * 2. --help flag: Shows detailed help for a specific tag or general usage
-		 * 3. --tag=<name> option: Publishes assets for a specific tag
 		 * 4. No parameters: Shows usage help
 		 *
 		 * @param ConfigurationManager $config Configuration containing command flags and options
@@ -112,7 +111,7 @@
 			// Display detailed help for the specific publisher
 			$this->output->writeLn("<info>Help for publisher: {$tag}</info>");
 			$this->output->writeLn($provider::getDescription());
-			$this->output->writeLn("Usage: php ./vendor/bin/sculpt canvas:publish --tag={$tag}");
+			$this->output->writeLn("Usage: php ./vendor/bin/sculpt canvas:publish {$tag}");
 			$this->output->writeLn("");
 			
 			// Show extended help if the publisher supports it
@@ -249,22 +248,137 @@
 		 * @return bool True to proceed, false to cancel
 		 */
 		private function showPublishPreview(array $publishData, bool $force): bool {
-			// Show a message
-			$this->output->writeLn("<info>Files to publish:</info>");
+			// Analyze all files in the manifest
+			$analysisResult = $this->analyzeFilesForPublishing($publishData);
 			
-			// Show files that will be published
-			foreach ($publishData['manifest']['files'] as $file) {
-				$source = "/" . ltrim($file['source'], '/');
-				$target = "/" . ltrim($file['target'], '/');
-				
-				$this->output->writeLn("  • " . $source . " → " . $target);
+			// Handle any missing source files
+			if (!$this->validateSourceFiles($analysisResult['missingSourceFiles'])) {
+				return false;
 			}
 			
-			// Newline for better formatting
-			$this->output->writeLn("");
+			// Display the publishing preview
+			$this->displayPublishingPreview($analysisResult['filesToPublish']);
 			
-			// Ask for confirmation unless a force flag is set
-			return $force || $this->askForConfirmation();
+			// Show overwrite warnings if needed
+			$this->showOverwriteWarnings($analysisResult['existingFiles']);
+			
+			// Get user confirmation
+			return $this->getUserConfirmation($force);
+		}
+		
+		/**
+		 * Analyze all files in the manifest to determine their status
+		 * @param array $publishData
+		 * @return array Analysis results with filesToPublish, existingFiles, and missingSourceFiles
+		 */
+		private function analyzeFilesForPublishing(array $publishData): array {
+			$filesToPublish = [];
+			$existingFiles = [];
+			$missingSourceFiles = [];
+			
+			foreach ($publishData['manifest']['files'] as $file) {
+				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
+				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				
+				// Check if source file exists
+				if (!file_exists($sourcePath)) {
+					$missingSourceFiles[] = [
+						'source'     => $file['source'],
+						'target'     => $file['target'],
+						'sourcePath' => $sourcePath
+					];
+					continue;
+				}
+				
+				$fileInfo = [
+					'source'     => $file['source'],
+					'target'     => $file['target'],
+					'sourcePath' => $sourcePath,
+					'targetPath' => $targetPath,
+					'exists'     => file_exists($targetPath)
+				];
+				
+				$filesToPublish[] = $fileInfo;
+				
+				if ($fileInfo['exists']) {
+					$existingFiles[] = $fileInfo;
+				}
+			}
+			
+			return [
+				'filesToPublish'     => $filesToPublish,
+				'existingFiles'      => $existingFiles,
+				'missingSourceFiles' => $missingSourceFiles
+			];
+		}
+		
+		/**
+		 * Validate that all source files exist
+		 * @param array $missingSourceFiles
+		 * @return bool True if all source files exist, false otherwise
+		 */
+		private function validateSourceFiles(array $missingSourceFiles): bool {
+			if (empty($missingSourceFiles)) {
+				return true;
+			}
+			
+			$this->output->error("Source files not found:");
+			foreach ($missingSourceFiles as $file) {
+				$this->output->writeLn("  • " . $file['source'] . " (expected at: " . $file['sourcePath'] . ")");
+			}
+			
+			return false;
+		}
+		
+		/**
+		 * Display the publishing preview showing what files will be published
+		 * @param array $filesToPublish
+		 * @return void
+		 */
+		private function displayPublishingPreview(array $filesToPublish): void {
+			$this->output->writeLn("<info>Files to publish:</info>");
+			
+			foreach ($filesToPublish as $file) {
+				$status = $file['exists'] ? "<comment>[OVERWRITE]</comment>" : "<info>[NEW]</info>";
+				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " " . $status);
+			}
+			
+			$this->output->writeLn("");
+		}
+		
+		/**
+		 * Show warnings about files that will be overwritten
+		 * @param array $existingFiles
+		 * @return void
+		 */
+		private function showOverwriteWarnings(array $existingFiles): void {
+			if (empty($existingFiles)) {
+				return;
+			}
+			
+			$this->output->writeLn("<comment>WARNING: The following files will be overwritten:</comment>");
+			
+			foreach ($existingFiles as $file) {
+				$this->output->writeLn("  • " . $file['target']);
+			}
+			
+			$this->output->writeLn("");
+			$this->output->writeLn("Backup copies will be created with .backup.[timestamp] extension");
+			$this->output->writeLn("");
+		}
+		
+		/**
+		 * Get user confirmation to proceed with publishing
+		 * @param bool $force
+		 * @return bool True to proceed, false to cancel
+		 */
+		private function getUserConfirmation(bool $force): bool {
+			if ($force) {
+				$this->output->writeLn("Force flag set, proceeding without confirmation...");
+				return true;
+			}
+			
+			return $this->askForConfirmation();
 		}
 		
 		/**
@@ -284,7 +398,7 @@
 				// Clean up backup files and show the success message
 				$this->handlePublishingSuccess($backupFiles, $targetProvider);
 				return 0;
-
+				
 			} catch (\Exception $e) {
 				// Publishing failed - perform rollback
 				$this->handlePublishingFailure($e, $copiedFiles, $backupFiles);
@@ -300,6 +414,7 @@
 		 * @throws \Exception On any file operation failure
 		 */
 		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles): void {
+			// Fallback to original logic
 			foreach ($publishData['manifest']['files'] as $file) {
 				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
@@ -473,12 +588,11 @@
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>USAGE:</info>");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish [options]");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish tag [options]");
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>OPTIONS:</info>");
 			$this->output->writeLn("  <comment>--list</comment>              List all available publishers (tags)");
-			$this->output->writeLn("  <comment>--tag=PUBLISHER</comment>      Publish assets using a specific publisher");
 			$this->output->writeLn("  <comment>--force</comment>              Skip all interactive prompts and confirmations");
 			$this->output->writeLn("  <comment>--help</comment>               Display this help message");
 			$this->output->writeLn("");
@@ -492,15 +606,15 @@
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --list");
 			$this->output->writeLn("");
 			$this->output->writeLn("  <comment># Publish using a specific publisher</comment>");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --tag=production");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --tag=staging");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish staging");
 			$this->output->writeLn("");
 			$this->output->writeLn("  <comment># Skip interactive prompts (non-interactive mode)</comment>");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --tag=production --force");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish -production --force");
 			$this->output->writeLn("");
 			$this->output->writeLn("  <comment># Show help information</comment>");
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --tag=production --help");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish -production --help");
 		}
 		
 		/**
