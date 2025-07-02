@@ -247,9 +247,10 @@
 		 */
 		private function showPublishPreview(array $publishData, bool $force): bool {
 			// Show files that will be published
-			$this->output->writeLn("<info>Files to publish:</info>");
 			$this->output->writeLn("<info>Source directory: {$publishData["sourceDirectory"]}</info>");
 			$this->output->writeLn("<info>Target directory: {$publishData["projectRoot"]}</info>");
+			$this->output->writeLn("");
+			$this->output->writeLn("<info>Files to publish:</info>");
 			
 			foreach ($publishData['manifest']['files'] as $file) {
 				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target']);
