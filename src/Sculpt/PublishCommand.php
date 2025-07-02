@@ -356,7 +356,6 @@
 				$fileManager->commit($transaction);
 
 				// Show success
-				$this->output->writeLn("<info>Assets published successfully!</info>");
 				$this->output->writeLn($targetProvider->getPostPublishInstructions());
 				
 				return 0;
