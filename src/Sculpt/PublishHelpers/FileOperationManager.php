@@ -199,7 +199,7 @@
 				'backup' => $backupPath
 			]);
 			
-			$this->output->writeLn("  📁 Backed up: {$targetPath} → {$backupPath}");
+			$this->output->writeLn("  ✓ Backed up: {$targetPath} → {$backupPath}");
 		}
 		
 		/**
@@ -231,7 +231,7 @@
 			]);
 			
 			// Provide user feedback about the directory creation
-			$this->output->writeLn("  📂 Created directory: {$targetDir}");
+			$this->output->writeLn("  ✓ Created directory: {$targetDir}");
 		}
 		
 		/**
@@ -301,7 +301,7 @@
 					throw new FileOperationException("Failed to cleanup backup file during rollback: {$backupPath}");
 				}
 				
-				$this->output->writeLn("  ↩️ Restored from backup: {$targetPath}");
+				$this->output->writeLn("  ✓ Restored from backup: {$targetPath}");
 			} else {
 				// This was a new file copy, just remove it
 				if (file_exists($targetPath)) {
@@ -309,7 +309,7 @@
 						throw new FileOperationException("Failed to remove copied file: {$targetPath}");
 					}
 					
-					$this->output->writeLn("  🗑️ Removed: {$targetPath}");
+					$this->output->writeLn("  ✓ Removed: {$targetPath}");
 				}
 			}
 		}
@@ -334,7 +334,7 @@
 					throw new FileOperationException("Failed to cleanup backup file: {$backupPath}");
 				}
 				
-				$this->output->writeLn("  ↩️ Restored: {$backupPath} → {$originalPath}");
+				$this->output->writeLn("  ✓ Restored: {$backupPath} → {$originalPath}");
 			}
 		}
 		
@@ -354,7 +354,7 @@
 					throw new FileOperationException("Failed to remove created directory: {$dirPath}");
 				}
 				
-				$this->output->writeLn("  📂 Removed directory: {$dirPath}");
+				$this->output->writeLn("  ✓ Removed directory: {$dirPath}");
 			}
 		}
 		
@@ -375,14 +375,14 @@
 						if (unlink($backupPath)) {
 							$cleanedCount++;
 						} else {
-							$this->output->writeLn("  Warning: Could not remove backup file: {$backupPath}");
+							$this->output->warning("Could not remove backup file: {$backupPath}");
 						}
 					}
 				}
 			}
 			
 			if ($cleanedCount > 0) {
-				$this->output->writeLn("  🧹 Cleaned up {$cleanedCount} backup file(s)");
+				$this->output->writeLn("  ✓ Cleaned up {$cleanedCount} backup file(s)");
 			}
 		}
 		
