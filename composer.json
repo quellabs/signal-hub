@@ -37,9 +37,9 @@
     }
   },
   "scripts": {
-    "post-install-cmd": [
-      "php -r \"copy('vendor/quellabs/objectquel/config/database-env.php', 'config/database-env.php');\"",
-      "php -r \"copy('vendor/quellabs/objectquel/config/database.php', 'config/database.php');\""
+    "post-autoload-dump": [
+      "php -r \"if(!file_exists('config/database-env.php')) copy('vendor/quellabs/objectquel/config/database-env.php', 'config/database-env.php');\"",
+      "php -r \"if(!file_exists('config/database.php')) copy('vendor/quellabs/objectquel/config/database.php', 'config/database.php');\""
     ]
   },
   "extra": {
