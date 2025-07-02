@@ -190,6 +190,7 @@
 			
 			// Get the manifest and validate it
 			$manifest = $targetProvider->getManifest();
+			
 			if (!isset($manifest['files']) || !is_array($manifest['files'])) {
 				$this->output->error("Invalid manifest: 'files' key not found or not an array");
 				return null;
@@ -212,8 +213,8 @@
 			}
 			
 			return [
-				'manifest' => $manifest,
-				'projectRoot' => $projectRoot,
+				'manifest'        => $manifest,
+				'projectRoot'     => $projectRoot,
 				'sourceDirectory' => $sourceDirectory
 			];
 		}
