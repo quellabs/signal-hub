@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\Canvas\Sculpt;
 	
+	use Quellabs\Canvas\Sculpt\PublishHelpers\FileOperationManager;
+	use Quellabs\Canvas\Sculpt\PublishHelpers\FileOperationException;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Contracts\IO\ConsoleInput;
 	use Quellabs\Contracts\IO\ConsoleOutput;
@@ -343,203 +345,24 @@
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
 		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
-			$copiedFiles = [];
-			$backupFiles = [];
+			$fileManager = new FileOperationManager($this->output);
 			
 			try {
 				// Copy all files with backup support
-				$this->copyFiles($publishData, $copiedFiles, $backupFiles, $overwrite);
+				$fileManager->copyFiles($publishData, $overwrite);
 				
-				// Clean up backup files and show the success message
-				$this->handlePublishingSuccess($backupFiles, $targetProvider);
+				// Clean up backup files and show success
+				$fileManager->cleanupBackupFiles();
+				$this->output->writeLn("<info>Assets published successfully!</info>");
+				$this->output->writeLn($targetProvider->getPostPublishInstructions());
+				
 				return 0;
 				
-			} catch (\Exception $e) {
-				// Publishing failed - perform rollback
-				$this->handlePublishingFailure($e, $copiedFiles, $backupFiles);
+			} catch (FileOperationException $e) {
+				$this->output->error("Publishing failed: " . $e->getMessage());
+				$fileManager->performRollback();
 				return 1;
 			}
-		}
-		
-		/**
-		 * Copy files from source to target with backup support
-		 * @param array $publishData
-		 * @param array &$copiedFiles Reference to track copied files
-		 * @param array &$backupFiles Reference to track backup files
-		 * @param bool $overwrite Whether to overwrite existing files
-		 * @throws \Exception On any file operation failure
-		 */
-		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles, bool $overwrite): void {
-			foreach ($publishData['manifest']['files'] as $file) {
-				// Setup source and target paths
-				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
-				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
-				
-				// Skip existing files if overwrite is not enabled
-				if (!$overwrite && file_exists($targetPath)) {
-					$this->output->writeLn("  • Skipped: {$targetPath} (already exists)");
-					continue;
-				}
-				
-				// Copy the file
-				$this->copyFile($sourcePath, $targetPath, $copiedFiles, $backupFiles);
-			}
-		}
-		
-		/**
-		 * Copy a single file with backup support and comprehensive error handling
-		 *
-		 * This method performs a safe file copy operation with the following features:
-		 * - Validates source file existence
-		 * - Creates timestamped backups of existing target files
-		 * - Ensures target directory structure exists
-		 * - Tracks all operations for potential rollback
-		 *
-		 * @param string $sourcePath Path to the source file to copy
-		 * @param string $targetPath Destination path for the copied file
-		 * @param array &$copiedFiles Reference to array tracking successfully copied files
-		 * @param array &$backupFiles Reference to array mapping original paths to backup paths
-		 * @return void
-		 * @throws \Exception             On any file operation failure with descriptive message
-		 */
-		private function copyFile(string $sourcePath, string $targetPath, array &$copiedFiles, array &$backupFiles): void {
-			// Step 1: Validate source file exists and is readable
-			if (!file_exists($sourcePath)) {
-				throw new \Exception("Source file not found: {$sourcePath}");
-			}
-			
-			if (!is_readable($sourcePath)) {
-				throw new \Exception("Source file is not readable: {$sourcePath}");
-			}
-			
-			// Step 2: Handle existing target file with backup creation
-			if (file_exists($targetPath)) {
-				$this->createBackupFile($targetPath, $backupFiles);
-			}
-			
-			// Step 3: Ensure target directory structure exists
-			$this->ensureTargetDirectory($targetPath);
-			
-			// Step 4: Perform the actual file copy operation
-			$this->performFileCopy($sourcePath, $targetPath);
-			
-			// Step 5: Track successful operation and log result
-			$copiedFiles[] = $targetPath;
-			$this->output->writeLn("  ✓ Copied: {$sourcePath} → {$targetPath}");
-		}
-		
-		/**
-		 * Create a timestamped backup of an existing file
-		 * @param string $targetPath Path to the file that needs backing up
-		 * @param array &$backupFiles Reference to backup tracking array
-		 * @return void
-		 * @throws \Exception           If backup creation fails
-		 */
-		private function createBackupFile(string $targetPath, array &$backupFiles): void {
-			// Generate unique backup filename with timestamp
-			$timestamp = date('Y-m-d_H-i-s');
-			$backupPath = $targetPath . '.backup.' . $timestamp;
-			
-			// Ensure the backup path is unique (handle rapid successive calls)
-			$counter = 1;
-			
-			while (file_exists($backupPath)) {
-				$backupPath = $targetPath . '.backup.' . $timestamp . '_' . $counter;
-				$counter++;
-			}
-			
-			// Create the backup copy
-			if (!copy($targetPath, $backupPath)) {
-				throw new \Exception("Failed to create backup: {$targetPath} → {$backupPath}");
-			}
-			
-			// Track the backup for potential cleanup
-			$backupFiles[$targetPath] = $backupPath;
-			
-			// Show a message
-			$this->output->writeLn("  📁 Backed up: {$targetPath} → {$backupPath}");
-		}
-		
-		/**
-		 * Ensure the target directory structure exists
-		 * @param string $targetPath Full path to the target file
-		 * @return void
-		 * @throws \Exception           If directory creation fails
-		 */
-		private function ensureTargetDirectory(string $targetPath): void {
-			$targetDir = dirname($targetPath);
-			
-			// Skip if directory already exists
-			if (is_dir($targetDir)) {
-				return;
-			}
-			
-			// Create directory structure with appropriate permissions
-			if (!mkdir($targetDir, 0755, true)) {
-				throw new \Exception("Failed to create target directory: {$targetDir}");
-			}
-			
-			// Show a message
-			$this->output->writeLn("  📂 Created directory: {$targetDir}");
-		}
-		
-		/**
-		 * Perform the actual file copy operation with validation
-		 * @param string $sourcePath Path to source file
-		 * @param string $targetPath Path to target file
-		 * @return void
-		 * @throws \Exception           If copy operation fails
-		 */
-		private function performFileCopy(string $sourcePath, string $targetPath): void {
-			// Attempt the file copy
-			if (!copy($sourcePath, $targetPath)) {
-				// Get more specific error information
-				$error = error_get_last();
-				$errorMessage = $error ? $error['message'] : 'Unknown error';
-				
-				throw new \Exception("Failed to copy file: {$sourcePath} → {$targetPath}. Error: {$errorMessage}");
-			}
-			
-			// Verify the copy was successful by checking file existence
-			if (!file_exists($targetPath)) {
-				throw new \Exception("Copy operation appeared successful but target file was not created: {$targetPath}");
-			}
-			
-			// Optional: Verify file sizes match (for additional safety)
-			$sourceSize = filesize($sourcePath);
-			$targetSize = filesize($targetPath);
-			
-			if ($sourceSize !== $targetSize) {
-				throw new \Exception("File copy verification failed: size mismatch. Source: {$sourceSize} bytes, Target: {$targetSize} bytes");
-			}
-		}
-		
-		/**
-		 * Handle successful publishing completion
-		 * @param array $backupFiles
-		 * @param AssetPublisher $targetProvider
-		 */
-		private function handlePublishingSuccess(array $backupFiles, AssetPublisher $targetProvider): void {
-			$this->cleanupBackupFiles($backupFiles);
-			
-			$this->output->writeLn("");
-			$this->output->writeLn("<info>Assets published successfully!</info>");
-			$this->output->writeLn("");
-			$this->output->writeLn($targetProvider->getPostPublishInstructions());
-		}
-		
-		/**
-		 * Handle publishing failure with rollback
-		 * @param \Exception $e
-		 * @param array $copiedFiles
-		 * @param array $backupFiles
-		 */
-		private function handlePublishingFailure(\Exception $e, array $copiedFiles, array $backupFiles): void {
-			$this->output->writeLn("");
-			$this->output->error("Publishing failed: " . $e->getMessage());
-			$this->output->writeLn("<comment>Performing rollback...</comment>");
-			
-			$this->performRollback($copiedFiles, $backupFiles);
 		}
 		
 		/**
