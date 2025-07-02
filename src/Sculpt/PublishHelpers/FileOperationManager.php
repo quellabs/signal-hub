@@ -31,16 +31,9 @@
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @param string|null $description Optional description for the transaction
 		 * @return FileTransaction New transaction object with planned operations
-		 * @throws FileOperationException If planning fails
 		 */
 		public function createTransaction(array $publishData, bool $overwrite = false, ?string $description = null): FileTransaction {
-			$transaction = new FileTransaction($publishData, $overwrite, $description);
-			
-			$plannedCount = count($transaction->getPlannedOperations());
-			$desc = $description ? " ({$description})" : '';
-			$this->output->writeLn("<info>Created transaction: {$transaction->getId()}{$desc} with {$plannedCount} planned operations</info>");
-			
-			return $transaction;
+			return new FileTransaction($publishData, $overwrite, $description);
 		}
 		
 		/**
@@ -79,8 +72,6 @@
 				return true;
 			}
 			
-			$this->output->writeLn("<info>Committing transaction: {$transaction->getId()}</info>");
-			
 			// Execute all planned operations
 			foreach ($transaction->getPlannedOperations() as $operation) {
 				$this->executeOperation($transaction, $operation);
@@ -91,9 +82,8 @@
 			
 			// Clean up any backup files since we're committing successfully
 			$this->cleanupTransactionBackups($transaction);
-			
-			$operationCount = count($transaction->getExecutedOperations());
-			$this->output->writeLn("<info>Successfully committed transaction: {$transaction->getId()} ({$operationCount} operations)</info>");
+
+			// Done!
 			return true;
 		}
 		
@@ -103,17 +93,24 @@
 		 * If the transaction was partially or fully executed, this undoes those operations
 		 *
 		 * @param FileTransaction $transaction Transaction to rollback
-		 * @return array Array of any errors encountered during rollback
+		 * @return void
+		 * @throws RollbackException
 		 */
-		public function rollback(FileTransaction $transaction): array {
-			$this->output->writeLn("<comment>Rolling back transaction: {$transaction->getId()}</comment>");
+		public function rollback(FileTransaction $transaction): void {
+			$errors = [];
+			$operations = array_reverse($transaction->getExecutedOperations()); // Reverse order for proper rollback
 			
-			if (!$transaction->isExecuted() || empty($transaction->getExecutedOperations())) {
-				$this->output->writeLn("<info>Transaction was not executed, nothing to rollback</info>");
-				return [];
+			foreach ($operations as $operation) {
+				try {
+					$this->rollbackOperation($operation);
+				} catch (\Exception $e) {
+					$errors[] = $e->getMessage();
+				}
 			}
 			
-			return $this->performRollback($transaction);
+			if (empty($errors)) {
+				throw new RollbackException($errors);
+			}
 		}
 		
 		/**
@@ -170,36 +167,6 @@
 			
 			$action = $operation->type === PlannedOperation::TYPE_OVERWRITE ? 'Overwrote' : 'Copied';
 			$this->output->writeLn("  ✓ {$action}: {$operation->sourcePath} → {$operation->targetPath}");
-		}
-		
-		/**
-		 * Perform the actual rollback operations
-		 *
-		 * @param FileTransaction $transaction Transaction to rollback
-		 * @return array Array of any errors encountered during rollback
-		 */
-		private function performRollback(FileTransaction $transaction): array {
-			$errors = [];
-			$operations = array_reverse($transaction->getExecutedOperations()); // Reverse order for proper rollback
-			
-			foreach ($operations as $operation) {
-				try {
-					$this->rollbackOperation($operation);
-				} catch (\Exception $e) {
-					$errors[] = "Failed to rollback operation: {$e->getMessage()}";
-				}
-			}
-			
-			if (empty($errors)) {
-				$this->output->writeLn("<info>Transaction rollback completed successfully</info>");
-			} else {
-				$this->output->writeLn("<e>Transaction rollback completed with errors</e>");
-				foreach ($errors as $error) {
-					$this->output->writeLn("  • {$error}");
-				}
-			}
-			
-			return $errors;
 		}
 		
 		/**
@@ -274,7 +241,6 @@
 		
 		/**
 		 * Rollback a single operation based on its type
-		 *
 		 * @param array $operation Operation to rollback containing type and data
 		 * @return void
 		 * @throws FileOperationException If rollback fails or operation type is unknown

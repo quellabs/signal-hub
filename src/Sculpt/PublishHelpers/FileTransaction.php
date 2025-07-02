@@ -43,9 +43,9 @@
 		/**
 		 * Executed operation types for logging
 		 */
-		public const OP_FILE_COPY = 'file_copy';
-		public const OP_BACKUP_CREATE = 'backup_create';
-		public const OP_DIRECTORY_CREATE = 'directory_create';
+		public const string OP_FILE_COPY = 'file_copy';
+		public const string OP_BACKUP_CREATE = 'backup_create';
+		public const string OP_DIRECTORY_CREATE = 'directory_create';
 		
 		/**
 		 * FileTransaction constructor
@@ -65,7 +65,6 @@
 		
 		/**
 		 * Plan all operations based on the publish data and overwrite setting
-		 *
 		 * @param array $publishData Publishing configuration
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @return void

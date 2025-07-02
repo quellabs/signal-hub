@@ -4,6 +4,8 @@
 	
 	use Quellabs\Canvas\Sculpt\PublishHelpers\FileOperationManager;
 	use Quellabs\Canvas\Sculpt\PublishHelpers\FileOperationException;
+	use Quellabs\Canvas\Sculpt\PublishHelpers\FileTransaction;
+	use Quellabs\Canvas\Sculpt\PublishHelpers\RollbackException;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Contracts\IO\ConsoleInput;
 	use Quellabs\Contracts\IO\ConsoleOutput;
@@ -294,22 +296,76 @@
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
 		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
-			// Start transaction
-			$transaction = $this->operationManager->createTransaction($publishData, $overwrite, "Publishing files to production");
-			
 			try {
+				// Start transaction
+				$transaction = $this->createPublishingTransaction($publishData, $overwrite);
+				
+				if ($transaction === null) {
+					return 0;
+				}
+				
+				// Show message
+				$plannedCount = count($transaction->getPlannedOperations());
+				$this->output->writeLn("<info>Created transaction: {$transaction->getId()} with {$plannedCount} planned operations</info>");
+				
+				// Show commit message
+				$this->output->writeLn("<info>Committing transaction: {$transaction->getId()}</info>");
+				
 				// Copy all files with backup support
 				$this->operationManager->commit($transaction);
-
-				// Show success
+				
+				// Show what the transaction did
+				$operationCount = count($transaction->getExecutedOperations());
+				$this->output->writeLn("<info>Successfully committed transaction: {$transaction->getId()} ({$operationCount} operations)</info>");
+				
+				// Show publish instructions
 				$this->output->writeLn($targetProvider->getPostPublishInstructions());
 				
+				// Done!
 				return 0;
 				
 			} catch (FileOperationException $e) {
 				// Something went wrong - rollback everything
-				$this->operationManager->rollback($transaction);
+				$this->output->writeLn("<comment>Rolling back transaction: {$transaction->getId()}</comment>");
+				
+				// Start the rollback process
+				try {
+					$this->operationManager->rollback($transaction);
+					$this->output->writeLn("<info>Transaction rollback completed successfully</info>");
+				} catch (RollbackException $e) {
+					$this->output->writeLn("Failed to rollback operation.");
+					
+					foreach ($e->getErrors() as $error) {
+						$this->output->writeLn("  * " . $error);
+					}
+				}
+				
 				return 1;
+			}
+		}
+		
+		/**
+		 * Creates a file publishing transaction with the provided data.
+		 * @param array $publishData The data required for publishing operations
+		 * @param bool $overwrite Whether to overwrite existing files during publishing
+		 * @return FileTransaction|null Returns the created transaction or null if creation fails
+		 */
+		private function createPublishingTransaction(array $publishData, bool $overwrite): ?FileTransaction {
+			try {
+				// Create a new transaction using the operation manager with publish data, overwrite flag, and tag
+				$transaction = $this->operationManager->createTransaction($publishData, $overwrite, $publishData['tag']);
+				
+				// Get the count of planned operations for logging purposes
+				$plannedCount = count($transaction->getPlannedOperations());
+				
+				// Output success message with transaction ID and operation count
+				$this->output->writeLn("<info>Created transaction: {$transaction->getId()} with {$plannedCount} planned operations</info>");
+				
+				return $transaction;
+			} catch (FileOperationException $e) {
+				// Return null if transaction creation fails due to file operation issues
+				// Note: Exception is caught but not logged - consider adding error logging if needed
+				return null;
 			}
 		}
 		
@@ -321,21 +377,7 @@
 		private function isAbsolutePath(string $path): bool {
 			return $path[0] === '/' || (strlen($path) > 1 && $path[1] === ':');
 		}
-		
-		/**
-		 * Resolve target path, making it absolute if relative
-		 * @param string $targetPath
-		 * @param string $projectRoot
-		 * @return string
-		 */
-		private function resolveTargetPath(string $targetPath, string $projectRoot): string {
-			if ($this->isAbsolutePath($targetPath)) {
-				return $targetPath;
-			}
-			
-			return rtrim($projectRoot, '/') . '/' . ltrim($targetPath, '/');
-		}
-	
+
 		/**
 		 * Display comprehensive usage help for the canvas:publish command
 		 * @return void
