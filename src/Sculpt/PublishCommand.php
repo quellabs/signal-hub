@@ -297,50 +297,52 @@
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
 		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
+			// Initialize a new publishing transaction to track all operations
+			$transaction = $this->createPublishingTransaction($publishData, $overwrite);
+			
+			// If no transaction was created (nothing to publish), exit successfully
+			if ($transaction === null) {
+				return 0;
+			}
+			
 			try {
-				// Start transaction
-				$transaction = $this->createPublishingTransaction($publishData, $overwrite);
-				
-				if ($transaction === null) {
-					return 0;
-				}
-				
-				// Show message
-				$plannedCount = count($transaction->getPlannedOperations());
-				$this->output->writeLn("<info>Created transaction: {$transaction->getId()} with {$plannedCount} planned operations</info>");
-				
-				// Show commit message
+				// Notify user that the transaction is being committed
 				$this->output->writeLn("<info>Committing transaction: {$transaction->getId()}</info>");
 				
-				// Copy all files with backup support
+				// Execute all planned file operations (copy, move, delete, etc.)
+				// This is where the actual file system changes happen
 				$this->operationManager->commit($transaction);
 				
-				// Show what the transaction did
+				// Report successful completion with actual operation count
 				$operationCount = count($transaction->getExecutedOperations());
 				$this->output->writeLn("<info>Successfully committed transaction: {$transaction->getId()} ({$operationCount} operations)</info>");
 				
-				// Show publish instructions
+				// Display any post-publishing instructions from the target provider
+				// (e.g., cache clearing, CDN invalidation, etc.)
 				$this->output->writeLn($targetProvider->getPostPublishInstructions());
 				
-				// Done!
+				// Return success exit code
 				return 0;
 				
 			} catch (FileOperationException $e) {
-				// Something went wrong - rollback everything
+				// Handle file operation failures by attempting rollback
 				$this->output->writeLn("<comment>Rolling back transaction: {$transaction->getId()}</comment>");
 				
-				// Start the rollback process
+				// Attempt to undo all committed operations
 				try {
 					$this->operationManager->rollback($transaction);
 					$this->output->writeLn("<info>Transaction rollback completed successfully</info>");
 				} catch (RollbackException $e) {
+					// If rollback fails, display detailed error information
 					$this->output->writeLn("Failed to rollback operation.");
 					
+					// Show each specific rollback error for debugging
 					foreach ($e->getErrors() as $error) {
 						$this->output->writeLn("  * " . $error);
 					}
 				}
 				
+				// Return error exit code to indicate failure
 				return 1;
 			}
 		}
@@ -364,6 +366,9 @@
 				
 				return $transaction;
 			} catch (FileOperationException $e) {
+				// Show an error message
+				$this->output->error("Failed creating transaction: {$e->getMessage()}");
+				
 				// Return null if transaction creation fails due to file operation issues
 				// Note: Exception is caught but not logged - consider adding error logging if needed
 				return null;

@@ -31,6 +31,7 @@
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @param string|null $description Optional description for the transaction
 		 * @return FileTransaction New transaction object with planned operations
+		 * @throws FileOperationException
 		 */
 		public function createTransaction(array $publishData, bool $overwrite = false, ?string $description = null): FileTransaction {
 			return new FileTransaction($publishData, $overwrite, $description);
@@ -38,31 +39,45 @@
 		
 		/**
 		 * Show a preview of what the transaction will do
-		 *
 		 * @param FileTransaction $transaction Transaction to preview
 		 * @return void
 		 */
 		public function previewTransaction(FileTransaction $transaction): void {
+			// Display the transaction header with ID for identification
 			$this->output->writeLn("<info>Transaction Preview: {$transaction->getId()}</info>");
 			
+			// Iterate through all planned operations in the transaction
 			foreach ($transaction->getPlannedOperations() as $operation) {
-				$icon = match($operation->type) {
-					PlannedOperation::TYPE_COPY => '✓',
-					PlannedOperation::TYPE_OVERWRITE => '⚠',
-					PlannedOperation::TYPE_SKIP => '•',
-					default => '?'
+				// Select appropriate visual icon based on operation type
+				// This provides quick visual identification of what each operation will do
+				$icon = match ($operation->type) {
+					PlannedOperation::TYPE_COPY => '✓',      // Green checkmark for safe copy operations
+					PlannedOperation::TYPE_OVERWRITE => '⚠', // Warning symbol for potentially destructive overwrites
+					PlannedOperation::TYPE_SKIP => '•',      // Bullet point for skipped operations
+					default => '?'                           // Question mark for unknown operation types
 				};
 				
+				// Display each operation with:
+				// - Visual icon for quick identification
+				// - Operation type for clarity
+				// - Source and target paths showing the file movement
+				// - Reason explaining why this operation was chosen
 				$this->output->writeLn("  {$icon} {$operation->type}: {$operation->sourcePath} → {$operation->targetPath} ({$operation->reason})");
 			}
 			
+			// Get transaction summary statistics
 			$summary = $transaction->getSummary();
+			
+			// Add spacing for better readability
+			$this->output->writeLn("");
+			
+			// Display summary statistics showing total count of each operation type
+			// This gives users a quick overview of what the transaction will accomplish
 			$this->output->writeLn("<comment>Summary: {$summary['planned']['copy']} copies, {$summary['planned']['overwrite']} overwrites, {$summary['planned']['skip']} skips</comment>");
 		}
 		
 		/**
 		 * Commit the specified transaction, executing all planned operations and making them permanent
-		 *
 		 * @param FileTransaction $transaction Transaction to commit
 		 * @return bool True if commit was successful
 		 * @throws FileOperationException If transaction was already committed or operations fail
