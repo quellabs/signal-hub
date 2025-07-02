@@ -71,75 +71,91 @@
 		 * @throws FileOperationException If planning fails
 		 */
 		private function planOperations(array $publishData, bool $overwrite): void {
+			// Iterate through each file defined in the manifest
 			foreach ($publishData['manifest']['files'] as $file) {
+				// Build the full source path by combining base directory with relative file path
 				$sourcePath = $this->buildSourcePath($publishData['sourceDirectory'], $file['source']);
+				
+				// Resolve the target path where the file should be published
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
-				// Validate source file exists
+				// Validate source file exists before planning any operations
 				if (!file_exists($sourcePath)) {
 					throw new FileOperationException("Source file not found during planning: {$sourcePath}");
 				}
 				
+				// Ensure the source file is readable
 				if (!is_readable($sourcePath)) {
 					throw new FileOperationException("Source file is not readable during planning: {$sourcePath}");
 				}
 				
-				// Determine operation type based on target state
-				if (file_exists($targetPath)) {
-					if ($overwrite) {
-						// Generate backup path for overwrite operations
-						$backupPath = $this->generateUniqueBackupPath($targetPath);
-						
-						$this->plannedOperations[] = new PlannedOperation(
-							PlannedOperation::TYPE_OVERWRITE,
-							$sourcePath,
-							$targetPath,
-							'Target exists, will overwrite',
-							$backupPath
-						);
-					} else {
-						$this->plannedOperations[] = new PlannedOperation(
-							PlannedOperation::TYPE_SKIP,
-							$sourcePath,
-							$targetPath,
-							'Target exists, overwrite disabled'
-						);
-					}
-				} else {
+				// If target file doesn't exist, plan a simple copy operation
+				if (!file_exists($targetPath)) {
 					$this->plannedOperations[] = new PlannedOperation(
 						PlannedOperation::TYPE_COPY,
 						$sourcePath,
 						$targetPath,
 						'New file'
 					);
+					continue;
 				}
+				
+				// Target file exists - check if overwrite is disabled
+				if (!$overwrite) {
+					// Skip this file to preserve the existing version
+					$this->plannedOperations[] = new PlannedOperation(
+						PlannedOperation::TYPE_SKIP,
+						$sourcePath,
+						$targetPath,
+						'Target exists, overwrite disabled'
+					);
+					
+					continue;
+				}
+				
+				// Target exists and overwrite is enabled - create backup and plan overwrite
+				$backupPath = $this->generateUniqueBackupPath($targetPath);
+				
+				$this->plannedOperations[] = new PlannedOperation(
+					PlannedOperation::TYPE_OVERWRITE,
+					$sourcePath,
+					$targetPath,
+					'Target exists, will overwrite',
+					$backupPath
+				);
 			}
 		}
 		
 		/**
 		 * Generate a unique backup path with timestamp
-		 *
 		 * @param string $targetPath Original file path
 		 * @return string Unique backup path
 		 */
 		private function generateUniqueBackupPath(string $targetPath): string {
+			// Create timestamp in readable format (YYYY-MM-DD_HH-MM-SS)
 			$timestamp = date('Y-m-d_H-i-s');
+			
+			// Build initial backup path by appending timestamp to original path
 			$backupPath = $targetPath . '.backup.' . $timestamp;
 			
-			// Ensure uniqueness for rapid successive calls
+			// Initialize counter for handling collisions if multiple backups occur in same second
 			$counter = 1;
 			
+			// Check if backup file already exists (handles edge case of rapid successive calls)
 			while (file_exists($backupPath)) {
+				// Append counter to make path unique if timestamp collision occurs
 				$backupPath = $targetPath . '.backup.' . $timestamp . '_' . $counter;
+				
+				// Increment counter for next iteration
 				$counter++;
 			}
 			
+			// Return the guaranteed unique backup path
 			return $backupPath;
 		}
 		
 		/**
 		 * Get the transaction ID
-		 *
 		 * @return string Transaction ID
 		 */
 		public function getId(): string {
@@ -148,7 +164,6 @@
 		
 		/**
 		 * Get the transaction creation timestamp
-		 *
 		 * @return float Creation timestamp
 		 */
 		public function getCreatedAt(): float {
@@ -157,7 +172,6 @@
 		
 		/**
 		 * Get the transaction description
-		 *
 		 * @return string|null Transaction description
 		 */
 		public function getDescription(): ?string {
@@ -166,7 +180,6 @@
 		
 		/**
 		 * Get all planned operations
-		 *
 		 * @return array<PlannedOperation> Array of planned operations
 		 */
 		public function getPlannedOperations(): array {
@@ -175,7 +188,6 @@
 		
 		/**
 		 * Get all executed operations
-		 *
 		 * @return array Array of executed operations
 		 */
 		public function getExecutedOperations(): array {
@@ -183,8 +195,7 @@
 		}
 		
 		/**
-		 * Check if transaction has been executed
-		 *
+		 * Check if the transaction has been executed
 		 * @return bool True if executed
 		 */
 		public function isExecuted(): bool {
@@ -193,7 +204,6 @@
 		
 		/**
 		 * Mark transaction as executed
-		 *
 		 * @return void
 		 */
 		public function markExecuted(): void {
@@ -202,7 +212,6 @@
 		
 		/**
 		 * Add an executed operation to the transaction log
-		 *
 		 * @param string $type Operation type (one of the OP_* constants)
 		 * @param array $data Operation-specific data for rollback purposes
 		 * @return void
@@ -217,26 +226,29 @@
 		
 		/**
 		 * Get operation summary including planned and executed operations
-		 *
 		 * @return array Summary of operations
 		 */
 		public function getSummary(): array {
+			// Initialize counters for planned operations
 			$plannedSummary = [
 				'copy'      => 0,
 				'overwrite' => 0,
 				'skip'      => 0,
 			];
 			
+			// Count each type of planned operation
 			foreach ($this->plannedOperations as $operation) {
 				$plannedSummary[$operation->type]++;
 			}
 			
+			// Initialize counters for executed operations
 			$executedSummary = [
 				'file_copies'         => 0,
 				'backups_created'     => 0,
 				'directories_created' => 0,
 			];
 			
+			// Count each type of executed operation based on operation type constants
 			foreach ($this->executedOperations as $operation) {
 				switch ($operation['type']) {
 					case self::OP_FILE_COPY:
@@ -251,39 +263,19 @@
 				}
 			}
 			
+			// Return comprehensive summary with transaction metadata and operation counts
 			return [
-				'transaction_id'      => $this->id,
-				'created_at'          => $this->createdAt,
-				'description'         => $this->description,
-				'executed'            => $this->executed,
-				'planned'             => $plannedSummary,
-				'executed_operations' => $executedSummary,
+				'transaction_id'      => $this->id,           // Unique identifier for this transaction
+				'created_at'          => $this->createdAt,    // When the transaction was created
+				'description'         => $this->description,  // Human-readable description
+				'executed'            => $this->executed,     // Whether transaction has been executed
+				'planned'             => $plannedSummary,     // Counts of planned operations by type
+				'executed_operations' => $executedSummary,    // Counts of actual operations performed
 			];
 		}
 		
 		/**
-		 * Get a preview of what the transaction will do
-		 *
-		 * @return array Array of operation descriptions
-		 */
-		public function getPreview(): array {
-			$preview = [];
-			
-			foreach ($this->plannedOperations as $operation) {
-				$preview[] = [
-					'action' => $operation->type,
-					'source' => $operation->sourcePath,
-					'target' => $operation->targetPath,
-					'reason' => $operation->reason
-				];
-			}
-			
-			return $preview;
-		}
-		
-		/**
 		 * Check if a path is absolute
-		 *
 		 * @param string $path Path to check
 		 * @return bool True if path is absolute, false if relative
 		 */
@@ -293,7 +285,6 @@
 		
 		/**
 		 * Resolve the target path, making it absolute if relative
-		 *
 		 * @param string $targetPath Target path (may be relative)
 		 * @param string $projectRoot Project root directory
 		 * @return string Absolute target path
@@ -308,7 +299,6 @@
 		
 		/**
 		 * Build the complete source path from directory and relative path
-		 *
 		 * @param string $sourceDirectory Base source directory
 		 * @param string $relativePath Relative path to the file
 		 * @return string Complete source path

@@ -10,6 +10,7 @@
 	 * committed, or rolled back as atomic units.
 	 */
 	class FileOperationManager {
+
 		/**
 		 * @var ConsoleOutput Console output for logging operations
 		 */
@@ -17,7 +18,6 @@
 		
 		/**
 		 * TransactionalFileOperationManager constructor
-		 *
 		 * @param ConsoleOutput $output Console output interface for logging
 		 */
 		public function __construct(ConsoleOutput $output) {
@@ -26,7 +26,6 @@
 		
 		/**
 		 * Create a new transaction with planned operations
-		 *
 		 * @param array $publishData Publishing configuration containing manifest and paths
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @param string|null $description Optional description for the transaction
@@ -83,6 +82,7 @@
 		 * @throws FileOperationException If transaction was already committed or operations fail
 		 */
 		public function commit(FileTransaction $transaction): bool {
+			// Do nothing when the transaction was already committed
 			if ($transaction->isExecuted()) {
 				return true;
 			}
@@ -106,7 +106,6 @@
 		 * Rollback the specified transaction, undoing executed operations
 		 * If the transaction was not yet executed, this is a no-op
 		 * If the transaction was partially or fully executed, this undoes those operations
-		 *
 		 * @param FileTransaction $transaction Transaction to rollback
 		 * @return void
 		 * @throws RollbackException
@@ -130,7 +129,6 @@
 		
 		/**
 		 * Execute a single planned operation
-		 *
 		 * @param FileTransaction $transaction Transaction context
 		 * @param PlannedOperation $operation Operation to execute
 		 * @return void
@@ -154,7 +152,6 @@
 		
 		/**
 		 * Execute a copy or overwrite operation
-		 *
 		 * @param FileTransaction $transaction Transaction context
 		 * @param PlannedOperation $operation Operation to execute
 		 * @return void
@@ -186,7 +183,6 @@
 		
 		/**
 		 * Create a timestamped backup of an existing file within the transaction
-		 *
 		 * @param FileTransaction $transaction Transaction context
 		 * @param string $targetPath Path to the file that needs backing up
 		 * @param string $backupPath Pre-planned backup path to use
@@ -208,33 +204,38 @@
 		
 		/**
 		 * Ensure the target directory structure exists within the transaction
-		 *
 		 * @param FileTransaction $transaction Transaction context
 		 * @param string $targetPath Full path to the target file
 		 * @return void
 		 * @throws FileOperationException If directory creation fails
 		 */
 		private function ensureTargetDirectory(FileTransaction $transaction, string $targetPath): void {
+			// Extract the directory path from the full target file path
 			$targetDir = dirname($targetPath);
 			
+			// Check if the directory already exists - no action needed if it does
 			if (is_dir($targetDir)) {
 				return;
 			}
 			
+			// Attempt to create the directory with full permissions recursively
+			// 0755 = owner: read/write/execute, group/others: read/execute
 			if (!mkdir($targetDir, 0755, true)) {
 				throw new FileOperationException("Failed to create target directory: {$targetDir}");
 			}
 			
+			// Record the directory creation operation in the transaction log
+			// This enables rollback functionality if the transaction fails
 			$transaction->logExecutedOperation(FileTransaction::OP_DIRECTORY_CREATE, [
 				'directory' => $targetDir
 			]);
 			
+			// Provide user feedback about the directory creation
 			$this->output->writeLn("  📂 Created directory: {$targetDir}");
 		}
 		
 		/**
 		 * Perform the actual file copy operation with validation
-		 *
 		 * @param string $sourcePath Path to source file
 		 * @param string $targetPath Path to target file
 		 * @return void
@@ -281,7 +282,6 @@
 		
 		/**
 		 * Rollback a file copy operation by removing the copied file and restoring backup if it was an overwrite
-		 *
 		 * @param array $data Operation data containing target path and backup info
 		 * @return void
 		 * @throws FileOperationException If file removal fails
@@ -308,6 +308,7 @@
 					if (!unlink($targetPath)) {
 						throw new FileOperationException("Failed to remove copied file: {$targetPath}");
 					}
+					
 					$this->output->writeLn("  🗑️ Removed: {$targetPath}");
 				}
 			}
@@ -315,7 +316,6 @@
 		
 		/**
 		 * Rollback a backup creation by restoring the original file from backup
-		 *
 		 * @param array $data Operation data containing original and backup paths
 		 * @return void
 		 * @throws FileOperationException If backup restoration fails
@@ -340,7 +340,6 @@
 		
 		/**
 		 * Rollback a directory creation by removing the directory if it's empty
-		 *
 		 * @param array $data Operation data containing directory path
 		 * @return void
 		 * @throws FileOperationException If directory removal fails
@@ -354,6 +353,7 @@
 				if (!rmdir($dirPath)) {
 					throw new FileOperationException("Failed to remove created directory: {$dirPath}");
 				}
+				
 				$this->output->writeLn("  📂 Removed directory: {$dirPath}");
 			}
 		}
@@ -361,7 +361,6 @@
 		/**
 		 * Clean up backup files created during the specified transaction
 		 * This is called during commit to remove temporary backup files that are no longer needed
-		 *
 		 * @param FileTransaction $transaction Transaction to clean up
 		 * @return void
 		 */
@@ -389,7 +388,6 @@
 		
 		/**
 		 * Generate a unique backup path with timestamp
-		 *
 		 * @param string $targetPath Original file path
 		 * @return string Unique backup path
 		 */
@@ -410,7 +408,6 @@
 		
 		/**
 		 * Verify that copy operation was successful
-		 *
 		 * @param string $sourcePath Source file path
 		 * @param string $targetPath Target file path
 		 * @return void
@@ -437,7 +434,6 @@
 		
 		/**
 		 * Check if a directory is empty
-		 *
 		 * @param string $dirPath Directory path to check
 		 * @return bool True if directory is empty, false otherwise
 		 */
