@@ -2,6 +2,9 @@
 	
 	namespace Quellabs\Canvas\Sculpt;
 	
+	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Contracts\IO\ConsoleInput;
+	use Quellabs\Contracts\IO\ConsoleOutput;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\ConfigurationManager;
 	use Quellabs\Sculpt\Contracts\CommandBase;
@@ -9,6 +12,22 @@
 	use Quellabs\Contracts\Publishing\AssetPublisher;
 	
 	class PublishCommand extends CommandBase {
+		
+		/**
+		 * @var Discover Discovery component
+		 */
+		private Discover $discover;
+		
+		/**
+		 * PublishCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ProviderInterface|null $provider
+		 */
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
+			parent::__construct($input, $output, $provider);
+			$this->discover = new Discover();
+		}
 		
 		/**
 		 * Returns the signature of this command
@@ -230,7 +249,7 @@
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
 			foreach ($publishData['manifest']['files'] as $file) {
-				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
+				$sourcePath = rtrim($this->discover->resolvePath($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/'));
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				$this->output->writeLn("  {$sourcePath} → {$targetPath}");
 			}
@@ -498,15 +517,18 @@
 		 * @return bool Returns true if user confirms with 'y', false otherwise.
 		 */
 		private function askForConfirmation(): bool {
+			// Ask for confirmation
 			$confirmation = $this->input->ask("Proceed? (y/N)");
 			
 			// Check if the user entered 'y' (case-insensitive)
-			if (strtolower($confirmation) === 'y') {
+			if ($confirmation && strtolower($confirmation) === 'y') {
 				return true; // User confirmed - proceed with the action
 			}
 			
 			// Any input other than 'y' is treated as cancellation
 			$this->output->writeLn("Cancelled.");
-			return false; // User canceled or provided invalid input
+			
+			// User canceled or provided invalid input
+			return false;
 		}
 	}
