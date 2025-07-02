@@ -244,6 +244,7 @@
 			}
 			
 			return [
+				'tag'             => $targetProvider->getTag(),
 				'manifest'        => $manifest,
 				'publisher'       => $publisher,
 				'projectRoot'     => $projectRoot,
