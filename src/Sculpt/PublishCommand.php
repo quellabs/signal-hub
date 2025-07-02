@@ -248,16 +248,11 @@
 		private function showPublishPreview(array $publishData, bool $force): bool {
 			// Show files that will be published
 			$this->output->writeLn("<info>Files to publish:</info>");
+			$this->output->writeLn("<info>Source directory: {$publishData["sourceDirectory"]}</info>");
+			$this->output->writeLn("<info>Target directory: {$publishData["projectRoot"]}</info>");
 			
 			foreach ($publishData['manifest']['files'] as $file) {
-				// Replace the source directory with a placeholder for portability
-				$cleanFileSource = ltrim($file['source'], '/');
-				
-				// Resolve the target path
-				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
-				
-				// Show copy action
-				$this->output->writeLn("  • " . $publishData['tag'] . '/' . $cleanFileSource . " → " . $targetPath);
+				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target']);
 			}
 			
 			$this->output->writeLn("");
