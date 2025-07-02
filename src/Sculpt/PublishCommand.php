@@ -251,13 +251,13 @@
 			
 			foreach ($publishData['manifest']['files'] as $file) {
 				// Replace the source directory with a placeholder for portability
-				$cleanFileSource = ltrim($file['source'], DIRECTORY_SEPARATOR);
+				$cleanFileSource = ltrim($file['source'], '/');
 				
 				// Resolve the target path
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
 				// Show copy action
-				$this->output->writeLn("  " . $publishData['tag'] . DIRECTORY_SEPARATOR . $cleanFileSource . " → " . $targetPath);
+				$this->output->writeLn("  • " . $publishData['tag'] . '/' . $cleanFileSource . " → " . $targetPath);
 			}
 			
 			$this->output->writeLn("");
