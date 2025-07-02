@@ -51,6 +51,7 @@
 		 * This is the main entry point for the canvas:publish command. It handles four scenarios:
 		 * 1. --list flag: Shows all available publishers
 		 * 2. --help flag: Shows detailed help for a specific tag or general usage
+		 * 3. --tag=<name> option: Publishes assets for a specific tag
 		 * 4. No parameters: Shows usage help
 		 *
 		 * @param ConfigurationManager $config Configuration containing command flags and options
@@ -95,23 +96,23 @@
 			}
 			
 			// Proceed with publishing
-			return $this->publishTag($providers, $tag, $config->hasFlag("force"));
+			return $this->publishTag($providers, $tag, $config->hasFlag("force"), $config->hasFlag("overwrite"));
 		}
 		
 		/**
 		 * Show help information for publishers
 		 * @param array $providers Array of discovered publisher providers
-		 * @param string|null $tag Optional tag to show specific help for
+		 * @param string|null $publisher Optional publisher to show specific help for
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
-		private function showHelp(array $providers, ?string $tag = null): int {
-			// Show help for a specific publisher tag
-			$provider = $this->findProviderByTag($providers, $tag);
+		private function showHelp(array $providers, ?string $publisher = null): int {
+			// Show help for a specific publisher
+			$provider = $this->findProviderByTag($providers, $publisher);
 			
 			// Display detailed help for the specific publisher
-			$this->output->writeLn("<info>Help for publisher: {$tag}</info>");
+			$this->output->writeLn("<info>Help for publisher: {$publisher}</info>");
 			$this->output->writeLn($provider::getDescription());
-			$this->output->writeLn("Usage: php ./vendor/bin/sculpt canvas:publish {$tag}");
+			$this->output->writeLn("Usage: php ./vendor/bin/sculpt canvas:publish {$publisher}");
 			$this->output->writeLn("");
 			
 			// Show extended help if the publisher supports it
@@ -165,12 +166,13 @@
 		/**
 		 * Publish assets for a specific tag with file copying and rollback functionality
 		 * @param array $providers
-		 * @param string $tag
+		 * @param string $publisher
 		 * @param bool $force
+		 * @param bool $overwrite
 		 * @return int
 		 */
-		private function publishTag(array $providers, string $tag, bool $force = false): int {
-			$targetProvider = $this->findProviderByTag($providers, $tag);
+		private function publishTag(array $providers, string $publisher, bool $force = false, bool $overwrite = false): int {
+			$targetProvider = $this->findProviderByTag($providers, $publisher);
 			
 			// Check if the assets can be published
 			if (!$targetProvider->canPublish()) {
@@ -179,33 +181,33 @@
 			}
 			
 			// Validate and prepare for publishing
-			$publishData = $this->preparePublishing($targetProvider, $tag);
+			$publishData = $this->preparePublishing($targetProvider, $publisher);
 			
 			if ($publishData === null) {
 				return 1; // Error occurred during preparation
 			}
 			
 			// Show preview and get confirmation
-			if (!$this->showPublishPreview($publishData, $force)) {
+			if (!$this->showPublishPreview($publishData, $force, $overwrite)) {
 				return 0; // User cancelled
 			}
 			
 			// Execute the publishing process
-			return $this->executePublishing($publishData, $targetProvider);
+			return $this->executePublishing($publishData, $targetProvider, $overwrite);
 		}
 		
 		/**
 		 * Prepare and validate everything needed for publishing
 		 * @param AssetPublisher $targetProvider
-		 * @param string $tag
+		 * @param string $publisher
 		 * @return array|null Returns publish data array or null on error
 		 */
-		private function preparePublishing(AssetPublisher $targetProvider, string $tag): ?array {
+		private function preparePublishing(AssetPublisher $targetProvider, string $publisher): ?array {
 			// Resolve the source directory
 			$sourceDirectory = $this->discover->resolvePath($targetProvider->getSourcePath());
 			
 			// Show information about what we're publishing
-			$this->output->writeLn("Publishing: " . $tag);
+			$this->output->writeLn("Publishing: " . $publisher);
 			$this->output->writeLn("Description: " . $targetProvider::getDescription());
 			$this->output->writeLn("Source directory: " . $sourceDirectory);
 			$this->output->writeLn("");
@@ -235,7 +237,7 @@
 			
 			return [
 				'manifest'        => $manifest,
-				'tag'             => $tag,
+				'publisher'       => $publisher,
 				'projectRoot'     => $projectRoot,
 				'sourceDirectory' => $this->discover->resolvePath($sourceDirectory)
 			];
@@ -245,126 +247,79 @@
 		 * Show preview of files to be published and get user confirmation
 		 * @param array $publishData
 		 * @param bool $force
+		 * @param bool $overwrite
 		 * @return bool True to proceed, false to cancel
 		 */
-		private function showPublishPreview(array $publishData, bool $force): bool {
-			// Analyze all files in the manifest
-			$analysisResult = $this->analyzeFilesForPublishing($publishData);
-			
-			// Handle any missing source files
-			if (!$this->validateSourceFiles($analysisResult['missingSourceFiles'])) {
+		private function showPublishPreview(array $publishData, bool $force, bool $overwrite): bool {
+			// Validate source files exist
+			if (!$this->validateSourceFiles($publishData)) {
 				return false;
 			}
 			
-			// Display the publishing preview
-			$this->displayPublishingPreview($analysisResult['filesToPublish']);
-			
-			// Show overwrite warnings if needed
-			$this->showOverwriteWarnings($analysisResult['existingFiles']);
+			// Show what will happen
+			$this->displayPublishingPreview($publishData, $overwrite);
 			
 			// Get user confirmation
 			return $this->getUserConfirmation($force);
 		}
 		
 		/**
-		 * Analyze all files in the manifest to determine their status
+		 * Validate that all source files exist
 		 * @param array $publishData
-		 * @return array Analysis results with filesToPublish, existingFiles, and missingSourceFiles
+		 * @return bool True if all source files exist, false otherwise
 		 */
-		private function analyzeFilesForPublishing(array $publishData): array {
-			$filesToPublish = [];
-			$existingFiles = [];
-			$missingSourceFiles = [];
+		private function validateSourceFiles(array $publishData): bool {
+			$missingFiles = [];
 			
 			foreach ($publishData['manifest']['files'] as $file) {
 				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
-				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
-				// Check if source file exists
 				if (!file_exists($sourcePath)) {
-					$missingSourceFiles[] = [
-						'source'     => $file['source'],
-						'target'     => $file['target'],
+					$missingFiles[] = [
+						'source' => $file['source'],
 						'sourcePath' => $sourcePath
 					];
-					continue;
-				}
-				
-				$fileInfo = [
-					'source'     => $file['source'],
-					'target'     => $file['target'],
-					'sourcePath' => $sourcePath,
-					'targetPath' => $targetPath,
-					'exists'     => file_exists($targetPath)
-				];
-				
-				$filesToPublish[] = $fileInfo;
-				
-				if ($fileInfo['exists']) {
-					$existingFiles[] = $fileInfo;
 				}
 			}
 			
-			return [
-				'filesToPublish'     => $filesToPublish,
-				'existingFiles'      => $existingFiles,
-				'missingSourceFiles' => $missingSourceFiles
-			];
-		}
-		
-		/**
-		 * Validate that all source files exist
-		 * @param array $missingSourceFiles
-		 * @return bool True if all source files exist, false otherwise
-		 */
-		private function validateSourceFiles(array $missingSourceFiles): bool {
-			if (empty($missingSourceFiles)) {
-				return true;
+			if (!empty($missingFiles)) {
+				$this->output->error("Source files not found:");
+				foreach ($missingFiles as $file) {
+					$this->output->writeLn("  • " . $file['source'] . " (expected at: " . $file['sourcePath'] . ")");
+				}
+				return false;
 			}
 			
-			$this->output->error("Source files not found:");
-			foreach ($missingSourceFiles as $file) {
-				$this->output->writeLn("  • " . $file['source'] . " (expected at: " . $file['sourcePath'] . ")");
-			}
-			
-			return false;
+			return true;
 		}
 		
 		/**
 		 * Display the publishing preview showing what files will be published
-		 * @param array $filesToPublish
+		 * @param array $publishData
+		 * @param bool $overwrite
 		 * @return void
 		 */
-		private function displayPublishingPreview(array $filesToPublish): void {
+		private function displayPublishingPreview(array $publishData, bool $overwrite): void {
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
-			foreach ($filesToPublish as $file) {
-				$status = $file['exists'] ? "<comment>[OVERWRITE]</comment>" : "<info>[NEW]</info>";
-				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " " . $status);
+			foreach ($publishData['manifest']['files'] as $file) {
+				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				$exists = file_exists($targetPath);
+				
+				if (!$overwrite && $exists) {
+					$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " <comment>[SKIP - EXISTS]</comment>");
+				} else {
+					$status = $exists ? "<comment>[OVERWRITE]</comment>" : "<info>[NEW]</info>";
+					$this->output->writeLn("  • " . $file['source'] . " → " . $file['target'] . " " . $status);
+				}
 			}
 			
 			$this->output->writeLn("");
-		}
-		
-		/**
-		 * Show warnings about files that will be overwritten
-		 * @param array $existingFiles
-		 * @return void
-		 */
-		private function showOverwriteWarnings(array $existingFiles): void {
-			if (empty($existingFiles)) {
-				return;
+			
+			if (!$overwrite) {
+				$this->output->writeLn("Use --overwrite flag to replace existing files");
+				$this->output->writeLn("");
 			}
-			
-			$this->output->writeLn("<comment>WARNING: The following files will be overwritten:</comment>");
-			
-			foreach ($existingFiles as $file) {
-				$this->output->writeLn("  • " . $file['target']);
-			}
-			
-			$this->output->writeLn("");
-			$this->output->writeLn("Backup copies will be created with .backup.[timestamp] extension");
-			$this->output->writeLn("");
 		}
 		
 		/**
@@ -385,15 +340,16 @@
 		 * Execute the actual publishing process with rollback support
 		 * @param array $publishData
 		 * @param AssetPublisher $targetProvider
+		 * @param bool $overwrite
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
-		private function executePublishing(array $publishData, AssetPublisher $targetProvider): int {
+		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
 			$copiedFiles = [];
 			$backupFiles = [];
 			
 			try {
 				// Copy all files with backup support
-				$this->copyFiles($publishData, $copiedFiles, $backupFiles);
+				$this->copyFiles($publishData, $copiedFiles, $backupFiles, $overwrite);
 				
 				// Clean up backup files and show the success message
 				$this->handlePublishingSuccess($backupFiles, $targetProvider);
@@ -411,13 +367,19 @@
 		 * @param array $publishData
 		 * @param array &$copiedFiles Reference to track copied files
 		 * @param array &$backupFiles Reference to track backup files
+		 * @param bool $overwrite Whether to overwrite existing files
 		 * @throws \Exception On any file operation failure
 		 */
-		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles): void {
-			// Fallback to original logic
+		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles, bool $overwrite): void {
 			foreach ($publishData['manifest']['files'] as $file) {
 				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				
+				// Skip existing files if overwrite is not enabled
+				if (!$overwrite && file_exists($targetPath)) {
+					$this->output->writeLn("  Skipped: {$targetPath} (already exists)");
+					continue;
+				}
 				
 				$this->copyFile($sourcePath, $targetPath, $copiedFiles, $backupFiles);
 			}
@@ -588,33 +550,42 @@
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>USAGE:</info>");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish tag [options]");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish [publisher] [options]");
+			$this->output->writeLn("");
+			
+			$this->output->writeLn("<info>ARGUMENTS:</info>");
+			$this->output->writeLn("  <comment>publisher</comment>            Name of the publisher to use");
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>OPTIONS:</info>");
-			$this->output->writeLn("  <comment>--list</comment>              List all available publishers (tags)");
-			$this->output->writeLn("  <comment>--force</comment>              Skip all interactive prompts and confirmations");
-			$this->output->writeLn("  <comment>--help</comment>               Display this help message");
+			$this->output->writeLn("  <comment>--list</comment>              List all available publishers");
+			$this->output->writeLn("  <comment>--force</comment>             Skip all interactive prompts and confirmations");
+			$this->output->writeLn("  <comment>--overwrite</comment>         Overwrite existing files (creates backups)");
+			$this->output->writeLn("  <comment>--help</comment>              Display help for a specific publisher or general help");
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>NOTE:</info>");
-			$this->output->writeLn("  Publishers and tags refer to the same thing - configured publish targets.");
+			$this->output->writeLn("  By default, existing files are skipped. Use --overwrite to replace them.");
 			$this->output->writeLn("");
 			
 			$this->output->writeLn("<info>EXAMPLES:</info>");
 			$this->output->writeLn("  <comment># List all available publishers</comment>");
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish --list");
 			$this->output->writeLn("");
-			$this->output->writeLn("  <comment># Publish using a specific publisher</comment>");
+			$this->output->writeLn("  <comment># Publish new files only (skip existing)</comment>");
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production");
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish staging");
 			$this->output->writeLn("");
+			$this->output->writeLn("  <comment># Publish and overwrite existing files</comment>");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production --overwrite");
+			$this->output->writeLn("");
 			$this->output->writeLn("  <comment># Skip interactive prompts (non-interactive mode)</comment>");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish -production --force");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production --force");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production --overwrite --force");
 			$this->output->writeLn("");
 			$this->output->writeLn("  <comment># Show help information</comment>");
 			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish");
-			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish -production --help");
+			$this->output->writeLn("  php ./vendor/bin/sculpt canvas:publish production --help");
 		}
 		
 		/**
