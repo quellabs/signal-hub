@@ -345,22 +345,25 @@
 		 * @return int Exit code (0 = success, 1 = error)
 		 */
 		private function executePublishing(array $publishData, AssetPublisher $targetProvider, bool $overwrite): int {
+			// Instantiate FileOperationManager
 			$fileManager = new FileOperationManager($this->output);
+
+			// Start transaction
+			$transaction = $fileManager->createTransaction($publishData, $overwrite, "Publishing files to production");
 			
 			try {
 				// Copy all files with backup support
-				$fileManager->copyFiles($publishData, $overwrite);
-				
-				// Clean up backup files and show success
-				$fileManager->cleanupBackupFiles();
+				$fileManager->commit($transaction);
+
+				// Show success
 				$this->output->writeLn("<info>Assets published successfully!</info>");
 				$this->output->writeLn($targetProvider->getPostPublishInstructions());
 				
 				return 0;
 				
 			} catch (FileOperationException $e) {
-				$this->output->error("Publishing failed: " . $e->getMessage());
-				$fileManager->performRollback();
+				// Something went wrong - rollback everything
+				$fileManager->rollback($transaction);
 				return 1;
 			}
 		}

@@ -5,36 +5,19 @@
 	use Quellabs\Contracts\IO\ConsoleOutput;
 	
 	/**
-	 * Manages file operations for the publish command with comprehensive rollback support
-	 *
-	 * This class handles all file system operations including copying, backup creation,
-	 * directory management, and rollback functionality. It maintains detailed tracking
-	 * of all operations to enable complete rollback in case of failures.
+	 * This class executes pre-planned FileTransaction objects with proper commit/rollback
+	 * functionality. Transactions contain all planned operations and can be executed,
+	 * committed, or rolled back as atomic units.
 	 */
 	class FileOperationManager {
+		
 		/**
 		 * @var ConsoleOutput Console output for logging operations
 		 */
 		private ConsoleOutput $output;
 		
 		/**
-		 * @var array Tracks all successfully copied files for rollback purposes
-		 */
-		private array $copiedFiles = [];
-		
-		/**
-		 * @var array Maps original file paths to their backup file paths
-		 */
-		private array $backupFiles = [];
-		
-		/**
-		 * @var array Tracks directories created during operations
-		 */
-		private array $createdDirectories = [];
-		
-		/**
 		 * FileOperationManager constructor
-		 *
 		 * @param ConsoleOutput $output Console output interface for logging
 		 */
 		public function __construct(ConsoleOutput $output) {
@@ -42,112 +25,235 @@
 		}
 		
 		/**
-		 * Copy multiple files from source to target locations with backup support
+		 * Create a new transaction with planned operations
 		 * @param array $publishData Publishing configuration containing manifest and paths
 		 * @param bool $overwrite Whether to overwrite existing files
-		 * @return bool True if all files copied successfully, false otherwise
-		 * @throws FileOperationException On any critical file operation failure
+		 * @param string|null $description Optional description for the transaction
+		 * @return FileTransaction New transaction object with planned operations
+		 * @throws FileOperationException If planning fails
 		 */
-		public function copyFiles(array $publishData, bool $overwrite = false): bool {
-			try {
-				foreach ($publishData['manifest']['files'] as $file) {
-					$sourcePath = $this->buildSourcePath($publishData['sourceDirectory'], $file['source']);
-					$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
-					
-					// copyFile now handles the overwrite logic internally
-					$this->copyFile($sourcePath, $targetPath, $overwrite);
-				}
-				
-				return true;
-				
-			} catch (\Exception $e) {
-				// Re-throw as our custom exception for better error handling
-				throw new FileOperationException(
-					"File copy operation failed: " . $e->getMessage(),
-					0,
-					$e
-				);
-			}
+		public function createTransaction(array $publishData, bool $overwrite = false, ?string $description = null): FileTransaction {
+			$transaction = new FileTransaction($publishData, $overwrite, $description);
+			
+			$plannedCount = count($transaction->getPlannedOperations());
+			$desc = $description ? " ({$description})" : '';
+			
+			$this->output->writeLn("<info>Created transaction: {$transaction->getId()}{$desc} with {$plannedCount} planned operations</info>");
+			
+			return $transaction;
 		}
 		
 		/**
-		 * Copy a single file with comprehensive backup and validation
-		 * @param string $sourcePath Path to the source file
-		 * @param string $targetPath Destination path for the file
-		 * @param bool $overwrite Whether to overwrite existing files (default: false)
-		 * @return bool True if the file was copied, false if skipped
-		 * @throws FileOperationException On any file operation failure
+		 * Show a preview of what the transaction will do
+		 * @param FileTransaction $transaction Transaction to preview
+		 * @return void
 		 */
-		public function copyFile(string $sourcePath, string $targetPath, bool $overwrite = false): bool {
-			// Step 1: Validate source file
-			$this->validateSourceFile($sourcePath);
+		public function previewTransaction(FileTransaction $transaction): void {
+			$this->output->writeLn("<info>Transaction Preview: {$transaction->getId()}</info>");
 			
-			// Step 2: Check if target exists and handle accordingly
-			if (file_exists($targetPath)) {
-				if (!$overwrite) {
-					$this->output->writeLn("  • Skipped: {$targetPath} (already exists)");
-					return false; // File was skipped
-				}
+			foreach ($transaction->getPlannedOperations() as $operation) {
+				$icon = match ($operation->type) {
+					PlannedOperation::TYPE_COPY => '✓',
+					PlannedOperation::TYPE_OVERWRITE => '⚠',
+					PlannedOperation::TYPE_SKIP => '•',
+					default => '?'
+				};
 				
-				// Create backup before overwriting
-				$this->createBackupFile($targetPath);
+				$this->output->writeLn("  {$icon} {$operation->type}: {$operation->sourcePath} → {$operation->targetPath} ({$operation->reason})");
 			}
 			
-			// Step 3: Ensure target directory exists
-			$this->ensureTargetDirectory($targetPath);
+			$summary = $transaction->getSummary();
+		
+			$this->output->writeLn("<comment>Summary: {$summary['planned']['copy']} copies, {$summary['planned']['overwrite']} overwrites, {$summary['planned']['skip']} skips</comment>");
+		}
+		
+		/**
+		 * Execute the planned operations in the transaction
+		 * @param FileTransaction $transaction Transaction to execute
+		 * @return bool True if all operations executed successfully
+		 * @throws FileOperationException If transaction was already executed
+		 */
+		public function execute(FileTransaction $transaction): bool {
+			if ($transaction->isExecuted()) {
+				throw new FileOperationException("Transaction {$transaction->getId()} has already been executed");
+			}
 			
-			// Step 4: Perform the copy operation
-			$this->performFileCopy($sourcePath, $targetPath);
+			$this->output->writeLn("<info>Executing transaction: {$transaction->getId()}</info>");
 			
-			// Step 5: Track successful operation
-			$this->copiedFiles[] = $targetPath;
+			foreach ($transaction->getPlannedOperations() as $operation) {
+				try {
+					$this->executeOperation($transaction, $operation);
+				} catch (\Exception $e) {
+					$this->output->writeLn("<e>Failed to execute operation: {$e->getMessage()}</e>");
+					throw new FileOperationException("Transaction execution failed: " . $e->getMessage(), 0, $e);
+				}
+			}
 			
-			// Show message that we copied the file
-			$this->output->writeLn("  ✓ Copied: {$sourcePath} → {$targetPath}");
-			
-			// The file was successfully copied
+			$transaction->markExecuted();
+			$this->output->writeLn("<info>Transaction execution completed: {$transaction->getId()}</info>");
 			return true;
 		}
 		
 		/**
-		 * Create a timestamped backup of an existing file
+		 * Commit the specified transaction, making all operations permanent
+		 * @param FileTransaction $transaction Transaction to commit
+		 * @return bool True if commit was successful
+		 * @throws FileOperationException If transaction wasn't executed
+		 */
+		public function commit(FileTransaction $transaction): bool {
+			if (!$transaction->isExecuted()) {
+				throw new FileOperationException("Cannot commit transaction {$transaction->getId()} - not executed yet");
+			}
+			
+			try {
+				// Clean up any backup files created during the transaction
+				$this->cleanupTransactionBackups($transaction);
+				
+				$operationCount = count($transaction->getExecutedOperations());
+				$this->output->writeLn("<info>Committed transaction: {$transaction->getId()} ({$operationCount} operations)</info>");
+				
+				return true;
+				
+			} catch (\Exception $e) {
+				$this->output->writeLn("<e>Failed to commit transaction {$transaction->getId()}: {$e->getMessage()}</e>");
+				return false;
+			}
+		}
+		
+		/**
+		 * Rollback the specified transaction, undoing all operations
+		 * @param FileTransaction $transaction Transaction to rollback
+		 * @return array Array of any errors encountered during rollback
+		 * @throws FileOperationException If transaction wasn't executed
+		 */
+		public function rollback(FileTransaction $transaction): array {
+			if (!$transaction->isExecuted()) {
+				throw new FileOperationException("Cannot rollback transaction {$transaction->getId()} - not executed yet");
+			}
+			
+			$this->output->writeLn("<comment>Rolling back transaction: {$transaction->getId()}</comment>");
+			
+			$errors = [];
+			
+			$operations = array_reverse($transaction->getExecutedOperations()); // Reverse order for proper rollback
+			
+			foreach ($operations as $operation) {
+				try {
+					$this->rollbackOperation($operation);
+				} catch (\Exception $e) {
+					$errors[] = "Failed to rollback operation: {$e->getMessage()}";
+				}
+			}
+			
+			if (empty($errors)) {
+				$this->output->writeLn("<info>Transaction rollback completed successfully</info>");
+			} else {
+				$this->output->writeLn("<e>Transaction rollback completed with errors</e>");
+				foreach ($errors as $error) {
+					$this->output->writeLn("  • {$error}");
+				}
+			}
+			
+			return $errors;
+		}
+		
+		/**
+		 * Execute a single planned operation
+		 * @param FileTransaction $transaction Transaction context
+		 * @param PlannedOperation $operation Operation to execute
+		 * @return void
+		 * @throws FileOperationException If operation fails
+		 */
+		private function executeOperation(FileTransaction $transaction, PlannedOperation $operation): void {
+			switch ($operation->type) {
+				case PlannedOperation::TYPE_SKIP:
+					$this->output->writeLn("  • Skipped: {$operation->targetPath} (already exists)");
+					break;
+				
+				case PlannedOperation::TYPE_COPY:
+				case PlannedOperation::TYPE_OVERWRITE:
+					$this->executeCopyOperation($transaction, $operation);
+					break;
+				
+				default:
+					throw new FileOperationException("Unknown planned operation type: {$operation->type}");
+			}
+		}
+		
+		/**
+		 * Execute a copy or overwrite operation
+		 * @param FileTransaction $transaction Transaction context
+		 * @param PlannedOperation $operation Operation to execute
+		 * @return void
+		 * @throws FileOperationException If copy fails
+		 */
+		private function executeCopyOperation(FileTransaction $transaction, PlannedOperation $operation): void {
+			// Create backup if overwriting
+			if ($operation->type === PlannedOperation::TYPE_OVERWRITE) {
+				$this->createBackupFile($transaction, $operation->targetPath);
+			}
+			
+			// Ensure target directory exists
+			$this->ensureTargetDirectory($transaction, $operation->targetPath);
+			
+			// Perform the copy operation
+			$this->performFileCopy($operation->sourcePath, $operation->targetPath);
+			
+			// Log the executed operation
+			$transaction->logExecutedOperation(FileTransaction::OP_FILE_COPY, [
+				'source'        => $operation->sourcePath,
+				'target'        => $operation->targetPath,
+				'was_overwrite' => $operation->type === PlannedOperation::TYPE_OVERWRITE
+			]);
+			
+			$action = $operation->type === PlannedOperation::TYPE_OVERWRITE ? 'Overwrote' : 'Copied';
+			$this->output->writeLn("  ✓ {$action}: {$operation->sourcePath} → {$operation->targetPath}");
+		}
+		
+		/**
+		 * Create a timestamped backup of an existing file within the transaction
+		 * @param FileTransaction $transaction Transaction context
 		 * @param string $targetPath Path to the file that needs backing up
 		 * @return void
 		 * @throws FileOperationException If backup creation fails
 		 */
-		public function createBackupFile(string $targetPath): void {
+		private function createBackupFile(FileTransaction $transaction, string $targetPath): void {
 			$backupPath = $this->generateUniqueBackupPath($targetPath);
 			
 			if (!copy($targetPath, $backupPath)) {
 				throw new FileOperationException("Failed to create backup: {$targetPath} → {$backupPath}");
 			}
 			
-			// Track the backup for potential cleanup/rollback
-			$this->backupFiles[$targetPath] = $backupPath;
+			$transaction->logExecutedOperation(FileTransaction::OP_BACKUP_CREATE, [
+				'original' => $targetPath,
+				'backup'   => $backupPath
+			]);
+			
 			$this->output->writeLn("  📁 Backed up: {$targetPath} → {$backupPath}");
 		}
 		
 		/**
-		 * Ensure the target directory structure exists
+		 * Ensure the target directory structure exists within the transaction
+		 * @param FileTransaction $transaction Transaction context
 		 * @param string $targetPath Full path to the target file
 		 * @return void
 		 * @throws FileOperationException If directory creation fails
 		 */
-		public function ensureTargetDirectory(string $targetPath): void {
+		private function ensureTargetDirectory(FileTransaction $transaction, string $targetPath): void {
 			$targetDir = dirname($targetPath);
 			
-			// Skip if directory already exists
 			if (is_dir($targetDir)) {
 				return;
 			}
 			
-			// Create directory structure with appropriate permissions
 			if (!mkdir($targetDir, 0755, true)) {
 				throw new FileOperationException("Failed to create target directory: {$targetDir}");
 			}
 			
-			// Track created directory for potential rollback
-			$this->createdDirectories[] = $targetDir;
+			$transaction->logExecutedOperation(FileTransaction::OP_DIRECTORY_CREATE, [
+				'directory' => $targetDir
+			]);
+			
 			$this->output->writeLn("  📂 Created directory: {$targetDir}");
 		}
 		
@@ -158,8 +264,7 @@
 		 * @return void
 		 * @throws FileOperationException If copy operation fails
 		 */
-		public function performFileCopy(string $sourcePath, string $targetPath): void {
-			// Attempt the file copy
+		private function performFileCopy(string $sourcePath, string $targetPath): void {
 			if (!copy($sourcePath, $targetPath)) {
 				$error = error_get_last();
 				$errorMessage = $error ? $error['message'] : 'Unknown error';
@@ -174,129 +279,115 @@
 		}
 		
 		/**
-		 * Perform complete rollback of all operations
-		 * This method will:
-		 * 1. Remove all successfully copied files
-		 * 2. Restore all backup files to their original locations
-		 * 3. Remove any directories that were created (if empty)
-		 * @return array Array of any errors encountered during rollback
+		 * Rollback a single operation based on its type
+		 * @param array $operation Operation to rollback containing type and data
+		 * @return void
+		 * @throws FileOperationException If rollback fails or operation type is unknown
 		 */
-		public function performRollback(): array {
-			$rollbackErrors = [];
-			
-			$this->output->writeLn("<comment>Performing rollback...</comment>");
-			
-			// Step 1: Remove files that were successfully copied
-			$rollbackErrors = array_merge($rollbackErrors, $this->removeCopiedFiles());
-			
-			// Step 2: Restore backup files
-			$rollbackErrors = array_merge($rollbackErrors, $this->restoreBackupFiles());
-			
-			// Step 3: Clean up created directories (if empty)
-			$rollbackErrors = array_merge($rollbackErrors, $this->cleanupCreatedDirectories());
-			
-			if (empty($rollbackErrors)) {
-				$this->output->writeLn("<info>Rollback completed successfully</info>");
-			} else {
-				$this->output->writeLn("<error>Rollback completed with errors:</error>");
-				foreach ($rollbackErrors as $error) {
-					$this->output->writeLn("  {$error}");
-				}
+		private function rollbackOperation(array $operation): void {
+			switch ($operation['type']) {
+				case FileTransaction::OP_FILE_COPY:
+					$this->rollbackFileCopy($operation['data']);
+					break;
+				
+				case FileTransaction::OP_BACKUP_CREATE:
+					$this->rollbackBackupCreate($operation['data']);
+					break;
+				
+				case FileTransaction::OP_DIRECTORY_CREATE:
+					$this->rollbackDirectoryCreate($operation['data']);
+					break;
+				
+				default:
+					throw new FileOperationException("Unknown operation type: {$operation['type']}");
 			}
-			
-			return $rollbackErrors;
 		}
 		
 		/**
-		 * Clean up all backup files after successful operation
+		 * Rollback a file copy operation by removing the copied file
+		 * @param array $data Operation data containing target path
+		 * @return void
+		 * @throws FileOperationException If file removal fails
+		 */
+		private function rollbackFileCopy(array $data): void {
+			$targetPath = $data['target'];
+			
+			if (file_exists($targetPath)) {
+				if (!unlink($targetPath)) {
+					throw new FileOperationException("Failed to remove copied file: {$targetPath}");
+				}
+				$this->output->writeLn("  🗑️ Removed: {$targetPath}");
+			}
+		}
+		
+		/**
+		 * Rollback a backup creation by restoring the original file from backup
+		 * @param array $data Operation data containing original and backup paths
+		 * @return void
+		 * @throws FileOperationException If backup restoration fails
+		 */
+		private function rollbackBackupCreate(array $data): void {
+			$originalPath = $data['original'];
+			$backupPath = $data['backup'];
+			
+			if (file_exists($backupPath)) {
+				if (!copy($backupPath, $originalPath)) {
+					throw new FileOperationException("Failed to restore backup: {$backupPath} → {$originalPath}");
+				}
+				
+				// Clean up the backup file after successful restore
+				if (!unlink($backupPath)) {
+					throw new FileOperationException("Failed to cleanup backup file: {$backupPath}");
+				}
+				
+				$this->output->writeLn("  ↩️ Restored: {$backupPath} → {$originalPath}");
+			}
+		}
+		
+		/**
+		 * Rollback a directory creation by removing the directory if it's empty
+		 * @param array $data Operation data containing directory path
+		 * @return void
+		 * @throws FileOperationException If directory removal fails
+		 */
+		private function rollbackDirectoryCreate(array $data): void {
+			$dirPath = $data['directory'];
+			
+			// Only remove if directory exists and is empty to avoid removing directories
+			// that may have been populated by other processes or operations
+			if (is_dir($dirPath) && $this->isDirectoryEmpty($dirPath)) {
+				if (!rmdir($dirPath)) {
+					throw new FileOperationException("Failed to remove created directory: {$dirPath}");
+				}
+				$this->output->writeLn("  📂 Removed directory: {$dirPath}");
+			}
+		}
+		
+		/**
+		 * Clean up backup files created during the specified transaction
+		 * This is called during commit to remove temporary backup files that are no longer needed
+		 * @param FileTransaction $transaction Transaction to clean up
 		 * @return void
 		 */
-		public function cleanupBackupFiles(): void {
+		private function cleanupTransactionBackups(FileTransaction $transaction): void {
 			$cleanedCount = 0;
 			
-			foreach ($this->backupFiles as $backupPath) {
-				if (file_exists($backupPath)) {
-					if (unlink($backupPath)) {
-						$cleanedCount++;
-					} else {
-						$this->output->writeLn("  Warning: Could not remove backup file: {$backupPath}");
+			foreach ($transaction->getExecutedOperations() as $operation) {
+				if ($operation['type'] === FileTransaction::OP_BACKUP_CREATE) {
+					$backupPath = $operation['data']['backup'];
+					
+					if (file_exists($backupPath)) {
+						if (unlink($backupPath)) {
+							$cleanedCount++;
+						} else {
+							$this->output->writeLn("  Warning: Could not remove backup file: {$backupPath}");
+						}
 					}
 				}
 			}
 			
 			if ($cleanedCount > 0) {
 				$this->output->writeLn("  🧹 Cleaned up {$cleanedCount} backup file(s)");
-			}
-		}
-		
-		/**
-		 * Get summary of operations performed
-		 * @return array Summary including counts of various operations
-		 */
-		public function getOperationSummary(): array {
-			return [
-				'copied_files'        => count($this->copiedFiles),
-				'backup_files'        => count($this->backupFiles),
-				'created_directories' => count($this->createdDirectories),
-			];
-		}
-		
-		/**
-		 * Reset all tracking arrays (useful for testing or reusing the instance)
-		 * @return void
-		 */
-		public function reset(): void {
-			$this->copiedFiles = [];
-			$this->backupFiles = [];
-			$this->createdDirectories = [];
-		}
-		
-		/**
-		 * Check if a path is absolute
-		 * @param string $path Path to check
-		 * @return bool True if path is absolute, false if relative
-		 */
-		public function isAbsolutePath(string $path): bool {
-			return $path[0] === '/' || (strlen($path) > 1 && $path[1] === ':');
-		}
-		
-		/**
-		 * Resolve the target path, making it absolute if relative
-		 * @param string $targetPath Target path (may be relative)
-		 * @param string $projectRoot Project root directory
-		 * @return string Absolute target path
-		 */
-		public function resolveTargetPath(string $targetPath, string $projectRoot): string {
-			if ($this->isAbsolutePath($targetPath)) {
-				return $targetPath;
-			}
-			
-			return rtrim($projectRoot, '/') . '/' . ltrim($targetPath, '/');
-		}
-		
-		/**
-		 * Build the complete source path from directory and relative path
-		 * @param string $sourceDirectory Base source directory
-		 * @param string $relativePath Relative path to the file
-		 * @return string Complete source path
-		 */
-		private function buildSourcePath(string $sourceDirectory, string $relativePath): string {
-			return rtrim($sourceDirectory, '/') . '/' . ltrim($relativePath, '/');
-		}
-		
-		/**
-		 * Validate that source file exists and is readable
-		 * @param string $sourcePath Path to validate
-		 * @return void
-		 * @throws FileOperationException If file doesn't exist or isn't readable
-		 */
-		private function validateSourceFile(string $sourcePath): void {
-			if (!file_exists($sourcePath)) {
-				throw new FileOperationException("Source file not found: {$sourcePath}");
-			}
-			
-			if (!is_readable($sourcePath)) {
-				throw new FileOperationException("Source file is not readable: {$sourcePath}");
 			}
 		}
 		
@@ -347,94 +438,20 @@
 		}
 		
 		/**
-		 * Remove all successfully copied files during rollback
-		 * @return array Array of any errors encountered
-		 */
-		private function removeCopiedFiles(): array {
-			$errors = [];
-			
-			foreach ($this->copiedFiles as $filePath) {
-				if (file_exists($filePath)) {
-					if (!unlink($filePath)) {
-						$errors[] = "Failed to remove: {$filePath}";
-					} else {
-						$this->output->writeLn("  🗑️ Removed: {$filePath}");
-					}
-				}
-			}
-			
-			return $errors;
-		}
-		
-		/**
-		 * Restore all backup files to their original locations
-		 * @return array Array of any errors encountered
-		 */
-		private function restoreBackupFiles(): array {
-			$errors = [];
-			
-			foreach ($this->backupFiles as $originalPath => $backupPath) {
-				if (file_exists($backupPath)) {
-					if (!copy($backupPath, $originalPath)) {
-						$errors[] = "Failed to restore backup: {$backupPath} to {$originalPath}";
-					} else {
-						$this->output->writeLn("  ↩️ Restored: {$backupPath} → {$originalPath}");
-						
-						// Clean up the backup file after successful restore
-						if (!unlink($backupPath)) {
-							$errors[] = "Failed to clean up backup file: {$backupPath}";
-						}
-					}
-				}
-			}
-			
-			return $errors;
-		}
-		
-		/**
-		 * Clean up directories that were created (if they're empty)
-		 * @return array Array of any errors encountered
-		 */
-		private function cleanupCreatedDirectories(): array {
-			$errors = [];
-			
-			// Sort directories by depth (deepest first) for proper cleanup
-			$sortedDirs = $this->createdDirectories;
-			usort($sortedDirs, function ($a, $b) {
-				return substr_count($b, '/') - substr_count($a, '/');
-			});
-			
-			foreach ($sortedDirs as $dirPath) {
-				if (is_dir($dirPath)) {
-					// Only remove if directory is empty
-					if ($this->isDirectoryEmpty($dirPath)) {
-						if (!rmdir($dirPath)) {
-							$errors[] = "Failed to remove created directory: {$dirPath}";
-						} else {
-							$this->output->writeLn("  📂 Removed empty directory: {$dirPath}");
-						}
-					}
-				}
-			}
-			
-			return $errors;
-		}
-		
-		/**
 		 * Check if a directory is empty
 		 * @param string $dirPath Directory path to check
 		 * @return bool True if directory is empty, false otherwise
 		 */
 		private function isDirectoryEmpty(string $dirPath): bool {
 			$handle = opendir($dirPath);
-	
+			
 			while (false !== ($entry = readdir($handle))) {
 				if ($entry != "." && $entry != "..") {
 					closedir($handle);
 					return false;
 				}
 			}
-	
+			
 			closedir($handle);
 			return true;
 		}
