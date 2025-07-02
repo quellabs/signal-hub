@@ -249,14 +249,15 @@
 		 * @return bool True to proceed, false to cancel
 		 */
 		private function showPublishPreview(array $publishData, bool $force): bool {
-			// Show files that will be published
-			$this->output->writeLn("");
+			// Show a message
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
+			// Show files that will be published
 			foreach ($publishData['manifest']['files'] as $file) {
 				$this->output->writeLn("  • " . $file['source'] . " → " . $file['target']);
 			}
 			
+			// Newline for better formatting
 			$this->output->writeLn("");
 			
 			// Ask for confirmation unless a force flag is set
