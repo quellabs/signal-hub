@@ -233,6 +233,7 @@
 			
 			return [
 				'manifest'        => $manifest,
+				'tag'             => $tag,
 				'projectRoot'     => $projectRoot,
 				'sourceDirectory' => $this->discover->resolvePath($sourceDirectory)
 			];
@@ -256,7 +257,7 @@
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
 				// Show copy action
-				$this->output->writeLn("  <<package>>{$cleanFileSource} → {$targetPath}");
+				$this->output->writeLn("  " . $publishData['tag'] . DIRECTORY_SEPARATOR . $cleanFileSource . " → " . $targetPath);
 			}
 			
 			$this->output->writeLn("");
