@@ -81,7 +81,7 @@ class BlogController extends BaseController {
 
 ### ObjectQuel ORM
 
-ObjectQuel lets you query data using syntax that feels natural to PHP developers. Inspired by QUEL (a declarative query language from early relational databases), it bridges traditional database querying with object-oriented programming. 
+ObjectQuel lets you query data using syntax that feels natural to PHP developers. Inspired by QUEL (a declarative query language from early relational databases), it bridges traditional database querying with object-oriented programming.
 
 #### Simple Entity Operations
 
@@ -603,6 +603,8 @@ $file = $this->container->for('file')->get(CacheInterface::class);
 
 Canvas includes a command-line interface called Sculpt for managing your application:
 
+### Route Management
+
 ```bash
 # View all registered routes in your application
 ./vendor/bin/sculpt route:list
@@ -615,6 +617,33 @@ Canvas includes a command-line interface called Sculpt for managing your applica
 # Clear route cache
 ./vendor/bin/sculpt route:clear-cache
 ```
+
+### Asset Publishing
+
+Canvas provides a powerful asset publishing system to deploy configuration files, templates, and other resources:
+
+```bash
+# List all available publishers
+./vendor/bin/sculpt canvas:publish --list
+
+# Publish assets using a specific publisher
+./vendor/bin/sculpt canvas:publish package:production
+
+# Overwrite existing files
+./vendor/bin/sculpt canvas:publish package:production --overwrite
+
+# Skip confirmation prompts (for automated deployments)
+./vendor/bin/sculpt canvas:publish package:production --force
+
+# Show help for a specific publisher
+./vendor/bin/sculpt canvas:publish package:production --help
+```
+
+**Key features:**
+- **Safe publishing** with automatic backup creation
+- **Transaction rollback** if operations fail
+- **Interactive confirmation** with preview of changes
+- **Extensible publisher system** for custom deployment needs
 
 ## Configuration
 
