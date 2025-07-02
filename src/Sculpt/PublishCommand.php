@@ -7,7 +7,6 @@
 	use Quellabs\Sculpt\Contracts\CommandBase;
 	use Quellabs\Discover\Scanner\ComposerScanner;
 	use Quellabs\Contracts\Publishing\AssetPublisher;
-	use Quellabs\Contracts\Publishing\InteractiveAssetPublisher;
 	
 	class PublishCommand extends CommandBase {
 		
@@ -43,7 +42,7 @@
 			// Show title of command
 			$this->output->writeLn("<info>Canvas Publish Command</info>");
 			$this->output->writeLn("");
-
+			
 			// Initialize the discovery system to find all available asset publishers
 			$discover = new Discover();
 			$discover->addScanner(new ComposerScanner("publishers"));
@@ -58,7 +57,7 @@
 			}
 			
 			// Get the tag parameter once
-			$tag = $config->get("tag");
+			$tag = $config->getPositional(0);
 			
 			// If no tag is provided, show usage help
 			if (!$tag) {
@@ -146,7 +145,7 @@
 		}
 		
 		/**
-		 * Publish assets for a specific tag
+		 * Publish assets for a specific tag with file copying and rollback functionality
 		 * @param array $providers
 		 * @param string $tag
 		 * @param bool $force
@@ -161,29 +160,281 @@
 				return 1;
 			}
 			
-			// Show a message
-			$this->output->writeLn("Publishing: {$tag}");
-			$this->output->writeLn("Description: " . $targetProvider::getDescription());
+			// Validate and prepare for publishing
+			$publishData = $this->preparePublishing($targetProvider, $tag);
 			
-			// Show a message with more details
-			if ($targetProvider instanceof InteractiveAssetPublisher) {
-				// Set IO in provider class
-				$targetProvider->setIO($this->input, $this->output);
-				
-				// Show a message that the user can expect questions
-				$this->output->writeLn("This publisher will ask you some configuration questions...");
-			} elseif (!$force && !$this->askForConfirmation()) {
-				return 0;
+			if ($publishData === null) {
+				return 1; // Error occurred during preparation
 			}
 			
-			// Discover utility to fetch the project root
-			$discover = new Discover();
+			// Show preview and get confirmation
+			if (!$this->showPublishPreview($publishData, $force)) {
+				return 0; // User cancelled
+			}
 			
-			// Delegate publishing to the publisher class
-			$targetProvider->publish($discover->getProjectRoot(), $force);
+			// Execute the publishing process
+			return $this->executePublishing($publishData, $targetProvider);
+		}
+		
+		/**
+		 * Prepare and validate everything needed for publishing
+		 * @param AssetPublisher $targetProvider
+		 * @param string $tag
+		 * @return array|null Returns publish data array or null on error
+		 */
+		private function preparePublishing(AssetPublisher $targetProvider, string $tag): ?array {
+			// Show information about what we're publishing
+			$this->output->writeLn("Publishing: {$tag}");
+			$this->output->writeLn("Description: " . $targetProvider::getDescription());
+			$this->output->writeLn("");
+			
+			// Get the manifest and validate it
+			$manifest = $targetProvider->getManifest();
+			if (!isset($manifest['files']) || !is_array($manifest['files'])) {
+				$this->output->error("Invalid manifest: 'files' key not found or not an array");
+				return null;
+			}
+			
+			// Get project root and source directory
+			$discover = new Discover();
+			$projectRoot = $discover->getProjectRoot();
+			$sourceDirectory = $targetProvider->getSourcePath();
+			
+			// Make source path absolute if it's relative
+			if (!$this->isAbsolutePath($sourceDirectory)) {
+				$sourceDirectory = rtrim($projectRoot, '/') . '/' . ltrim($sourceDirectory, '/');
+			}
+			
+			// Validate source directory exists
+			if (!is_dir($sourceDirectory)) {
+				$this->output->error("Source directory does not exist: {$sourceDirectory}");
+				return null;
+			}
+			
+			return [
+				'manifest' => $manifest,
+				'projectRoot' => $projectRoot,
+				'sourceDirectory' => $sourceDirectory
+			];
+		}
+		
+		/**
+		 * Show preview of files to be published and get user confirmation
+		 * @param array $publishData
+		 * @param bool $force
+		 * @return bool True to proceed, false to cancel
+		 */
+		private function showPublishPreview(array $publishData, bool $force): bool {
+			// Show files that will be published
+			$this->output->writeLn("<info>Files to publish:</info>");
+			
+			foreach ($publishData['manifest']['files'] as $file) {
+				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
+				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				$this->output->writeLn("  {$sourcePath} → {$targetPath}");
+			}
+			
+			$this->output->writeLn("");
+			
+			// Ask for confirmation unless a force flag is set
+			return $force || $this->askForConfirmation();
+		}
+		
+		/**
+		 * Execute the actual publishing process with rollback support
+		 * @param array $publishData
+		 * @param AssetPublisher $targetProvider
+		 * @return int Exit code (0 = success, 1 = error)
+		 */
+		private function executePublishing(array $publishData, AssetPublisher $targetProvider): int {
+			$copiedFiles = [];
+			$backupFiles = [];
+			
+			try {
+				// Copy all files with backup support
+				$this->copyFiles($publishData, $copiedFiles, $backupFiles);
+				
+				// Clean up backup files and show the success message
+				$this->handlePublishingSuccess($backupFiles, $targetProvider);
+				return 0;
+
+			} catch (\Exception $e) {
+				// Publishing failed - perform rollback
+				$this->handlePublishingFailure($e, $copiedFiles, $backupFiles);
+				return 1;
+			}
+		}
+		
+		/**
+		 * Copy files from source to target with backup support
+		 * @param array $publishData
+		 * @param array &$copiedFiles Reference to track copied files
+		 * @param array &$backupFiles Reference to track backup files
+		 * @throws \Exception On any file operation failure
+		 */
+		private function copyFiles(array $publishData, array &$copiedFiles, array &$backupFiles): void {
+			foreach ($publishData['manifest']['files'] as $file) {
+				$sourcePath = rtrim($publishData['sourceDirectory'], '/') . '/' . ltrim($file['source'], '/');
+				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
+				
+				$this->copyFile($sourcePath, $targetPath, $copiedFiles, $backupFiles);
+			}
+		}
+		
+		/**
+		 * Copy a single file with backup support
+		 * @param string $sourcePath
+		 * @param string $targetPath
+		 * @param array &$copiedFiles Reference to track copied files
+		 * @param array &$backupFiles Reference to track backup files
+		 * @throws \Exception On any file operation failure
+		 */
+		private function copyFile(string $sourcePath, string $targetPath, array &$copiedFiles, array &$backupFiles): void {
+			// Validate source file exists
+			if (!file_exists($sourcePath)) {
+				throw new \Exception("Source file not found: {$sourcePath}");
+			}
+			
+			// Create backup if the target file already exists
+			if (file_exists($targetPath)) {
+				$backupPath = $targetPath . '.backup.' . time();
+				
+				if (!copy($targetPath, $backupPath)) {
+					throw new \Exception("Failed to create backup: {$backupPath}");
+				}
+				
+				$backupFiles[$targetPath] = $backupPath;
+				
+				$this->output->writeLn("  Backed up: {$targetPath} → {$backupPath}");
+			}
+			
+			// Create target directory if it doesn't exist
+			$targetDir = dirname($targetPath);
+			
+			if (!is_dir($targetDir)) {
+				if (!mkdir($targetDir, 0755, true)) {
+					throw new \Exception("Failed to create directory: {$targetDir}");
+				}
+			}
+			
+			// Copy the file
+			if (!copy($sourcePath, $targetPath)) {
+				throw new \Exception("Failed to copy file: {$sourcePath} to {$targetPath}");
+			}
+			
+			$copiedFiles[] = $targetPath;
+			
+			$this->output->writeLn("  Copied: {$sourcePath} → {$targetPath}");
+		}
+		
+		/**
+		 * Handle successful publishing completion
+		 * @param array $backupFiles
+		 * @param AssetPublisher $targetProvider
+		 */
+		private function handlePublishingSuccess(array $backupFiles, AssetPublisher $targetProvider): void {
+			$this->cleanupBackupFiles($backupFiles);
+			
+			$this->output->writeLn("");
 			$this->output->writeLn("<info>Assets published successfully!</info>");
+			$this->output->writeLn("");
 			$this->output->writeLn($targetProvider->getPostPublishInstructions());
-			return 0;
+		}
+		
+		/**
+		 * Handle publishing failure with rollback
+		 * @param \Exception $e
+		 * @param array $copiedFiles
+		 * @param array $backupFiles
+		 */
+		private function handlePublishingFailure(\Exception $e, array $copiedFiles, array $backupFiles): void {
+			$this->output->writeLn("");
+			$this->output->error("Publishing failed: " . $e->getMessage());
+			$this->output->writeLn("<comment>Performing rollback...</comment>");
+			
+			$this->performRollback($copiedFiles, $backupFiles);
+		}
+		
+		/**
+		 * Check if a path is absolute
+		 * @param string $path
+		 * @return bool
+		 */
+		private function isAbsolutePath(string $path): bool {
+			return $path[0] === '/' || (strlen($path) > 1 && $path[1] === ':');
+		}
+		
+		/**
+		 * Resolve target path, making it absolute if relative
+		 * @param string $targetPath
+		 * @param string $projectRoot
+		 * @return string
+		 */
+		private function resolveTargetPath(string $targetPath, string $projectRoot): string {
+			if ($this->isAbsolutePath($targetPath)) {
+				return $targetPath;
+			}
+			
+			return rtrim($projectRoot, '/') . '/' . ltrim($targetPath, '/');
+		}
+		
+		/**
+		 * Clean up backup files after successful publishing
+		 * @param array $backupFiles
+		 * @return void
+		 */
+		private function cleanupBackupFiles(array $backupFiles): void {
+			foreach ($backupFiles as $backupPath) {
+				if (file_exists($backupPath)) {
+					unlink($backupPath);
+				}
+			}
+			
+			if (!empty($backupFiles)) {
+				$this->output->writeLn("  Cleaned up " . count($backupFiles) . " backup file(s)");
+			}
+		}
+		
+		/**
+		 * Perform rollback by removing copied files and restoring backups
+		 * @param array $copiedFiles
+		 * @param array $backupFiles
+		 * @return void
+		 */
+		private function performRollback(array $copiedFiles, array $backupFiles): void {
+			$rollbackErrors = [];
+			
+			// Remove files that were successfully copied
+			foreach ($copiedFiles as $filePath) {
+				if (file_exists($filePath)) {
+					if (!unlink($filePath)) {
+						$rollbackErrors[] = "Failed to remove: {$filePath}";
+					} else {
+						$this->output->writeLn("  Removed: {$filePath}");
+					}
+				}
+			}
+			
+			// Restore backup files
+			foreach ($backupFiles as $originalPath => $backupPath) {
+				if (file_exists($backupPath)) {
+					if (!copy($backupPath, $originalPath)) {
+						$rollbackErrors[] = "Failed to restore backup: {$backupPath} to {$originalPath}";
+					} else {
+						$this->output->writeLn("  Restored: {$backupPath} → {$originalPath}");
+						unlink($backupPath);
+					}
+				}
+			}
+			
+			if (empty($rollbackErrors)) {
+				$this->output->writeLn("<info>Rollback completed successfully</info>");
+			} else {
+				$this->output->writeLn("<error>Rollback completed with errors:</error>");
+				foreach ($rollbackErrors as $error) {
+					$this->output->writeLn("  {$error}");
+				}
+			}
 		}
 		
 		/**
