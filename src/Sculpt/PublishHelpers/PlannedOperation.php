@@ -14,7 +14,7 @@
 			public readonly string $type,
 			public readonly string $sourcePath,
 			public readonly string $targetPath,
-			public readonly string $reason = ''
-		) {
-		}
+			public readonly string $reason = '',
+			public readonly ?string $backupPath = null
+		) {}
 	}

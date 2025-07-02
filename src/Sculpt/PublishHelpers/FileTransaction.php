@@ -43,12 +43,13 @@
 		/**
 		 * Executed operation types for logging
 		 */
-		public const string OP_FILE_COPY = 'file_copy';
-		public const string OP_BACKUP_CREATE = 'backup_create';
-		public const string OP_DIRECTORY_CREATE = 'directory_create';
+		public const OP_FILE_COPY = 'file_copy';
+		public const OP_BACKUP_CREATE = 'backup_create';
+		public const OP_DIRECTORY_CREATE = 'directory_create';
 		
 		/**
 		 * FileTransaction constructor
+		 *
 		 * @param array $publishData Publishing configuration containing manifest and paths
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @param string|null $description Optional description for the transaction
@@ -64,6 +65,7 @@
 		
 		/**
 		 * Plan all operations based on the publish data and overwrite setting
+		 *
 		 * @param array $publishData Publishing configuration
 		 * @param bool $overwrite Whether to overwrite existing files
 		 * @return void
@@ -86,11 +88,15 @@
 				// Determine operation type based on target state
 				if (file_exists($targetPath)) {
 					if ($overwrite) {
+						// Generate backup path for overwrite operations
+						$backupPath = $this->generateUniqueBackupPath($targetPath);
+						
 						$this->plannedOperations[] = new PlannedOperation(
 							PlannedOperation::TYPE_OVERWRITE,
 							$sourcePath,
 							$targetPath,
-							'Target exists, will overwrite'
+							'Target exists, will overwrite',
+							$backupPath
 						);
 					} else {
 						$this->plannedOperations[] = new PlannedOperation(
@@ -112,7 +118,29 @@
 		}
 		
 		/**
+		 * Generate a unique backup path with timestamp
+		 *
+		 * @param string $targetPath Original file path
+		 * @return string Unique backup path
+		 */
+		private function generateUniqueBackupPath(string $targetPath): string {
+			$timestamp = date('Y-m-d_H-i-s');
+			$backupPath = $targetPath . '.backup.' . $timestamp;
+			
+			// Ensure uniqueness for rapid successive calls
+			$counter = 1;
+			
+			while (file_exists($backupPath)) {
+				$backupPath = $targetPath . '.backup.' . $timestamp . '_' . $counter;
+				$counter++;
+			}
+			
+			return $backupPath;
+		}
+		
+		/**
 		 * Get the transaction ID
+		 *
 		 * @return string Transaction ID
 		 */
 		public function getId(): string {
@@ -121,6 +149,7 @@
 		
 		/**
 		 * Get the transaction creation timestamp
+		 *
 		 * @return float Creation timestamp
 		 */
 		public function getCreatedAt(): float {
@@ -129,6 +158,7 @@
 		
 		/**
 		 * Get the transaction description
+		 *
 		 * @return string|null Transaction description
 		 */
 		public function getDescription(): ?string {
@@ -137,6 +167,7 @@
 		
 		/**
 		 * Get all planned operations
+		 *
 		 * @return array<PlannedOperation> Array of planned operations
 		 */
 		public function getPlannedOperations(): array {
@@ -145,6 +176,7 @@
 		
 		/**
 		 * Get all executed operations
+		 *
 		 * @return array Array of executed operations
 		 */
 		public function getExecutedOperations(): array {
@@ -153,6 +185,7 @@
 		
 		/**
 		 * Check if transaction has been executed
+		 *
 		 * @return bool True if executed
 		 */
 		public function isExecuted(): bool {
@@ -161,6 +194,7 @@
 		
 		/**
 		 * Mark transaction as executed
+		 *
 		 * @return void
 		 */
 		public function markExecuted(): void {
@@ -169,20 +203,22 @@
 		
 		/**
 		 * Add an executed operation to the transaction log
+		 *
 		 * @param string $type Operation type (one of the OP_* constants)
 		 * @param array $data Operation-specific data for rollback purposes
 		 * @return void
 		 */
 		public function logExecutedOperation(string $type, array $data): void {
 			$this->executedOperations[] = [
-				'type' => $type,
-				'data' => $data,
+				'type'      => $type,
+				'data'      => $data,
 				'timestamp' => microtime(true)
 			];
 		}
 		
 		/**
 		 * Get operation summary including planned and executed operations
+		 *
 		 * @return array Summary of operations
 		 */
 		public function getSummary(): array {
@@ -197,8 +233,8 @@
 			}
 			
 			$executedSummary = [
-				'file_copies' => 0,
-				'backups_created' => 0,
+				'file_copies'         => 0,
+				'backups_created'     => 0,
 				'directories_created' => 0,
 			];
 			
@@ -207,11 +243,9 @@
 					case self::OP_FILE_COPY:
 						$executedSummary['file_copies']++;
 						break;
-
 					case self::OP_BACKUP_CREATE:
 						$executedSummary['backups_created']++;
 						break;
-
 					case self::OP_DIRECTORY_CREATE:
 						$executedSummary['directories_created']++;
 						break;
@@ -230,6 +264,7 @@
 		
 		/**
 		 * Get a preview of what the transaction will do
+		 *
 		 * @return array Array of operation descriptions
 		 */
 		public function getPreview(): array {
@@ -249,6 +284,7 @@
 		
 		/**
 		 * Check if a path is absolute
+		 *
 		 * @param string $path Path to check
 		 * @return bool True if path is absolute, false if relative
 		 */
@@ -258,6 +294,7 @@
 		
 		/**
 		 * Resolve the target path, making it absolute if relative
+		 *
 		 * @param string $targetPath Target path (may be relative)
 		 * @param string $projectRoot Project root directory
 		 * @return string Absolute target path
@@ -272,6 +309,7 @@
 		
 		/**
 		 * Build the complete source path from directory and relative path
+		 *
 		 * @param string $sourceDirectory Base source directory
 		 * @param string $relativePath Relative path to the file
 		 * @return string Complete source path

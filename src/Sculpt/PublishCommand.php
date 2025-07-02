@@ -389,66 +389,7 @@
 			
 			return rtrim($projectRoot, '/') . '/' . ltrim($targetPath, '/');
 		}
-		
-		/**
-		 * Clean up backup files after successful publishing
-		 * @param array $backupFiles
-		 * @return void
-		 */
-		private function cleanupBackupFiles(array $backupFiles): void {
-			foreach ($backupFiles as $backupPath) {
-				if (file_exists($backupPath)) {
-					unlink($backupPath);
-				}
-			}
-			
-			if (!empty($backupFiles)) {
-				$this->output->writeLn("  Cleaned up " . count($backupFiles) . " backup file(s)");
-			}
-		}
-		
-		/**
-		 * Perform rollback by removing copied files and restoring backups
-		 * @param array $copiedFiles
-		 * @param array $backupFiles
-		 * @return void
-		 */
-		private function performRollback(array $copiedFiles, array $backupFiles): void {
-			$rollbackErrors = [];
-			
-			// Remove files that were successfully copied
-			foreach ($copiedFiles as $filePath) {
-				if (file_exists($filePath)) {
-					if (!unlink($filePath)) {
-						$rollbackErrors[] = "Failed to remove: {$filePath}";
-					} else {
-						$this->output->writeLn("  Removed: {$filePath}");
-					}
-				}
-			}
-			
-			// Restore backup files
-			foreach ($backupFiles as $originalPath => $backupPath) {
-				if (file_exists($backupPath)) {
-					if (!copy($backupPath, $originalPath)) {
-						$rollbackErrors[] = "Failed to restore backup: {$backupPath} to {$originalPath}";
-					} else {
-						$this->output->writeLn("  Restored: {$backupPath} → {$originalPath}");
-						unlink($backupPath);
-					}
-				}
-			}
-			
-			if (empty($rollbackErrors)) {
-				$this->output->writeLn("<info>Rollback completed successfully</info>");
-			} else {
-				$this->output->writeLn("<error>Rollback completed with errors:</error>");
-				foreach ($rollbackErrors as $error) {
-					$this->output->writeLn("  {$error}");
-				}
-			}
-		}
-		
+	
 		/**
 		 * Display comprehensive usage help for the canvas:publish command
 		 * @return void
