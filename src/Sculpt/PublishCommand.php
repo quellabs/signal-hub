@@ -249,24 +249,14 @@
 			$this->output->writeLn("<info>Files to publish:</info>");
 			
 			foreach ($publishData['manifest']['files'] as $file) {
-				// Clean and normalize the file paths
-				$cleanSourceDir = trim($publishData['sourceDirectory'], DIRECTORY_SEPARATOR);
-				$cleanFileSource = ltrim($file['source'], DIRECTORY_SEPARATOR);
-
-				// Build the complete source path
-				$fullSourcePath = $cleanSourceDir . DIRECTORY_SEPARATOR . $cleanFileSource;
-
-				// Resolve the source path through the discovery service
-				$resolvedPath = $this->discover->resolvePath($fullSourcePath);
-
 				// Replace the source directory with a placeholder for portability
-				$sourcePath = str_replace($publishData['sourceDirectory'], '<<package>>', $resolvedPath);
+				$cleanFileSource = ltrim($file['source'], DIRECTORY_SEPARATOR);
 				
 				// Resolve the target path
 				$targetPath = $this->resolveTargetPath($file['target'], $publishData['projectRoot']);
 				
 				// Show copy action
-				$this->output->writeLn("  {$sourcePath} → {$targetPath}");
+				$this->output->writeLn("  <<package>>{$cleanFileSource} → {$targetPath}");
 			}
 			
 			$this->output->writeLn("");
