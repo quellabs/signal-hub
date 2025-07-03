@@ -2,10 +2,9 @@
 	
 	namespace Quellabs\Canvas\ObjectQuel\Discovery;
 	
-	use Quellabs\DependencyInjection\Provider\ServiceProvider;
-	use Quellabs\Discover\Discover;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityManager;
+	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	
 	/**
 	 * Service provider for ObjectQuel EntityManager
