@@ -54,14 +54,8 @@ The package requires:
 
 ### Database Configuration
 
-During installation, the package automatically copies configuration files to your Canvas application:
-
-Edit `config/database.php` to configure your database connection, or set `DSN` in your `.env` file:
-
-```env
-# Database Connection (DSN format)
-DSN=mysql://username:password@localhost:3306/database_name?encoding=utf8mb4
-```
+During installation, the package automatically copies `config/database.php` to your Canvas config directory.
+Edit this file to configure your database connection.
 
 ## Service Discovery
 
@@ -181,7 +175,6 @@ php bin/sculpt quel:create-phinx-config
 composer require quellabs/canvas-objectquel
 
 # Configure your database in config/database.php
-# Set up your .env file with database credentials
 ```
 
 ### 2. Create Your First Entity
@@ -352,24 +345,6 @@ class ProductRepository extends Repository {
 
 ## Troubleshooting
 
-### Common Issues
-
-**EntityManager not found in DI container:**
-- Ensure your database configuration is properly set up in `config/database.php` or `.env`
-- Verify that required environment variables are defined
-
-**Migration commands not available:**
-- Check that the Sculpt service provider is properly registered
-
-**Proxy generation errors:**
-- Verify that the `proxy_path` directory exists and is writable
-- Check that the `proxy_namespace` is properly configured
-
-**Database connection issues:**
-- Validate your database credentials in the `.env` file
-- Test the connection using your database client
-- Ensure the database exists and is accessible
-
 ## Support
 
 For support and documentation:
@@ -380,34 +355,6 @@ For support and documentation:
 - **Documentation**: [ObjectQuel Documentation](https://objectquel.quellabs.com/docs)
 - **Wiki**: [GitHub Wiki](https://github.com/quellabs/objectquel/wiki)
 
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](https://github.com/quellabs/objectquel/blob/main/CONTRIBUTING.md) for details.
-
 ## License
 
 This package is released under the MIT License.
-
-```
-MIT License
-
-Copyright (c) 2024-2025 Quellabs
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
