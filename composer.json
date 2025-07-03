@@ -28,8 +28,7 @@
     "quellabs/signal-hub": "^1.0",
     "quellabs/canvas-smarty": "^1.0",
     "quellabs/annotation-reader": "^1.0",
-    "symfony/http-foundation": "*",
-    "vlucas/phpdotenv": "*"
+    "symfony/http-foundation": "*"
   },
   "autoload": {
     "psr-4": {
@@ -39,7 +38,7 @@
   "extra": {
     "discover": {
       "sculpt": {
-        "provider": "Quellabs\\Canvas\\Sculpt\\RoutesProvider",
+        "provider": "Quellabs\\Canvas\\Sculpt\\CanvasProvider",
         "config": "config/app.php"
       }
     }

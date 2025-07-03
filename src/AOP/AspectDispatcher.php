@@ -3,10 +3,10 @@
 	namespace Quellabs\Canvas\AOP;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\Canvas\AOP\Contracts\AfterAspect;
-	use Quellabs\Canvas\AOP\Contracts\AroundAspect;
-	use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
-	use Quellabs\Canvas\AOP\Contracts\RequestAspect;
+	use Quellabs\Contracts\AOP\AfterAspect;
+	use Quellabs\Contracts\AOP\AroundAspect;
+	use Quellabs\Contracts\AOP\BeforeAspect;
+	use Quellabs\Contracts\AOP\RequestAspect;
 	use Quellabs\DependencyInjection\Container;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;

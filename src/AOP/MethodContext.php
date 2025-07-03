@@ -10,7 +10,7 @@
 	 * Used in AOP (Aspect-Oriented Programming) scenarios to provide
 	 * interceptors and decorators with complete method execution context.
 	 */
-	class MethodContext {
+	class MethodContext implements \Quellabs\Contracts\AOP\MethodContext {
 		
 		private Request $request;
 		private object $target;
@@ -61,27 +61,7 @@
 		 * @return array Array of method arguments in order
 		 */
 		public function getArguments(): array {
-			$arguments = $this->arguments;
-			
-			foreach($this->getMethodArguments() as $methodArgument) {
-				// Skip handling argument without a type
-				if ($methodArgument['type'] === null) {
-					continue;
-				}
-				
-				// Special case handling for Request and SessionInterface classes
-				switch($methodArgument['type']) {
-					case Request::class :
-						$arguments[$methodArgument['name']] = $this->getRequest();
-						break;
-						
-					case SessionInterface::class :
-						$arguments[$methodArgument['name']] = $this->getRequest()->getSession();
-						break;
-				}
-			}
-			
-			return $arguments;
+			return $this->arguments;
 		}
 		
 		/**

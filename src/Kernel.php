@@ -7,10 +7,13 @@
 	use Dotenv\Exception\InvalidFileException;
 	use Dotenv\Exception\InvalidPathException;
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Configuration;
-	use Quellabs\AnnotationReader\Exception\ParserException;
 	use Quellabs\Canvas\AOP\AspectDispatcher;
+	use Quellabs\Canvas\Configuration\Configuration;
+	use Quellabs\Canvas\Discover\ConfigurationProvider;
+	use Quellabs\Canvas\Discover\DiscoverProvider;
 	use Quellabs\Canvas\Discover\KernelProvider;
+	use Quellabs\Canvas\Discover\RequestProvider;
+	use Quellabs\Canvas\Discover\SessionInterfaceProvider;
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Legacy\LegacyBridge;
 	use Quellabs\Canvas\Legacy\LegacyHandler;
@@ -19,12 +22,13 @@
 	use Quellabs\Discover\Discover;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
+	use Symfony\Component\HttpFoundation\Session\Session;
 	
 	class Kernel {
 		
 		private Discover $discover; // Service discovery
 		private AnnotationReader $annotationsReader; // Annotation reading
-		private array $configuration;
+		private Configuration $configuration;
 		private ?array $contents_of_app_php = null;
 		private bool $legacyEnabled;
 		private ?LegacyHandler $legacyFallbackHandler;
@@ -38,24 +42,22 @@
 			// Register Discovery service
 			$this->discover = new Discover();
 			
-			// Read the environment file
-			$this->loadEnvironmentFile();
-			
 			// Store the configuration array
-			$this->configuration = array_merge($this->getConfigFile(), $configuration);
+			$this->configuration = new Configuration(array_merge($this->getConfigFile(), $configuration));
 			
 			// Register Annotations Reader
-			$annotationsReaderConfig = new Configuration();
-			$this->annotationsReader = new AnnotationReader($annotationsReaderConfig);
+			$this->annotationsReader = $this->createAnnotationReader();
 			
-			// Instantiate Dependency Injector
+			// Instantiate Dependency Injector and register default providers
 			$this->dependencyInjector = new Container();
 			$this->dependencyInjector->register(new KernelProvider($this));
+			$this->dependencyInjector->register(new ConfigurationProvider($this->configuration));
+			$this->dependencyInjector->register(new DiscoverProvider($this->discover));
 			
 			// Initialize legacy support
 			$this->initializeLegacySupport();
 			
-			// Zet een custom exception handler voor wat mooiere exceptie meldingen
+			// Add a custom exception handler for some nicer exception messages
 			set_exception_handler([$this, 'customExceptionHandler']);
 		}
 		
@@ -74,6 +76,14 @@
 		 */
 		public function getAnnotationsReader(): AnnotationReader {
 			return $this->annotationsReader;
+		}
+		
+		/**
+		 * Returns the Configuration object
+		 * @return Configuration
+		 */
+		public function getConfiguration(): Configuration {
+			return $this->configuration;
 		}
 		
 		/**
@@ -114,122 +124,147 @@
 		}
 		
 		/**
-		 * Returns the entire configuration array as passed in the constructor
-		 * @return array
-		 */
-		public function getConfiguration(): array {
-			return $this->configuration;
-		}
-		
-		/**
-		 * Check if a configuration key exists
-		 * @param string $key Configuration key
-		 * @return bool
-		 */
-		public function hasConfig(string $key): bool {
-			return array_key_exists($key, $this->configuration);
-		}
-		
-		/**
-		 * Get a specific configuration value
-		 * @param string $key Configuration key
-		 * @param mixed|null $default Default value if key doesn't exist
-		 * @return mixed
-		 */
-		public function getConfig(string $key, mixed $default = null): mixed {
-			return $this->configuration[$key] ?? $default;
-		}
-		
-		/**
-		 * Get configuration value with type casting
-		 * @param string $key Configuration key
-		 * @param string $type Type to cast to ('string', 'int', 'float', 'bool', 'array')
-		 * @param mixed|null $default Default value
-		 * @return mixed
-		 */
-		public function getConfigAs(string $key, string $type, mixed $default = null): mixed {
-			$value = $this->getConfig($key, $default);
-			
-			if ($value === null) {
-				return $default;
-			}
-			
-			switch (strtolower($type)) {
-				case 'string':
-					return (string)$value;
-				
-				case 'int':
-				case 'integer':
-					return (int)$value;
-				
-				case 'float':
-				case 'double':
-					return (float)$value;
-				
-				case 'bool':
-				case 'boolean':
-					// Handle common boolean strings
-					if (is_string($value)) {
-						return in_array(strtolower($value), ['true', '1', 'yes', 'on']);
-					}
-					
-					return (bool)$value;
-				
-				case 'array':
-					// Handle comma-separated strings
-					if (is_string($value)) {
-						return array_map('trim', explode(',', $value));
-					}
-					
-					return is_array($value) ? $value : [$value];
-				
-				default:
-					return $value;
-			}
-		}
-		
-		/**
-		 * Get all configuration keys
-		 * @return array
-		 */
-		public function getConfigKeys(): array {
-			return array_keys($this->configuration);
-		}
-		
-		/**
-		 * Lookup the url and returns information about it
+		 * Process an HTTP request through the controller system and return the response
 		 * @param Request $request The incoming HTTP request object
 		 * @return Response HTTP response to be sent back to the client
 		 */
 		public function handle(Request $request): Response {
-			// Instantiate the URL resolver
-			$urlResolver = new AnnotationResolver($this);
+			// Prepare request dependencies and register with dependency injector
+			// This typically involves setting up request-scoped services and context
+			$providers = $this->prepareRequest($request);
 			
 			try {
-				// Retrieve URL data using the resolver service
-				// This maps the URL to controller, method and parameters
-				$urlData = $urlResolver->resolve($request);
+				// Initialize URL resolver with annotation-based routing capabilities
+				$urlResolver = new AnnotationResolver($this);
 				
-				// If no matching route was found and legacy is enabled, try legacy fallthrough
-				if (!$urlData && $this->legacyEnabled && $this->legacyFallbackHandler) {
+				// Attempt to resolve the incoming request URL to route data
+				// This maps the URL to controller class, method name, and parameters
+				try {
+					$urlData = $urlResolver->resolve($request);
+					return $this->executeCanvasRoute($request, $urlData);
+				} catch (RouteNotFoundException $e) {
+					// Route isn't found in primary resolver - fall through to legacy handling
+				}
+				
+				// Fallback to legacy routing if enabled and configured
+				if ($this->legacyEnabled && $this->legacyFallbackHandler) {
 					try {
 						return $this->legacyFallbackHandler->handle($request);
 					} catch (RouteNotFoundException $e) {
-						// Legacy fallthrough also failed, return 404 with legacy context
-						return $this->createNotFoundResponse($request, true);
+						// Legacy handler also couldn't find a route
+						// Continue to 404 response generation
 					}
 				}
 				
-				// If no matching route was found and legacy is disabled, return 404
-				if (!$urlData) {
-					return $this->createNotFoundResponse($request, false);
-				}
+				// No routes matched in either system - generate 404 Not Found response.
+				// Pass legacy flag to potentially customize 404-behavior based on routing mode
+				return $this->createNotFoundResponse($request, $this->legacyEnabled);
 				
-				// Execute the appropriate controller method based on route information
-				return $this->executeCanvasRoute($request, $urlData);
 			} catch (\Exception $e) {
 				return $this->createErrorResponse($e);
+			} finally {
+				// Critical cleanup: Always unregister to prevent memory leaks
+				$this->cleanupRequest($providers);
 			}
+		}
+		
+		/**
+		 * Convert the kernel instance to a string representation.
+		 * @return string A formatted string containing kernel mode, legacy status, and root path
+		 */
+		public function __toString(): string {
+			// Determine legacy feature status - convert boolean to readable string
+			$legacyStatus = $this->legacyEnabled ? 'enabled' : 'disabled';
+			
+			// Get debug mode from configuration with fallback to production mode
+			// Uses type-safe configuration retrieval with default value
+			$debugMode = $this->configuration->getAs('debug_mode', 'bool', false) ? 'debug' : 'production';
+			
+			// Return formatted kernel information string
+			// Format: Canvas\Kernel[mode=debug/production, legacy=enabled/disabled, root=/path/to/project]
+			return sprintf(
+				'Canvas\Kernel[mode=%s, legacy=%s, root=%s]',
+				$debugMode,
+				$legacyStatus,
+				$this->discover->getProjectRoot()
+			);
+		}
+		
+		/**
+		 * Provide debug information when var_dump() or similar functions are called.
+		 * @return array Associative array containing debug-relevant kernel properties
+		 */
+		public function __debugInfo(): array {
+			return [
+				// Project root directory path
+				'project_root'         => $this->discover->getProjectRoot(),
+				
+				// Current debug mode setting (boolean from configuration)
+				'debug_mode'           => $this->configuration->getAs('debug_mode', 'bool', false),
+				
+				// Whether legacy features are enabled
+				'legacy_enabled'       => $this->legacyEnabled,
+				
+				// List of all available configuration keys (for inspecting what's configured)
+				'config_keys'          => array_keys($this->configuration->all()),
+			];
+		}
+		
+		/**
+		 * Prepare the request for processing by ensuring session availability and registering providers
+		 * @param Request $request The incoming HTTP request
+		 * @return array Array containing the registered providers for cleanup
+		 */
+		private function prepareRequest(Request $request): array {
+			// Check if session exists, create if needed
+			if (!$request->hasSession()) {
+				$request->setSession(new Session());
+			}
+			
+			// Register providers with dependency injector for this request lifecycle
+			$requestProvider = new RequestProvider($request);
+			$sessionProvider = new SessionInterfaceProvider($request->getSession());
+			$this->dependencyInjector->register($requestProvider);
+			$this->dependencyInjector->register($sessionProvider);
+			
+			// Return providers for cleanup in finally block
+			return [
+				'request' => $requestProvider,
+				'session' => $sessionProvider
+			];
+		}
+		
+		/**
+		 * Clean up registered providers from the dependency injector
+		 * @param array $providers Array of providers to unregister
+		 */
+		private function cleanupRequest(array $providers): void {
+			$this->dependencyInjector->unregister($providers['session']);
+			$this->dependencyInjector->unregister($providers['request']);
+		}
+		
+		/**
+		 * Creates and configures an AnnotationReader instance with optimized caching settings.
+		 * @return AnnotationReader Configured annotation reader instance
+		 */
+		private function createAnnotationReader(): AnnotationReader {
+			// Initialize the annotation reader configuration object
+			$config = new \Quellabs\AnnotationReader\Configuration();
+			
+			// Check if we're NOT in debug mode (i.e., in production or staging)
+			if (!$this->configuration->getAs('debug_mode', 'bool', false)) {
+				// Get the project root directory path for cache storage
+				$rootPath = $this->discover->getProjectRoot();
+				
+				// Enable annotation caching for better performance in production
+				$config->setUseAnnotationCache(true);
+				
+				// Set the cache directory path within the project's storage folder
+				$config->setAnnotationCachePath($rootPath . "/storage/annotations");
+			}
+			
+			// Create and return the configured AnnotationReader instance
+			return new AnnotationReader($config);
 		}
 		
 		/**
@@ -265,8 +300,8 @@
 		 * @return Response
 		 */
 		private function createNotFoundResponse(Request $request, bool $legacyAttempted = false): Response {
-			$isDevelopment = $this->getConfigAs('debug_mode', 'bool', false);
-			$legacyPath = $this->getDiscover()->resolvePath($this->getConfig('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy'));
+			$isDevelopment = $this->configuration->getAs('debug_mode', 'bool', false);
+			$legacyPath = $this->getDiscover()->resolvePath($this->configuration->get('legacy_path', $this->discover->getProjectRoot() . DIRECTORY_SEPARATOR . 'legacy'));
 			$notFoundFile = $legacyPath . '404.php';
 			
 			if ($isDevelopment) {
@@ -316,7 +351,7 @@
 		 * @return Response
 		 */
 		private function createErrorResponse(\Throwable $exception): Response {
-			$isDevelopment = true; // $this->getConfigAs('debug_mode', 'bool', false);
+			$isDevelopment = $this->configuration->getAs('debug_mode', 'bool', false);
 			
 			if ($isDevelopment) {
 				// In development, show detailed error information as HTML
@@ -325,7 +360,7 @@
 			}
 			
 			// In production, try to include a simple 500.php file if it exists
-			$legacyPath = $this->getConfig('legacy_path', 'legacy/');
+			$legacyPath = $this->configuration->get('legacy_path', 'legacy/');
 			$errorFile = $legacyPath . '500.php';
 			
 			if (file_exists($errorFile)) {
@@ -367,40 +402,22 @@
 		}
 		
 		/**
-		 * Loads the .env file into $_ENV, $_SERVER and getenv()
-		 * @return void
-		 */
-		private function loadEnvironmentFile(): void {
-			try {
-				// Fetch the project root
-				$projectRoot = $this->discover->getProjectRoot();
-				
-				// Create a new Dotenv instance pointing to project root
-				$dotenv = Dotenv::createImmutable($projectRoot);
-				
-				// Load variables into $_ENV, $_SERVER, and getenv()
-				$dotenv->load();
-			} catch (InvalidEncodingException|InvalidFileException|InvalidPathException $e) {
-			}
-		}
-		
-		/**
 		 * Initialize the legacy support system
 		 * @return void
 		 */
 		private function initializeLegacySupport(): void {
 			// Check if legacy fallthrough is enabled
-			$this->legacyEnabled = $this->getConfigAs('legacy_enabled', 'bool', false);
+			$this->legacyEnabled = $this->configuration->getAs('legacy_enabled', 'bool', false);
 			
 			if ($this->legacyEnabled) {
 				// Only initialize bridge when legacy support is enabled
 				LegacyBridge::initialize($this->dependencyInjector);
 				
 				// Fetch the legacy path
-				$legacyPath = $this->getConfig('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
+				$legacyPath = $this->configuration->get('legacy_path', $this->discover->getProjectRoot() . '/legacy/');
 				
 				// Fetch the legacy path
-				$preprocessingEnabled = $this->getConfig('legacy_preprocessing', true);
+				$preprocessingEnabled = $this->configuration->get('legacy_preprocessing', true);
 				
 				// Create the fallthrough handler
 				$this->legacyFallbackHandler = new LegacyHandler($this, $legacyPath, $preprocessingEnabled);

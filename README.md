@@ -6,55 +6,30 @@ A modern, lightweight PHP framework that gets out of your way. Write clean contr
 
 ## What Makes Canvas Different
 
-Canvas combines four powerful concepts with **zero-friction legacy integration** to create a framework that feels natural to work with:
-
-**🔄 Legacy-First Integration** - Drop Canvas into any existing PHP application. Your legacy URLs keep working while you gradually modernize with Canvas services and controllers.
-
-**🎯 Annotation-Based Routing** - Define routes directly in your controllers using `@Route` annotations. No separate route files to maintain.
-
-**🗄️ ObjectQuel ORM** - Query your database using an intuitive, purpose-built query language that feels like natural PHP.
-
-**📦 Contextual Containers** - Work with interfaces directly. Canvas intelligently resolves the right implementation based on context.
-
-**⚡ Aspect-Oriented Programming** - Add crosscutting concerns like caching, authentication, and logging without cluttering your business logic.
-
-## Installation
-
-```bash
-composer require quellabs/canvas
-```
-
-Or create a new project using the Canvas skeleton:
-
-```bash
-composer create-project quellabs/canvas-skeleton my-canvas-app
-cd my-canvas-app
-```
-
-**For existing applications:**
-
-```bash
-cd my-existing-app
-composer require quellabs/canvas
-```
-
-Or create a project manually:
-
-```bash
-mkdir my-canvas-app
-cd my-canvas-app
-composer init
-composer require quellabs/canvas
-```
+- **🔄 Legacy-First Integration** - Drop into any existing PHP app without breaking existing URLs
+- **🎯 Annotation-Based Routing** - Define routes directly in controllers with `@Route` annotations
+- **🗄️ ObjectQuel ORM** - Query databases using intuitive, natural PHP syntax
+- **📦 Contextual Containers** - Work with interfaces; Canvas resolves implementations by context
+- **⚡ Aspect-Oriented Programming** - Add crosscutting concerns without cluttering business logic
 
 ## Quick Start
 
-### 1. Bootstrap Your Application
+### Installation
+
+```bash
+# New project
+composer create-project quellabs/canvas-skeleton my-app
+
+# Existing project
+composer require quellabs/canvas
+```
+
+### Bootstrap (public/index.php)
+
+This bootstrap file is automatically generated when using the skeleton package. If you're not using the skeleton package, you'll need to create this file manually.
 
 ```php
 <?php
-// public/index.php
-
 use Quellabs\Canvas\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -66,141 +41,98 @@ $response = $kernel->handle($request);
 $response->send();
 ```
 
-### 2. Create Controllers with Route Annotations
+### Controllers with Route Annotations
 
-Canvas automatically discovers your controllers and registers their routes:
+Canvas automatically discovers controllers and registers their routes using annotations:
 
 ```php
 <?php
-// src/Controllers/HomeController.php
-
 namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Controllers\BaseController;
-use Symfony\Component\HttpFoundation\Response;
-
-class HomeController extends BaseController {
-    
-    /**
-     * @Route("/")
-     */
-    public function index(): Response {
-        return new Response('Hello, Canvas!');
-    }
-    
-    /**
-     * @Route("/welcome/{name:alpha}")
-     */
-    public function welcome(string $name): Response {
-        return $this->render('welcome.tpl', ['name' => $name]);
-    }
-}
-```
-
-### 3. Work with Your Database Using ObjectQuel
-
-ObjectQuel provides an intuitive way to interact with your data with its powerful entity-based query language:
-
-```php
-<?php
-// src/Controllers/BlogController.php
-
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Models\Post;
-use App\Models\User;
 
 class BlogController extends BaseController {
     
     /**
-     * @Route("/posts")
+     * @Route("/")
      */
     public function index() {
-        // Simple queries using findBy - perfect for basic filtering
-        $posts = $this->em->findBy(Post::class, ['published' => true]);
-
-        return $this->render('blog/index.tpl', compact('posts'));
+        return $this->render('home.tpl');
     }
     
+    /**
+     * @Route("/posts")
+     */
+    public function list() {
+        $posts = $this->em->findBy(Post::class, ['published' => true]);
+        return $this->render('posts.tpl', $posts);
+    }
+
     /**
      * @Route("/posts/{id:int}")
      */
     public function show(int $id) {
-        // Find individual records by primary key - fastest lookup method
         $post = $this->em->find(Post::class, $id);
-                         
-        if (!$post) {
-            return $this->notFound('Post not found');
-        }
-        
-        return $this->render('blog/show.tpl', compact('post'));
-    }
-    
-    /**
-     * @Route("/posts/tech")
-     */
-    public function techPosts() {
-        // Advanced ObjectQuel queries with regex patterns and relationships
-        $results = $this->em->executeQuery("
-            range of p is App\\Entity\\PostEntity
-            range of u is App\\Entity\\UserEntity via p.authorId
-            retrieve (p, u.name) where p.title = /^Tech/i
-            and p.published = :published
-            sort by p.publishedAt desc
-        ", [
-            'published' => true
-        ]);
-            
-        return $this->render('blog/tech.tpl', compact('results'));
+        return $this->render('post.tpl', $post);
     }
 }
 ```
 
-## Canvas in Action
+### ObjectQuel ORM
 
-Here's what a complete Canvas application looks like, showcasing all its core features:
+ObjectQuel lets you query data using syntax that feels natural to PHP developers. Inspired by QUEL (a declarative query language from early relational databases), it bridges traditional database querying with object-oriented programming.
+
+#### Simple Entity Operations
 
 ```php
-<?php
-namespace App\Controllers;
+// Find by primary key - fastest lookup method
+$user = $this->em->find(User::class, $id);
 
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\CacheAspect;
-use App\Models\User;
-
-/**
- * @InterceptWith(RequireAuthAspect::class)
- */
-class UserController extends BaseController {
-    
-    /**
-     * @Route("/users")
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     */
-    public function index() {
-        // ObjectQuel ORM - clean, intuitive queries
-        $users = $this->em->findBy(User::class, ['active' => true]);
-        
-        // Contextual template resolution
-        return $this->render('users/index.tpl', compact('users'));
-    }
-    
-    /**
-     * @Route("/users/{id:int}")
-     */
-    public function show(int $id) {
-        // Inherits RequireAuth from class level
-        $user = $this->em->find(User::class, $id);
-        return $this->render('users/show.tpl', compact('user'));
-    }
-}
+// Simple filtering using findBy - perfect for basic criteria
+$activeUsers = $this->em->findBy(User::class, ['active' => true]);
+$recentPosts = $this->em->findBy(Post::class, ['published' => true]);
 ```
+
+#### Advanced ObjectQuel Queries
+
+For complex queries, ObjectQuel provides a natural language syntax:
+
+```php
+// Basic ObjectQuel query
+$results = $this->em->executeQuery("
+    range of p is App\\Entity\\Post
+    retrieve p where p.published = true
+    sort by p.publishedAt desc
+");
+
+// Queries with relationships and parameters
+$techPosts = $this->em->executeQuery("
+    range of p is App\\Entity\\Post
+    range of u is App\\Entity\\User via p.authorId
+    retrieve (p, u.name) where p.title = /^Tech/i
+    and p.published = :published
+    sort by p.publishedAt desc
+", [
+    'published' => true
+]);
+```
+
+#### Key Components
+
+- **`range`** - Creates an alias for an entity class, similar to SQL's `FROM` clause. Think of it as "let p represent App\Entity\Post"
+- **`retrieve`** - Functions like SQL's `SELECT`, specifying what data to return. You can retrieve entire entities (`p`) or specific properties (`u.name`)
+- **`where`** - Standard filtering conditions, supporting parameters (`:published`) and regular expressions (`/^Tech/i` matches titles starting with "Tech", case-insensitive)
+- **`sort by`** - Equivalent to SQL's `ORDER BY` for result ordering
+- **`via`** - Establishes relationships between entities using foreign keys (`p.authorId` links posts to users)
+
+#### ObjectQuel Features
+
+- **Readability**: More intuitive than complex Doctrine DQL or QueryBuilder syntax
+- **Type Safety**: Entity relationships are validated at query time
+- **Parameter Binding**: Safe parameter substitution prevents SQL injection
+- **Relationship Traversal**: Easily query across entity relationships with `via` keyword
+- **Flexible Sorting**: Multi-column sorting with `sort by field1 asc, field2 desc`
 
 ## Legacy Integration
 
@@ -215,7 +147,6 @@ First, enable legacy support by updating your `public/index.php`:
 ```php
 <?php
 // public/index.php
-
 use Quellabs\Canvas\Kernel;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -233,39 +164,36 @@ $response->send();
 
 **That's it!** Your existing application now has Canvas superpowers while everything continues to work exactly as before.
 
+### Using Canvas Services in Legacy Files
+
 Now you can immediately start using Canvas services in your existing files:
 
 ```php
 <?php
-// legacy/users.php - This file is accessed when visiting /users
-// Note: Canvas services only available when Canvas loads this file (not when run directly)
+// legacy/users.php - existing file, now enhanced with Canvas
 use Quellabs\Canvas\Legacy\LegacyBridge;
 
-// Method 1: Using LegacyBridge directly
-$users = LegacyBridge::get('EntityManager')->findBy(User::class, ['active' => true]);
-$config = LegacyBridge::get('config');
-$container = LegacyBridge::container();
-
-// Method 2: Using the global canvas() function (simpler)
+// Access Canvas services in legacy code
 $em = canvas('EntityManager');
-$posts = canvas('EntityManager')->findBy(Post::class, ['published' => true]);
+$users = $em->findBy(User::class, ['active' => true]);
 
-// Count users using ObjectQuel
-$allUsers = $em->findBy(User::class, []);
-$totalUsers = count($allUsers);
+// Use ObjectQuel for complex queries
+$recentUsers = $em->executeQuery("
+    range of u is App\\Entity\\User
+    retrieve u where u.active = true and u.createdAt > :since
+    sort by u.createdAt desc
+    limit 10
+", ['since' => date('Y-m-d', strtotime('-30 days'))]);
 
-echo "Found " . count($users) . " active users out of " . $totalUsers . " total users<br>";
+echo "Found " . count($users) . " active users<br>";
 
-foreach ($posts as $post) {
-    echo "<h2>{$post->title}</h2>";
-    echo "<p>" . substr($post->content, 0, 200) . "...</p>";
+foreach ($recentUsers as $user) {
+    echo "<h3>{$user->name}</h3>";
+    echo "<p>Joined: " . $user->createdAt->format('Y-m-d') . "</p>";
 }
-?>
 ```
 
-### How It Works
-
-#### Route Fallthrough System
+### How Route Fallthrough Works
 
 Canvas uses an intelligent fallthrough system that tries Canvas routes first, then automatically looks for corresponding legacy PHP files:
 
@@ -275,370 +203,81 @@ URL Request: /users/profile
 2. Try legacy files:
    - legacy/users/profile.php → ✅ Found! Execute this file
    - legacy/users/profile/index.php → Alternative location
-   
-For example:
-- `/users` → `legacy/users.php`
-- `/users` → `legacy/users/index.php`
+
+Examples:
+- `/users` → `legacy/users.php` or `legacy/users/index.php`
 - `/admin/dashboard` → `legacy/admin/dashboard.php`
-- `/admin/dashboard` → `legacy/admin/dashboard/index.php`
+- `/api/data` → `legacy/api/data.php`
 ```
 
 ### Custom File Resolvers
 
-If your legacy application has a different file structure than Canvas's default conventions, you can write custom file resolvers to handle your specific patterns:
+If your legacy application has a different file structure, you can write custom file resolvers:
 
 ```php
 <?php
 // src/Legacy/CustomFileResolver.php
-
 use Quellabs\Canvas\Legacy\FileResolverInterface;
 
 class CustomFileResolver implements FileResolverInterface {
     
     public function resolve(string $path): ?string {
-        // Your custom logic for resolving legacy file paths
-        
-        // Example: Handle WordPress-style routing
+        // Handle WordPress-style routing
         if ($path === '/') {
             return $this->legacyPath . '/index.php';
         }
         
-        // Example: Map URLs to custom file structure
+        // Map URLs to custom file structure
         if (str_starts_with($path, '/blog/')) {
-            $slug = substr($path, 6); // Remove /blog/
+            $slug = substr($path, 6);
             return $this->legacyPath . "/wp-content/posts/{$slug}.php";
         }
         
-        // Example: Handle custom admin structure
+        // Handle custom admin structure
         if (str_starts_with($path, '/admin/')) {
-            $adminPath = substr($path, 7); // Remove /admin/
+            $adminPath = substr($path, 7);
             return $this->legacyPath . "/backend/modules/{$adminPath}.inc.php";
         }
         
-        // Fall back to default behavior
-        return null;
+        return null; // Fall back to default behavior
     }
 }
+
+// Register with kernel
+$kernel->getLegacyHandler()->addResolver(new CustomFileResolver);
 ```
 
-Register your custom resolver with the kernel:
+### Legacy Preprocessing
+
+Canvas includes preprocessing capabilities to handle legacy PHP files that use common patterns like `header()`, `die()`, and `exit()` functions:
 
 ```php
 <?php
 // public/index.php
-
 $kernel = new Kernel([
     'legacy_enabled' => true,
-    'legacy_path' => __DIR__ . '/../legacy/'
-]);
-
-$kernel->getLegacyHandler()->addResolver(new CustomFileResolver);
-
-$request = Request::createFromGlobals();
-$response = $kernel->handle($request);
-$response->send();
-```
-
-This allows Canvas to work with any legacy file structure, making it compatible with existing WordPress sites, custom MVC frameworks, or any other PHP application structure.
-
-### Legacy Preprocessing and Limitations
-
-Canvas includes sophisticated preprocessing capabilities to handle legacy PHP files that use common patterns like `header()`, `die()`, and `exit()` functions. Understanding these capabilities and their limitations is crucial for successful legacy integration.
-
-#### Default Configuration
-
-By default, legacy preprocessing is **enabled**. Canvas automatically handles common legacy patterns to maintain proper request flow:
-
-```php
-<?php
-// public/index.php
-
-$kernel = new Kernel([
-    'debug_mode'           => true,
-    'legacy_enabled'       => true,
-    'legacy_path'          => dirname(__FILE__) . "/../legacy",
-    'legacy_preprocessing' => true  // This is the default
+    'legacy_path' => __DIR__ . '/../legacy',
+    'legacy_preprocessing' => true  // Default: enabled
 ]);
 ```
 
-#### What Legacy Preprocessing Does
+**What preprocessing does:**
+- Converts `header()` calls to Canvas's internal header management
+- Transforms `http_response_code()` to Canvas response handling
+- Converts `die()` and `exit()` calls to Canvas exceptions (maintains flow control)
 
-When preprocessing is enabled, Canvas automatically transforms legacy PHP code before execution:
-
-**Header Function Conversion**: All calls to `header()` are converted to Canvas's internal header management system, allowing proper HTTP response handling.
-
-**HTTP Response Code Conversion**: All calls to `http_response_code()` are transformed to Canvas's internal response code management, ensuring proper status code handling within the framework's request/response cycle.
-
-**Exit/Die Conversion**: All `die()` and `exit()` calls are converted to Canvas exceptions, preserving the application's control flow instead of terminating the entire process.
-
-```php
-<?php
-// Original legacy code
-header('Content-Type: application/json');
-echo json_encode(['data' => $data]);
-die(); // This would normally terminate the entire application
-
-// Canvas automatically converts this to maintain flow control
-```
-
-This preprocessing ensures that legacy files integrate smoothly with Canvas's request/response cycle without breaking the framework's execution flow.
-
-#### Disabling Legacy Preprocessing
-
-If your legacy application doesn't use `header()`, `die()`, or `exit()` functions, or if you need to disable preprocessing for debugging purposes, you can turn it off:
-
-```php
-<?php
-// public/index.php
-
-$kernel = new Kernel([
-    'debug_mode'           => true,
-    'legacy_enabled'       => true,
-    'legacy_path'          => dirname(__FILE__) . "/../legacy",
-    'legacy_preprocessing' => false  // Disable preprocessing
-]);
-```
-
-**When to disable preprocessing:**
-- Your legacy code doesn't use `header()`, `die()`, or `exit()`
-- You're debugging preprocessing-related issues
-- You have specific requirements for direct header/exit handling
-- Your legacy files are already compatible with Canvas's request flow
-
-#### Important Limitations
-
-While Canvas's legacy preprocessing is powerful, there are important limitations to be aware of:
-
-#### 🚨 Include/Require File Limitations
-
-Canvas preprocessing **only applies to the main legacy file being executed**, not to files that are included or required by that file. This means:
-
-```php
-<?php
-// legacy/main.php - This file gets preprocessed
-header('Content-Type: text/html');  // ✅ Converted by Canvas
-die('Stopping here');              // ✅ Converted to Canvas exception (maintains flow)
-
-include 'includes/helper.php';       // ❌ This file is NOT preprocessed
-?>
-```
-
-```php
-<?php
-// legacy/includes/helper.php - This file is NOT preprocessed
-header('Location: /redirect');  // ❌ May cause issues
-die('Stopping execution');     // ❌ Will terminate the entire application (preprocessing disabled)
-?>
-```
-
-#### Impact on Legacy Applications
-
-This limitation can affect legacy applications in several ways:
-
-**Header Management**: If included files call `header()`, those headers may not be properly managed by Canvas since included files are never preprocessed.
-
-**Flow Control**: If included files call `die()` or `exit()`, they will terminate the entire Canvas application, not just the legacy script, since included files bypass preprocessing entirely. When preprocessing is enabled, Canvas handles these calls properly in the main file but cannot process them in included files.
-
-**Error Handling**: Canvas cannot catch or handle exceptions from `die()`/`exit()` calls in included files that bypass preprocessing.
-
-## Best Practices for Legacy Integration
-
-**Audit Include Files**: Before integrating legacy code, audit all included/required files for `header()`, `die()`, and `exit()` calls.
-
-**Refactor Problematic Includes**: Consider refactoring included files that use these functions:
-
-```php
-<?php
-// Instead of this in included files:
-die('Error occurred');
-
-// Use this pattern:
-return false; // Or throw an exception
-?>
-```
-
-**Test Thoroughly**: Test legacy routes that include other files to ensure they work correctly with Canvas preprocessing.
-
-**Use Error Handling**: Implement proper error handling in legacy files rather than relying on `die()`/`exit()`:
-
-```php
-<?php
-// legacy/api.php
-include 'includes/database.php';
-
-if (!$connection) {
-    // Instead of die(), use proper error handling
-    http_response_code(500);
-    echo json_encode(['error' => 'Database connection failed']);
-    return; // Exit gracefully
-}
-?>
-```
-
-**Gradual Migration**: Use Canvas's legacy support as a migration tool. Gradually move functionality from problematic included files into Canvas controllers:
-
-```php
-<?php
-// Start migrating problematic includes to Canvas services
-$databaseService = canvas('DatabaseService');
-$result = $databaseService->query('SELECT * FROM users');
-?>
-```
-
-## Debugging Legacy Issues
-
-If you encounter issues with legacy file execution:
-
-1. **Enable debug mode** and check Canvas logs for preprocessing warnings
-2. **Temporarily disable preprocessing** to isolate the issue
-3. **Check included files** for problematic function calls
-4. **Use Canvas's error reporting** to identify where issues occur
-
-```php
-<?php
-// Enable detailed error reporting for legacy debugging
-$kernel = new Kernel([
-    'debug_mode'           => true,
-    'legacy_enabled'       => true,
-    'legacy_preprocessing' => true,
-    'error_reporting'      => E_ALL
-]);
-?>
-```
-
-Understanding these preprocessing capabilities and limitations will help you successfully integrate Canvas with existing PHP applications while planning an effective migration strategy.
-
-### Real-World Examples
-
-#### Legacy Admin Dashboard
-
-```php
-<?php
-// legacy/admin/dashboard.php
-use Quellabs\Canvas\Legacy\LegacyBridge;
-
-$em = canvas('EntityManager');
-
-// Get data using Canvas ORM
-$recentUsers = $em->findBy(User::class, ['active' => true]);
-$totalPosts = count($em->findBy(Post::class, []));
-?>
-<h1>Admin Dashboard</h1>
-<p>Active Users: <?= count($recentUsers) ?></p>
-<p>Total Posts: <?= $totalPosts ?></p>
-```
-
-#### Legacy API Endpoint
-
-```php
-<?php
-// legacy/api/users.php
-use Quellabs\Canvas\Legacy\LegacyBridge;
-
-header('Content-Type: application/json');
-
-$em = canvas('EntityManager');
-$users = $em->findBy(User::class, ['active' => true]);
-
-echo json_encode([
-    'success' => true,
-    'count' => count($users),
-    'users' => array_map(fn($u) => ['id' => $u->id, 'name' => $u->name], $users)
-]);
-?>
-```
-
-### Error Pages
-
-Canvas supports custom error pages for legacy applications:
-
-#### Custom 404 Page
-
-Create a custom 404 page:
-
-```php
-<?php
-// legacy/404.php
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Page Not Found</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
-        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
-    </style>
-</head>
-<body>
-    <div class="error-box">
-        <h1>404 - Page Not Found</h1>
-        <p>Sorry, the page you're looking for doesn't exist.</p>
-        <p><a href="/">Return to Homepage</a></p>
-    </div>
-</body>
-</html>
-```
-
-#### Custom Error Page
-
-Create a custom 500 error page:
-
-```php
-<?php
-// legacy/500.php
-?>
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Server Error</title>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
-        .error-box { background: #f8f9fa; padding: 40px; border-radius: 8px; display: inline-block; }
-    </style>
-</head>
-<body>
-    <div class="error-box">
-        <h1>500 - Server Error</h1>
-        <p>Something went wrong on our end. Please try again later.</p>
-        <p>If the problem persists, please contact support.</p>
-        <p><a href="/">Return to Homepage</a></p>
-    </div>
-</body>
-</html>
-```
+**Important limitation:** Preprocessing only applies to the main legacy file, not to included/required files. Files included by legacy scripts may need refactoring if they use these functions.
 
 ### Benefits of Legacy Integration
 
-#### 🚀 **Zero Disruption**
-- Existing URLs continue to work unchanged
-- Legacy code runs without modification
-- Gradual migration at your own pace
-
-#### 🔧 **Enhanced Legacy Code**
-- Add Canvas services (ORM, caching, logging) to legacy files
-- Apply modern patterns without rewriting everything
-- Improved performance through Canvas optimizations
-
-#### 🔄 **Flexible Migration**
-- Start with services, move to controllers, then to full Canvas
-- Mix and match Canvas and legacy code as needed
-- Roll back changes easily during transition
-
-#### 📈 **Immediate Benefits**
-- Better database abstraction through ObjectQuel ORM
-- Access to Canvas configuration system
-- Modern dependency injection
-- Improved error handling and debugging
+- **🚀 Zero Disruption**: Existing URLs continue to work unchanged
+- **🔧 Enhanced Legacy Code**: Add Canvas services (ORM, caching, logging) to legacy files
+- **🔄 Flexible Migration**: Start with services, move to controllers, then to full Canvas
+- **📈 Immediate Benefits**: Better database abstraction, modern dependency injection, improved error handling
 
 ## Advanced Features
 
-### Advanced Routing with Variable Validation and Wildcards
-
-Canvas provides powerful routing capabilities with built-in parameter validation and flexible wildcard matching.
-
-#### Route Parameter Validation
-
-Validate route parameters directly in your route definitions using type constraints:
+### Route Validation & Wildcards
 
 ```php
 class ProductController extends BaseController {
@@ -647,601 +286,56 @@ class ProductController extends BaseController {
      * @Route("/products/{id:int}")
      */
     public function show(int $id) {
-        // Only matches numeric IDs: /products/123 ✓, /products/abc ✗
+        // Only matches numeric IDs
     }
     
     /**
-     * @Route("/users/{username:alpha}")
+     * @Route("/files/{path:**}")
      */
-    public function profile(string $username) {
-        // Only matches alphabetic usernames: /users/john ✓, /users/john123 ✗
-    }
-    
-    /**
-     * @Route("/posts/{slug:slug}")
-     */
-    public function post(string $slug) {
-        // Only matches URL-friendly slugs: /posts/my-blog-post ✓
-    }
-    
-    /**
-     * @Route("/api/items/{uuid:uuid}")
-     */
-    public function item(string $uuid) {
-        // Only matches valid UUIDs: /api/items/550e8400-e29b-41d4-a716-446655440000 ✓
-    }
-    
-    /**
-     * @Route("/contact/{email:email}")
-     */
-    public function contact(string $email) {
-        // Only matches valid email addresses: /contact/user@example.com ✓
-    }
-    
-    /**
-     * @Route("/categories/{name:alnum}")
-     */
-    public function category(string $name) {
-        // Only matches alphanumeric: /categories/tech2024 ✓, /categories/tech-news ✗
+    public function files(string $path) {
+        // Matches: /files/css/style.css → path = "css/style.css"
+        return $this->serveFile($path);
     }
 }
 ```
 
-**Available Validation Types:**
-- `{id:int}` - Integers only (`\d+`)
-- `{slug:alpha}` - Alphabetic characters only (`[a-zA-Z]+`)
-- `{name:alnum}` - Alphanumeric characters (`[a-zA-Z0-9]+`)
-- `{item:slug}` - URL-friendly slugs (`[a-zA-Z0-9\-]+`)
-- `{user:uuid}` - UUID format validation
-- `{email:email}` - Email address validation
+**Available validators:** `int`, `alpha`, `alnum`, `slug`, `uuid`, `email`
 
-#### Wildcard Route Matching
-
-Handle dynamic paths and file serving with powerful wildcard support:
+### Route Prefixes
 
 ```php
-class FileController extends BaseController {
-    
-    /**
-     * @Route("/files/{filename}")
-     */
-    public function serve(string $filename) {
-        // Named parameter - automatically injected
-        // Matches: /files/document.pdf, /files/image.jpg
-        return $this->serveFile($filename);
-    }
-    
-    /**
-     * @Route("/assets/{path:**}")
-     */
-    public function assets(string $path) {
-        // Named multi-segment wildcard
-        // Matches: /assets/css/style.css → path = "css/style.css"
-        // Matches: /assets/js/vendor/jquery.min.js → path = "js/vendor/jquery.min.js"
-        return $this->serveAsset($path);
-    }
-    
-    /**
-     * @Route("/downloads/{content:.*}")
-     */
-    public function downloads(string $content) {
-        // Alternative syntax for multi-segment wildcard
-        // Matches: /downloads/files/reports/2024/january.pdf → content = "files/reports/2024/january.pdf"
-        return $this->handleDownload($content);
-    }
-}
-```
-
-**Wildcard Types:**
-- `{filename}` - Named parameter (matches single path segment)
-- `{path:**}` - Named multi-segment wildcard (captures remaining path)
-- `{content:.*}` - Alternative syntax for named multi-segment wildcard
-
-Note: All route variables are automatically injected as method parameters.
-
-### Route Prefixes with @RoutePrefix
-
-Canvas supports route prefixes through the `@RoutePrefix` annotation, which can be applied at the class level to automatically prefix all routes within that controller. This feature also supports inheritance, allowing parent classes to define prefixes that child classes inherit.
-
-#### Basic Route Prefixes
-
-Apply a route prefix to all methods in a controller:
-
-```php
-<?php
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\RoutePrefix;
-use Quellabs\Canvas\Controllers\BaseController;
-
 /**
  * @RoutePrefix("/api/v1")
  */
 class ApiController extends BaseController {
     
     /**
-     * @Route("/users")
-     */
-    public function getUsers() {
-        // Actual route: /api/v1/users
-        return $this->json(['users' => []]);
-    }
-    
-    /**
-     * @Route("/users/{id:int}")
-     */
-    public function getUser(int $id) {
-        // Actual route: /api/v1/users/{id}
-        return $this->json(['user' => $this->findUser($id)]);
-    }
-    
-    /**
-     * @Route("/posts")
-     */
-    public function getPosts() {
-        // Actual route: /api/v1/posts
-        return $this->json(['posts' => []]);
-    }
-}
-```
-
-#### Route Prefix Inheritance
-
-Route prefixes are inherited from the entire inheritance chain.
-
-```php
-<?php
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\RoutePrefix;
-
-/**
- * @RoutePrefix("/api")
- */
-abstract class AdminApiController extends BaseController {
-    // Base admin functionality
-}
-
-class UserManagementController extends AdminApiController {
-    
-    /**
-     * @Route("/users")
-     */
-    public function listUsers() {
-        // Actual route: /api/users
-        // Uses the @RoutePrefix("/api") from AdminApiController
-        return $this->json(['users' => $this->getAllUsers()]);
-    }
-    
-    /**
-     * @Route("/users/{id:int}")
-     */
-    public function getUser(int $id) {
-        // Actual route: /api/users/{id}
-        return $this->json(['user' => $this->findUser($id)]);
-    }
-}
-```
-
-#### Benefits of Route Prefixes
-
-**Organization**: Group related routes under logical URL segments without repeating prefixes in every route definition.
-
-**Maintainability**: Change the prefix structure for entire controller hierarchies in one place.
-
-**DRY Principle**: Eliminate repetition of common URL segments across multiple route definitions.
-
-**Versioning**: Easily create versioned APIs by using different prefix hierarchies for different API versions.
-
-### Aspect-Oriented Programming
-Add crosscutting concerns without polluting your business logic:
-
-```php
-// Create reusable aspects
-class CacheAspect implements AroundAspect {
-    public function __construct(
-        private CacheInterface $cache,
-        private int $ttl = 300
-    ) {}
-    
-    public function around(MethodContext $context, callable $proceed): mixed {
-        $key = $this->generateCacheKey($context);
-        
-        // Fetch response from cache
-        if ($cached = $this->cache->get($key)) {
-            return $cached;
-        }
-        
-        // Call the original function
-        $result = $proceed();
-        
-        // Put the result in cache
-        $this->cache->set($key, $result, $this->ttl);
-        return $result;
-    }
-}
-
-// Apply to any controller method
-/**
- * @Route("/expensive-operation")
- * @InterceptWith(CacheAspect::class, ttl=3600)
- */
-public function expensiveOperation() {
-    // Method automatically cached for 1 hour
-}
-```
-
-### Contextual Service Resolution
-When you need different implementations of the same interface, context makes it simple:
-
-```php
-// Use different template engines based on context
-$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
-$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
-
-// Different cache implementations
-$redis = $this->container->for('redis')->get(CacheInterface::class);
-$file = $this->container->for('file')->get(CacheInterface::class);
-```
-
-### Automatic Discovery
-Add functionality by simply requiring packages:
-
-```bash
-composer require quellabs/canvas-twig      # Twig template engine
-composer require quellabs/canvas-blade     # Blade template engine  
-composer require quellabs/canvas-redis     # Redis integration
-```
-
-Canvas automatically discovers and configures new services through Composer metadata.
-
-## Inherited Annotations
-
-Canvas supports automatic inheritance of class-level annotations in derived classes, allowing you to build powerful controller hierarchies with shared crosscutting concerns. This feature enables clean separation of concerns and reduces code duplication across related controllers.
-
-### How Annotation Inheritance Works
-
-When a controller extends another controller, it automatically inherits all class-level annotations from its parent class. This inheritance is deep - derived classes inherit from their entire ancestry chain, not just their immediate parent.
-
-```php
-<?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\Controllers\BaseController;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\AuditLogAspect;
-
-/**
- * Base controller for all authenticated areas
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(AuditLogAspect::class)
- */
-abstract class AuthenticatedController extends BaseController {
-    
-    protected function getCurrentUser() {
-        return $this->container->get('auth')->getCurrentUser();
-    }
-}
-```
-
-Now any controller extending `AuthenticatedController` automatically gets authentication and audit logging:
-
-```php
-<?php
-namespace App\Controllers;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\CacheAspect;
-
-class UserController extends AuthenticatedController {
-    
-    /**
-     * @Route("/users")
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     */
-    public function index() {
-        // Automatically gets: RequireAuth + AuditLog + Cache
-        $users = $this->em->findBy(User::class, ['active' => true]);
-        return $this->render('users/index.tpl', compact('users'));
-    }
-    
-    /**
-     * @Route("/users/{id:int}")
-     */
-    public function show(int $id) {
-        // Automatically gets: RequireAuth + AuditLog (inherited from parent)
-        $user = $this->em->find(User::class, $id);
-        return $this->render('users/show.tpl', compact('user'));
-    }
-}
-```
-
-### 	
-
-Annotation inheritance works through multiple levels of inheritance, allowing you to create sophisticated controller hierarchies:
-
-```php
-<?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Aspects\RequireAuthAspect;
-use App\Aspects\AuditLogAspect;
-
-/**
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(AuditLogAspect::class)
- */
-abstract class AuthenticatedController extends BaseController {
-    // Base authenticated functionality
-}
-
-/**
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(RateLimitAspect::class, limit=100)
- */
-abstract class AdminController extends AuthenticatedController {
-    // Admin-specific functionality
-}
-
-/**
- * @InterceptWith(RequireSuperAdminAspect::class)
- * @InterceptWith(SecurityAuditAspect::class)
- */
-abstract class SuperAdminController extends AdminController {
-    // Super admin functionality
-}
-```
-
-A controller extending `SuperAdminController` automatically inherits all aspects from the entire chain:
-
-```php
-<?php
-namespace App\Controllers\Admin;
-
-use Quellabs\Canvas\Annotations\Route;
-use App\Controllers\Base\SuperAdminController;
-
-class SystemController extends SuperAdminController {
-    
-    /**
-     * @Route("/admin/system/settings")
-     */
-    public function settings() {
-        // Automatically gets all inherited aspects:
-        // - RequireAuthAspect (from AuthenticatedController)
-        // - AuditLogAspect (from AuthenticatedController)  
-        // - RequireAdminAspect (from AdminController)
-        // - RateLimitAspect (from AdminController)
-        // - RequireSuperAdminAspect (from SuperAdminController)
-        // - SecurityAuditAspect (from SuperAdminController)
-        
-        return $this->render('admin/system/settings.tpl');
-    }
-}
-```
-
-### Combining Inherited and Local Annotations
-
-Child classes can add their own class-level annotations that combine with inherited ones:
-
-```php
-<?php
-namespace App\Controllers\Api;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\ContentNegotiationAspect;
-use App\Aspects\CorsAspect;
-
-/**
- * @InterceptWith(ContentNegotiationAspect::class)
- * @InterceptWith(CorsAspect::class)
- */
-class ApiController extends AuthenticatedController {
-    
-    /**
-     * @Route("/api/users")
+     * @Route("/users")  // Actual route: /api/v1/users
      */
     public function users() {
-        // Gets: RequireAuth + AuditLog (inherited) + ContentNegotiation + Cors (local)
-        $users = $this->em->findBy(User::class, []);
-        return $this->json($users);
+        return $this->json($this->em->findBy(User::class, []));
     }
 }
 ```
 
-### Method-Level Annotation Inheritance
+### Aspect-Oriented Programming
 
-Method-level annotations are combined with all inherited class-level annotations:
+Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Aspects execute at different stages of the request lifecycle.
 
-```php
-<?php
-namespace App\Controllers;
+#### Creating Aspects
 
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AuthenticatedController;
-use App\Aspects\CacheAspect;
-use App\Aspects\RateLimitAspect;
-
-class ReportController extends AuthenticatedController {
-    
-    /**
-     * @Route("/reports/dashboard")
-     * @InterceptWith(CacheAspect::class, ttl=600)
-     */
-    public function dashboard() {
-        // Execution order:
-        // 1. RequireAuthAspect (inherited from AuthenticatedController)
-        // 2. AuditLogAspect (inherited from AuthenticatedController)
-        // 3. CacheAspect (method-level)
-        
-        return $this->generateDashboard();
-    }
-    
-    /**
-     * @Route("/reports/export/{format:alpha}")
-     * @InterceptWith(RateLimitAspect::class, limit=5, window=3600)
-     * @InterceptWith(CacheAspect::class, ttl=1800)
-     */
-    public function export(string $format) {
-        // Gets inherited aspects plus method-specific rate limiting and caching
-        return $this->exportReport($format);
-    }
-}
-```
-
-### Practical Examples
-
-#### Building a RESTful API Hierarchy
-
-```php
-<?php
-namespace App\Controllers\Base;
-
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Aspects\ContentNegotiationAspect;
-use App\Aspects\CorsAspect;
-use App\Aspects\RateLimitAspect;
-
-/**
- * Base for all API controllers
- * @InterceptWith(ContentNegotiationAspect::class)
- * @InterceptWith(CorsAspect::class)
- * @InterceptWith(RateLimitAspect::class, limit=1000)
- */
-abstract class ApiController extends BaseController {
-    
-    protected function jsonResponse($data, int $status = 200) {
-        return $this->json($data, $status);
-    }
-}
-
-/**
- * Base for authenticated API endpoints
- * @InterceptWith(RequireAuthAspect::class)
- * @InterceptWith(JwtValidationAspect::class)
- */
-abstract class AuthenticatedApiController extends ApiController {
-    // Inherits: ContentNegotiation + Cors + RateLimit + RequireAuth + JwtValidation
-}
-
-/**
- * Base for admin API endpoints
- * @InterceptWith(RequireAdminAspect::class)
- * @InterceptWith(SecurityAuditAspect::class)
- */
-abstract class AdminApiController extends AuthenticatedApiController {
-    // Inherits all above plus: RequireAdmin + SecurityAudit
-}
-```
-
-Now implementing specific API controllers is clean and focused:
-
-```php
-<?php
-namespace App\Controllers\Api;
-
-use Quellabs\Canvas\Annotations\Route;
-use Quellabs\Canvas\Annotations\InterceptWith;
-use App\Controllers\Base\AdminApiController;
-use App\Aspects\CacheAspect;
-
-class UserApiController extends AdminApiController {
-    
-    /**
-     * @Route("/api/admin/users", methods={"GET"})
-     * @InterceptWith(CacheAspect::class, ttl=300)
-     */
-    public function list() {
-        // Automatically gets all inherited aspects plus caching
-        $users = $this->em->findBy(User::class, []);
-        return $this->jsonResponse($users);
-    }
-    
-    /**
-     * @Route("/api/admin/users", methods={"POST"})
-     * @InterceptWith(ValidateJsonAspect::class, schema="user-create")
-     */
-    public function create() {
-        // Gets inherited aspects plus JSON validation
-        $data = $this->getJsonRequest();
-        $user = $this->createUser($data);
-        return $this->jsonResponse($user, 201);
-    }
-}
-```
-
-### Annotation Execution Order
-
-When multiple annotation sources are present, Canvas executes them in a specific order to ensure predictable behavior:
-
-1. **Inherited class-level annotations** (from parent to child in inheritance order)
-2. **Local class-level annotations** (defined on the current class)
-3. **Method-level annotations** (defined on the specific method)
-
-```php
-<?php
-// Parent class annotations execute first
-/**
- * @InterceptWith(ParentAspect1::class)
- * @InterceptWith(ParentAspect2::class)
- */
-abstract class ParentController extends BaseController {}
-
-// Child class annotations execute second
-/**
- * @InterceptWith(ChildAspect1::class)
- * @InterceptWith(ChildAspect2::class)  
- */
-class ChildController extends ParentController {
-    
-    /**
-     * @Route("/example")
-     * @InterceptWith(MethodAspect1::class)
-     * @InterceptWith(MethodAspect2::class)
-     */
-    public function example() {
-        // Execution order:
-        // 1. ParentAspect1, ParentAspect2 (inherited)
-        // 2. ChildAspect1, ChildAspect2 (local class)  
-        // 3. MethodAspect1, MethodAspect2 (method)
-    }
-}
-```
-
-### Benefits of Annotation Inheritance
-
-**DRY Principle**: Define common aspects once in base controllers rather than repeating them across multiple controllers.
-
-**Maintainable Architecture**: Change security or logging policies in one place and have them apply across entire controller hierarchies.
-
-**Flexible Composition**: Mix and match inherited aspects with method-specific aspects for precise control.
-
-**Clear Separation of Concerns**: Base controllers handle crosscutting concerns while derived controllers focus on business logic.
-
-**Simplified Testing**: Test aspects once in base controllers rather than in every implementation.
-
-## Aspect-Oriented Programming in Detail
-
-Canvas provides true AOP for controller methods, allowing you to separate crosscutting concerns from your business logic. Canvas supports four types of aspects that execute at different stages of the request lifecycle.
-
-### Creating Aspects
-
-Aspects implement one of three interfaces depending on when they should execute:
+Aspects implement interfaces based on when they should execute:
 
 ```php
 <?php
 namespace App\Aspects;
 
-use Quellabs\Canvas\AOP\Contracts\BeforeAspect;
-use Quellabs\Canvas\AOP\MethodContext;
+use Quellabs\Contracts\AOP\BeforeAspect;
+use Quellabs\Contracts\AOP\AroundAspect;
+use Quellabs\Contracts\AOP\AfterAspect;
 use Symfony\Component\HttpFoundation\Response;
 
+// Before Aspects - Execute before the method, can stop execution
 class RequireAuthAspect implements BeforeAspect {
     public function __construct(private AuthService $auth) {}
     
@@ -1253,25 +347,23 @@ class RequireAuthAspect implements BeforeAspect {
         return null; // Continue execution
     }
 }
-```
 
-### Aspect Types
-
-**Before Aspects** - Execute before the method, can stop execution:
-```php
-class RateLimitAspect implements BeforeAspect {
-    public function before(MethodContext $context): ?Response {
-        if ($this->rateLimiter->isExceeded()) {
-            return new JsonResponse(['error' => 'Rate limit exceeded'], 429);
+// Around Aspects - Wrap the entire method execution
+class CacheAspect implements AroundAspect {
+    public function around(MethodContext $context, callable $proceed): mixed {
+        $key = $this->generateCacheKey($context);
+        
+        if ($cached = $this->cache->get($key)) {
+            return $cached;
         }
         
-        return null;
+        $result = $proceed(); // Call the original method
+        $this->cache->set($key, $result, $this->ttl);
+        return $result;
     }
 }
-```
 
-**After Aspects** - Execute after the method, can modify the response:
-```php
+// After Aspects - Execute after the method, can modify response
 class AuditLogAspect implements AfterAspect {
     public function after(MethodContext $context, Response $response): void {
         $this->logger->info('Method executed', [
@@ -1283,61 +375,47 @@ class AuditLogAspect implements AfterAspect {
 }
 ```
 
-**Around Aspects** - Wrap the entire method execution:
-```php
-class TransactionAspect implements AroundAspect {
-    public function around(MethodContext $context, callable $proceed): mixed {
-        $this->db->beginTransaction();
-        
-        try {
-            $result = $proceed();
-            $this->db->commit();
-            return $result;
-        } catch (\Exception $e) {
-            $this->db->rollback();
-            throw $e;
-        }
-    }
-}
-```
+#### Applying Aspects
 
-### Execution Order
+**Class-level aspects** apply to all methods in the controller:
 
-Aspects execute in a specific order to ensure proper request processing:
-
-1. **Request Aspects** - Transform request data and add context
-2. **Before Aspects** - Handle authentication, validation, rate limiting
-3. **Around Aspects** - Wrap method execution with caching, transactions
-4. **After Aspects** - Log results, modify responses
-
-### Applying Aspects
-
-**Class-level aspects** apply to all methods:
 ```php
 /**
  * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(AuditLogAspect::class)
  */
 class UserController extends BaseController {
-    // All methods require authentication
-}
-```
-
-**Method-level aspects** apply to specific methods:
-```php
-class UserController extends BaseController {
+    // All methods automatically get authentication and audit logging
     
     /**
      * @Route("/users")
      * @InterceptWith(CacheAspect::class, ttl=300)
-     * @InterceptWith(RateLimitAspect::class, limit=100)
      */
     public function index() {
-        // Method has caching and rate limiting
+        // Gets: RequireAuth + AuditLog (inherited) + Cache (method-level)
+        return $this->em->findBy(User::class, ['active' => true]);
     }
 }
 ```
 
-### Aspect Parameters
+**Method-level aspects** apply to specific methods:
+
+```php
+class BlogController extends BaseController {
+    
+    /**
+     * @Route("/posts")
+     * @InterceptWith(CacheAspect::class, ttl=600)
+     * @InterceptWith(RateLimitAspect::class, limit=100, window=3600)
+     */
+    public function list() {
+        // Method gets caching and rate limiting
+        return $this->em->findBy(Post::class, ['published' => true]);
+    }
+}
+```
+
+#### Aspect Parameters
 
 Pass configuration to aspects through annotation parameters:
 
@@ -1346,8 +424,8 @@ Pass configuration to aspects through annotation parameters:
  * @InterceptWith(CacheAspect::class, ttl=3600, tags={"reports", "admin"})
  * @InterceptWith(RateLimitAspect::class, limit=10, window=60)
  */
-public function heavyOperation() {
-    // Cached for 1 hour with tags, rate limited to 10/minute
+public function expensiveReport() {
+    // Cached for 1 hour with tags, rate limited to 10 requests per minute
 }
 ```
 
@@ -1363,154 +441,218 @@ class CacheAspect implements AroundAspect {
 }
 ```
 
-## Configuration
+#### Execution Order
 
-Canvas follows convention-over-configuration. Create config files only when you need them:
+Aspects execute in a predictable order:
+1. **Before Aspects** - Authentication, validation, rate limiting
+2. **Around Aspects** - Caching, transactions, timing
+3. **After Aspects** - Logging, response modification
+
+#### Inherited Aspects
+
+Build controller hierarchies with shared crosscutting concerns:
+
+```php
+/**
+ * @InterceptWith(RequireAuthAspect::class)
+ * @InterceptWith(AuditLogAspect::class)
+ */
+abstract class AuthenticatedController extends BaseController {
+    // Base authenticated functionality
+}
+
+/**
+ * @InterceptWith(RequireAdminAspect::class)
+ * @InterceptWith(RateLimitAspect::class, limit=100)
+ */
+abstract class AdminController extends AuthenticatedController {
+    // Admin-specific functionality - inherits auth + audit
+}
+
+class UserController extends AdminController {
+    /**
+     * @Route("/admin/users")
+     */
+    public function manage() {
+        // Automatically inherits: RequireAuth + AuditLog + RequireAdmin + RateLimit
+        return $this->em->findBy(User::class, []);
+    }
+}
+```
+
+### Form Validation
+
+Canvas provides a powerful validation aspect that separates validation concerns from business logic:
 
 ```php
 <?php
-// src/config/database.php
+namespace App\Controllers;
 
-return [
-    'driver'   => 'mysql',
-    'host'     => getenv('DB_HOST') ?: 'localhost',
-    'database' => getenv('DB_NAME') ?: 'canvas',
-    'username' => getenv('DB_USER') ?: 'root',
-    'password' => getenv('DB_PASS') ?: '',
-];
+use Quellabs\Canvas\Annotations\Route;
+use Quellabs\Canvas\Annotations\InterceptWith;
+use Quellabs\Canvas\Validation\ValidateAspect;
+use App\Validation\UserValidation;
+
+class UserController extends BaseController {
+    
+    /**
+     * @Route("/users/create", methods={"GET", "POST"})
+     * @InterceptWith(ValidateAspect::class, validate=UserValidation::class)
+     */
+    public function create(Request $request) {
+        if ($request->isMethod('POST')) {
+            // Check validation results set by ValidateAspect
+            if ($request->attributes->get('validation_passed', false)) {
+                // Process valid form data
+                $user = new User();
+                $user->setName($request->request->get('name'));
+                $user->setEmail($request->request->get('email'));
+                $user->setPassword(password_hash($request->request->get('password'), PASSWORD_DEFAULT));
+                
+                $this->em->persist($user);
+                $this->em->flush();
+                
+                return $this->redirect('/users');
+            }
+            
+            // Validation failed - render form with errors
+            return $this->render('users/create.tpl', [
+                'errors' => $request->attributes->get('validation_errors', []),
+                'old' => $request->request->all()
+            ]);
+        }
+        
+        // Show empty form for GET requests
+        return $this->render('users/create.tpl');
+    }
+}
 ```
 
-Register it in `composer.json`:
+#### Creating Validation Classes
 
-```json
-{
-  "extra": {
-    "discover": {
-      "canvas": {
-        "providers": [
-          {
-            "class": "Quellabs\\Canvas\\Discover\\DatabaseServiceProvider",
-            "config": "src/config/database.php"
-          }
-        ]
-      }
+```php
+<?php
+namespace App\Validation;
+
+use Quellabs\Canvas\Validation\ValidationInterface;
+use Quellabs\Canvas\Validation\Rules\NotBlank;
+use Quellabs\Canvas\Validation\Rules\Email;
+use Quellabs\Canvas\Validation\Rules\Length;
+
+class UserValidation implements ValidationInterface {
+    
+    public function getRules(): array {
+        return [
+            'name' => [
+                new NotBlank(['message' => 'Name is required']),
+                new Length(['min' => 2, 'message' => 'Name must be at least {{min}} characters'])
+            ],
+            'email' => [
+                new NotBlank(['message' => 'Email is required']),
+                new Email(['message' => 'Please enter a valid email address'])
+            ],
+            'password' => [
+                new NotBlank(['message' => 'Password is required']),
+                new Length(['min' => 8, 'message' => 'Password must be at least {{min}} characters'])
+            ]
+        ];
     }
-  }
 }
+```
+
+#### Auto-Response for APIs
+
+Enable automatic JSON error responses for API endpoints:
+
+```php
+/**
+ * @Route("/api/users", methods={"POST"})
+ * @InterceptWith(ValidateAspect::class, validate=UserValidation::class, auto_respond=true)
+ */
+public function createUser(Request $request) {
+    // For API requests, validation failures automatically return JSON:
+    // {
+    //   "message": "Validation failed", 
+    //   "errors": {
+    //     "email": ["Please enter a valid email address"],
+    //     "password": ["Password must be at least 8 characters"]
+    //   }
+    // }
+    
+    // This code only runs if validation passes
+    $user = $this->createUserFromRequest($request);
+    return $this->json(['success' => true, 'user_id' => $user->getId()]);
+}
+```
+
+### Contextual Services
+
+Use different implementations based on context:
+
+```php
+// Different template engines
+$twig = $this->container->for('twig')->get(TemplateEngineInterface::class);
+$blade = $this->container->for('blade')->get(TemplateEngineInterface::class);
+
+// Different cache backends
+$redis = $this->container->for('redis')->get(CacheInterface::class);
+$file = $this->container->for('file')->get(CacheInterface::class);
 ```
 
 ## CLI Commands
 
 Canvas includes a command-line interface called Sculpt for managing your application:
 
-### Listing Routes
-
-View all registered routes in your application:
+### Route Management
 
 ```bash
+# View all registered routes in your application
 ./vendor/bin/sculpt route:list
-```
-
-This displays a formatted table showing your routes, controllers, and applied aspects:
-
-```
-+-------+---------------------------------------+---------+
-| Route | Controller                            | Aspects |
-+-------+---------------------------------------+---------+
-| /henk | Quellabs\Canvas\Controller\Test@index | [XYZ]   |
-+-------+---------------------------------------+---------+
-```
-
-Filter routes by controller to focus on specific functionality:
-
-```bash
 ./vendor/bin/sculpt route:list --controller=UserController
+
+# Test which controller and method handles a specific URL path
+./vendor/bin/sculpt route:match /users/123
+./vendor/bin/sculpt route:match GET /users/123
+
+# Clear route cache
+./vendor/bin/sculpt route:clear-cache
 ```
 
-### Route Matching
+### Asset Publishing
 
-Test which controller and method handles a specific URL path:
+Canvas provides a powerful asset publishing system to deploy configuration files, templates, and other resources:
 
 ```bash
-./vendor/bin/sculpt route:match /url/path/10
+# List all available publishers
+./vendor/bin/sculpt canvas:publish --list
+
+# Publish assets using a specific publisher
+./vendor/bin/sculpt canvas:publish package:production
+
+# Overwrite existing files
+./vendor/bin/sculpt canvas:publish package:production --overwrite
+
+# Skip confirmation prompts (for automated deployments)
+./vendor/bin/sculpt canvas:publish package:production --force
+
+# Show help for a specific publisher
+./vendor/bin/sculpt canvas:publish package:production --help
 ```
 
-You can also specify the HTTP method to test method-specific routing:
-
-```bash
-./vendor/bin/sculpt route:match GET /url/path/10
-```
-
-This shows you exactly which controller method will be called for a given URL and HTTP method, helping you:
-- Debug routing issues
-- Verify parameter extraction and validation
-- Test wildcard route matching
-- Understand route precedence and matching order
-- Test method-specific route handling (GET, POST, PUT, DELETE, etc.)
-
-### Route Cache Management
-
-Canvas provides commands to manage route caching for optimal performance:
-
-#### Clear Route Cache
-
-Clear the compiled route cache to force route re-discovery:
-
-```bash
-./vendor/bin/sculpt route:clear_cache
-```
-
-This is useful when:
-- You've added new routes that aren't being recognized
-- Route changes aren't being reflected in your application
-- You're experiencing routing issues after deploying changes
-- You want to force a fresh route compilation
-
-#### Debug Mode Configuration
-
-For development environments, you can disable route caching entirely by setting debug mode in your application configuration:
-
-```php
-<?php
-// config/app.php
-
-return [
-    'debug_mode' => true,  // Disables route caching
-    // other configuration options...
-];
-```
-
-When `debug_mode` is enabled:
-- Routes are discovered and compiled on every request
-- Changes to route annotations are immediately reflected
-- No need to manually clear route cache during development
-- Performance is slightly reduced but development experience is improved
-
-**Note**: Always ensure `debug_mode` is set to `false` in production environments to maintain optimal performance with route caching enabled.
-
-## Performance
-
-Canvas is built for performance:
-
-- **Lazy Loading**: Services instantiated only when needed
-- **Route Caching**: Annotation routes cached in production
-- **Efficient Route Matching**: Optimized wildcard and validation patterns
-- **ObjectQuel Optimization**: Built-in query caching and optimization
-- **Minimal Reflection**: Efficient autowiring with caching
-- **Zero Configuration Overhead**: Sensible defaults eliminate config parsing
-- **Efficient AOP**: Aspects only applied when methods are called, no global overhead
+**Key features:**
+- **Safe publishing** with automatic backup creation
+- **Transaction rollback** if operations fail
+- **Interactive confirmation** with preview of changes
+- **Extensible publisher system** for custom deployment needs
 
 ## Why Canvas?
 
-**For Legacy Applications**: Drop into any existing PHP codebase without breaking anything. Start using modern patterns immediately while keeping everything working.
-
-**For Rapid Development**: Start coding immediately with zero configuration. Routes, ORM, dependency injection, and AOP work out of the box.
-
-**For Clean Code**: Annotation-based routes and aspects keep logic close to implementation. ObjectQuel queries read like natural language.
-
-**For Flexibility**: Contextual containers and composable aspects let you use different implementations without complex configuration.
-
-**For Growth**: Modular architecture scales from simple websites to complex applications with enterprise-grade crosscutting concerns.
+- **Legacy Integration**: Works with existing PHP without breaking anything
+- **Zero Config**: Start coding immediately with sensible defaults
+- **Clean Code**: Annotations keep logic close to implementation
+- **Performance**: Lazy loading, route caching, efficient matching
+- **Flexibility**: Contextual containers and composable aspects
+- **Growth**: Scales from simple sites to complex applications
 
 ## Contributing
 
@@ -1531,14 +673,6 @@ We welcome contributions! Here's how you can help improve Canvas:
 5. Update documentation for new features
 6. Submit a pull request
 
-### Contributing Documentation
-
-Documentation improvements are always welcome:
-- Fix typos and improve clarity
-- Add more examples and use cases
-- Improve code comments
-- Create tutorials and guides
-
 ## License
 
-Canvas is open-sourced software licensed under the [MIT license](LICENSE).
+Canvas is open-sourced software licensed under the MIT license.
