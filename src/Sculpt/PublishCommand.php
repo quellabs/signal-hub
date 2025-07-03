@@ -320,7 +320,12 @@
 				
 				// Display any post-publishing instructions from the target provider
 				// (e.g., cache clearing, CDN invalidation, etc.)
-				$this->output->writeLn($targetProvider->getPostPublishInstructions());
+				$publishInstructions = $targetProvider->getPostPublishInstructions();
+				
+				if (!empty($publishInstructions)) {
+					$this->output->writeLn("");
+					$this->output->writeLn($publishInstructions);
+				}
 				
 				// Return success exit code
 				return 0;
