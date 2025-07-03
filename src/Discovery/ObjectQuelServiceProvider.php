@@ -2,10 +2,9 @@
 	
 	namespace Quellabs\Canvas\ObjectQuel\Discovery;
 	
-	use Quellabs\DependencyInjection\Provider\ServiceProvider;
-	use Quellabs\Discover\Discover;
 	use Quellabs\ObjectQuel\Configuration;
 	use Quellabs\ObjectQuel\EntityManager;
+	use Quellabs\DependencyInjection\Provider\ServiceProvider;
 	
 	/**
 	 * Service provider for ObjectQuel EntityManager
@@ -46,7 +45,7 @@
 				'entity_namespace'    => '',
 				'entity_path'         => '',
 				'proxy_namespace'     => 'Quellabs\\ObjectQuel\\Proxy\\Runtime',
-				'proxy_path'          => '',
+				'proxy_path'          => null,
 				'metadata_cache_path' => ''
 			];
 		}
@@ -86,7 +85,7 @@
 			$config->setEntityPath($configData["entity_path"] ?? $defaults["entity_path"] ?? '');
 			
 			// Directory for generated proxy classes
-			$config->setProxyDir($configData["proxy_path"] ?? $defaults["proxy_path"]  ?? '');
+			$config->setProxyDir($configData["proxy_path"] ?? $defaults["proxy_path"]  ?? null);
 			
 			// Enable metadata caching
 			if (!empty($configData["metadata_cache_path"])) {
