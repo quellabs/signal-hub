@@ -16,6 +16,9 @@
 		// Path to the entities folder
 		'entity_path'      => dirname(__FILE__) . '/../src/Entities/',
 		
+		// Path to the proxy folder
+		'proxy_path'       => dirname(__FILE__) . '/../storage/objectquel/proxies/',
+		
 		// Path to the migrations folder
 		'migrations_path'  => dirname(__FILE__) . '/../migrations',
 	];
