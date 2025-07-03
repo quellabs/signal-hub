@@ -338,8 +338,13 @@
 			$content .= "use Quellabs\\ObjectQuel\\Collections\\Collection;\n";
 			$content .= "use Quellabs\\ObjectQuel\\Collections\\CollectionInterface;\n";
 			
-			// Class definitions
-			$tableName = $this->snakeCase($entityName);
+			// Convert entity name to table name
+			// The name is first made plural (e.g. post becomes posts)
+			// Then converted to snake case
+			$tableNamePlural = $this->pluralize($entityName);
+			$tableName = $this->snakeCase($tableNamePlural);
+
+			// Add class definitions
 			$content .= "/**\n * @Orm\Table(name=\"{$tableName}\")\n */\n";
 			$content .= "class {$entityName}Entity {\n";
 			
@@ -1083,5 +1088,60 @@
 			// - Irregular plurals not covered by these simple rules
 			// - Uncountable nouns that don't have distinct singular/plural forms
 			return $pluralName;
+		}
+		
+		/**
+		 * Pluralize a word
+		 * @param string $word
+		 * @return array|string|null
+		 */
+		private function pluralize(string $word): array|string|null {
+			// Convert to lowercase for rule checking
+			$lower = strtolower($word);
+			
+			// Irregular plurals
+			$irregulars = [
+				'child'   => 'children',
+				'person'  => 'people',
+				'man'     => 'men',
+				'woman'   => 'women',
+				'tooth'   => 'teeth',
+				'foot'    => 'feet',
+				'mouse'   => 'mice',
+				'goose'   => 'geese',
+				'ox'      => 'oxen',
+				'sheep'   => 'sheep',
+				'deer'    => 'deer',
+				'fish'    => 'fish',
+				'series'  => 'series',
+				'species' => 'species',
+			];
+			
+			if (isset($irregulars[$lower])) {
+				return $irregulars[$lower];
+			}
+			
+			// Words ending in 's', 'ss', 'sh', 'ch', 'x', 'z' -> add 'es'
+			if (preg_match('/[sxz]$|[cs]h$/', $lower)) {
+				return $word . 'es';
+			}
+			
+			// Words ending in consonant + 'y' -> change 'y' to 'ies'
+			if (preg_match('/[^aeiou]y$/', $lower)) {
+				return substr($word, 0, -1) . 'ies';
+			}
+			
+			// Words ending in 'f' or 'fe' -> change to 'ves'
+			if (preg_match('/fe?$/', $lower)) {
+				return preg_replace('/fe?$/', 'ves', $word);
+			}
+			
+			// Words ending in consonant + 'o' -> add 'es'
+			if (preg_match('/[^aeiou]o$/', $lower)) {
+				return $word . 'es';
+			}
+			
+			// Default: just add 's'
+			return $word . 's';
 		}
 	}
