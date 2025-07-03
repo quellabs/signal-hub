@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\ObjectQuel\DatabaseAdapter;
 	
-	use Cake\Database\Schema\Collection;
+	use Cake\Database\Schema\CollectionInterface;
 	use Cake\Database\StatementInterface;
 	use Cake\Datasource\ConnectionInterface;
 	use Cake\Datasource\ConnectionManager;
@@ -354,9 +354,9 @@
 		
 		/**
 		 * Returns the schema collection of this connection
-		 * @return Collection
+		 * @return CollectionInterface
 		 */
-		public function getSchemaCollection(): Collection {
+		public function getSchemaCollection(): CollectionInterface {
 			return $this->connection->getSchemaCollection();
 		}
 		
