@@ -20,5 +20,5 @@
 		'proxy_path'       => dirname(__FILE__) . '/../storage/objectquel/proxies/',
 		
 		// Path to the migrations folder
-		'migrations_path' => dirname(__FILE__) . '/../storage/objectquel/migrations/',
+		'migrations_path'  => dirname(__FILE__) . '/../migrations',
 	];
