@@ -325,37 +325,33 @@
 		protected function generateEntityContent(string $entityName, array $properties): string {
 			// Namespace
 			$namespace = $this->configuration->getEntityNameSpace();
-			$content = "<?php\n\nnamespace $namespace;\n";
+			$content = "<?php\n\n   namespace $namespace;\n";
 			
 			// Use statements
 			$content .= "\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Table;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\Column;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\PrimaryKeyStrategy;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\OneToMany;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Annotations\Orm\ManyToOne;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Collections\\Collection;\n";
-			$content .= "use Quellabs\\ObjectQuel\\Collections\\CollectionInterface;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\Table;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\Column;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\PrimaryKeyStrategy;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToOne;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\OneToMany;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Annotations\\Orm\\ManyToOne;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Collections\\Collection;\n";
+			$content .= "   use Quellabs\\ObjectQuel\\Collections\\CollectionInterface;\n";
 			
 			// Convert entity name to table name
-			// The name is first made plural (e.g. post becomes posts)
-			// Then converted to snake case
 			$tableNamePlural = $this->pluralize($entityName);
 			$tableName = $this->snakeCase($tableNamePlural);
-
+			
 			// Add class definitions
-			$content .= "/**\n * @Orm\Table(name=\"{$tableName}\")\n */\n";
-			$content .= "class {$entityName}Entity {\n";
+			$content .= "\n   /**\n    * @Orm\\Table(name=\"{$tableName}\")\n    */\n";
+			$content .= "   class {$entityName}Entity {\n";
 			
 			// Add primary key property
-			$content .= "
-				/**
-				 * @Orm\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)
-				 * @Orm\PrimaryKeyStrategy(strategy=\"identity\")
-				 */
-				protected ?int \$id = null;
-			";
+			$content .= "\n      /**\n";
+			$content .= "       * @Orm\\Column(name=\"id\", type=\"integer\", unsigned=true, primary_key=true)\n";
+			$content .= "       * @Orm\\PrimaryKeyStrategy(strategy=\"identity\")\n";
+			$content .= "       */\n";
+			$content .= "      protected ?int \$id = null;\n";
 			
 			// Add constructor for OneToMany relationships initialization
 			$hasOneToMany = false;
@@ -368,16 +364,16 @@
 			
 			// If we have OneToMany relationships, add a constructor to initialize collections
 			if ($hasOneToMany) {
-				$content .= "\n\t/**\n\t * Constructor to initialize collections\n\t */\n";
-				$content .= "\tpublic function __construct() {\n";
+				$content .= "\n      /**\n       * Constructor to initialize collections\n       */\n";
+				$content .= "      public function __construct() {\n";
 				
 				foreach ($properties as $property) {
 					if (isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany') {
-						$content .= "\t\t\$this->{$property['name']} = new Collection();\n";
+						$content .= "         \$this->{$property['name']} = new Collection();\n";
 					}
 				}
 				
-				$content .= "\t}\n";
+				$content .= "      }\n";
 			}
 			
 			// Add properties
@@ -390,7 +386,8 @@
 				
 				$propertyDefinition = $this->generatePropertyDefinition($property);
 				
-				$content .= "\n\t" . $docComment . "\n\t" . $propertyDefinition . "\n";
+				$content .= "\n      " . str_replace("\n\t", "\n      ", $docComment) . "\n";
+				$content .= "      " . $propertyDefinition . "\n";
 			}
 			
 			// Add getter for primary id
@@ -400,7 +397,7 @@
 			foreach ($properties as $property) {
 				// Skip adding getter/setter for OneToMany relationships
 				$isOneToMany = isset($property['relationshipType']) && $property['relationshipType'] === 'OneToMany';
-
+				
 				// Add getter and setter only if not a OneToMany relationship
 				if (!$isOneToMany) {
 					$content .= $this->generateGetter($property);
@@ -414,7 +411,7 @@
 				}
 			}
 			
-			$content .= "}\n";
+			$content .= "   }\n";
 			
 			return $content;
 		}
@@ -457,7 +454,7 @@
 			}
 			
 			$propertiesString = implode(", ", $properties);
-			return "/**\n\t * @Orm\Column({$propertiesString})\n\t */";
+			return "/**\n       * @Orm\\Column({$propertiesString})\n       */";
 		}
 		
 		/**
@@ -470,7 +467,7 @@
 			$targetEntity = $property['targetEntity'];
 			$nullable = $property['nullable'] ?? false;
 			
-			$comment = "/**\n\t * @Orm\\{$relationshipType}(targetEntity=\"{$targetEntity}Entity\"";
+			$comment = "/**\n       * @Orm\\{$relationshipType}(targetEntity=\"{$targetEntity}Entity\"";
 			
 			// Add mappedBy attribute for OneToMany or bidirectional OneToOne
 			if (!empty($property['mappedBy'])) {
@@ -507,10 +504,10 @@
 			
 			// Add PHPDoc var type for collections
 			if ($relationshipType === 'OneToMany') {
-				$comment .= "\n\t * @var \$" . $property['name'] . " CollectionInterface<" . $targetEntity . "Entity>";
+				$comment .= "\n       * @var \$" . $property['name'] . " CollectionInterface<" . $targetEntity . "Entity>";
 			}
 			
-			$comment .= "\n\t */";
+			$comment .= "\n       */";
 			
 			return $comment;
 		}
@@ -539,7 +536,7 @@
 			return "protected {$nullableIndicator}{$phpType} \${$property['name']};";
 		}
 		
-
+		
 		/**
 		 * Generate a getter method for a property
 		 * @param array $property Property information
@@ -554,32 +551,26 @@
 				$type = $property['type'];
 				$nullable = $property['nullable'] ?? false;
 				$nullableIndicator = $nullable ? '?' : '';
-
+				
 				// Specially handle OneToMany collection getters
 				if ($property['relationshipType'] === 'OneToMany') {
 					$targetEntity = $property['targetEntity'] . 'Entity';
-
-					return <<<EOT
-
-						/**
-						 * @return CollectionInterface<{$targetEntity}>
-						 */
-						public function {$methodName}(): CollectionInterface {
-							return \$this->{$propertyName};
-						}
-					EOT;
+					
+					return "\n      /**\n" .
+						"       * @return CollectionInterface<{$targetEntity}>\n" .
+						"       */\n" .
+						"      public function {$methodName}(): CollectionInterface {\n" .
+						"         return \$this->{$propertyName};\n" .
+						"      }\n";
 				}
 				
-				return <<<EOT
-
-					/**
-					 * Get {$propertyName}
-					 * @return {$nullableIndicator}{$type}
-					 */
-					public function {$methodName}(): {$nullableIndicator}{$type} {
-						return \$this->{$propertyName};
-					}
-				EOT;
+				return "\n      /**\n" .
+					"       * Get {$propertyName}\n" .
+					"       * @return {$nullableIndicator}{$type}\n" .
+					"       */\n" .
+					"      public function {$methodName}(): {$nullableIndicator}{$type} {\n" .
+					"         return \$this->{$propertyName};\n" .
+					"      }\n";
 			}
 			
 			// Handle regular property getter
@@ -588,206 +579,124 @@
 			$phpType = $this->typeMapper->phinxTypeToPhpType($type);
 			$nullableIndicator = $nullable ? '?' : '';
 			
-			return <<<EOT
-				/**
-				 * Get {$propertyName}
-				 * @return {$nullableIndicator}{$phpType}
-				 */
-				public function {$methodName}(): {$nullableIndicator}{$phpType} {
-					return \$this->{$propertyName};
-				}
-			EOT;
+			return "\n      /**\n" .
+				"       * Get {$propertyName}\n" .
+				"       * @return {$nullableIndicator}{$phpType}\n" .
+				"       */\n" .
+				"      public function {$methodName}(): {$nullableIndicator}{$phpType} {\n" .
+				"         return \$this->{$propertyName};\n" .
+				"      }\n";
 		}
 		
 		/**
 		 * Generate a setter method for a property
-		 * This function creates properly typed setter methods for entity properties,
-		 * handling both regular properties and relationship properties with appropriate type hints
-		 * @param array $property Property information - metadata about the property
-		 * @return string Setter method code - the complete PHP method as a formatted string
+		 * @param array $property Property information
+		 * @return string Setter method code
 		 */
 		protected function generateSetter(array $property): string {
-			// Extract the property name from the property information array
 			$propertyName = $property['name'];
-			
-			// Create the method name by prefixing "set" to the capitalized property name
-			// E.g., "firstName" becomes "setFirstName" - follows standard setter naming conventions
 			$methodName = 'set' . ucfirst($propertyName);
 			
 			// Handle relationship setter (ManyToOne, OneToOne relationships)
-			// These require special handling since they directly reference other entities
 			if (isset($property['relationshipType'])) {
-				// For relationships, use the type directly (typically an entity class name)
 				$type = $property['type'];
-				
-				// Check if the relationship is nullable (optional)
-				// Default to false (required) if not specified
 				$nullable = $property['nullable'] ?? false;
-				
-				// Create PHP 7.1+ nullable type indicator (? prefix) if property is nullable
-				// This enables strict type checking while allowing null values
 				$nullableIndicator = $nullable ? '?' : '';
 				
-				// Generate the complete setter method for relationship properties
-				return <<<EOT
-				
-					/**
-					 * Set {$propertyName}
-					 * @param {$nullableIndicator}{$type} \${$propertyName}
-					 * @return \$this
-					 */
-					public function {$methodName}({$nullableIndicator}{$type} \${$propertyName}): self {
-						\$this->{$propertyName} = \${$propertyName};
-						return \$this;
-					}
-				EOT;
+				return "\n      /**\n" .
+					"       * Set {$propertyName}\n" .
+					"       * @param {$nullableIndicator}{$type} \${$propertyName}\n" .
+					"       * @return \$this\n" .
+					"       */\n" .
+					"      public function {$methodName}({$nullableIndicator}{$type} \${$propertyName}): self {\n" .
+					"         \$this->{$propertyName} = \${$propertyName};\n" .
+					"         return \$this;\n" .
+					"      }\n";
 			}
 			
-			// Handle regular property setter (non-relationship properties)
-			// These use PHP primitive types or custom types
-			
-			// Check if the property is nullable
-			// Default to false (required) if not specified
+			// Handle regular property setter
 			$nullable = $property['nullable'] ?? false;
-			
-			// Get the property's data type, default to 'string' if not specified
 			$type = $property['type'] ?? 'string';
-			
-			// Convert database/schema type to PHP type
-			// This handles mapping of types like 'varchar' to 'string', 'integer' to 'int', etc.
 			$phpType = $this->typeMapper->phinxTypeToPhpType($type);
-			
-			// Create PHP 7.1+ nullable type indicator (? prefix) if property is nullable
 			$nullableIndicator = $nullable ? '?' : '';
 			
-			// Generate the complete setter method for regular properties
-			return <<<EOT
-			
-				/**
-				 * Set {$propertyName}
-				 * @param {$nullableIndicator}{$phpType} \${$propertyName}
-				 * @return \$this
-				 */
-				public function {$methodName}({$nullableIndicator}{$phpType} \${$propertyName}): self {
-					\$this->{$propertyName} = \${$propertyName};
-					return \$this;
-				}
-			EOT;
+			return "\n      /**\n" .
+				"       * Set {$propertyName}\n" .
+				"       * @param {$nullableIndicator}{$phpType} \${$propertyName}\n" .
+				"       * @return \$this\n" .
+				"       */\n" .
+				"      public function {$methodName}({$nullableIndicator}{$phpType} \${$propertyName}): self {\n" .
+				"         \$this->{$propertyName} = \${$propertyName};\n" .
+				"         return \$this;\n" .
+				"      }\n";
 		}
 		
 		/**
 		 * Generate a method to add an item to a collection (for OneToMany)
-		 * This function creates an adder method for OneToMany relationships that
-		 * safely adds entities to collections while maintaining bidirectional integrity
-		 * @param array $property Collection property information - contains relationship metadata
-		 * @param string $entityName Current entity name (without suffix) - the parent entity class name
-		 * @return string Method code - the complete PHP method as a formatted string
+		 * @param array $property Collection property information
+		 * @param string $entityName Current entity name (without suffix)
+		 * @return string Method code
 		 */
 		protected function generateCollectionAdder(array $property, string $entityName): string {
-			// Extract the collection property name from the property information
-			// This is the name of the property that holds the Collection object
 			$collectionName = $property['name'];
-			
-			// Convert the collection name to its singular form for method naming and parameter naming
-			// E.g., "orderItems" would become "orderItem" - helps create intuitive method signatures
 			$singularName = $this->getSingularName($collectionName);
-			
-			// Create the method name by prefixing "add" to the capitalized singular name
-			// E.g., "orderItem" becomes "addOrderItem" - follows standard naming conventions
 			$methodName = 'add' . ucfirst($singularName);
-			
-			// Get the full class name of the target entity by appending "Entity" suffix
-			// This will be used in the method signature for type hinting
 			$targetEntity = $property['targetEntity'] . 'Entity';
 			
-			// Initialize empty string for bidirectional relationship handling code
 			$inverseSetter = '';
-			
-			// Check if this is part of a bidirectional relationship by looking for mappedBy property
-			// mappedBy indicates this is the inverse side of a bidirectional relationship
 			if (!empty($property['mappedBy'])) {
-				// Determine the setter method name on the target entity that references this entity
-				// E.g., if entityName is "Order", this creates "setOrder"
 				$setterMethod = 'set' . ucfirst($entityName);
-				
-				// Build the code to update the inverse side of the relationship
-				// This maintains referential integrity by setting the back-reference
-				$inverseSetter = "\n\t\t// Set the owning side of the relationship\n";
-				$inverseSetter .= "\t\t\${$singularName}->{$setterMethod}(\$this);";
+				$inverseSetter = "\n         // Set the owning side of the relationship\n";
+				$inverseSetter .= "         \${$singularName}->{$setterMethod}(\$this);";
 			}
 			
-			// Construct the complete method code with proper formatting, PHPDoc, and logic
-			return <<<EOT
-				/**
-				 * Adds a relation between {$targetEntity} and {$targetEntity}
-				 * @param {$targetEntity} \${$singularName}
-				 * @return \$this
-				 */
-				public function {$methodName}({$targetEntity} \${$singularName}): self {
-					if (!\$this->{$collectionName}->contains(\${$singularName})) {
-						\$this->{$collectionName}[] = \${$singularName};{$inverseSetter}
-					}
-					return \$this;
-				}
-			EOT;
+			return "\n      /**\n" .
+				"       * Adds a relation between {$targetEntity} and {$targetEntity}\n" .
+				"       * @param {$targetEntity} \${$singularName}\n" .
+				"       * @return \$this\n" .
+				"       */\n" .
+				"      public function {$methodName}({$targetEntity} \${$singularName}): self {\n" .
+				"         if (!\$this->{$collectionName}->contains(\${$singularName})) {\n" .
+				"            \$this->{$collectionName}[] = \${$singularName};{$inverseSetter}\n" .
+				"         }\n" .
+				"         return \$this;\n" .
+				"      }\n";
 		}
 		
 		/**
 		 * Generate a method to remove an item from a collection (for OneToMany)
-		 * This function creates a removal method for OneToMany relationships that
-		 * safely removes entities from collections while maintaining bidirectional integrity
-		 * @param array $property Collection property information - contains relationship metadata
-		 * @param string $entityName Current entity name (without suffix) - the parent entity class name
-		 * @return string Method code - the complete PHP method as a formatted string
+		 * @param array $property Collection property information
+		 * @param string $entityName Current entity name (without suffix)
+		 * @return string Method code
 		 */
 		protected function generateCollectionRemover(array $property, string $entityName): string {
-			// Extract the collection property name from the property information
 			$collectionName = $property['name'];
-			
-			// Convert the collection name to its singular form for method naming and parameter naming
-			// E.g., "orderItems" would become "orderItem"
 			$singularName = $this->getSingularName($collectionName);
-			
-			// Create the method name by prefixing "remove" to the capitalized singular name
-			// E.g., "orderItem" becomes "removeOrderItem"
 			$methodName = 'remove' . ucfirst($singularName);
-			
-			// Get the full class name of the target entity by appending "Entity" suffix
-			// This will be used in the method signature for type hinting
 			$targetEntity = $property['targetEntity'] . 'Entity';
 			
-			// Check if this is part of a bidirectional relationship by looking for mappedBy property
-			// In a bidirectional relationship, we need to update both sides when removing
 			$inverseRemover = '';
-
+			
 			if (!empty($property['mappedBy'])) {
-				// Determine the setter method name on the target entity that references this entity
-				// E.g., if entityName is "Order", this creates "setOrder"
 				$setterMethod = 'set' . ucfirst($entityName);
-				
-				// Build the code to update the inverse side of the relationship
-				// This maintains referential integrity by setting the reference to null
-				$inverseRemover = "\n\t\t// Unset the owning side of the relationship\n";
-				$inverseRemover .= "\t\t\${$singularName}->{$setterMethod}(null);";
+				$inverseRemover = "\n            // Unset the owning side of the relationship\n";
+				$inverseRemover .= "            \${$singularName}->{$setterMethod}(null);";
 			}
-
-			// Construct the complete method code with proper formatting, PHPDoc, and logic
+			
 			$targetEntityBase = substr($targetEntity, 0, -6);
 			
-			return <<<EOT
-				/**
-				 * Removes a relation between {$targetEntity} and {$targetEntityBase}
-				 * @param {$targetEntity} \${$singularName}
-				 * @return \$this
-				 */
-				public function {$methodName}({$targetEntity} \${$singularName}): self {
-					if (\$this->{$collectionName}->remove(\${$singularName})) {
-						$inverseRemover
-					}
-					
-					return \$this;
-				}
-			EOT;
+			return "\n      /**\n" .
+				"       * Removes a relation between {$targetEntity} and {$targetEntityBase}\n" .
+				"       * @param {$targetEntity} \${$singularName}\n" .
+				"       * @return \$this\n" .
+				"       */\n" .
+				"      public function {$methodName}({$targetEntity} \${$singularName}): self {\n" .
+				"         if (\$this->{$collectionName}->remove(\${$singularName})) {\n" .
+				"            {$inverseRemover}\n" .
+				"         }\n" .
+				"         \n" .
+				"         return \$this;\n" .
+				"      }\n";
 		}
 		
 		/**
