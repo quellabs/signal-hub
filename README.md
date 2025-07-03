@@ -953,15 +953,13 @@ When you execute this command, the `sculpt` tool will:
 
 1. **Create configuration directory** - Sets up a `config/` directory in your project root if it doesn't exist
 2. **Generate database configuration** - Creates `config/database.php` with your main database settings for sculpt to use
-3. **Setup helper class** - Creates `config/database-env.php` as a helper class for managing environment settings
-4. **Provide setup guidance** - Offers clear next steps to complete your sculpt CLI setup
+3. **Provide setup guidance** - Offers clear next steps to complete your sculpt CLI setup
 
 #### What Gets Created
 
 The initialization process creates configuration files used by both the sculpt CLI tool and the Canvas framework (if applicable):
 
 - **config/database.php**: Database configuration file where sculpt reads your connection settings
-- **config/database-env.php**: Helper class for managing environment settings
 
 After running the init command, you'll need to:
 

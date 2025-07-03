@@ -14,7 +14,6 @@
 	 *
 	 * The command generates:
 	 * - config/database.php: Main database configuration file
-	 * - config/database-env.php: Environment-specific database settings template
 	 *
 	 * These files provide the foundation for ObjectQuel's entity management, migrations,
 	 * and query operations while maintaining consistency across different environments.
@@ -72,8 +71,7 @@
 			$templateDir = dirname(__FILE__) . "/../../../config";
 			
 			$filesToCopy = [
-				'database.php'     => 'Main database configuration',
-				'database-env.php' => 'Helper file for database.php'
+				'database.php' => 'Main database configuration',
 			];
 			
 			foreach ($filesToCopy as $filename => $description) {
@@ -113,8 +111,7 @@
 			$this->output->writeLn("");
 			$this->output->writeLn("Next steps:");
 			$this->output->writeLn("1. Edit config/database.php to configure your database connection");
-			$this->output->writeLn("2. Set up environment-specific settings in config/database-env.php");
-			$this->output->writeLn("3. Run 'php sculpt make:entity' to create your first entity");
+			$this->output->writeLn("2. Run 'php sculpt make:entity' to create your first entity");
 			
 			return 0; // Success
 		}
