@@ -2,6 +2,10 @@
 	
 	namespace Quellabs\ObjectQuel\Sculpt\Commands;
 	
+	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Contracts\IO\ConsoleInput;
+	use Quellabs\Contracts\IO\ConsoleOutput;
+	use Quellabs\Discover\Discover;
 	use Quellabs\Sculpt\Contracts\CommandBase;
 	use Quellabs\Sculpt\ConfigurationManager;
 	
@@ -19,6 +23,23 @@
 	 * and query operations while maintaining consistency across different environments.
 	 */
 	class InitCommand extends CommandBase {
+		
+		/**
+		 * @var Discover Discovery component
+		 */
+		private Discover $discover;
+		
+		/**
+		 * InitCommand constructor
+		 * @param ConsoleInput $input
+		 * @param ConsoleOutput $output
+		 * @param ProviderInterface|null $provider
+		 */
+		public function __construct(ConsoleInput $input, ConsoleOutput $output, ?ProviderInterface $provider = null) {
+			parent::__construct($input, $output, $provider);
+			$this->discover = new Discover();
+		}
+		
 		/**
 		 * Get the command signature/name for registration in the CLI
 		 * @return string Command signature used to invoke this command
@@ -48,11 +69,12 @@
 		 * @return int Exit code (0 for success, 1 for failure)
 		 */
 		public function execute(ConfigurationManager $config): int {
+			// Show an introductory message
 			$this->output->writeLn("");
 			$this->output->writeLn("Initializing ObjectQuel configuration...");
 			
 			// Determine the target directory - project root is preferable
-			$projectRoot = $this->determineProjectRoot();
+			$projectRoot = $this->discover->getProjectRoot();
 			$configDir = $projectRoot . "/config";
 			
 			// Create config directory if it doesn't already exist
