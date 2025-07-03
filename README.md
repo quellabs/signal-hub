@@ -645,22 +645,6 @@ Canvas provides a powerful asset publishing system to deploy configuration files
 - **Interactive confirmation** with preview of changes
 - **Extensible publisher system** for custom deployment needs
 
-## Configuration
-
-Canvas works with zero configuration, but you can customize when needed:
-
-```php
-<?php
-// src/config/database.php
-return [
-    'driver'   => 'mysql',
-    'host'     => getenv('DB_HOST') ?: 'localhost',
-    'database' => getenv('DB_NAME') ?: 'canvas',
-    'username' => getenv('DB_USER') ?: 'root',
-    'password' => getenv('DB_PASS') ?: '',
-];
-```
-
 ## Why Canvas?
 
 - **Legacy Integration**: Works with existing PHP without breaking anything
@@ -691,4 +675,4 @@ We welcome contributions! Here's how you can help improve Canvas:
 
 ## License
 
-Canvas is open-sourced software licensed under the [MIT license](LICENSE).
+Canvas is open-sourced software licensed under the MIT license.
