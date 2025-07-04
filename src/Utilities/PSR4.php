@@ -542,14 +542,14 @@
 			
 			// Test each pattern against the current directory path
 			foreach ($patterns as $pattern) {
-				// Check if current directory matches any known shared hosting pattern
+				// Check if the current directory matches any known shared hosting pattern
 				if (preg_match($pattern, $directory, $matches)) {
 					// Extract the project root from the regex match (first capture group)
 					$projectRoot = $matches[1]; // The domain/username directory, not the web root
 					
 					// Verify the extracted project root actually exists
+					// Then return the project root directory (should contain composer.json, etc.)
 					if (is_dir($projectRoot)) {
-						// Return the project root directory (should contain composer.json, etc.)
 						return $projectRoot;
 					}
 				}
