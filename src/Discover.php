@@ -79,17 +79,6 @@
 		}
 		
 		/**
-		 * Get definitions in array format (for backward compatibility)
-		 * @return array Array of provider definitions in array format
-		 */
-		public function getDefinitionsAsArray(): array {
-			return array_map(
-				fn(ProviderDefinition $def) => $def->toArray(),
-				$this->providerDefinitions
-			);
-		}
-		
-		/**
 		 * Get a specific provider definition by class name
 		 * @param string $className The fully qualified class name of the provider
 		 * @return ProviderDefinition|null The provider definition if found, null if not found
