@@ -22,7 +22,7 @@
 		private PSR4 $utilities;
 		
 		/**
-		 * @var array Provider definitions indexed by unique keys
+		 * @var array<string, ProviderDefinition> Provider definitions indexed by unique keys
 		 */
 		protected array $providerDefinitions = [];
 		
@@ -92,7 +92,7 @@
 		/**
 		 * Get a specific provider definition by class name
 		 * @param string $className The fully qualified class name of the provider
-		 * @return array|null The provider definition if found, null if not found
+		 * @return ProviderDefinition|null The provider definition if found, null if not found
 		 */
 		public function getDefinition(string $className): ?ProviderDefinition {
 			foreach ($this->providerDefinitions as $definition) {
@@ -106,10 +106,11 @@
 		
 		/**
 		 * Retrieve a specific provider instance by class name
-		 * @param string $className The fully qualified class name of the provider to retrieve
-		 * @return ProviderInterface|null The provider instance if found, null otherwise
+		 * @template T of ProviderInterface
+		 * @param class-string<T> $className The fully qualified class name of the provider to retrieve
+		 * @return T|null The provider instance if found, null otherwise
 		 */
-		public function get(string $className): ?ProviderInterface {
+		public function get(string $className) {
 			// If the class does exist, we do not need to check the provider definitions
 			if (!class_exists($className)) {
 				return null;
