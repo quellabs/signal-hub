@@ -31,7 +31,7 @@
 			$this->annotationReader = $entityStore->getAnnotationReader();
 			$this->servicesPaths = $configuration->getEntityPaths();
 			$this->proxyPath = $configuration->getProxyDir() ?? "";
-			$this->proxyNamespace = 'Quellabs\\ObjectQuel\\Proxy\\Runtime';
+			$this->proxyNamespace = $entityStore->getProxyNamespace();
 			
 			$this->types = [
 				"int", "float", "bool", "string", "array", "object", "resource", "null",

@@ -38,6 +38,7 @@
 		protected AnnotationReader $annotation_reader;
         protected ReflectionHandler $reflection_handler;
 		protected ProxyGenerator $proxy_generator;
+		protected string $proxyNamespace;
         protected array $entity_properties;
         protected array $entity_table_name;
         protected array $entity_annotations;
@@ -59,7 +60,8 @@
 			$annotationReaderConfiguration = new \Quellabs\AnnotationReader\Configuration();
 			$annotationReaderConfiguration->setUseAnnotationCache($configuration->useMetadataCache());
 			$annotationReaderConfiguration->setAnnotationCachePath($configuration->getMetadataCachePath());
-
+			
+			$this->proxyNamespace = 'Quellabs\\ObjectQuel\\Proxy\\Runtime';
 			$this->configuration = $configuration;
 			$this->annotation_reader = new AnnotationReader($annotationReaderConfiguration);
 			$this->reflection_handler = new ReflectionHandler();
@@ -110,6 +112,14 @@
 	    public function getProxyGenerator(): ProxyGenerator {
 		    return $this->proxy_generator;
 	    }
+	    
+	    /**
+	     * Returns the proxy namespace
+	     * @return string
+	     */
+	    public function getProxyNamespace(): string {
+		    return $this->proxyNamespace;
+	    }
 		
 		/**
 	     * Normalizes the entity name to return the base entity class if the input is a proxy class.
@@ -120,7 +130,7 @@
 		    if (!isset($this->completed_entity_name_cache[$class])) {
 			    // Check if the class name contains the proxy namespace, which indicates a proxy class.
 			    // If it's a proxy class, get the name of the parent class (the real entity class).
-			    if (str_contains($class, $this->configuration->getProxyNamespace())) {
+			    if (str_contains($class, $this->getProxyNamespace())) {
 				    $this->completed_entity_name_cache[$class] = $this->reflection_handler->getParent($class);
 			    } elseif (str_contains($class, "\\")) {
 				    $this->completed_entity_name_cache[$class] = $class;
