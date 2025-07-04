@@ -40,7 +40,18 @@
 			
 			// Only initialize proxies if servicesPaths and proxyPath are set
 			if (!empty($this->servicesPaths) && !empty($this->proxyPath)) {
+				$this->createProxyPathIfNotPresent();
 				$this->initializeProxies();
+			}
+		}
+		
+		/**
+		 * Create the proxy dir if it's missing
+		 * @return void
+		 */
+		private function createProxyPathIfNotPresent(): void {
+			if (!is_dir($this->proxyPath)) {
+				mkdir($this->proxyPath, 0777, true);
 			}
 		}
 		
