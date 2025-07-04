@@ -44,9 +44,9 @@
 		private string $proxyNamespace = 'Quellabs\\ObjectQuel\\Proxies';
 		
 		/**
-		 * @var string Path to entity classes
+		 * @var array Paths to entity classes
 		 */
-		private string $entityPath = '';
+		private array $entityPaths = [];
 		
 		/**
 		 * @var string Namespace for entities
@@ -187,21 +187,45 @@
 		}
 		
 		/**
-		 * Add a path where entity classes can be found
-		 * @param string $path Directory path or namespace
+		 * Sets paths where entity classes can be found
+		 * @param array $paths
 		 * @return self
 		 */
-		public function setEntityPath(string $path): self {
-			$this->entityPath = $path;
+		public function setEntityPaths(array $paths): self {
+			$this->entityPaths = $paths;
 			return $this;
 		}
 		
 		/**
-		 * Get the configured entity path
-		 * @return string
+		 * Get the configured entity paths
+		 * @return array
 		 */
-		public function getEntityPath(): string {
-			return $this->entityPath;
+		public function getEntityPaths(): array {
+			return $this->entityPaths;
+		}
+		
+		/**
+		 * Determines the appropriate entity path for creating new entities.
+		 * This method prioritizes the 'user' entity path if available, otherwise
+		 * returns the first available entity path from the collection.
+		 * @return string|null The entity path to use for creation, or null if no paths are available
+		 */
+		public function getEntityCreationPath(): ?string {
+			// Retrieve all available entity paths
+			$entityPaths = $this->getEntityPaths();
+			
+			// Return null if no entity paths are configured
+			if (empty($entityPaths)) {
+				return null;
+			}
+			
+			// Prefer the 'user' entity path if it exists
+			if (isset($entityPaths['user'])) {
+				return $entityPaths['user'];
+			}
+			
+			// Fallback to the first available entity path
+			return $entityPaths[array_key_first($entityPaths)];
 		}
 		
 		/**

@@ -183,6 +183,14 @@
 	    }
 	    
 	    /**
+	     * Returns an array with key = className and value=tableName
+	     * @return array
+	     */
+		public function getEntityMap(): array {
+			return $this->entity_table_name;
+		}
+	    
+	    /**
 	     * This function retrieves the primary keys of a given entity.
 	     * @param mixed $entity The entity from which the primary keys are retrieved.
 	     * @return array An array with the names of the properties that are the primary keys.
