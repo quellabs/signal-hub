@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Discover\Provider\ProviderDefinition;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use ReflectionClass;

@@ -19,7 +19,7 @@
     }
   },
   "require": {
-    "quellabs/contracts": "^1.0",
+    "quellabs/contracts": "dev-feature/provider-definition",
     "ext-ctype": "*"
   },
   "autoload": {

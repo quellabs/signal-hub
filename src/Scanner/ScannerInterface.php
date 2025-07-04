@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Discover\Provider\ProviderDefinition;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
 	/**
 	 * Defines the contract for scanner classes that discover service providers

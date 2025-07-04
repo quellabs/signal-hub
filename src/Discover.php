@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover;
 	
-	use Quellabs\Discover\Provider\ProviderDefinition;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use RuntimeException;
 	use Composer\Autoload\ClassLoader;
 	use Quellabs\Discover\Utilities\PSR4;
