@@ -136,15 +136,12 @@
 		}
 		
 		/**
-		 * Get all providers (instantiates all definitions - use carefully!)
-		 * @return array<ProviderInterface>
+		 * Get all providers (instantiates all definitions
+		 * WARNING: This will instantiate ALL providers, which can be expensive
+		 * @return \Generator
 		 */
-		public function getProviders(): array {
-			// Initialize collection to store all successfully instantiated providers
-			$providers = [];
-			
+		public function getProviders(): \Generator {
 			// Iterate through every registered provider definition
-			// WARNING: This will instantiate ALL providers, which can be expensive
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
 				// Attempt to get or create a provider instance from the definition
 				// Uses lazy instantiation helper that handles caching and reconstruction
@@ -153,14 +150,9 @@
 				// Only include successfully instantiated providers in the result
 				// Filters out any providers that failed to instantiate properly
 				if ($provider) {
-					// Add the valid provider to our collection
-					$providers[] = $provider;
+					yield $provider;
 				}
 			}
-			
-			// Return array containing all successfully instantiated provider instances
-			// Note: This could be a large collection depending on registered definitions
-			return $providers;
 		}
 
 		/**

@@ -19,6 +19,12 @@
 		private array $composerJsonCache = [];
 		
 		/**
+		 * Cache for path resolving paths
+		 * @var array
+		 */
+		private array $resolvedPaths = [];
+		
+		/**
 		 * Gets the Composer autoloader instance
 		 * @return ClassLoader
 		 * @throws RuntimeException If autoloader can't be found
@@ -52,24 +58,37 @@
 		
 		/**
 		 * Find directory containing composer.json by traversing up from the given directory
+		 * Uses multiple detection strategies optimized for different hosting environments
 		 * @param string|null $directory Directory to start searching from (defaults to current directory)
 		 * @return string|null Directory containing composer.json if found, null otherwise
 		 */
 		public function getProjectRoot(?string $directory = null): ?string {
-			// Check if we've already found and cached the path in this instance
+			// Return the cached result if available to avoid repeated filesystem operations
 			if ($this->projectRootPathCache !== null) {
 				return $this->projectRootPathCache;
 			}
 			
-			// First try to fetch the path from a list of known shared hosting formats
-			$projectRoot = $this->getSharedHostingRoot($directory);
+			// Try multiple detection strategies in order of efficiency
+			$strategies = [
+				// Strategy 1: Check for common shared hosting directory patterns
+				// This is faster than traversing and works well for cPanel/Plesk environments
+				fn() => $this->getSharedHostingRoot($directory),
+				
+				// Strategy 2: Traditional traversal method - walk up directory tree looking for composer.json
+				// This handles custom setups and non-standard hosting environments
+				fn() => $this->getProjectRootFromComposerJson($directory),
+			];
 			
-			if ($projectRoot !== null) {
-				return $projectRoot;
+			foreach ($strategies as $strategy) {
+				$projectRoot = $strategy();
+				
+				if ($projectRoot !== null) {
+					return $this->projectRootPathCache = $projectRoot;
+				}
 			}
 			
-			// Fallback: Traverse path until we find composer.json
-			return $this->getProjectRootFromComposerJson($directory);
+			// No project root found using any strategy
+			return null;
 		}
 		
 		/**
@@ -207,66 +226,26 @@
 			
 			return $classNames;
 		}
-		
+
 		/**
 		 * Resolves relative path components without checking file existence
 		 * @param string $path The path to resolve (e.g., "hallo/../test")
 		 * @return string The resolved path (e.g., "test")
 		 */
 		public function resolvePath(string $path): string {
-			// Handle an empty path early
-			if ($path === '') {
-				return '';
+			// Check if this path has already been resolved and cached
+			if (isset($this->resolvedPaths[$path])) {
+				return $this->resolvedPaths[$path];
 			}
 			
-			// Detect absolute paths and extract their prefix
-			$prefix = '';
-			$isAbsolute = $path[0] === '/' || $path[0] === '\\';  // Unix or Windows absolute path
+			// Perform the actual path resolution logic
+			$resolved = $this->doResolvePath($path);
 			
-			if ($isAbsolute && ($path[0] === '/' || $path[0] === '\\')) {
-				// Unix absolute path: /var/www/html or Windows UNC: \server\share
-				$prefix = DIRECTORY_SEPARATOR;
-				$path = substr($path, 1);  // Remove leading slash
-			} elseif (isset($path[1]) && $path[1] === ':' && ctype_alpha($path[0])) {
-				// Windows absolute path: C:\Windows\System32
-				$prefix = substr($path, 0, 2) . DIRECTORY_SEPARATOR;  // Extract drive letter and add separator (C:\)
-				$path = ltrim(substr($path, 2), '/\\');  // Remove drive and leading slashes
-				$isAbsolute = true;
-			}
+			// Cache the resolved path for future lookups to improve performance
+			$this->resolvedPaths[$path] = $resolved;
 			
-			// Normalize backslashes to forward slashes and split into components
-			$resolved = [];
-			$parts = explode('/', strtr($path, '\\', '/'));
-			
-			// Process each path component
-			foreach ($parts as $part) {
-				// Skip empty parts (from double slashes) and current directory references
-				if ($part === '' || $part === '.') {
-					continue;
-				}
-				
-				if ($part === '..') {
-					// Parent directory reference
-					if ($resolved && end($resolved) !== '..') {
-						// Go up one level by removing last component (but not if it's also ..)
-						array_pop($resolved);
-					} elseif (!$isAbsolute) {
-						// For relative paths, keep .. if we can't go up further
-						$resolved[] = '..';
-					}
-					
-					// For absolute paths, ignore .. that would go above root
-				} else {
-					// Regular directory or file name
-					$resolved[] = $part;
-				}
-			}
-			
-			// Reconstruct the final path
-			$result = $prefix . implode(DIRECTORY_SEPARATOR, $resolved);
-			
-			// Return '.' for empty relative paths, otherwise return the resolved path
-			return $result === '' && !$isAbsolute ? '.' : $result;
+			// Return the resolved path
+			return $resolved;
 		}
 		
 		/**
@@ -515,9 +494,6 @@
 				
 				// Check if composer.json exists in the current directory
 				if (file_exists($composerPath)) {
-					// Found it - put the result in cache
-					$this->projectRootPathCache = $currentDir;
-					
 					// Return the directory containing composer.json
 					return $currentDir;
 				}
@@ -544,35 +520,129 @@
 		 * @return string|null Project root directory if found, null otherwise
 		 */
 		private function getSharedHostingRoot(?string $directory = null): ?string {
+			// Start from provided directory or current working directory
 			$directory = $directory !== null ? realpath($directory) : getcwd();
 			
+			// Validate that directory exists and is actually a directory
 			if (!$directory || !is_dir($directory)) {
 				return null;
 			}
 			
-			// Check for common shared hosting patterns
+			// Define regex patterns for common shared hosting directory structures
+			// These patterns help identify the project root by matching typical hosting layouts
 			$patterns = [
-				// cPanel/Plesk: /var/www/vhosts/domain.com/httpdocs -> /var/www/vhosts/domain.com
+				// cPanel/Plesk pattern: /var/www/vhosts/domain.com/httpdocs -> /var/www/vhosts/domain.com
+				// Captures the domain directory as the project root, not the web-accessible folder
 				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public)(/.*)?$#',
 				
-				// Home directories: /home/username/public_html -> /home/username
+				// Home directory pattern: /home/username/public_html -> /home/username
+				// Common in shared hosting where users have home directories
 				'#^(/home/[^/]+)/(public_html|www)(/.*)?$#',
 			];
 			
+			// Test each pattern against the current directory path
 			foreach ($patterns as $pattern) {
+				// Check if current directory matches any known shared hosting pattern
 				if (preg_match($pattern, $directory, $matches)) {
+					// Extract the project root from the regex match (first capture group)
 					$projectRoot = $matches[1]; // The domain/username directory, not the web root
 					
+					// Verify the extracted project root actually exists
 					if (is_dir($projectRoot)) {
-						// Found it - put the result in cache
-						$this->projectRootPathCache = $projectRoot;
-						
-						// Return the directory containing composer.json
+						// Return the project root directory (should contain composer.json, etc.)
 						return $projectRoot;
 					}
 				}
 			}
 			
+			// No matching shared hosting pattern found
 			return null;
+		}
+		
+		/**
+		 * Resolves relative path components without checking file existence
+		 *
+		 * This function normalizes paths by resolving '..' (parent directory) and '.' (current directory)
+		 * references while maintaining the original path type (absolute vs relative).
+		 *
+		 * Examples:
+		 * - "hallo/../test" → "test"
+		 * - "/var/www/../html" → "/html"
+		 * - "C:\Windows\..\System32" → "C:\System32"
+		 * - "../../folder" → "../../folder" (keeps relative .. when can't go up further)
+		 *
+		 * @param string $path The path to resolve (can be Unix or Windows format)
+		 * @return string The resolved path using system directory separators
+		 */
+		private function doResolvePath(string $path): string {
+			// Handle empty paths early - nothing to resolve
+			if ($path === '') {
+				return '';
+			}
+			
+			// Step 1: Normalize all separators to forward slashes for consistent processing
+			$normalizedPath = strtr($path, '\\', '/');
+			
+			// Step 2: Determine if the path is absolute and extract prefix
+			$isAbsolute = false;
+			$prefix = '';
+			
+			if (strlen($normalizedPath) >= 2 && $normalizedPath[1] === ':' && ctype_alpha($normalizedPath[0])) {
+				// Windows drive letter format (C:, D:, etc.)
+				$isAbsolute = true;
+				$prefix = substr($normalizedPath, 0, 2) . DIRECTORY_SEPARATOR;
+				$pathWithoutPrefix = ltrim(substr($normalizedPath, 2), '/');
+			} elseif ($normalizedPath[0] === '/') {
+				// Unix root path format
+				$isAbsolute = true;
+				$prefix = DIRECTORY_SEPARATOR;
+				$pathWithoutPrefix = substr($normalizedPath, 1);
+			} else {
+				// Relative path - no prefix
+				$pathWithoutPrefix = $normalizedPath;
+			}
+			
+			// Step 3: Split into components and filter out empty parts
+			$components = array_filter(explode('/', $pathWithoutPrefix), function($part) {
+				return $part !== '';
+			});
+			
+			// Step 4: Resolve components by handling . and .. references
+			$resolved = [];
+			
+			foreach ($components as $component) {
+				// Skip current directory references - they don't change the path
+				if ($component === '.') {
+					continue;
+				}
+				
+				// Regular directory or file name - add to the resolved path
+				if ($component !== '..') {
+					$resolved[] = $component;
+					continue;
+				}
+				
+				// Parent directory reference
+				if (!empty($resolved) && end($resolved) !== '..') {
+					// We can go up one level - remove the last component
+					array_pop($resolved);
+					continue;
+				}
+				
+				// For relative paths, keep .. when we can't go up further
+				// This preserves paths like "../../folder" when starting from a relative location
+				if (!$isAbsolute) {
+					$resolved[] = '..';
+				}
+				
+				// For absolute paths, ignore .. that would go above filesystem root
+				// "/var/.." becomes "/" not "/.."
+			}
+			
+			// Step 5: Build the final resolved path
+			$result = $prefix . implode(DIRECTORY_SEPARATOR, $resolved);
+			
+			// Return '.' for empty relative paths to maintain their relative nature
+			return $result === '' && !$isAbsolute ? '.' : $result;
 		}
 	}
