@@ -104,6 +104,14 @@
 	    }
 	    
 	    /**
+	     * Returns the proxy generator
+	     * @return ProxyGenerator
+	     */
+	    public function getProxyGenerator(): ProxyGenerator {
+		    return $this->proxy_generator;
+	    }
+		
+		/**
 	     * Normalizes the entity name to return the base entity class if the input is a proxy class.
 	     * @param string $class The fully qualified class name to be normalized.
 	     * @return string The normalized class name.
