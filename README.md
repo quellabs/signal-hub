@@ -266,14 +266,6 @@ class UserController extends BaseController {
 
 Canvas provides a powerful validation system that separates validation logic from your controllers using aspects, keeping your business logic clean and focused.
 
-### Installation
-
-The validation system is available as a separate package:
-
-```bash
-composer require quellabs/canvas-validation
-```
-
 ### Basic Form Validation
 
 ```php
@@ -282,7 +274,7 @@ namespace App\Controllers;
 
 use Quellabs\Canvas\Annotations\Route;
 use Quellabs\Canvas\Annotations\InterceptWith;
-use Quellabs\Canvas\CanvasValidation\ValidateAspect;
+use Quellabs\Canvas\Canvas\Validation\ValidateAspect;
 use App\Validation\UserValidation;
 
 class UserController extends BaseController {
@@ -328,7 +320,7 @@ Define your validation rules in dedicated classes:
 <?php
 namespace App\Validation;
 
-use Quellabs\Canvas\Validation\ValidationInterface;
+use Quellabs\Canvas\Validation\Contracts\ValidationInterface;
 use Quellabs\Canvas\Validation\Rules\NotBlank;
 use Quellabs\Canvas\Validation\Rules\Email;
 use Quellabs\Canvas\Validation\Rules\Length;
@@ -408,7 +400,7 @@ Create your own validation rules by implementing the `ValidationRuleInterface`:
 <?php
 namespace App\Validation\Rules;
 
-use Quellabs\Canvas\Validation\ValidationRuleInterface;
+use Quellabs\Canvas\Validation\Contracts\ValidationRuleInterface;
 
 class StrongPassword implements ValidationRuleInterface {
     

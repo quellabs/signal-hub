@@ -28,7 +28,8 @@
     "quellabs/signal-hub": "^1.0",
     "quellabs/canvas-smarty": "^1.0",
     "quellabs/annotation-reader": "^1.0",
-    "symfony/http-foundation": "*"
+    "symfony/http-foundation": "*",
+    "dragonmantank/cron-expression": "*"
   },
   "autoload": {
     "psr-4": {
