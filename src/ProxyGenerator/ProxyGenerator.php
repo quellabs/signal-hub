@@ -30,7 +30,7 @@
 			$this->reflectionHandler = $entityStore->getReflectionHandler();
 			$this->annotationReader = $entityStore->getAnnotationReader();
 			$this->servicesPaths = $configuration->getEntityPaths();
-			$this->proxyPath = $configuration->getProxyDir() ? realpath($configuration->getProxyDir()) : "";
+			$this->proxyPath = $configuration->getProxyDir() ?? "";
 			$this->proxyNamespace = $configuration->getProxyNamespace() ?: 'Quellabs\\ObjectQuel\\Proxy\\Runtime';
 			
 			$this->types = [
