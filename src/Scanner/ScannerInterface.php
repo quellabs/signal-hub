@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Discover\Provider\ProviderDefinition;
 	
 	/**
 	 * Defines the contract for scanner classes that discover service providers
@@ -11,7 +11,7 @@
 		
 		/**
 		 * Scan for service providers using the configured strategy
-		 * @return array<ProviderInterface> Array of instantiated provider objects
+		 * @return array<ProviderDefinition> Array of provider definitions
 		 */
 		public function scan(): array;
 	}
