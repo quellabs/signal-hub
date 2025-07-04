@@ -26,8 +26,6 @@
 	use Quellabs\ObjectQuel\QueryManagement\QueryExecutor;
 	use Quellabs\ObjectQuel\ReflectionManagement\PropertyHandler;
 	use Quellabs\ObjectQuel\Validation\EntityToValidation;
-	use Quellabs\SignalHub\SignalHub;
-	use Quellabs\SignalHub\SignalHubLocator;
 	
 	/**
 	 * Represents an Entity Manager.
