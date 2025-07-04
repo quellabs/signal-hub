@@ -85,53 +85,56 @@
 					// Extract the entity name from the file and check if it's a valid entity class
 					$entityName = $this->constructEntityName($entityFilePath);
 					
+					// Skip if the entity does not exist
 					if (!$this->entityStore->exists($entityName)) {
 						continue;
 					}
 					
 					// Check if the proxy file is outdated compared to the source entity file
 					// Proxies need to be regenerated when the original entity has been modified
-					if ($this->isOutdated($entityFilePath)) {
-						// Create a lock file to prevent race conditions in multi-threaded/multi-process environments
-						// This ensures that only one process generates the proxy at a time
-						$lockFile = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName . '.lock';
-						$lockHandle = fopen($lockFile, 'c+');
-						
-						// If we can't create the lock file, log the error and skip this entity
-						// This prevents the process from hanging or corrupting proxy files
-						if ($lockHandle === false) {
-							error_log("Could not create lock file for entity: {$fileName}");
-							continue;
-						}
-						
-						try {
-							// Acquire an exclusive lock to ensure only this process modifies the proxy
-							if (flock($lockHandle, LOCK_EX)) {
-								// Double-check if the file is still outdated after acquiring the lock
-								// Another process might have already updated it while we were waiting
-								if ($this->isOutdated($entityFilePath)) {
-									// Generate the full path for the proxy file
-									$proxyFilePath = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName;
-									
-									// Generate the proxy code content for this specific entity
-									$proxyContents = $this->makeProxy($entityName);
-									
-									// Write the generated proxy content to the file system
-									file_put_contents($proxyFilePath, $proxyContents);
-								}
+					if (!$this->isOutdated($entityFilePath)) {
+						continue;
+					}
+					
+					// Create a lock file to prevent race conditions in multi-threaded/multi-process environments
+					// This ensures that only one process generates the proxy at a time
+					$lockFile = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName . '.lock';
+					$lockHandle = fopen($lockFile, 'c+');
+					
+					// If we can't create the lock file, log the error and skip this entity
+					// This prevents the process from hanging or corrupting proxy files
+					if ($lockHandle === false) {
+						error_log("Could not create lock file for entity: {$fileName}");
+						continue;
+					}
+					
+					try {
+						// Acquire an exclusive lock to ensure only this process modifies the proxy
+						if (flock($lockHandle, LOCK_EX)) {
+							// Double-check if the file is still outdated after acquiring the lock
+							// Another process might have already updated it while we were waiting
+							if ($this->isOutdated($entityFilePath)) {
+								// Generate the full path for the proxy file
+								$proxyFilePath = $this->proxyPath . DIRECTORY_SEPARATOR . $fileName;
 								
-								// Release the exclusive lock so other processes can proceed
-								flock($lockHandle, LOCK_UN);
+								// Generate the proxy code content for this specific entity
+								$proxyContents = $this->makeProxy($entityName);
+								
+								// Write the generated proxy content to the file system
+								file_put_contents($proxyFilePath, $proxyContents);
 							}
-						} finally {
-							// Always clean up resources, even if an exception occurs
-							// Close the file handle to free system resources
-							fclose($lockHandle);
 							
-							// Remove the lock file (@ suppresses warnings if file doesn't exist)
-							// This cleanup ensures no stale lock files remain in the system
-							@unlink($lockFile);
+							// Release the exclusive lock so other processes can proceed
+							flock($lockHandle, LOCK_UN);
 						}
+					} finally {
+						// Always clean up resources, even if an exception occurs
+						// Close the file handle to free system resources
+						fclose($lockHandle);
+						
+						// Remove the lock file (@ suppresses warnings if file doesn't exist)
+						// This cleanup ensures no stale lock files remain in the system
+						@unlink($lockFile);
 					}
 				}
 			}
