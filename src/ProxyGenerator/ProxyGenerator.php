@@ -251,6 +251,11 @@
 				return 'mixed';
 			}
 			
+			// Special case for 'self' type
+			if ($type === 'self') {
+				return 'self';
+			}
+			
 			// Determine if type needs namespace prefix
 			$result = in_array($type, $this->types) ? $type : "\\{$type}";
 			
