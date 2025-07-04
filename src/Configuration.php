@@ -215,8 +215,8 @@
 			}
 			
 			// Prefer the 'user' entity path if it exists
-			if (isset($entityPaths['user'])) {
-				return $entityPaths['user'];
+			if (isset($entityPaths['writeable'])) {
+				return $entityPaths['writeable'];
 			}
 			
 			// Fallback to the first available entity path
