@@ -280,27 +280,55 @@
 			
 			// Add the constructor and the lazy load function
 			$result[] = "
-				private \$entityManager;
-				private \$initialized;
-				
-				public function __construct(\\Quellabs\ObjectQuel\\EntityManager \$entityManager) {
-					\$this->entityManager = \$entityManager;
-					\$this->initialized = false;
-					{$constructorParentCode}
-				}
-				
-				protected function doInitialize() {
-					\$this->entityManager->find(\\{$entity}::class, \$this->{$identifierKeysGetterMethod}());
-					\$this->setInitialized();
-				}
-
-				public function isInitialized(): bool {
-					return \$this->initialized;
-				}
-
-				public function setInitialized(): void {
-					\$this->initialized = true;
-				}
+			    /**
+			     * The EntityManager instance used to lazy-load entity data from the database
+			     * @var \\Quellabs\\ObjectQuel\\EntityManager
+			     */
+			    private \\Quellabs\\ObjectQuel\\EntityManager \$entityManager;
+			    
+			    /**
+			     * Flag indicating whether the proxy has been initialized with actual entity data
+			     * @var bool
+			     */
+			    private bool \$initialized;
+			    
+			    /**
+			     * The proxy is created in an uninitialized state and will only load the actual
+			     * entity data from the database when first accessed via doInitialize().
+			     * @param \\Quellabs\\ObjectQuel\\EntityManager \$entityManager The EntityManager instance for database operations
+			     */
+			    public function __construct(\\Quellabs\\ObjectQuel\\EntityManager \$entityManager) {
+			       \$this->entityManager = \$entityManager;
+			       \$this->initialized = false;
+			       {$constructorParentCode}
+			    }
+			    
+			    /**
+			     * This method is called internally when the proxy needs to access entity properties
+			     * or methods for the first time. It uses the EntityManager to fetch the complete
+			     * entity data based on the entity's identifier and marks the proxy as initialized.
+			     * @return void
+			     */
+			    protected function doInitialize(): void {
+			       \$this->entityManager->find(\\{$entity}::class, \$this->{$identifierKeysGetterMethod}());
+			       \$this->setInitialized();
+			    }
+			
+			    /**
+			     * Checks if the proxy has been initialized with actual entity data
+			     * @return bool True if the entity data has been loaded from the database, false otherwise
+			     */
+			    public function isInitialized(): bool {
+			       return \$this->initialized;
+			    }
+			
+			    /**
+			     * Marks the proxy as initialized
+			     * @return void
+			     */
+			    public function setInitialized(): void {
+			       \$this->initialized = true;
+			    }
 			";
 			
 			// Loop through all methods of the given object to generate proxy methods.
