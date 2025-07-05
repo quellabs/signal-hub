@@ -534,9 +534,7 @@ class ApplicationBootstrap {
         } else {
             // Perform discovery and cache results
             $discover->addScanner(new ComposerScanner());
-            $discover->addScanner(new DirectoryScanner([
-                __DIR__ . '/app/Providers'
-            ]));
+            $discover->addScanner(new DirectoryScanner([__DIR__ . '/app/Providers']));
             $discover->discover();
             
             // Cache gathered provider information for future requests
@@ -559,19 +557,22 @@ Implement the `ScannerInterface` to create custom scanners:
 
 namespace App\Discovery;
 
+use Quellabs\Contracts\Discovery\ProviderDefinition;
 use Quellabs\Discover\Scanner\ScannerInterface;
 use Quellabs\Discover\Config\DiscoveryConfig;
 
 class CustomScanner implements ScannerInterface {
-    public function scan(DiscoveryConfig $config): array {
+    public function scan(): array {
         // Your custom discovery logic
         // Return an array of ['class' => $className, 'family' => $family, 'config' => $configFile]
         return [
-            [
-                'class' => 'App\\Providers\\CustomProvider',
-                'family' => 'custom',
-                'config' => 'config/custom.php'
-            ]
+            new ProviderDefinition {
+                className: 'xyz',
+				family: 'custom',
+				configFile: 'config/config.php',
+				metadata: [],
+				defaults: []                
+            }
         ];
     }
 }
