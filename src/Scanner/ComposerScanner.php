@@ -2,6 +2,7 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	
@@ -57,7 +58,7 @@
 		
 		/**
 		 * Main entry point for provider discovery
-		 * @return array<ProviderInterface> Array of instantiated provider objects
+		 * @return array<ProviderDefinition> Array of provider definitions
 		 */
 		public function scan(): array {
 			// Discover providers defined within the current project structure
@@ -138,10 +139,9 @@
 			// while older versions use the root array directly
 			$packagesList = $packagesData['packages'] ?? $packagesData;
 			
-			// Initialize collection for all discovered providers across packages
-			$allProviders = [];
-			
 			// Iterate through each installed package to check for provider definitions
+			$definitions = [];
+
 			foreach ($packagesList as $package) {
 				// Check if package has opted into auto-discovery via 'extra.discover' section
 				// This is the standard convention for packages that want their providers discovered
@@ -152,12 +152,12 @@
 					
 					// Merge discovered providers into the main collection
 					// Maintains order of discovery across packages
-					$allProviders = array_merge($allProviders, $packageProviders);
+					$definitions = array_merge($definitions, $packageProviders);
 				}
 			}
 			
 			// Return all providers discovered from installed packages
-			return $allProviders;
+			return $definitions;
 		}
 		
 		/**
@@ -218,24 +218,50 @@
 			// from the composer config's discovery section (typically extra.discover)
 			$providersWithConfig = $this->extractProviderClasses($composerConfig);
 			
-			// Initialize collection for providers that pass validation
-			$validProviders = [];
-			
 			// Validate each discovered provider class individually
+			$validProviders = [];
+
 			foreach ($providersWithConfig as $providerData) {
 				// Perform comprehensive validation on the provider class:
 				// - Check if class exists and can be autoloaded
 				// - Verify it implements required ProviderInterface
 				// - Ensure constructor is compatible with dependency injection
 				if ($this->validateProviderClass($providerData['class'])) {
-					// Only include providers that pass all validation checks
-					// This prevents runtime errors during provider instantiation
-					$validProviders[] = $providerData;
+					try {
+						// Only include providers that pass all validation checks
+						// This prevents runtime errors during provider instantiation
+						$validProviders[] = $this->createProviderDefinition($providerData);
+					} catch (\InvalidArgumentException $e) {
+						// Skip invalid provider definitions
+						continue;
+					}
 				}
 			}
 			
 			// Return only the providers that are confirmed to be valid and usable
 			return $validProviders;
+		}
+		
+		/**
+		 * Create a ProviderDefinition from provider data
+		 * @param array $providerData Raw provider data
+		 * @return ProviderDefinition
+		 */
+		private function createProviderDefinition(array $providerData): ProviderDefinition {
+			// Get class name
+			$className = $providerData['class'];
+			
+			// Get metadata and defaults - interface guarantees these methods exist
+			$metadata = $className::getMetadata();
+			$defaults = $className::getDefaults();
+			
+			return new ProviderDefinition(
+				className: $className,
+				family: $providerData['family'],
+				configFile: $providerData['config'] ?? null,
+				metadata: $metadata,
+				defaults: $defaults
+			);
 		}
 		
 		/**
@@ -281,15 +307,15 @@
 				return [];
 			}
 			
-			// Initialize collection for all discovered providers across families
+			// Initialize the collection for all discovered providers across families
 			$allProviders = [];
 			
 			// Process each provider family within the discovery section
 			// Families group related providers (e.g., 'services', 'middleware', 'commands')
-			foreach ($discoverSection as $familyKey => $configSection) {
+			foreach ($discoverSection as $familyName => $configSection) {
 				// Apply family filtering if a specific family name has been configured
 				// This allows selective discovery of only certain provider types
-				if ($this->familyName !== null && $familyKey !== $this->familyName) {
+				if ($this->familyName !== null && $familyName !== $this->familyName) {
 					continue;
 				}
 				
@@ -299,15 +325,13 @@
 					continue;
 				}
 				
-				// Extract providers using multiple supported configuration formats:
-				
 				// Handle array format: multiple providers listed in an array
 				// Format: "family": ["Provider1", "Provider2", ...]
-				$multipleProviders = $this->extractMultipleProviders($configSection, $familyKey);
+				$multipleProviders = $this->extractMultipleProviders($configSection, $familyName);
 				
 				// Handle object format: single provider with additional configuration
 				// Format: "family": {"provider": "ProviderClass", "config": {...}}
-				$singularProvider = $this->extractSingularProvider($configSection, $familyKey);
+				$singularProvider = $this->extractSingularProvider($configSection, $familyName);
 				
 				// Combine all providers found in this family into the main collection
 				// Order is preserved: multiple providers first, then singular provider

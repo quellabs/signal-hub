@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Discover\Config\DiscoveryConfig;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use ReflectionClass;
@@ -65,77 +65,24 @@
 		}
 		
 		/**
-		 * Add a directory to scan
-		 * @param string $directory
-		 * @return self
-		 */
-		public function addDirectory(string $directory): self {
-			if (!in_array($directory, $this->directories) && is_dir($directory)) {
-				$this->directories[] = $directory;
-			}
-			
-			return $this;
-		}
-		
-		/**
-		 * Set the class name pattern
-		 * @param string $pattern
-		 * @return self
-		 */
-		public function setPattern(string $pattern): self {
-			$this->pattern = $pattern;
-			return $this;
-		}
-		
-		/**
 		 * Scan directories for classes that implement ProviderInterface
-		 * @param DiscoveryConfig $config
-		 * @return array Array of provider data with class and family information
+		 * @return array<ProviderDefinition> Array of provider definitions
 		 */
-		public function scan(DiscoveryConfig $config): array {
-			$providerData = [];
+		public function scan(): array {
+			// Get the configured directories to scan
 			$dirs = $this->directories;
 			
-			// If no directories specified, use config default directories
-			if (empty($dirs)) {
-				$dirs = $config->getDefaultDirectories();
-			}
-			
+			// Scan each directory and merge the results
+			$providerData = [];
+
 			foreach ($dirs as $directory) {
-				$providerData = array_merge(
-					$providerData,
-					$this->scanDirectory($directory, $config->isDebugEnabled())
-				);
+				// Scan individual directory and combine results with existing discoveries
+				// Each scanDirectory call returns an array of ProviderDefinition objects
+				$providerData = array_merge($providerData, $this->scanDirectory($directory));
 			}
 			
+			// Return all discovered provider definitions across all directories
 			return $providerData;
-		}
-		
-		/**
-		 * Set a common naming convention pattern
-		 * @param string $convention The naming convention to use ('suffix', 'prefix', or 'namespace')
-		 * @param string $value The value to match (e.g., 'Provider' for suffix)
-		 * @return self
-		 */
-		public function setNamingConvention(string $convention, string $value): self {
-			switch (strtolower($convention)) {
-				case 'suffix':
-					$this->pattern = '/' . preg_quote($value) . '$/';
-					break;
-				
-				case 'prefix':
-					$this->pattern = '/^' . preg_quote($value) . '/';
-					break;
-				
-				case 'namespace':
-					$this->pattern = '/^' . str_replace('\\', '\\\\', $value) . '\\\\/';
-					break;
-				
-				default:
-					throw new \InvalidArgumentException("Unknown naming convention: {$convention}");
-			}
-			
-			return $this;
 		}
 		
 		/**
@@ -143,49 +90,42 @@
 		 * attempts to extract class names from them, and checks if each class implements
 		 * the ProviderInterface. All valid provider class data is returned.
 		 * @param string $directory The root directory path to begin scanning
-		 * @param bool $debug Whether to output debug messages during the scanning process
 		 * @return array Array of provider data with class and family information
 		 */
-		protected function scanDirectory(string $directory, bool $debug = false): array {
+		protected function scanDirectory(string $directory): array {
 			// Verify the directory exists and is accessible before attempting to scan
 			if (!is_dir($directory) || !is_readable($directory)) {
-				// Log warning if the directory can't be accessed and debug is enabled
-				if ($debug) {
-					echo "[WARNING] Directory not readable: {$directory}\n";
-				}
-				
 				return [];
 			}
 			
 			// Fetch all provider classes found in the directory
-			$classes = $this->utilities->findClassesInDirectory($directory, function($className) use ($debug) {
-				// Check if the class is a valid provider
-				return $this->isValidProviderClass($className, $debug);
+			$classes = $this->utilities->findClassesInDirectory($directory, function($className) {
+				return $this->isValidProviderClass($className);
 			});
 			
 			// Process each valid class found in the directory structure
-			$providerData = [];
+			$definitions = [];
 			
 			foreach ($classes as $className) {
-				// Add the provider data to our results
-				$providerData[] = [
-					'class'  => $className,
-					'family' => $this->defaultFamily,
-					'config' => null
-				];
+				$definitions[] = new ProviderDefinition(
+					className: $className,
+					family: $this->defaultFamily,
+					configFile: null,
+					metadata: $className::getMetadata(),
+					defaults: $className::getDefaults()
+				);
 			}
 			
 			// Return all discovered provider class data from the directory
-			return $providerData;
+			return $definitions;
 		}
-		
+
 		/**
 		 * Check if a class implements ProviderInterface and matches the pattern
 		 * @param string $className Fully qualified class name to check
-		 * @param bool $debug Whether to output error messages when exceptions occur
 		 * @return bool True if the class is a valid provider, false otherwise
 		 */
-		protected function isValidProviderClass(string $className, bool $debug = false): bool {
+		protected function isValidProviderClass(string $className): bool {
 			// Skip already scanned classes to prevent duplicate processing
 			// This improves performance when scanning large codebases
 			if (isset($this->scannedClasses[$className])) {
@@ -224,10 +164,6 @@
 			} catch (\Throwable $e) {
 				// Handle any exceptions that might occur during class inspection
 				// Common issues include autoloading errors or reflection failures
-				if ($debug) {
-					echo "[ERROR] Failed to check class {$className}: {$e->getMessage()}\n";
-				}
-				
 				return false;
 			}
 		}
