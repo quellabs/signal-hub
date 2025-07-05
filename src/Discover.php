@@ -212,11 +212,9 @@
 		/**
 		 * Find providers by metadata using a filter function (with lazy instantiation)
 		 * @param callable $metadataFilter Function that receives metadata and returns bool
-		 * @return array<ProviderInterface>
+		 * @return \Generator
 		 */
-		public function findProvidersByMetadata(callable $metadataFilter): array {
-			$providers = [];
-
+		public function findProvidersByMetadata(callable $metadataFilter): \Generator {
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
 				// Apply the metadata filter function to determine if this provider matches
 				if ($metadataFilter($definition->metadata)) {
@@ -226,22 +224,18 @@
 					
 					// Add provider to results only if instantiation succeeded
 					if ($provider) {
-						$providers[] = $provider;
+						yield $provider;
 					}
 				}
 			}
-			
-			return $providers;
 		}
 		
 		/**
 		 * Find all providers of a specific family type (with lazy instantiation)
 		 * @param string $family The family type to filter by
-		 * @return array<ProviderInterface>
+		 * @return \Generator
 		 */
-		public function findProvidersByFamily(string $family): array {
-			$providers = [];
-
+		public function findProvidersByFamily(string $family): \Generator {
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
 				// Check if the current definition belongs to the requested family
 				if ($definition->belongsToFamily($family)) {
@@ -251,23 +245,19 @@
 					
 					// Add the provider to results only if instantiation was successful
 					if ($provider) {
-						$providers[] = $provider;
+						yield $provider;
 					}
 				}
 			}
-			
-			return $providers;
 		}
 		
 		/**
 		 * Find providers that match a specific family and metadata filter (with lazy instantiation)
 		 * @param string $family The family to filter by
 		 * @param callable $metadataFilter Function that receives metadata and returns bool
-		 * @return array<ProviderInterface>
+		 * @return \Generator
 		 */
-		public function findProvidersByFamilyAndMetadata(string $family, callable $metadataFilter): array {
-			$providers = [];
-
+		public function findProvidersByFamilyAndMetadata(string $family, callable $metadataFilter): \Generator {
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
 				if ($definition->belongsToFamily($family) && $metadataFilter($definition->metadata)) {
 					// Lazily instantiate the provider only when it matches both criteria.
@@ -276,12 +266,10 @@
 					
 					// Only add successfully instantiated providers to the result
 					if ($provider) {
-						$providers[] = $provider;
+						yield $provider;
 					}
 				}
 			}
-			
-			return $providers;
 		}
 		
 		/**
@@ -503,6 +491,9 @@
 				return $provider;
 				
 			} catch (\Throwable $e) {
+				// Log error
+				error_log("Couldn't instantiate provider {$className}: {$e->getMessage()}");
+
 				// Return null if any exception occurs during instantiation or configuration
 				return null;
 			}
