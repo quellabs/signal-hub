@@ -19,8 +19,8 @@
     }
   },
   "require": {
-    "quellabs/contracts": "dev-feature/provider-definition",
-    "ext-ctype": "*"
+    "ext-ctype": "*",
+    "quellabs/contracts": "^1."
   },
   "autoload": {
     "psr-4": {
