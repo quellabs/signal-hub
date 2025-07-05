@@ -566,13 +566,13 @@ class CustomScanner implements ScannerInterface {
         // Your custom discovery logic
         // Return an array of ['class' => $className, 'family' => $family, 'config' => $configFile]
         return [
-            new ProviderDefinition {
+            new ProviderDefinition(
                 className: 'xyz',
 				family: 'custom',
 				configFile: 'config/config.php',
 				metadata: [],
 				defaults: []                
-            }
+            )
         ];
     }
 }
