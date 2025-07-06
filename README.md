@@ -46,7 +46,7 @@ Quellabs Discover solves the common challenge of service discovery in PHP applic
 - **Provider Families**: Organize providers into logical groups
 - **Efficient Discovery**: Uses static methods to gather metadata without instantiation
 - **Efficient Caching**: Export and import provider definitions for lightning-fast subsequent loads
-- **PSR-4 Utilities**: Built-in tools for namespace and class discovery
+- **Composer Path Resolving**: Built-in tools for namespace and class discovery
 
 ## Installation
 
@@ -108,8 +108,8 @@ class ExampleServiceProvider extends AbstractProvider {
     public static function getMetadata(): array {
         return [
             'capabilities' => ['redis', 'clustering'],
-            'version' => '1.0.0',
-            'priority' => 10
+            'version'      => '1.0.0',
+            'priority'     => 10
         ];
     }
     
@@ -119,8 +119,8 @@ class ExampleServiceProvider extends AbstractProvider {
      */
     public static function getDefaults(): array {
         return [
-            'host' => 'localhost',
-            'port' => 6379,
+            'host'    => 'localhost',
+            'port'    => 6379,
             'timeout' => 2.5
         ];
     }

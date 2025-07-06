@@ -2,12 +2,12 @@
 	
 	namespace Quellabs\Discover;
 	
-	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use RuntimeException;
 	use Composer\Autoload\ClassLoader;
-	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Discover\Scanner\ScannerInterface;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
+	use Quellabs\Discover\Utilities\ComposerPathResolver;
 	
 	class Discover {
 		
@@ -17,9 +17,9 @@
 		protected array $scanners = [];
 		
 		/**
-		 * @var PSR4 PSR-4 Utility Class
+		 * @var ComposerPathResolver PSR-4 Utility Class
 		 */
-		private PSR4 $utilities;
+		private ComposerPathResolver $utilities;
 		
 		/**
 		 * @var array<string, ProviderDefinition> Provider definitions indexed by unique keys
@@ -35,7 +35,7 @@
 		 * Create a new Discover instance
 		 */
 		public function __construct() {
-			$this->utilities = new PSR4();
+			$this->utilities = new ComposerPathResolver();
 		}
 		
 		/**
@@ -60,10 +60,10 @@
 		}
 		
 		/**
-		 * Check if the discovery process has been run and providers have been found
+		 * Check if any providers were discovered
 		 * @return bool True if providers have been discovered, false if no discovery has occurred
 		 */
-		public function hasDiscovered(): bool {
+		public function hasProviders(): bool {
 			return !empty($this->providerDefinitions);
 		}
 		
@@ -100,11 +100,6 @@
 		 * @return T|null The provider instance if found, null otherwise
 		 */
 		public function get(string $className) {
-			// If the class does exist, we do not need to check the provider definitions
-			if (!class_exists($className)) {
-				return null;
-			}
-			
 			// Iterate through all discovered provider definitions.
 			// Each definition contains metadata gathered during discovery without instantiation.
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
@@ -354,24 +349,6 @@
 		 */
 		public function getProjectRoot(?string $directory = null): ?string {
 			return $this->utilities->getProjectRoot($directory);
-		}
-		
-		/**
-		 * Find the path to the local composer.json file
-		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to composer.json if found, null otherwise
-		 */
-		public function getComposerJsonFilePath(?string $startDirectory = null): ?string {
-			return $this->utilities->getComposerJsonFilePath($startDirectory);
-		}
-		
-		/**
-		 * Find the path to installed.json
-		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to composer.json if found, null otherwise
-		 */
-		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
-			return $this->utilities->getComposerInstalledFilePath($startDirectory);
 		}
 		
 		/**

@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\Discover\Utilities;
 	
-	use Composer\Autoload\ClassLoader;
 	use RuntimeException;
+	use Composer\Autoload\ClassLoader;
 	
-	class PSR4 {
+	class ComposerPathResolver {
 		
 		/**
 		 * @var string|null Cached project root
@@ -110,23 +110,57 @@
 		}
 		
 		/**
-		 * Find the path to Composer's installed.json file
-		 * This file contains information about all installed packages
+		 * Find the path to the discovery mapping file
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @return string|null Path to the discovery mapping file if found, null otherwise
+		 */
+		public function getDiscoveryMappingPath(?string $startDirectory = null): ?string {
+			// Find the directory containing composer.json, starting from provided directory or current directory
+			$projectRoot = $this->getProjectRoot($startDirectory);
+			
+			// If we couldn't find the project root, we can't locate any mapping files
+			if (!$projectRoot) {
+				return null;
+			}
+			
+			// Check for a custom mapping file in composer.json
+			$composerJsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
+			
+			if (file_exists($composerJsonPath)) {
+				$composerJson = $this->parseComposerJson($composerJsonPath);
+				$customPath = $composerJson['extra']['discover']['mapping-file'] ?? null;
+				
+				if ($customPath) {
+					$absolutePath = $projectRoot . DIRECTORY_SEPARATOR . $customPath;
+					return str_starts_with($customPath, '/') ? $customPath : $absolutePath;
+				}
+			}
+			
+			// Check the default path
+			$defaultPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'discovery-mapping.php';
+			return file_exists($defaultPath) ? $defaultPath : null;
+		}
+		
+		/**
+		 * Find the path to Composer's installed.json file (legacy format)
+		 * This file contains package information in JSON format (pre-Composer 2.1)
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
 		 * @return string|null Path to installed.json if found, null otherwise
 		 */
-		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
-			// First find the project root, as we'll need to navigate to vendor/composer from there
+		public function getComposerInstalledJsonPath(?string $startDirectory = null): ?string {
+			// Find the project root to navigate to vendor/composer from there
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
-			// If we couldn't find the project root, we can't locate installed.json
+			// If we couldn't find the project root, we can't locate the file
 			if ($projectRoot === null) {
 				return null;
 			}
 			
-			// The installed.json file is typically located in vendor/composer directory
-			return $projectRoot . DIRECTORY_SEPARATOR . 'vendor' .
-				DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+			// Construct the path to the legacy JSON format file
+			$jsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+			
+			// Return the path if the file exists
+			return file_exists($jsonPath) ? $jsonPath : null;
 		}
 		
 		/**
@@ -226,7 +260,7 @@
 			
 			return $classNames;
 		}
-
+		
 		/**
 		 * Resolves relative path components without checking file existence
 		 * @param string $path The path to resolve (e.g., "hallo/../test")
@@ -332,8 +366,7 @@
 		 * When multiple PSR-4 prefixes could match a directory, we select the one with the
 		 * longest matching path, which is typically the most specific match.
 		 * @param string $directory Absolute directory path to find namespace for
-		 * @param array $prefixesPsr4 PSR-4 namespace prefixes and their directories
-		 *                           Format: ['Namespace\\' => ['/path/to/dir', '/another/path']]
+		 * @param array<string, array<string>|string> $prefixesPsr4 PSR-4 namespace prefixes and their directories
 		 * @return string|null The complete namespace for the directory, or null if no match found
 		 */
 		private function findMostSpecificNamespace(string $directory, array $prefixesPsr4): ?string {
@@ -531,13 +564,34 @@
 			// Define regex patterns for common shared hosting directory structures
 			// These patterns help identify the project root by matching typical hosting layouts
 			$patterns = [
-				// cPanel/Plesk pattern: /var/www/vhosts/domain.com/httpdocs -> /var/www/vhosts/domain.com
-				// Captures the domain directory as the project root, not the web-accessible folder
-				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public)(/.*)?$#',
+				// cPanel variations
+				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public|www)(/.*)?$#',
+				'#^(/home/[^/]+)/(public_html|www|htdocs|web)(/.*)?$#',
 				
-				// Home directory pattern: /home/username/public_html -> /home/username
-				// Common in shared hosting where users have home directories
-				'#^(/home/[^/]+)/(public_html|www)(/.*)?$#',
+				// Plesk variations
+				'#^(/var/www/vhosts/[^/]+/domains/[^/]+)/(public_html|httpdocs)(/.*)?$#',
+				
+				// DirectAdmin
+				'#^(/home/[^/]+/domains/[^/]+)/(public_html|htdocs)(/.*)?$#',
+				
+				// HostGator/Bluehost variations
+				'#^(/home\d*/[^/]+)/(public_html|www)(/.*)?$#',
+				
+				// ISPConfig
+				'#^(/var/www/[^/]+)/(web|public)(/.*)?$#',
+				
+				// Webmin/Virtualmin
+				'#^(/home/[^/]+/public_html/[^/]+)/(web|public)(/.*)?$#',
+				
+				// Custom hosting setups
+				'#^(/srv/www/[^/]+)/(public|htdocs|public_html)(/.*)?$#',
+				'#^(/opt/lampp/htdocs/[^/]+)/(public|web)(/.*)?$#',
+				
+				// Docker/container patterns
+				'#^(/var/www/html/[^/]+)/(public|web)(/.*)?$#',
+				
+				// Shared hosting with user IDs
+				'#^(/home/u\d+-[^/]+)/(public_html|www)(/.*)?$#',
 			];
 			
 			// Test each pattern against the current directory path
@@ -603,7 +657,7 @@
 			}
 			
 			// Step 3: Split into components and filter out empty parts
-			$components = array_filter(explode('/', $pathWithoutPrefix), function($part) {
+			$components = array_filter(explode('/', $pathWithoutPrefix), function ($part) {
 				return $part !== '';
 			});
 			

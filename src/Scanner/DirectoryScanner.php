@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
+	use Psr\Log\LoggerInterface;
+	use Quellabs\Discover\Utilities\ComposerPathResolver;
+	use Quellabs\Discover\Utilities\ProviderValidator;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
-	use Quellabs\Discover\Utilities\PSR4;
-	use Quellabs\Contracts\Discovery\ProviderInterface;
-	use ReflectionClass;
 	
 	/**
 	 * Scans directories for classes that implement ProviderInterface
@@ -15,6 +15,17 @@
 	 * 2. Implement the ProviderInterface
 	 */
 	class DirectoryScanner implements ScannerInterface {
+		
+		/**
+		 * Constants
+		 */
+		private const string DEFAULT_FAMILY_NAME = 'default';
+		
+		/**
+		 * Class used for logging
+		 * @var LoggerInterface|null
+		 */
+		private ?LoggerInterface $logger;
 		
 		/**
 		 * Directories to scan
@@ -47,9 +58,15 @@
 		protected array $scannedClasses = [];
 		
 		/**
-		 * @var PSR4 PSR-4 utilities
+		 * @var ComposerPathResolver PSR-4 utilities
 		 */
-		private PSR4 $utilities;
+		protected ComposerPathResolver $utilities;
+		
+		/**
+		 * Class responsible for validating providers are valid
+		 * @var ProviderValidator
+		 */
+		protected ProviderValidator $providerValidator;
 		
 		/**
 		 * DirectoryScanner constructor
@@ -57,11 +74,18 @@
 		 * @param string|null $pattern Regex pattern for class names (e.g., '/Provider$/')
 		 * @param string $defaultFamily Default family name for discovered providers
 		 */
-		public function __construct(array $directories = [], ?string $pattern = null, string $defaultFamily = 'default') {
+		public function __construct(
+			array $directories = [],
+			?string $pattern = null,
+			string $defaultFamily = self::DEFAULT_FAMILY_NAME,
+			?LoggerInterface $logger = null
+		) {
 			$this->directories = $directories;
 			$this->pattern = $pattern;
 			$this->defaultFamily = $defaultFamily;
-			$this->utilities = new PSR4();
+			$this->utilities = new ComposerPathResolver();
+			$this->logger = $logger;
+			$this->providerValidator = new ProviderValidator($logger, "DirectoryScanner");
 		}
 		
 		/**
@@ -81,6 +105,12 @@
 				$providerData = array_merge($providerData, $this->scanDirectory($directory));
 			}
 			
+			// Log the summary of the scan
+			$this->logger?->info('Directory scanning completed', [
+				'total_providers'     => count($providerData),
+				'directories_scanned' => count($dirs)
+			]);
+			
 			// Return all discovered provider definitions across all directories
 			return $providerData;
 		}
@@ -95,76 +125,52 @@
 		protected function scanDirectory(string $directory): array {
 			// Verify the directory exists and is accessible before attempting to scan
 			if (!is_dir($directory) || !is_readable($directory)) {
+				$this->logger?->warning('Cannot scan directory', [
+					'scanner'   => 'DirectoryScanner',
+					'reason'    => 'directory_not_readable',
+					'directory' => $directory,
+					'exists'    => is_dir($directory),
+					'readable'  => is_readable($directory)
+				]);
+
 				return [];
 			}
 			
 			// Fetch all provider classes found in the directory
+			// Filter out the class names we don't want (filter)
 			$classes = $this->utilities->findClassesInDirectory($directory, function($className) {
-				return $this->isValidProviderClass($className);
+				// Check class validity
+				if (!$this->providerValidator->validate($className)) {
+					return false;
+				}
+				
+				// If a naming pattern was specified, check if the class name matches
+				// This allows filtering for specific naming conventions (e.g., all classes ending with "Provider")
+				return $this->pattern === null || preg_match($this->pattern, $className);
 			});
 			
 			// Process each valid class found in the directory structure
 			$definitions = [];
 			
 			foreach ($classes as $className) {
-				$definitions[] = new ProviderDefinition(
-					className: $className,
-					family: $this->defaultFamily,
-					configFile: null,
-					metadata: $className::getMetadata(),
-					defaults: $className::getDefaults()
-				);
+				try {
+					$definitions[] = new ProviderDefinition(
+						className: $className,
+						family: $this->defaultFamily,
+						configFile: null,
+						metadata: $className::getMetadata(),
+						defaults: $className::getDefaults()
+					);
+				} catch (\Throwable $e) {
+					$this->logger?->warning('Failed to create provider definition', [
+						'scanner' => 'DirectoryScanner',
+						'class'   => $className,
+						'error'   => $e->getMessage()
+					]);
+				}
 			}
 			
 			// Return all discovered provider class data from the directory
 			return $definitions;
-		}
-
-		/**
-		 * Check if a class implements ProviderInterface and matches the pattern
-		 * @param string $className Fully qualified class name to check
-		 * @return bool True if the class is a valid provider, false otherwise
-		 */
-		protected function isValidProviderClass(string $className): bool {
-			// Skip already scanned classes to prevent duplicate processing
-			// This improves performance when scanning large codebases
-			if (isset($this->scannedClasses[$className])) {
-				return false;
-			}
-			
-			// Mark this class as scanned for future reference
-			$this->scannedClasses[$className] = true;
-			
-			try {
-				// Attempt to load the class using PHP's autoloader
-				// Returns false if the class doesn't exist or can't be loaded
-				if (!class_exists($className)) {
-					return false;
-				}
-				
-				// If a naming pattern was specified, check if the class name matches
-				// This allows filtering for specific naming conventions (e.g., all classes ending with "Provider")
-				if ($this->pattern !== null && !preg_match($this->pattern, $className)) {
-					return false;
-				}
-				
-				// Create a reflection instance to inspect the class's properties and interfaces
-				$reflectionClass = new ReflectionClass($className);
-				
-				// Abstract classes cannot be instantiated, so they can't be used as providers
-				// This prevents attempting to instantiate abstract classes later
-				if ($reflectionClass->isAbstract()) {
-					return false;
-				}
-				
-				// Final check: verify that the class implements the required interface
-				// Only classes implementing ProviderInterface are considered valid providers
-				return $reflectionClass->implementsInterface(ProviderInterface::class);
-				
-			} catch (\Throwable $e) {
-				// Handle any exceptions that might occur during class inspection
-				// Common issues include autoloading errors or reflection failures
-				return false;
-			}
 		}
 	}
