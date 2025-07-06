@@ -160,8 +160,8 @@
 		}
 		
 		/**
-		 * Extract extra data from composer lock file
-		 * @param array $lockData The complete composer.lock file data
+		 * Extract extra data from the service discovery bootstrap file
+		 * @param array $lockData
 		 * @return array Associative array mapping package names to their extra data
 		 */
 		private function extractServiceMap(array $lockData): array {
@@ -171,33 +171,17 @@
 			// The 'packages' key contains production dependencies
 			if (isset($lockData['packages'])) {
 				foreach ($lockData['packages'] as $package) {
-					$this->processPackageExtra($package, $extraMap);
+					// Skip invalid packages  (shouldn't happen but safety first)
+					if (empty($package['name']) || empty($package['extra'])) {
+						continue;
+					}
+					
+					// Add to the map
+					$extraMap[$package['name']] = $package['extra'];
 				}
 			}
 			
 			return $extraMap;
-		}
-		
-		/**
-		 * Process a single package for extra data
-		 * @param array $package Single package data from composer.lock
-		 * @param array &$extraMap Reference to the output map being built
-		 */
-		private function processPackageExtra(array $package, array &$extraMap): void {
-			// Get the package name (required for mapping)
-			$packageName = $package['name'] ?? null;
-			
-			if (!$packageName) {
-				return; // Skip packages without names (shouldn't happen but safety first)
-			}
-			
-			// Get the complete extra block from the package
-			$extra = $package['extra'] ?? [];
-			
-			// Only add to the map if the package actually has extra data
-			if (!empty($extra)) {
-				$extraMap[$packageName] = $extra;
-			}
 		}
 		
 		/**
