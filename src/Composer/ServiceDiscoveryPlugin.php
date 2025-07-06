@@ -98,7 +98,8 @@
 		 */
 		private function generateServiceMap(Composer $composer, IOInterface $io): void {
 			try {
-				$io->write('<info>Generating package extra data map...</info>');
+				// Output message
+				$io->write('<info>Building service discovery map from package metadata...</info>');
 				
 				// Get the lock file data - this contains the exact versions and metadata
 				// of all installed packages as recorded during the last install/update
@@ -106,7 +107,7 @@
 				
 				// Check if composer.lock exists - without it we can't generate the map
 				if (!$locker->isLocked()) {
-					$io->writeError('<warning>No composer.lock file found. Skipping service map generation.</warning>');
+					$io->writeError('<warning>Cannot generate service discovery map: composer.lock file not found.</warning>');
 					return;
 				}
 				
@@ -118,7 +119,7 @@
 				
 				// Skip file generation if no packages have extra data
 				if (empty($extraMap)) {
-					$io->write('<comment>No packages with "extra" data found.</comment>');
+					$io->write('<comment>No packages found with service discovery metadata (extra data).</comment>');
 					return;
 				}
 				
@@ -136,12 +137,12 @@
 				$this->writeExtraMapFile($outputPath, $extraMap);
 				
 				// Show success messages with statistics
-				$io->write("<info>Extra map generated successfully at: {$outputPath}</info>");
-				$io->write("<comment>Found " . count($extraMap) . " packages with extra data.</comment>");
+				$io->write("<info>Service discovery map generated: {$outputPath}</info>");
+				$io->write("<comment>Registered " . count($extraMap) . " packages with discoverable services.</comment>");
 				
 			} catch (\Exception $e) {
 				// Handle any errors that occur during the generation process
-				$io->writeError("<error>Failed to generate service map: {$e->getMessage()}</error>");
+				$io->writeError("<error>Service discovery map generation failed: {$e->getMessage()}</error>");
 			}
 		}
 		
