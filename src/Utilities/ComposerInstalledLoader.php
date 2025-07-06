@@ -10,9 +10,9 @@
 	class ComposerInstalledLoader {
 		
 		/**
-		 * @var PSR4 Path resolution utility
+		 * @var ComposerPathResolver Path resolution utility
 		 */
-		private PSR4 $pathResolver;
+		private ComposerPathResolver $pathResolver;
 		
 		/**
 		 * @var array<string, array|null> Cache of parsed installed files
@@ -27,14 +27,14 @@
 		
 		/**
 		 * Constructor
-		 * @param PSR4|null $pathResolver Optional PSR4 instance (creates new one if not provided)
+		 * @param ComposerPathResolver|null $pathResolver Optional PSR4 instance (creates new one if not provided)
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
 		 */
 		public function __construct(
-			?PSR4 $pathResolver = null,
+			?ComposerPathResolver $pathResolver = null,
 			?string $startDirectory = null
 		) {
-			$this->pathResolver = $pathResolver ?? new PSR4();
+			$this->pathResolver = $pathResolver ?? new ComposerPathResolver();
 			$this->startDirectory = $startDirectory;
 		}
 		
@@ -68,7 +68,7 @@
 		/**
 		 * Parse a JSON file and return package extra data as an array
 		 * @param string $filePath Path to the JSON file
-		 * @return array|null Parsed extra data as "package-name" => extra_block or null on failure
+		 * @return array Parsed extra data as "package-name" => extra_block
 		 */
 		protected function parseJsonFile(string $filePath): array {
 			// Check if the file exists and is readable

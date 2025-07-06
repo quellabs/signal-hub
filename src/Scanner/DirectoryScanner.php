@@ -3,7 +3,7 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Psr\Log\LoggerInterface;
-	use Quellabs\Discover\Utilities\PSR4;
+	use Quellabs\Discover\Utilities\ComposerPathResolver;
 	use Quellabs\Discover\Utilities\ProviderValidator;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
@@ -58,9 +58,9 @@
 		protected array $scannedClasses = [];
 		
 		/**
-		 * @var PSR4 PSR-4 utilities
+		 * @var ComposerPathResolver PSR-4 utilities
 		 */
-		protected PSR4 $utilities;
+		protected ComposerPathResolver $utilities;
 		
 		/**
 		 * Class responsible for validating providers are valid
@@ -83,7 +83,7 @@
 			$this->directories = $directories;
 			$this->pattern = $pattern;
 			$this->defaultFamily = $defaultFamily;
-			$this->utilities = new PSR4();
+			$this->utilities = new ComposerPathResolver();
 			$this->logger = $logger;
 			$this->providerValidator = new ProviderValidator($logger, "DirectoryScanner");
 		}

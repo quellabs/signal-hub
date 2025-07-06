@@ -2,10 +2,10 @@
 	
 	namespace Quellabs\Discover\Utilities;
 	
-	use Composer\Autoload\ClassLoader;
 	use RuntimeException;
+	use Composer\Autoload\ClassLoader;
 	
-	class PSR4 {
+	class ComposerPathResolver {
 		
 		/**
 		 * @var string|null Cached project root
@@ -118,7 +118,7 @@
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
-			// If we couldn't find the project root, we can't locate installed.json
+			// If we couldn't find the project root, we can't locate discovery-mapping.php
 			if ($projectRoot === null) {
 				return null;
 			}
@@ -131,7 +131,7 @@
 				$projectRoot . '/discovery-mapping.php',
 			];
 			
-			foreach($possiblePaths as $path) {
+			foreach ($possiblePaths as $path) {
 				if (file_exists($path)) {
 					return $path;
 				}
@@ -260,7 +260,7 @@
 			
 			return $classNames;
 		}
-
+		
 		/**
 		 * Resolves relative path components without checking file existence
 		 * @param string $path The path to resolve (e.g., "hallo/../test")
@@ -281,7 +281,7 @@
 			// Return the resolved path
 			return $resolved;
 		}
-
+		
 		/**
 		 * Attempts to find namespace from the registered Composer autoloader
 		 * @param string $directory Resolved realpath to directory
@@ -636,7 +636,7 @@
 			}
 			
 			// Step 3: Split into components and filter out empty parts
-			$components = array_filter(explode('/', $pathWithoutPrefix), function($part) {
+			$components = array_filter(explode('/', $pathWithoutPrefix), function ($part) {
 				return $part !== '';
 			});
 			

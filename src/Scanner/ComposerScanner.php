@@ -2,10 +2,11 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
+	use Quellabs\Discover\Utilities\ComposerInstalledLoader;
+	use Quellabs\Discover\Utilities\ComposerJsonLoader;
+	use Quellabs\Discover\Utilities\ComposerPathResolver;
 	use Quellabs\Discover\Utilities\ProviderValidator;
-	use Psr\Log\LoggerInterface;
 	use InvalidArgumentException;
-	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
 	/**
@@ -18,9 +19,6 @@
 		 * Constants
 		 */
 		private const string DEFAULT_DISCOVERY_SECTION = 'discover';
-		private const string COMPOSER_PACKAGES_KEY = 'packages';
-		private const string COMPOSER_EXTRA_KEY = 'extra';
-		private const string CLASS_NAME_PATTERN = '/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff\\\\]*$/';
 		
 		/**
 		 * The key to look for in composer.json extra section
@@ -37,29 +35,9 @@
 		private readonly string $discoverySection;
 		
 		/**
-		 * @var PSR4 PSR-4 utilities
+		 * @var ComposerPathResolver PSR-4 utilities
 		 */
-		private readonly PSR4 $utilities;
-		
-		/**
-		 * Static cache for composer.json file contents
-		 * Key: file path, Value: parsed array data
-		 * @var array<string, array|null>
-		 */
-		private static array $composerFileCache = [];
-		
-		/**
-		 * Static cache for installed.json file contents
-		 * Key: file path, Value: parsed array data
-		 * @var array<string, array|null>
-		 */
-		private static array $installedFileCache = [];
-		
-		/**
-		 * Class used for logging
-		 * @var LoggerInterface|null
-		 */
-		private ?LoggerInterface $logger;
+		private readonly ComposerPathResolver $utilities;
 		
 		/**
 		 * Class responsible for validating providers are valid
@@ -71,18 +49,15 @@
 		 * ComposerScanner constructor
 		 * @param string|null $familyName The family name for providers
 		 * @param string $discoverySection The top-level key in composer.json's extra section
-		 * @param LoggerInterface|null $logger Logging interface
 		 */
 		public function __construct(
 			string $familyName=null,
-			string $discoverySection=self::DEFAULT_DISCOVERY_SECTION,
-			?LoggerInterface $logger = null
+			string $discoverySection=self::DEFAULT_DISCOVERY_SECTION
 		) {
 			$this->familyName = $familyName;
 			$this->discoverySection = $discoverySection;
-			$this->logger = $logger;
-			$this->utilities = new PSR4();
-			$this->providerValidator = new ProviderValidator($logger, "ComposerScanner");
+			$this->utilities = new ComposerPathResolver();
+			$this->providerValidator = new ProviderValidator();
 		}
 		
 		/**
@@ -90,102 +65,24 @@
 		 * @return array<ProviderDefinition> Array of provider definitions
 		 */
 		public function scan(): array {
+			// Fetch extra data sections from composer.json and composer.lock ("bootstrap/discovery-mapping.php")
+			$composerInstalledLoader = new ComposerInstalledLoader($this->utilities);
+			$composerJsonLoader = new ComposerJsonLoader($this->utilities);
+
 			// Discover providers defined within the current project structure
-			// These are typically application-specific providers in src/ or app/ directories
-			$projectProviders = $this->discoverProjectProviders();
-			
+			$discoveryMapping = array_merge($composerInstalledLoader->getData(), $composerJsonLoader->getData());
+
 			// Discover providers from installed packages/dependencies
 			// These are usually third-party providers from vendor/ directory
-			$packageProviders = $this->discoverPackageProviders();
-			
-			// Show info log
-			$this->logger?->info('Provider discovery completed', [
-				'project_providers' => count($projectProviders),
-				'package_providers' => count($packageProviders),
-				'total_providers'   => count($projectProviders) + count($packageProviders),
-				'family_filter'     => $this->familyName
-			]);
-			
-			// Combine both sets of providers into a single array
-			// Project providers are placed first, potentially allowing them to
-			// override or take precedence over package providers
-			return array_merge($projectProviders, $packageProviders);
-		}
-		
-		/**
-		 * Scans the current project's composer.json file to find provider definitions
-		 * in the "extra" section or other configured locations. This method handles
-		 * the project-specific provider discovery as opposed to third-party packages.
-		 * @return array Array of discovered provider instances
-		 */
-		protected function discoverProjectProviders(): array {
-			// Resolve the absolute path to the project's composer.json file
-			// Uses utility method to handle different project structures and locations
-			$composerPath = $this->utilities->getComposerJsonFilePath();
-			
-			// Validate that composer.json exists and is accessible
-			// Early return prevents unnecessary processing and error conditions
-			if (!$composerPath || !file_exists($composerPath)) {
-				return [];
-			}
-			
-			// Parse the composer.json file using cached method
-			// This avoids re-reading the same file multiple times
-			$composerData = $this->parseComposerFile($composerPath);
-			
-			// Validate that composer.json was parsed successfully
-			// Corrupted or invalid JSON will result in null return value
-			if (!$composerData) {
-				return [];
-			}
-			
-			// Extract provider definitions from composer data and instantiate them
-			// This method handles validation, class loading, and provider instantiation
-			return $this->extractAndValidateProviders($composerData);
-		}
-		
-		/**
-		 * Scans Composer's installed.json file to find provider definitions from
-		 * third-party packages. This method processes all installed dependencies
-		 * and extracts providers that have been configured for auto-discovery.
-		 * @return array Array of discovered provider instances
-		 */
-		protected function discoverPackageProviders(): array {
-			// Resolve the path to Composer's installed.json file
-			// This file contains metadata about all installed packages and dependencies
-			$installedPath = $this->utilities->getComposerInstalledFilePath();
-			
-			// Validate that installed.json exists and is accessible
-			// Missing file typically indicates Composer hasn't been run or project issues
-			if (!$installedPath || !file_exists($installedPath)) {
-				return [];
-			}
-			
-			// Parse the installed.json file using cached method
-			// This avoids re-reading the potentially large file multiple times
-			$packagesData = $this->parseInstalledFile($installedPath);
-			
-			// Validate that installed.json was parsed successfully
-			// Corrupted file would prevent access to any package provider information
-			if (!$packagesData) {
-				return [];
-			}
-			
-			// Handle different installed.json format versions for compatibility
-			// Newer Composer versions wrap packages in a 'packages' key,
-			// while older versions use the root array directly
-			$packagesList = $packagesData[self::COMPOSER_PACKAGES_KEY] ?? $packagesData;
-			
-			// Iterate through each installed package to check for provider definitions
 			$definitions = [];
-
-			foreach ($packagesList as $package) {
+			
+			foreach ($discoveryMapping as $packageName => $extraData) {
 				// Check if package has opted into auto-discovery via 'extra.discover' section
 				// This is the standard convention for packages that want their providers discovered
-				if (isset($package[self::COMPOSER_EXTRA_KEY][$this->discoverySection])) {
+				if (isset($extraData[$this->discoverySection])) {
 					// Extract and validate providers from this specific package
 					// Uses the same validation logic as project providers
-					$packageProviders = $this->extractAndValidateProviders($package);
+					$packageProviders = $this->extractAndValidateProviders($extraData[$this->discoverySection]);
 					
 					// Merge discovered providers into the main collection
 					// Maintains order of discovery across packages
@@ -196,64 +93,19 @@
 			// Return all providers discovered from installed packages
 			return $definitions;
 		}
-		
-		/**
-		 * Parse composer.json file with static caching
-		 * @param string $path Absolute path to composer.json file
-		 * @return array|null Parsed composer data or null if invalid
-		 */
-		protected function parseComposerFile(string $path): ?array {
-			// Check if this file has already been parsed and cached
-			if (array_key_exists($path, self::$composerFileCache)) {
-				// Return cached result (this may be null if the file was invalid)
-				return self::$composerFileCache[$path];
-			}
-			
-			// File not in cache, parse it and store the result
-			$data = $this->parseJsonFile($path);
-			
-			// Cache the result (including null for invalid files)
-			// This prevents re-attempting to parse known invalid files
-			return self::$composerFileCache[$path] = $data;
-		}
-		
-		/**
-		 * Parse installed.json file with static caching
-		 *
-		 * Caches the parsed content to avoid re-reading and re-parsing the same
-		 * installed.json file multiple times. This is especially beneficial since
-		 * installed.json can be quite large (1-10MB in big projects).
-		 *
-		 * @param string $path Absolute path to installed.json file
-		 * @return array|null Parsed installed data or null if invalid
-		 */
-		protected function parseInstalledFile(string $path): ?array {
-			// Check if this file has already been parsed and cached
-			if (array_key_exists($path, self::$installedFileCache)) {
-				// Return cached result (may be null if file was invalid)
-				return self::$installedFileCache[$path];
-			}
-			
-			// File not in cache, parse it and store the result
-			$data = $this->parseJsonFile($path);
-			
-			// Cache the result (including null for invalid files)
-			// This prevents re-attempting to parse known invalid files
-			return self::$installedFileCache[$path] = $data;
-		}
-		
+
 		/**
 		 * This method performs a two-stage process: first extracting provider class
 		 * definitions from composer configuration data, then validating each provider
 		 * to ensure it's properly implemented and can be instantiated. Only valid
 		 * providers are returned to prevent runtime errors during application bootstrap.
-		 * @param array $composerConfig Complete composer.json data array
+		 * @param array $discoverSection Complete composer.json data array
 		 * @return array Array of validated provider data structures
 		 */
-		private function extractAndValidateProviders(array $composerConfig): array {
+		private function extractAndValidateProviders(array $discoverSection): array {
 			// Extract raw provider class definitions and their configurations
 			// from the composer config's discovery section (typically extra.discover)
-			$providersWithConfig = $this->extractProviderClasses($composerConfig);
+			$providersWithConfig = $this->extractProviderClasses($discoverSection);
 			
 			// Validate each discovered provider class individually
 			$validProviders = [];
@@ -306,25 +158,14 @@
 		 * definitions. Supports multiple configuration formats and can filter by provider
 		 * family. This method handles the complexity of different discovery formats while
 		 * maintaining backward compatibility.
-		 * @param array $composerConfig Complete composer.json configuration array
+		 * @param array $discoverSection The contents of the discovery section
 		 * @return array Array of provider data structures
 		 */
-		protected function extractProviderClasses(array $composerConfig): array {
-			// Extract the discovery configuration section from composer's extra data
-			// This is the standardized location where packages define their discoverable providers
-			$discoverSection = $composerConfig[self::COMPOSER_EXTRA_KEY][$this->discoverySection] ?? [];
-			
-			// Validate that the discover section is properly formatted as an array
-			// Malformed configuration should be ignored rather than causing errors
-			if (!is_array($discoverSection)) {
-				return [];
-			}
-			
-			// Initialize the collection for all discovered providers across families
-			$allProviders = [];
-			
+		protected function extractProviderClasses(array $discoverSection): array {
 			// Process each provider family within the discovery section
 			// Families group related providers (e.g., 'services', 'middleware', 'commands')
+			$allProviders = [];
+
 			foreach ($discoverSection as $familyName => $configSection) {
 				// Apply family filtering if a specific family name has been configured
 				// This allows selective discovery of only certain provider types
@@ -461,60 +302,5 @@
 			// Return an empty array if provider definition doesn't match expected formats
 			// This maintains consistency and prevents errors with malformed configurations
 			return [];
-		}
-
-		/**
-		 * Safely reads and parses a JSON file with comprehensive error handling.
-		 * This utility method handles both file system errors (missing/unreadable files)
-		 * and JSON parsing errors (malformed JSON syntax) to prevent crashes during
-		 * the provider discovery process.
-		 * @param string $path Absolute file path to the JSON file to be parsed
-		 * @return array|null Parsed JSON data as associative array, or null if
-		 *                    file cannot be read or JSON is invalid
-		 */
-		public function parseJsonFile(string $path): ?array {
-			// Check if we can do file_get_contents on the given path
-			if (!is_readable($path)) {
-				$this->logger?->warning('JSON file is not readable', [
-					'path'   => $path,
-					'reason' => 'file_not_readable'
-				]);
-				
-				return null;
-			}
-			
-			// Read the entire file contents into memory
-			$content = file_get_contents($path);
-			
-			// Check if file reading was successful
-			if ($content === false) {
-				$this->logger?->warning('Failed to read JSON file', [
-					'path'   => $path,
-					'reason' => 'file_read_failed'
-				]);
-				
-				return null;
-			}
-			
-			// Parse JSON content into PHP associative array
-			// The 'true' parameter ensures objects are converted to arrays, not stdClass
-			$data = json_decode($content, true);
-			
-			// Validate that JSON parsing completed without errors
-			// json_last_error() returns JSON_ERROR_NONE (0) only if parsing was successful
-			// This catches syntax errors, encoding issues, and other JSON format problems
-			if (json_last_error() !== JSON_ERROR_NONE) {
-				$this->logger?->warning('Invalid JSON syntax in file', [
-					'path'               => $path,
-					'json_error_code'    => json_last_error(),
-					'json_error_message' => json_last_error_msg(),
-					'reason'             => 'invalid_json'
-				]);
-				
-				return null;
-			}
-			
-			// All checks are correct. Return the data
-			return $data;
 		}
 	}

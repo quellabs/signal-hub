@@ -9,9 +9,9 @@
 	class ComposerJsonLoader {
 		
 		/**
-		 * @var PSR4 Path resolution utility
+		 * @var ComposerPathResolver Path resolution utility
 		 */
-		private PSR4 $pathResolver;
+		private ComposerPathResolver $pathResolver;
 		
 		/**
 		 * @var array|null Cached composer.json data
@@ -20,10 +20,10 @@
 		
 		/**
 		 * Constructor
-		 * @param PSR4|null $pathResolver Optional PSR4 instance (creates new one if not provided)
+		 * @param ComposerPathResolver|null $pathResolver Optional PSR4 instance (creates new one if not provided)
 		 */
-		public function __construct(?PSR4 $pathResolver = null) {
-			$this->pathResolver = $pathResolver ?? new PSR4();
+		public function __construct(?ComposerPathResolver $pathResolver = null) {
+			$this->pathResolver = $pathResolver ?? new ComposerPathResolver();
 		}
 		
 		/**
