@@ -112,14 +112,14 @@
 		/**
 		 * Find the path to the discovery mapping file
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to discovery mapping file if found, null otherwise
+		 * @return string|null Path to the discovery mapping file if found, null otherwise
 		 */
 		public function getDiscoveryMappingPath(?string $startDirectory = null): ?string {
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
 			// If we couldn't find the project root, we can't locate any mapping files
-			if ($projectRoot === null) {
+			if (!$projectRoot) {
 				return null;
 			}
 			
@@ -128,22 +128,17 @@
 			
 			if (file_exists($composerJsonPath)) {
 				$composerJson = $this->parseComposerJson($composerJsonPath);
+				$customPath = $composerJson['extra']['discover']['mapping-file'] ?? null;
 				
-				if ($composerJson !== null && !empty($composerJson['extra']['discover']['mapping-file'])) {
-					$customPath = $composerJson['extra']['discover']['mapping-file'];
-					return !str_starts_with($customPath, '/') ? $projectRoot . DIRECTORY_SEPARATOR . $customPath : $customPath;
+				if ($customPath) {
+					$absolutePath = $projectRoot . DIRECTORY_SEPARATOR . $customPath;
+					return str_starts_with($customPath, '/') ? $customPath : $absolutePath;
 				}
 			}
 			
 			// Check the default path
 			$defaultPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'discovery-mapping.php';
-			
-			if (file_exists($defaultPath)) {
-				return $defaultPath;
-			}
-
-			// No mapping file found. Return null.
-			return null;
+			return file_exists($defaultPath) ? $defaultPath : null;
 		}
 		
 		/**
