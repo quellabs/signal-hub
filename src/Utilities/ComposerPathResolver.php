@@ -110,25 +110,37 @@
 		}
 		
 		/**
-		 * Find the path to the local composer.json file
+		 * Find the path to the discovery mapping file
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to composer.json if found, null otherwise
+		 * @return string|null Path to discovery mapping file if found, null otherwise
 		 */
 		public function getDiscoveryMappingPath(?string $startDirectory = null): ?string {
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
-			// If we couldn't find the project root, we can't locate discovery-mapping.php
+			// If we couldn't find the project root, we can't locate any mapping files
 			if ($projectRoot === null) {
 				return null;
 			}
 			
-			// Check possible paths for mapping files
+			// Check for a custom mapping file in composer.json
+			$composerJsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'composer.json';
+			
+			if (file_exists($composerJsonPath)) {
+				$composerJson = $this->parseComposerJson($composerJsonPath);
+				
+				if ($composerJson !== null && !empty($composerJson['extra']['discover']['mapping-file'])) {
+					$customPath = $composerJson['extra']['discover']['mapping-file'];
+					return !str_starts_with($customPath, '/') ? $projectRoot . DIRECTORY_SEPARATOR . $customPath : $customPath;
+				}
+			}
+			
+			// Check possible paths for mapping files (using consistent directory separators)
 			$possiblePaths = [
-				$projectRoot . '/bootstrap/discovery-mapping.php',
-				$projectRoot . '/config/discovery-mapping.php',
-				$projectRoot . '/storage/discovery-mapping.php',
-				$projectRoot . '/discovery-mapping.php',
+				$projectRoot . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
+				$projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
+				$projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
+				$projectRoot . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
 			];
 			
 			foreach ($possiblePaths as $path) {
@@ -137,7 +149,6 @@
 				}
 			}
 			
-			// Return the full path to the composer.json file
 			return null;
 		}
 		

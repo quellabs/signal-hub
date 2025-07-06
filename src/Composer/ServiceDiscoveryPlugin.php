@@ -166,11 +166,45 @@
 		 * @return string The full path where the mapping file should be written
 		 */
 		private function getOutputPath(Composer $composer): string {
-			// Get the project root directory (where composer.json is located)
-			$projectRoot = dirname($composer->getConfig()->getConfigSource()->getName());
+			$config = $composer->getPackage()->getExtra()['discover'] ?? [];
 			
-			// Return the path to the config directory with our mapping file
+			if (!empty($config['mapping-file'])) {
+				// Fetch the mapping file
+				$customPath = $config['mapping-file'];
+				
+				// Check if the path is absolute (handles both Unix and Windows)
+				if ($this->isAbsolutePath($customPath)) {
+					return $customPath;
+				}
+				
+				// Handle relative paths
+				$projectRoot = dirname($composer->getConfig()->getConfigSource()->getName());
+				return $projectRoot . DIRECTORY_SEPARATOR . $customPath;
+			}
+			
+			// Default fallback
+			$projectRoot = dirname($composer->getConfig()->getConfigSource()->getName());
 			return $projectRoot . DIRECTORY_SEPARATOR . "config" . DIRECTORY_SEPARATOR . "discovery-mapping.php";
+		}
+		
+		/**
+		 * Check if a path is absolute (cross-platform)
+		 * @param string $path The path to check
+		 * @return bool True if the path is absolute, false otherwise
+		 */
+		private function isAbsolutePath(string $path): bool {
+			// Unix-style absolute path
+			if (str_starts_with($path, '/')) {
+				return true;
+			}
+			
+			// Windows-style absolute path (C:\, D:\, etc.)
+			if (PHP_OS_FAMILY === 'Windows' && preg_match('/^[A-Za-z]:[\/\\\\]/', $path)) {
+				return true;
+			}
+			
+			// Not an absolute path
+			return false;
 		}
 		
 		/**
