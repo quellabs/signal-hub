@@ -135,20 +135,14 @@
 				}
 			}
 			
-			// Check possible paths for mapping files (using consistent directory separators)
-			$possiblePaths = [
-				$projectRoot . DIRECTORY_SEPARATOR . 'bootstrap' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
-				$projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
-				$projectRoot . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
-				$projectRoot . DIRECTORY_SEPARATOR . 'discovery-mapping.php',
-			];
+			// Check the default path
+			$defaultPath = $projectRoot . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'discovery-mapping.php';
 			
-			foreach ($possiblePaths as $path) {
-				if (file_exists($path)) {
-					return $path;
-				}
+			if (file_exists($defaultPath)) {
+				return $defaultPath;
 			}
-			
+
+			// No mapping file found. Return null.
 			return null;
 		}
 		
