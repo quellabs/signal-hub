@@ -138,7 +138,7 @@
 				
 				// Show success messages with statistics
 				$io->write("<info>Service discovery map generated: {$outputPath}</info>");
-				$io->write("<comment>Registered " . count($extraMap) . " packages with discoverable services.</comment>");
+				$io->write("<comment>Mapped " . count($extraMap) . " packages with 'extra' metadata.</comment>");
 				
 			} catch (\Exception $e) {
 				// Handle any errors that occur during the generation process
