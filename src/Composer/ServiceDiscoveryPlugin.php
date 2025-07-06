@@ -45,8 +45,22 @@
 		 * @param Composer $composer The Composer instance
 		 * @param IOInterface $io The IO interface
 		 */
-		public function deactivate(Composer $composer, IOInterface $io) {
-			// Cleanup if needed
+		public function deactivate(Composer $composer, IOInterface $io): void {
+			try {
+				// Get the path to the generated mapping file
+				$outputPath = $this->getOutputPath($composer);
+				
+				// Check if the file exists and remove it
+				if (file_exists($outputPath)) {
+					if (unlink($outputPath)) {
+						$io->write('<info>Service discovery mapping file removed: ' . $outputPath . '</info>');
+					} else {
+						$io->writeError('<warning>Failed to remove service discovery mapping file: ' . $outputPath . '</warning>');
+					}
+				}
+			} catch (\Exception $e) {
+				$io->writeError('<error>Error during plugin deactivation: ' . $e->getMessage() . '</error>');
+			}
 		}
 		
 		/**
@@ -54,8 +68,8 @@
 		 * @param Composer $composer The Composer instance
 		 * @param IOInterface $io The IO interface
 		 */
-		public function uninstall(Composer $composer, IOInterface $io) {
-			// Cleanup if needed
+		public function uninstall(Composer $composer, IOInterface $io): void {
+			$this->deactivate($composer, $io);
 		}
 		
 		/**
