@@ -62,10 +62,10 @@
 		}
 		
 		/**
-		 * Check if the discovery process has been run and providers have been found
+		 * Check if any providers were discovered
 		 * @return bool True if providers have been discovered, false if no discovery has occurred
 		 */
-		public function hasDiscovered(): bool {
+		public function hasProviders(): bool {
 			return !empty($this->providerDefinitions);
 		}
 		
@@ -102,11 +102,6 @@
 		 * @return T|null The provider instance if found, null otherwise
 		 */
 		public function get(string $className) {
-			// If the class does exist, we do not need to check the provider definitions
-			if (!class_exists($className)) {
-				return null;
-			}
-			
 			// Iterate through all discovered provider definitions.
 			// Each definition contains metadata gathered during discovery without instantiation.
 			foreach ($this->providerDefinitions as $definitionKey => $definition) {
