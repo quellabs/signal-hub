@@ -481,9 +481,9 @@
 			// This catches typos in class names, missing files, or autoloader issues
 			if (!class_exists($providerClass)) {
 				$this->logger?->warning('Provider class not found during discovery', [
+					'scanner' => 'ComposerScanner',
 					'class'   => $providerClass,
-					'reason'  => 'class_not_found',
-					'scanner' => 'ComposerScanner'
+					'reason'  => 'class_not_found'
 				]);
 				
 				return false;
@@ -493,10 +493,10 @@
 			// This guarantees the class has all necessary methods for provider functionality
 			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
 				$this->logger?->warning('Provider class does not implement required interface', [
+					'scanner'            => 'ComposerScanner',
 					'class'              => $providerClass,
-					'required_interface' => ProviderInterface::class,
 					'reason'             => 'invalid_interface',
-					'scanner'            => 'ComposerScanner'
+					'required_interface' => ProviderInterface::class,
 				]);
 				
 				return false;
@@ -508,22 +508,22 @@
 				
 				if (!$reflection->isInstantiable()) {
 					$this->logger?->warning('Provider class is not instantiable', [
+						'scanner'      => 'ComposerScanner',
 						'class'        => $providerClass,
 						'reason'       => 'not_instantiable',
 						'is_abstract'  => $reflection->isAbstract(),
 						'is_interface' => $reflection->isInterface(),
 						'is_trait'     => $reflection->isTrait(),
-						'action'       => 'rejected'
 					]);
 					
 					return false;
 				}
 			} catch (ReflectionException $e) {
 				$this->logger?->warning('Failed to analyze provider class with reflection', [
-					'class'  => $providerClass,
-					'reason' => 'reflection_failed',
-					'error'  => $e->getMessage(),
-					'action' => 'rejected'
+					'scanner' => 'ComposerScanner',
+					'class'   => $providerClass,
+					'reason'  => 'reflection_failed',
+					'error'   => $e->getMessage(),
 				]);
 				
 				return false;

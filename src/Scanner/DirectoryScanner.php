@@ -2,10 +2,12 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
+	use Psr\Log\LoggerInterface;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use ReflectionClass;
+	use ReflectionException;
 	
 	/**
 	 * Scans directories for classes that implement ProviderInterface
@@ -15,6 +17,17 @@
 	 * 2. Implement the ProviderInterface
 	 */
 	class DirectoryScanner implements ScannerInterface {
+		
+		/**
+		 * Constants
+		 */
+		private const string DEFAULT_FAMILY_NAME = 'default';
+		
+		/**
+		 * Class used for logging
+		 * @var LoggerInterface|null
+		 */
+		private ?LoggerInterface $logger;
 		
 		/**
 		 * Directories to scan
@@ -57,11 +70,17 @@
 		 * @param string|null $pattern Regex pattern for class names (e.g., '/Provider$/')
 		 * @param string $defaultFamily Default family name for discovered providers
 		 */
-		public function __construct(array $directories = [], ?string $pattern = null, string $defaultFamily = 'default') {
+		public function __construct(
+			array $directories = [],
+			?string $pattern = null,
+			string $defaultFamily = self::DEFAULT_FAMILY_NAME,
+			?LoggerInterface $logger = null
+		) {
 			$this->directories = $directories;
 			$this->pattern = $pattern;
 			$this->defaultFamily = $defaultFamily;
 			$this->utilities = new PSR4();
+			$this->logger = $logger;
 		}
 		
 		/**
@@ -81,6 +100,12 @@
 				$providerData = array_merge($providerData, $this->scanDirectory($directory));
 			}
 			
+			// Log the summary of the scan
+			$this->logger?->info('Directory scanning completed', [
+				'total_providers'     => count($providerData),
+				'directories_scanned' => count($dirs)
+			]);
+			
 			// Return all discovered provider definitions across all directories
 			return $providerData;
 		}
@@ -95,25 +120,49 @@
 		protected function scanDirectory(string $directory): array {
 			// Verify the directory exists and is accessible before attempting to scan
 			if (!is_dir($directory) || !is_readable($directory)) {
+				$this->logger?->warning('Cannot scan directory', [
+					'scanner'   => 'DirectoryScanner',
+					'reason'    => 'directory_not_readable',
+					'directory' => $directory,
+					'exists'    => is_dir($directory),
+					'readable'  => is_readable($directory)
+				]);
+
 				return [];
 			}
 			
 			// Fetch all provider classes found in the directory
+			// Filter out the class names we don't want (filter)
 			$classes = $this->utilities->findClassesInDirectory($directory, function($className) {
-				return $this->isValidProviderClass($className);
+				// Check class validity
+				if (!$this->isValidProviderClass($className)) {
+					return false;
+				}
+				
+				// If a naming pattern was specified, check if the class name matches
+				// This allows filtering for specific naming conventions (e.g., all classes ending with "Provider")
+				return $this->pattern === null || preg_match($this->pattern, $className);
 			});
 			
 			// Process each valid class found in the directory structure
 			$definitions = [];
 			
 			foreach ($classes as $className) {
-				$definitions[] = new ProviderDefinition(
-					className: $className,
-					family: $this->defaultFamily,
-					configFile: null,
-					metadata: $className::getMetadata(),
-					defaults: $className::getDefaults()
-				);
+				try {
+					$definitions[] = new ProviderDefinition(
+						className: $className,
+						family: $this->defaultFamily,
+						configFile: null,
+						metadata: $className::getMetadata(),
+						defaults: $className::getDefaults()
+					);
+				} catch (\Throwable $e) {
+					$this->logger?->warning('Failed to create provider definition', [
+						'scanner' => 'DirectoryScanner',
+						'class'   => $className,
+						'error'   => $e->getMessage()
+					]);
+				}
 			}
 			
 			// Return all discovered provider class data from the directory
@@ -122,48 +171,84 @@
 
 		/**
 		 * Check if a class implements ProviderInterface and matches the pattern
-		 * @param string $className Fully qualified class name to check
+		 * @param string $providerClass Fully qualified class name to check
 		 * @return bool True if the class is a valid provider, false otherwise
 		 */
-		protected function isValidProviderClass(string $className): bool {
+		protected function isValidProviderClass(string $providerClass): bool {
 			// Skip already scanned classes to prevent duplicate processing
 			// This improves performance when scanning large codebases
-			if (isset($this->scannedClasses[$className])) {
-				return false;
+			if (isset($this->scannedClasses[$providerClass])) {
+				return $this->scannedClasses[$providerClass];
 			}
 			
-			// Mark this class as scanned for future reference
-			$this->scannedClasses[$className] = true;
+			// Put the class in cache
+			$this->scannedClasses[$providerClass] = false;
 			
 			try {
 				// Attempt to load the class using PHP's autoloader
 				// Returns false if the class doesn't exist or can't be loaded
-				if (!class_exists($className)) {
+				if (!class_exists($providerClass)) {
+					$this->logger?->warning('Provider class not found during discovery', [
+						'scanner' => 'DirectoryScanner',
+						'class'   => $providerClass,
+						'reason'  => 'class_not_found'
+					]);
+					
 					return false;
 				}
 				
-				// If a naming pattern was specified, check if the class name matches
-				// This allows filtering for specific naming conventions (e.g., all classes ending with "Provider")
-				if ($this->pattern !== null && !preg_match($this->pattern, $className)) {
+				// Ensure the provider class implements the required ProviderInterface contract
+				// This guarantees the class has all necessary methods for provider functionality
+				if (!is_subclass_of($providerClass, ProviderInterface::class)) {
+					$this->logger?->warning('Provider class does not implement required interface', [
+						'scanner'            => 'DirectoryScanner',
+						'class'              => $providerClass,
+						'reason'             => 'invalid_interface',
+						'required_interface' => ProviderInterface::class,
+					]);
+					
 					return false;
 				}
 				
-				// Create a reflection instance to inspect the class's properties and interfaces
-				$reflectionClass = new ReflectionClass($className);
-				
-				// Abstract classes cannot be instantiated, so they can't be used as providers
-				// This prevents attempting to instantiate abstract classes later
-				if ($reflectionClass->isAbstract()) {
+				try {
+					// Create a reflection instance to inspect the class's properties and interfaces
+					$reflection = new ReflectionClass($providerClass);
+					
+					// Check if the class is instantiable
+					if (!$reflection->isInstantiable()) {
+						$this->logger?->warning('Provider class is not instantiable', [
+							'scanner'      => 'DirectoryScanner',
+							'class'        => $providerClass,
+							'reason'       => 'not_instantiable',
+							'is_abstract'  => $reflection->isAbstract(),
+							'is_interface' => $reflection->isInterface(),
+							'is_trait'     => $reflection->isTrait(),
+						]);
+						
+						return false;
+					}
+				} catch (ReflectionException $e) {
+					$this->logger?->warning('Failed to analyze provider class with reflection', [
+						'scanner' => 'DirectoryScanner',
+						'class'   => $providerClass,
+						'reason'  => 'reflection_failed',
+						'error'   => $e->getMessage(),
+					]);
+					
 					return false;
 				}
 				
-				// Final check: verify that the class implements the required interface
-				// Only classes implementing ProviderInterface are considered valid providers
-				return $reflectionClass->implementsInterface(ProviderInterface::class);
+				// All checks ok. Return true
+				return $this->scannedClasses[$providerClass] = true;
 				
 			} catch (\Throwable $e) {
-				// Handle any exceptions that might occur during class inspection
-				// Common issues include autoloading errors or reflection failures
+				// Log unexpected errors
+				$this->logger?->warning('Error validating provider class', [
+					'scanner' => 'DirectoryScanner',
+					'class'   => $providerClass,
+					'reason'  => $e->getMessage()
+				]);
+				
 				return false;
 			}
 		}
