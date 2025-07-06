@@ -15,7 +15,7 @@
 	 * from installed packages. It runs after composer install/update commands and
 	 * creates a PHP file with the aggregated extra data for service discovery purposes.
 	 *
-	 * The generated file is placed in bootstrap/discovery-mapping.php and contains
+	 * The generated file is placed in config/discovery-mapping.php and contains
 	 * an array mapping package names to their complete extra configuration blocks.
 	 */
 	class ServiceDiscoveryPlugin implements PluginInterface, EventSubscriberInterface {
@@ -155,12 +155,12 @@
 			// Get the project root directory (where composer.json is located)
 			$projectRoot = dirname($composer->getConfig()->getConfigSource()->getName());
 			
-			// Return the path to the bootstrap directory with our mapping file
-			return $projectRoot . DIRECTORY_SEPARATOR . "bootstrap" . DIRECTORY_SEPARATOR . "discovery-mapping.php";
+			// Return the path to the config directory with our mapping file
+			return $projectRoot . DIRECTORY_SEPARATOR . "config" . DIRECTORY_SEPARATOR . "discovery-mapping.php";
 		}
 		
 		/**
-		 * Extract extra data from the service discovery bootstrap file
+		 * Extract extra data from the service discovery config file
 		 * @param array $lockData
 		 * @return array Associative array mapping package names to their extra data
 		 */

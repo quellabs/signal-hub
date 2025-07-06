@@ -76,7 +76,7 @@
 		 * @return array<ProviderDefinition> Array of provider definitions
 		 */
 		public function scan(): array {
-			// Fetch extra data sections from composer.json and composer.lock ("bootstrap/discovery-mapping.php")
+			// Fetch extra data sections from composer.json and composer.lock ("config/discovery-mapping.php")
 			$composerInstalledLoader = new ComposerInstalledLoader($this->utilities);
 			$composerJsonLoader = new ComposerJsonLoader($this->utilities);
 			
