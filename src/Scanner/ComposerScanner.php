@@ -8,6 +8,8 @@
 	use Quellabs\Discover\Utilities\ProviderValidator;
 	use InvalidArgumentException;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
+	use Psr\Log\LoggerInterface;
+	use Psr\Log\NullLogger;
 	
 	/**
 	 * Scans composer.json files to discover service providers
@@ -46,18 +48,27 @@
 		private ProviderValidator $providerValidator;
 		
 		/**
+		 * Logger instance for warnings
+		 * @var LoggerInterface
+		 */
+		private LoggerInterface $logger;
+		
+		/**
 		 * ComposerScanner constructor
 		 * @param string|null $familyName The family name for providers
 		 * @param string $discoverySection The top-level key in composer.json's extra section
+		 * @param LoggerInterface|null $logger Logger instance for warnings
 		 */
 		public function __construct(
-			string $familyName=null,
-			string $discoverySection=self::DEFAULT_DISCOVERY_SECTION
+			string          $familyName = null,
+			string          $discoverySection = self::DEFAULT_DISCOVERY_SECTION,
+			LoggerInterface $logger = null
 		) {
 			$this->familyName = $familyName;
 			$this->discoverySection = $discoverySection;
 			$this->utilities = new ComposerPathResolver();
 			$this->providerValidator = new ProviderValidator();
+			$this->logger = $logger ?? new NullLogger();
 		}
 		
 		/**
@@ -68,10 +79,10 @@
 			// Fetch extra data sections from composer.json and composer.lock ("bootstrap/discovery-mapping.php")
 			$composerInstalledLoader = new ComposerInstalledLoader($this->utilities);
 			$composerJsonLoader = new ComposerJsonLoader($this->utilities);
-
+			
 			// Discover providers defined within the current project structure
 			$discoveryMapping = array_merge($composerInstalledLoader->getData(), $composerJsonLoader->getData());
-
+			
 			// Discover providers from installed packages/dependencies
 			// These are usually third-party providers from vendor/ directory
 			$definitions = [];
@@ -93,7 +104,7 @@
 			// Return all providers discovered from installed packages
 			return $definitions;
 		}
-
+		
 		/**
 		 * This method performs a two-stage process: first extracting provider class
 		 * definitions from composer configuration data, then validating each provider
@@ -109,7 +120,7 @@
 			
 			// Validate each discovered provider class individually
 			$validProviders = [];
-
+			
 			foreach ($providersWithConfig as $providerData) {
 				// Perform comprehensive validation on the provider class:
 				// - Check if class exists and can be autoloaded
@@ -122,8 +133,21 @@
 						$validProviders[] = $this->createProviderDefinition($providerData);
 					} catch (InvalidArgumentException $e) {
 						// Skip invalid provider definitions
+						$this->logger->warning('Invalid provider definition for class: {class}', [
+							'scanner' => 'ComposerScanner',
+							'reason'  => 'invalid definition',
+							'class'   => $providerData['class'],
+							'error'   => $e->getMessage()
+						]);
 						continue;
 					}
+				} else {
+					$this->logger->warning('Provider validation failed for class: {class}', [
+						'scanner' => 'ComposerScanner',
+						'reason'  => 'validation failed',
+						'class'   => $providerData['class'],
+						'family'  => $providerData['family']
+					]);
 				}
 			}
 			
@@ -165,7 +189,7 @@
 			// Process each provider family within the discovery section
 			// Families group related providers (e.g., 'services', 'middleware', 'commands')
 			$allProviders = [];
-
+			
 			foreach ($discoverSection as $familyName => $configSection) {
 				// Apply family filtering if a specific family name has been configured
 				// This allows selective discovery of only certain provider types
@@ -222,7 +246,7 @@
 				if (is_string($definition)) {
 					// Normalize simple string definitions into standard structure
 					$result[] = [
-						'class' => $definition,             // Fully qualified class name
+						'class'  => $definition,             // Fully qualified class name
 						'config' => null,                   // No additional configuration
 						'family' => $familyName             // Associate with current family
 					];
@@ -235,14 +259,11 @@
 				if (is_array($definition) && isset($definition['class'])) {
 					// Extract class name and optional configuration from array definition
 					$result[] = [
-						'class' => $definition['class'],                    // Required: provider class
+						'class'  => $definition['class'],                    // Required: provider class
 						'config' => $definition['config'] ?? null,         // Optional: config file/data
 						'family' => $familyName                            // Associate with current family
 					];
 				}
-				
-				// Skip malformed definitions that don't match expected formats
-				// This prevents errors while allowing other valid providers to be processed
 			}
 			
 			// Return all successfully processed provider definitions
@@ -299,8 +320,6 @@
 				]];
 			}
 			
-			// Return an empty array if provider definition doesn't match expected formats
-			// This maintains consistency and prevents errors with malformed configurations
 			return [];
 		}
 	}

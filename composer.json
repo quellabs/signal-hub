@@ -21,7 +21,8 @@
   "require": {
     "ext-ctype": "*",
     "quellabs/contracts": "^1.",
-    "composer-plugin-api": "^2.0"
+    "composer-plugin-api": "^2.0",
+    "monolog/monolog": "*"
   },
   "require-dev": {
     "composer/composer": "^2.0"

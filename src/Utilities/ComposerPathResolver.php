@@ -564,13 +564,34 @@
 			// Define regex patterns for common shared hosting directory structures
 			// These patterns help identify the project root by matching typical hosting layouts
 			$patterns = [
-				// cPanel/Plesk pattern: /var/www/vhosts/domain.com/httpdocs -> /var/www/vhosts/domain.com
-				// Captures the domain directory as the project root, not the web-accessible folder
-				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public)(/.*)?$#',
+				// cPanel variations
+				'#^(/var/www/vhosts/[^/]+)/(httpdocs|public_html|public|www)(/.*)?$#',
+				'#^(/home/[^/]+)/(public_html|www|htdocs|web)(/.*)?$#',
 				
-				// Home directory pattern: /home/username/public_html -> /home/username
-				// Common in shared hosting where users have home directories
-				'#^(/home/[^/]+)/(public_html|www)(/.*)?$#',
+				// Plesk variations
+				'#^(/var/www/vhosts/[^/]+/domains/[^/]+)/(public_html|httpdocs)(/.*)?$#',
+				
+				// DirectAdmin
+				'#^(/home/[^/]+/domains/[^/]+)/(public_html|htdocs)(/.*)?$#',
+				
+				// HostGator/Bluehost variations
+				'#^(/home\d*/[^/]+)/(public_html|www)(/.*)?$#',
+				
+				// ISPConfig
+				'#^(/var/www/[^/]+)/(web|public)(/.*)?$#',
+				
+				// Webmin/Virtualmin
+				'#^(/home/[^/]+/public_html/[^/]+)/(web|public)(/.*)?$#',
+				
+				// Custom hosting setups
+				'#^(/srv/www/[^/]+)/(public|htdocs|public_html)(/.*)?$#',
+				'#^(/opt/lampp/htdocs/[^/]+)/(public|web)(/.*)?$#',
+				
+				// Docker/container patterns
+				'#^(/var/www/html/[^/]+)/(public|web)(/.*)?$#',
+				
+				// Shared hosting with user IDs
+				'#^(/home/u\d+-[^/]+)/(public_html|www)(/.*)?$#',
 			];
 			
 			// Test each pattern against the current directory path

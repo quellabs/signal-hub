@@ -2,6 +2,9 @@
 	
 	namespace Quellabs\Discover\Utilities;
 	
+	use Psr\Log\NullLogger;
+	use Psr\Log\LoggerInterface;
+	
 	/**
 	 * Handles loading and parsing the main composer.json configuration file
 	 * Uses PSR4 utility class for file path resolution
@@ -19,11 +22,21 @@
 		private ?array $composerJsonCache = null;
 		
 		/**
-		 * Constructor
-		 * @param ComposerPathResolver|null $pathResolver Optional PSR4 instance (creates new one if not provided)
+		 * @var LoggerInterface
 		 */
-		public function __construct(?ComposerPathResolver $pathResolver = null) {
+		private LoggerInterface $logger;
+		
+		/**
+		 * ComposerJsonLoader constructor
+		 * @param ComposerPathResolver|null $pathResolver Optional PSR4 instance (creates new one if not provided)
+		 * @param LoggerInterface|null $logger Logger instance (uses NullLogger if not provided)
+		 */
+		public function __construct(
+			?ComposerPathResolver $pathResolver = null,
+			?LoggerInterface      $logger = null
+		) {
 			$this->pathResolver = $pathResolver ?? new ComposerPathResolver();
+			$this->logger = $logger ?? new NullLogger();
 		}
 		
 		/**
@@ -37,10 +50,11 @@
 				return $this->composerJsonCache;
 			}
 			
-			// Use PSR4 to locate the composer.json file
+			// Use pathResolver to locate the composer.json file
 			$composerJsonPath = $this->pathResolver->getComposerJsonFilePath($startDirectory);
 			
 			if ($composerJsonPath === null) {
+				// Silent return - composer.json is optional and may not exist in valid scenarios
 				return null;
 			}
 			
@@ -56,6 +70,14 @@
 		protected function parseJsonFile(string $filePath): ?array {
 			// Check if the file exists and is readable
 			if (!is_readable($filePath)) {
+				$this->logger->warning('composer.json not readable', [
+					'scanner'          => 'ComposerJsonLoader',
+					'reason'           => 'File exists but is not readable (permission issue)',
+					'file_path'        => $filePath,
+					'file_exists'      => file_exists($filePath),
+					'file_permissions' => file_exists($filePath) ? decoct(fileperms($filePath) & 0777) : 'N/A'
+				]);
+				
 				return null;
 			}
 			
@@ -64,6 +86,13 @@
 			
 			// Check if file reading was successful
 			if ($content === false) {
+				$this->logger->warning('Failed to read composer.json contents', [
+					'scanner'     => 'ComposerJsonLoader',
+					'reason'      => 'file_get_contents() returned false',
+					'file_path'   => $filePath,
+					'file_size'   => file_exists($filePath) ? filesize($filePath) : 'N/A'
+				]);
+				
 				return null;
 			}
 			
@@ -73,6 +102,14 @@
 			
 			// Check if JSON parsing was successful by examining the last JSON error
 			if (json_last_error() !== JSON_ERROR_NONE) {
+				$this->logger->warning('composer.json JSON parsing failed', [
+					'scanner'         => 'ComposerJsonLoader',
+					'reason'          => 'Invalid JSON syntax in composer.json',
+					'file_path'       => $filePath,
+					'json_error'      => json_last_error_msg(),
+					'json_error_code' => json_last_error(),
+				]);
+				
 				return null;
 			}
 			

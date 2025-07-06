@@ -2,6 +2,9 @@
 	
 	namespace Quellabs\Discover\Utilities;
 	
+	use Psr\Log\NullLogger;
+	use Psr\Log\LoggerInterface;
+	
 	/**
 	 * Handles loading and parsing Composer's installed packages data
 	 * Supports both modern PHP format (installed.php) and legacy JSON format (installed.json)
@@ -26,16 +29,24 @@
 		private ?string $startDirectory;
 		
 		/**
+		 * @var LoggerInterface
+		 */
+		private LoggerInterface $logger;
+		
+		/**
 		 * Constructor
 		 * @param ComposerPathResolver|null $pathResolver Optional PSR4 instance (creates new one if not provided)
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @param LoggerInterface|null $logger Logger instance (uses NullLogger if not provided)
 		 */
 		public function __construct(
 			?ComposerPathResolver $pathResolver = null,
-			?string $startDirectory = null
+			?string               $startDirectory = null,
+			?LoggerInterface      $logger = null
 		) {
 			$this->pathResolver = $pathResolver ?? new ComposerPathResolver();
 			$this->startDirectory = $startDirectory;
+			$this->logger = $logger ?? new NullLogger();
 		}
 		
 		/**
@@ -49,7 +60,23 @@
 			
 			if ($mappingPath !== null) {
 				// Found a mapping file, pull it in
-				return $this->installedDataCache[$mappingPath] = include $mappingPath;
+				try {
+					return $this->installedDataCache[$mappingPath] = include $mappingPath;
+				} catch (\Throwable $e) {
+					$this->logger->warning('Failed to include discovery mapping file', [
+						'scanner'       => 'ComposerScanner',
+						'reason'        => 'Exception occurred while including discovery mapping file',
+						'file_path'     => $mappingPath,
+						'error_message' => $e->getMessage(),
+						'error_type'    => get_class($e)
+					]);
+				}
+			} else {
+				$this->logger->warning('Discovery mapping file not found', [
+					'scanner'         => 'ComposerScanner',
+					'reason'          => 'No discovery mapping file found, falling back to JSON format',
+					'start_directory' => $this->startDirectory ?? getcwd()
+				]);
 			}
 			
 			// Fallback to JSON format (legacy Composer)
@@ -62,6 +89,13 @@
 			}
 			
 			// No installed packages file found in either format
+			$this->logger->warning('No Composer installed files found', [
+				'scanner'         => 'ComposerScanner',
+				'reason'          => 'Neither discovery mapping nor installed.json files could be located',
+				'start_directory' => $this->startDirectory ?? getcwd(),
+				'project_root'    => $this->pathResolver->getProjectRoot($this->startDirectory)
+			]);
+			
 			return null;
 		}
 		
@@ -73,6 +107,13 @@
 		protected function parseJsonFile(string $filePath): array {
 			// Check if the file exists and is readable
 			if (!is_readable($filePath)) {
+				$this->logger->warning('JSON file not readable', [
+					'scanner'          => 'ComposerScanner',
+					'reason'           => 'File exists but is not readable (permission issue)',
+					'file_path'        => $filePath,
+					'file_exists'      => file_exists($filePath),
+					'file_permissions' => file_exists($filePath) ? decoct(fileperms($filePath) & 0777) : 'N/A'
+				]);
 				return [];
 			}
 			
@@ -81,6 +122,12 @@
 			
 			// Check if file reading was successful
 			if ($content === false) {
+				$this->logger->warning('Failed to read JSON file contents', [
+					'scanner'   => 'ComposerScanner',
+					'reason'    => 'file_get_contents() returned false',
+					'file_path' => $filePath,
+					'file_size' => file_exists($filePath) ? filesize($filePath) : 'N/A'
+				]);
 				return [];
 			}
 			
@@ -90,6 +137,14 @@
 			
 			// Check if JSON parsing was successful by examining the last JSON error
 			if (json_last_error() !== JSON_ERROR_NONE) {
+				$this->logger->warning('JSON parsing failed', [
+					'scanner'         => 'ComposerScanner',
+					'reason'          => 'Invalid JSON syntax in file',
+					'file_path'       => $filePath,
+					'json_error'      => json_last_error_msg(),
+					'json_error_code' => json_last_error()
+				]);
+				
 				return [];
 			}
 			
@@ -104,11 +159,24 @@
 			
 			// Extract extra blocks from packages
 			$extraMap = [];
+			$packagesWithoutName = 0;
 			
 			foreach ($packages as $package) {
-				if (isset($package['name']) && !empty($package['extra'])) {
+				if (!isset($package['name'])) {
+					$packagesWithoutName++;
+				} elseif (!empty($package['extra'])) {
 					$extraMap[$package['name']] = $package['extra'];
 				}
+			}
+			
+			if ($packagesWithoutName > 0) {
+				$this->logger->warning('Packages missing name field', [
+					'scanner'               => 'ComposerScanner',
+					'reason'                => 'Some packages in installed.json do not have a name field',
+					'file_path'             => $filePath,
+					'packages_without_name' => $packagesWithoutName,
+					'total_packages'        => count($packages)
+				]);
 			}
 			
 			return $extraMap;
