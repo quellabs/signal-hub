@@ -46,6 +46,15 @@
 		 * @param IOInterface $io The IO interface
 		 */
 		public function deactivate(Composer $composer, IOInterface $io): void {
+			@unlink($this->getOutputPath($composer));
+		}
+		
+		/**
+		 * Uninstall the plugin
+		 * @param Composer $composer The Composer instance
+		 * @param IOInterface $io The IO interface
+		 */
+		public function uninstall(Composer $composer, IOInterface $io): void {
 			try {
 				// Get the path to the generated mapping file
 				$outputPath = $this->getOutputPath($composer);
@@ -61,15 +70,6 @@
 			} catch (\Exception $e) {
 				$io->writeError('<error>Error during plugin deactivation: ' . $e->getMessage() . '</error>');
 			}
-		}
-		
-		/**
-		 * Uninstall the plugin
-		 * @param Composer $composer The Composer instance
-		 * @param IOInterface $io The IO interface
-		 */
-		public function uninstall(Composer $composer, IOInterface $io): void {
-			$this->deactivate($composer, $io);
 		}
 		
 		/**
