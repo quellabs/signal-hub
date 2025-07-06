@@ -3,6 +3,8 @@
 	namespace Quellabs\Discover\Utilities;
 	
 	use Composer\Autoload\ClassLoader;
+	use Psr\Log\LoggerInterface;
+	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use RuntimeException;
 	
 	class PSR4 {
@@ -247,7 +249,7 @@
 			// Return the resolved path
 			return $resolved;
 		}
-		
+
 		/**
 		 * Attempts to find namespace from the registered Composer autoloader
 		 * @param string $directory Resolved realpath to directory
@@ -332,8 +334,7 @@
 		 * When multiple PSR-4 prefixes could match a directory, we select the one with the
 		 * longest matching path, which is typically the most specific match.
 		 * @param string $directory Absolute directory path to find namespace for
-		 * @param array $prefixesPsr4 PSR-4 namespace prefixes and their directories
-		 *                           Format: ['Namespace\\' => ['/path/to/dir', '/another/path']]
+		 * @param array<string, array<string>|string> $prefixesPsr4 PSR-4 namespace prefixes and their directories
 		 * @return string|null The complete namespace for the directory, or null if no match found
 		 */
 		private function findMostSpecificNamespace(string $directory, array $prefixesPsr4): ?string {

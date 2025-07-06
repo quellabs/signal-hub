@@ -2,9 +2,13 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use Quellabs\Contracts\Discovery\ProviderDefinition;
+	use ReflectionClass;
+	use ReflectionException;
+	use Psr\Log\LoggerInterface;
+	use InvalidArgumentException;
 	use Quellabs\Discover\Utilities\PSR4;
 	use Quellabs\Contracts\Discovery\ProviderInterface;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
 	/**
 	 * Scans composer.json files to discover service providers
@@ -13,23 +17,31 @@
 	class ComposerScanner implements ScannerInterface {
 		
 		/**
+		 * Constants
+		 */
+		private const string DEFAULT_DISCOVERY_SECTION = 'discover';
+		private const string COMPOSER_PACKAGES_KEY = 'packages';
+		private const string COMPOSER_EXTRA_KEY = 'extra';
+		private const string CLASS_NAME_PATTERN = '/^[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff\\\\]*$/';
+		
+		/**
 		 * The key to look for in composer.json extra section
 		 * This also serves as the family name for discovered providers
 		 * @var string|null
 		 */
-		protected ?string $familyName;
+		protected readonly ?string $familyName;
 		
 		/**
 		 * The top-level key in composer.json's extra section that contains discovery configuration.
 		 * Defaults to 'discover' but can be customized to use a different section name.
 		 * @var string
 		 */
-		private string $discoverySection;
+		private readonly string $discoverySection;
 		
 		/**
 		 * @var PSR4 PSR-4 utilities
 		 */
-		private PSR4 $utilities;
+		private readonly PSR4 $utilities;
 		
 		/**
 		 * Static cache for composer.json file contents
@@ -46,13 +58,25 @@
 		private static array $installedFileCache = [];
 		
 		/**
-		 * ComposerScanner constructor
-		 * @param string|null $familyName The family name for providers, or null to discover all families
-		 * @param string|null $discoverySection The top-level key in composer.json's extra section
+		 * Class used for logging
+		 * @var LoggerInterface|null
 		 */
-		public function __construct(?string $familyName = null, ?string $discoverySection="discover") {
+		private ?LoggerInterface $logger;
+		
+		/**
+		 * ComposerScanner constructor
+		 * @param string|null $familyName The family name for providers
+		 * @param string $discoverySection The top-level key in composer.json's extra section
+		 * @param LoggerInterface|null $logger Logging interface
+		 */
+		public function __construct(
+			string $familyName=null,
+			string $discoverySection=self::DEFAULT_DISCOVERY_SECTION,
+			?LoggerInterface $logger = null
+		) {
 			$this->familyName = $familyName;
 			$this->discoverySection = $discoverySection;
+			$this->logger = $logger;
 			$this->utilities = new PSR4();
 		}
 		
@@ -68,6 +92,14 @@
 			// Discover providers from installed packages/dependencies
 			// These are usually third-party providers from vendor/ directory
 			$packageProviders = $this->discoverPackageProviders();
+			
+			// Show info log
+			$this->logger?->info('Provider discovery completed', [
+				'project_providers' => count($projectProviders),
+				'package_providers' => count($packageProviders),
+				'total_providers'   => count($projectProviders) + count($packageProviders),
+				'family_filter'     => $this->familyName
+			]);
 			
 			// Combine both sets of providers into a single array
 			// Project providers are placed first, potentially allowing them to
@@ -137,7 +169,7 @@
 			// Handle different installed.json format versions for compatibility
 			// Newer Composer versions wrap packages in a 'packages' key,
 			// while older versions use the root array directly
-			$packagesList = $packagesData['packages'] ?? $packagesData;
+			$packagesList = $packagesData[self::COMPOSER_PACKAGES_KEY] ?? $packagesData;
 			
 			// Iterate through each installed package to check for provider definitions
 			$definitions = [];
@@ -145,7 +177,7 @@
 			foreach ($packagesList as $package) {
 				// Check if package has opted into auto-discovery via 'extra.discover' section
 				// This is the standard convention for packages that want their providers discovered
-				if (isset($package['extra'][$this->discoverySection])) {
+				if (isset($package[self::COMPOSER_EXTRA_KEY][$this->discoverySection])) {
 					// Extract and validate providers from this specific package
 					// Uses the same validation logic as project providers
 					$packageProviders = $this->extractAndValidateProviders($package);
@@ -168,7 +200,7 @@
 		protected function parseComposerFile(string $path): ?array {
 			// Check if this file has already been parsed and cached
 			if (array_key_exists($path, self::$composerFileCache)) {
-				// Return cached result (may be null if file was invalid)
+				// Return cached result (this may be null if the file was invalid)
 				return self::$composerFileCache[$path];
 			}
 			
@@ -231,7 +263,7 @@
 						// Only include providers that pass all validation checks
 						// This prevents runtime errors during provider instantiation
 						$validProviders[] = $this->createProviderDefinition($providerData);
-					} catch (\InvalidArgumentException $e) {
+					} catch (InvalidArgumentException $e) {
 						// Skip invalid provider definitions
 						continue;
 					}
@@ -265,30 +297,6 @@
 		}
 		
 		/**
-		 * Performs essential validation checks to ensure a provider class is properly
-		 * defined and can be safely instantiated. This prevents runtime errors that
-		 * would occur if invalid providers were included in the application bootstrap.
-		 * @param string $providerClass Fully qualified class name of the provider to validate
-		 * @return bool True if provider is valid and can be used, false if validation fails
-		 */
-		protected function validateProviderClass(string $providerClass): bool {
-			// Verify that the provider class can be found and autoloaded
-			// This catches typos in class names, missing files, or autoloader issues
-			if (!class_exists($providerClass)) {
-				return false;
-			}
-			
-			// Ensure the provider class implements the required ProviderInterface contract
-			// This guarantees the class has all necessary methods for provider functionality
-			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
-				return false;
-			}
-			
-			// The provider passed all validation checks and is safe to instantiate
-			return true;
-		}
-		
-		/**
 		 * Parses the composer.json 'extra.discover' section to extract provider class
 		 * definitions. Supports multiple configuration formats and can filter by provider
 		 * family. This method handles the complexity of different discovery formats while
@@ -299,7 +307,7 @@
 		protected function extractProviderClasses(array $composerConfig): array {
 			// Extract the discovery configuration section from composer's extra data
 			// This is the standardized location where packages define their discoverable providers
-			$discoverSection = $composerConfig['extra'][$this->discoverySection] ?? [];
+			$discoverSection = $composerConfig[self::COMPOSER_EXTRA_KEY][$this->discoverySection] ?? [];
 			
 			// Validate that the discover section is properly formatted as an array
 			// Malformed configuration should be ignored rather than causing errors
@@ -344,16 +352,9 @@
 		
 		/**
 		 * Extract providers from 'providers' array format
-		 *
-		 * Handles multiple provider definitions within a single family configuration.
-		 * Supports both simple string format for basic providers and complex array
-		 * format for providers that require additional configuration files or parameters.
-		 *
-		 * Handles: ["Class1", "Class2"] or [{"class": "Class1", "config": "file.php"}]
-		 *
-		 * @param array $config Family configuration section containing providers array
+		 * @param array<string, mixed> $config Family configuration section containing providers array
 		 * @param string $familyName Name of the provider family (e.g., 'services', 'middleware')
-		 * @return array Array of normalized provider data structures with class, config, and family
+		 * @return array<array{class: string, config: ?string, family: string}> Array of normalized provider data structures with class, config, and family
 		 */
 		protected function extractMultipleProviders(array $config, string $familyName): array {
 			// Extract the 'providers' array from the family configuration
@@ -404,13 +405,6 @@
 		
 		/**
 		 * Extract provider from singular 'provider' format
-		 *
-		 * Handles single provider definitions within a family configuration, supporting
-		 * both simple string format and complex object format. Also manages configuration
-		 * precedence when config can be specified in multiple locations (inline vs separate).
-		 *
-		 * Handles: "provider" => "Class" or "provider" => {"class": "Class", "config": "file.php"}
-		 *
 		 * @param array $config Family configuration section that may contain a single provider
 		 * @param string $familyName Name of the provider family for categorization
 		 * @return array|array[] Array containing single provider data structure, or empty array
@@ -436,7 +430,7 @@
 			if (is_string($definition)) {
 				// Return normalized provider structure with separate config if available
 				return [[
-					'class' => $definition,          // Provider class name
+					'class'  => $definition,          // Provider class name
 					'config' => $separateConfig,     // Use family-level config if present
 					'family' => $familyName          // Associate with current family
 				]];
@@ -453,7 +447,7 @@
 				$finalConfig = $inlineConfig ?? $separateConfig;
 				
 				return [[
-					'class' => $definition['class'],  // Required: provider class name
+					'class'  => $definition['class'],  // Required: provider class name
 					'config' => $finalConfig,         // Resolved configuration with precedence
 					'family' => $familyName           // Associate with current family
 				]];
@@ -465,6 +459,81 @@
 		}
 		
 		/**
+		 * Performs essential validation checks to ensure a provider class is properly
+		 * defined and can be safely instantiated. This prevents runtime errors that
+		 * would occur if invalid providers were included in the application bootstrap.
+		 * @param string $providerClass Fully qualified class name of the provider to validate
+		 * @return bool True if provider is valid and can be used, false if validation fails
+		 */
+			public function validateProviderClass(string $providerClass): bool {
+			// Prevent arbitrary class loading
+			if (!preg_match(self::CLASS_NAME_PATTERN, $providerClass)) {
+				$this->logger?->warning('Invalid provider class name rejected', [
+					'class'   => $providerClass,
+					'reason'  => 'invalid_class_name_format',
+					'scanner' => 'ComposerScanner'
+				]);
+				
+				return false;
+			}
+			
+			// Verify that the provider class can be found and autoloaded
+			// This catches typos in class names, missing files, or autoloader issues
+			if (!class_exists($providerClass)) {
+				$this->logger?->warning('Provider class not found during discovery', [
+					'class'   => $providerClass,
+					'reason'  => 'class_not_found',
+					'scanner' => 'ComposerScanner'
+				]);
+				
+				return false;
+			}
+			
+			// Ensure the provider class implements the required ProviderInterface contract
+			// This guarantees the class has all necessary methods for provider functionality
+			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
+				$this->logger?->warning('Provider class does not implement required interface', [
+					'class'              => $providerClass,
+					'required_interface' => ProviderInterface::class,
+					'reason'             => 'invalid_interface',
+					'scanner'            => 'ComposerScanner'
+				]);
+				
+				return false;
+			}
+			
+			// Check if class is instantiable
+			try {
+				$reflection = new ReflectionClass($providerClass);
+				
+				if (!$reflection->isInstantiable()) {
+					$this->logger?->warning('Provider class is not instantiable', [
+						'class'        => $providerClass,
+						'reason'       => 'not_instantiable',
+						'is_abstract'  => $reflection->isAbstract(),
+						'is_interface' => $reflection->isInterface(),
+						'is_trait'     => $reflection->isTrait(),
+						'action'       => 'rejected'
+					]);
+					
+					return false;
+				}
+			} catch (ReflectionException $e) {
+				$this->logger?->warning('Failed to analyze provider class with reflection', [
+					'class'  => $providerClass,
+					'reason' => 'reflection_failed',
+					'error'  => $e->getMessage(),
+					'action' => 'rejected'
+				]);
+				
+				return false;
+			}
+			
+			// The provider passed all validation checks and is safe to instantiate
+			return true;
+		}
+		
+		/**
 		 * Safely reads and parses a JSON file with comprehensive error handling.
 		 * This utility method handles both file system errors (missing/unreadable files)
 		 * and JSON parsing errors (malformed JSON syntax) to prevent crashes during
@@ -473,14 +542,27 @@
 		 * @return array|null Parsed JSON data as associative array, or null if
 		 *                    file cannot be read or JSON is invalid
 		 */
-		protected function parseJsonFile(string $path): ?array {
-			// Attempt to read the entire file contents into memory
-			// This may fail if file doesn't exist, is unreadable, or has permission issues
+		public function parseJsonFile(string $path): ?array {
+			// Check if we can do file_get_contents on the given path
+			if (!is_readable($path)) {
+				$this->logger?->warning('JSON file is not readable', [
+					'path'   => $path,
+					'reason' => 'file_not_readable'
+				]);
+				
+				return null;
+			}
+			
+			// Read the entire file contents into memory
 			$content = file_get_contents($path);
 			
 			// Check if file reading was successful
-			// file_get_contents returns false on failure (missing file, permissions, etc.)
 			if ($content === false) {
+				$this->logger?->warning('Failed to read JSON file', [
+					'path'   => $path,
+					'reason' => 'file_read_failed'
+				]);
+				
 				return null;
 			}
 			
@@ -491,6 +573,18 @@
 			// Validate that JSON parsing completed without errors
 			// json_last_error() returns JSON_ERROR_NONE (0) only if parsing was successful
 			// This catches syntax errors, encoding issues, and other JSON format problems
-			return (json_last_error() === JSON_ERROR_NONE) ? $data : null;
+			if (json_last_error() !== JSON_ERROR_NONE) {
+				$this->logger?->warning('Invalid JSON syntax in file', [
+					'path'               => $path,
+					'json_error_code'    => json_last_error(),
+					'json_error_message' => json_last_error_msg(),
+					'reason'             => 'invalid_json'
+				]);
+				
+				return null;
+			}
+			
+			// All checks are correct. Return the data
+			return $data;
 		}
 	}

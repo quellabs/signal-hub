@@ -2,6 +2,8 @@
 	
 	namespace Quellabs\Discover;
 	
+	use Psr\Log\LoggerInterface;
+	use Psr\Log\NullLogger;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use RuntimeException;
 	use Composer\Autoload\ClassLoader;

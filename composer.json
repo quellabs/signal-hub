@@ -20,6 +20,7 @@
   },
   "require": {
     "ext-ctype": "*",
+    "psr/log": "^3.0",
     "quellabs/contracts": "^1."
   },
   "autoload": {
