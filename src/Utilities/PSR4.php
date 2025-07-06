@@ -110,11 +110,11 @@
 		}
 		
 		/**
-		 * Find the path to the local composer.lock file
+		 * Find the path to the local composer.json file
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to composer.lock if found, null otherwise
+		 * @return string|null Path to composer.json if found, null otherwise
 		 */
-		public function getComposerLockFilePath(?string $startDirectory = null): ?string {
+		public function getDiscoveryMappingPath(?string $startDirectory = null): ?string {
 			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
@@ -123,8 +123,22 @@
 				return null;
 			}
 			
+			// Check possible paths for mapping files
+			$possiblePaths = [
+				$projectRoot . '/bootstrap/discovery-mapping.php',
+				$projectRoot . '/config/discovery-mapping.php',
+				$projectRoot . '/storage/discovery-mapping.php',
+				$projectRoot . '/discovery-mapping.php',
+			];
+			
+			foreach($possiblePaths as $path) {
+				if (file_exists($path)) {
+					return $path;
+				}
+			}
+			
 			// Return the full path to the composer.json file
-			return $projectRoot . DIRECTORY_SEPARATOR . 'composer.lock';
+			return null;
 		}
 		
 		/**

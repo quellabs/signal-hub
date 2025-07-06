@@ -76,7 +76,12 @@
 				return null;
 			}
 			
-			// Return the successfully parsed data
-			return $data;
+			// Validate the existence of an 'extra' section
+			if (empty($data['extra'])) {
+				return [];
+			}
+			
+			// Return the extra section
+			return $data['extra'];
 		}
 	}

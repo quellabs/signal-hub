@@ -22,7 +22,8 @@
     "ext-ctype": "*",
     "psr/log": "^3.0",
     "quellabs/contracts": "^1.",
-    "composer-plugin-api": "^2.0"
+    "composer-plugin-api": "^2.0",
+    "composer/composer": "^2.0"
   },
   "autoload": {
     "psr-4": {
@@ -30,9 +31,6 @@
     }
   },
   "extra": {
-    "class": "Quellabs\\Discover\\Composer\\ServiceDiscoveryPlugin",
-    "discovery-mapping": {
-      "output-file": "config/discovery-mapping.php"
-    }
+    "class": "Quellabs\\Discover\\Composer\\ServiceDiscoveryPlugin"
   }
 }
