@@ -3,11 +3,9 @@
 	namespace Quellabs\Discover\Scanner;
 	
 	use Psr\Log\LoggerInterface;
-	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	use Quellabs\Discover\Utilities\PSR4;
-	use Quellabs\Contracts\Discovery\ProviderInterface;
-	use ReflectionClass;
-	use ReflectionException;
+	use Quellabs\Discover\Utilities\ProviderValidator;
+	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
 	/**
 	 * Scans directories for classes that implement ProviderInterface
@@ -62,7 +60,13 @@
 		/**
 		 * @var PSR4 PSR-4 utilities
 		 */
-		private PSR4 $utilities;
+		protected PSR4 $utilities;
+		
+		/**
+		 * Class responsible for validating providers are valid
+		 * @var ProviderValidator
+		 */
+		protected ProviderValidator $providerValidator;
 		
 		/**
 		 * DirectoryScanner constructor
@@ -81,6 +85,7 @@
 			$this->defaultFamily = $defaultFamily;
 			$this->utilities = new PSR4();
 			$this->logger = $logger;
+			$this->providerValidator = new ProviderValidator($logger, "DirectoryScanner");
 		}
 		
 		/**
@@ -135,7 +140,7 @@
 			// Filter out the class names we don't want (filter)
 			$classes = $this->utilities->findClassesInDirectory($directory, function($className) {
 				// Check class validity
-				if (!$this->isValidProviderClass($className)) {
+				if (!$this->providerValidator->validate($className)) {
 					return false;
 				}
 				
@@ -167,89 +172,5 @@
 			
 			// Return all discovered provider class data from the directory
 			return $definitions;
-		}
-
-		/**
-		 * Check if a class implements ProviderInterface and matches the pattern
-		 * @param string $providerClass Fully qualified class name to check
-		 * @return bool True if the class is a valid provider, false otherwise
-		 */
-		protected function isValidProviderClass(string $providerClass): bool {
-			// Skip already scanned classes to prevent duplicate processing
-			// This improves performance when scanning large codebases
-			if (isset($this->scannedClasses[$providerClass])) {
-				return $this->scannedClasses[$providerClass];
-			}
-			
-			// Put the class in cache
-			$this->scannedClasses[$providerClass] = false;
-			
-			try {
-				// Attempt to load the class using PHP's autoloader
-				// Returns false if the class doesn't exist or can't be loaded
-				if (!class_exists($providerClass)) {
-					$this->logger?->warning('Provider class not found during discovery', [
-						'scanner' => 'DirectoryScanner',
-						'class'   => $providerClass,
-						'reason'  => 'class_not_found'
-					]);
-					
-					return false;
-				}
-				
-				// Ensure the provider class implements the required ProviderInterface contract
-				// This guarantees the class has all necessary methods for provider functionality
-				if (!is_subclass_of($providerClass, ProviderInterface::class)) {
-					$this->logger?->warning('Provider class does not implement required interface', [
-						'scanner'            => 'DirectoryScanner',
-						'class'              => $providerClass,
-						'reason'             => 'invalid_interface',
-						'required_interface' => ProviderInterface::class,
-					]);
-					
-					return false;
-				}
-				
-				try {
-					// Create a reflection instance to inspect the class's properties and interfaces
-					$reflection = new ReflectionClass($providerClass);
-					
-					// Check if the class is instantiable
-					if (!$reflection->isInstantiable()) {
-						$this->logger?->warning('Provider class is not instantiable', [
-							'scanner'      => 'DirectoryScanner',
-							'class'        => $providerClass,
-							'reason'       => 'not_instantiable',
-							'is_abstract'  => $reflection->isAbstract(),
-							'is_interface' => $reflection->isInterface(),
-							'is_trait'     => $reflection->isTrait(),
-						]);
-						
-						return false;
-					}
-				} catch (ReflectionException $e) {
-					$this->logger?->warning('Failed to analyze provider class with reflection', [
-						'scanner' => 'DirectoryScanner',
-						'class'   => $providerClass,
-						'reason'  => 'reflection_failed',
-						'error'   => $e->getMessage(),
-					]);
-					
-					return false;
-				}
-				
-				// All checks ok. Return true
-				return $this->scannedClasses[$providerClass] = true;
-				
-			} catch (\Throwable $e) {
-				// Log unexpected errors
-				$this->logger?->warning('Error validating provider class', [
-					'scanner' => 'DirectoryScanner',
-					'class'   => $providerClass,
-					'reason'  => $e->getMessage()
-				]);
-				
-				return false;
-			}
 		}
 	}

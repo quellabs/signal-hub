@@ -3,8 +3,6 @@
 	namespace Quellabs\Discover\Utilities;
 	
 	use Composer\Autoload\ClassLoader;
-	use Psr\Log\LoggerInterface;
-	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use RuntimeException;
 	
 	class PSR4 {
@@ -112,13 +110,12 @@
 		}
 		
 		/**
-		 * Find the path to Composer's installed.json file
-		 * This file contains information about all installed packages
+		 * Find the path to the local composer.lock file
 		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
-		 * @return string|null Path to installed.json if found, null otherwise
+		 * @return string|null Path to composer.lock if found, null otherwise
 		 */
-		public function getComposerInstalledFilePath(?string $startDirectory = null): ?string {
-			// First find the project root, as we'll need to navigate to vendor/composer from there
+		public function getComposerLockFilePath(?string $startDirectory = null): ?string {
+			// Find the directory containing composer.json, starting from provided directory or current directory
 			$projectRoot = $this->getProjectRoot($startDirectory);
 			
 			// If we couldn't find the project root, we can't locate installed.json
@@ -126,9 +123,30 @@
 				return null;
 			}
 			
-			// The installed.json file is typically located in vendor/composer directory
-			return $projectRoot . DIRECTORY_SEPARATOR . 'vendor' .
-				DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+			// Return the full path to the composer.json file
+			return $projectRoot . DIRECTORY_SEPARATOR . 'composer.lock';
+		}
+		
+		/**
+		 * Find the path to Composer's installed.json file (legacy format)
+		 * This file contains package information in JSON format (pre-Composer 2.1)
+		 * @param string|null $startDirectory Directory to start searching from (defaults to current directory)
+		 * @return string|null Path to installed.json if found, null otherwise
+		 */
+		public function getComposerInstalledJsonPath(?string $startDirectory = null): ?string {
+			// Find the project root to navigate to vendor/composer from there
+			$projectRoot = $this->getProjectRoot($startDirectory);
+			
+			// If we couldn't find the project root, we can't locate the file
+			if ($projectRoot === null) {
+				return null;
+			}
+			
+			// Construct the path to the legacy JSON format file
+			$jsonPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'composer' . DIRECTORY_SEPARATOR . 'installed.json';
+			
+			// Return the path if the file exists
+			return file_exists($jsonPath) ? $jsonPath : null;
 		}
 		
 		/**

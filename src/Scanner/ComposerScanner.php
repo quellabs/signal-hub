@@ -2,12 +2,10 @@
 	
 	namespace Quellabs\Discover\Scanner;
 	
-	use ReflectionClass;
-	use ReflectionException;
+	use Quellabs\Discover\Utilities\ProviderValidator;
 	use Psr\Log\LoggerInterface;
 	use InvalidArgumentException;
 	use Quellabs\Discover\Utilities\PSR4;
-	use Quellabs\Contracts\Discovery\ProviderInterface;
 	use Quellabs\Contracts\Discovery\ProviderDefinition;
 	
 	/**
@@ -64,6 +62,12 @@
 		private ?LoggerInterface $logger;
 		
 		/**
+		 * Class responsible for validating providers are valid
+		 * @var ProviderValidator
+		 */
+		private ProviderValidator $providerValidator;
+		
+		/**
 		 * ComposerScanner constructor
 		 * @param string|null $familyName The family name for providers
 		 * @param string $discoverySection The top-level key in composer.json's extra section
@@ -78,6 +82,7 @@
 			$this->discoverySection = $discoverySection;
 			$this->logger = $logger;
 			$this->utilities = new PSR4();
+			$this->providerValidator = new ProviderValidator($logger, "ComposerScanner");
 		}
 		
 		/**
@@ -258,7 +263,7 @@
 				// - Check if class exists and can be autoloaded
 				// - Verify it implements required ProviderInterface
 				// - Ensure constructor is compatible with dependency injection
-				if ($this->validateProviderClass($providerData['class'])) {
+				if ($this->providerValidator->validate($providerData['class'])) {
 					try {
 						// Only include providers that pass all validation checks
 						// This prevents runtime errors during provider instantiation
@@ -457,82 +462,7 @@
 			// This maintains consistency and prevents errors with malformed configurations
 			return [];
 		}
-		
-		/**
-		 * Performs essential validation checks to ensure a provider class is properly
-		 * defined and can be safely instantiated. This prevents runtime errors that
-		 * would occur if invalid providers were included in the application bootstrap.
-		 * @param string $providerClass Fully qualified class name of the provider to validate
-		 * @return bool True if provider is valid and can be used, false if validation fails
-		 */
-			public function validateProviderClass(string $providerClass): bool {
-			// Prevent arbitrary class loading
-			if (!preg_match(self::CLASS_NAME_PATTERN, $providerClass)) {
-				$this->logger?->warning('Invalid provider class name rejected', [
-					'class'   => $providerClass,
-					'reason'  => 'invalid_class_name_format',
-					'scanner' => 'ComposerScanner'
-				]);
-				
-				return false;
-			}
-			
-			// Verify that the provider class can be found and autoloaded
-			// This catches typos in class names, missing files, or autoloader issues
-			if (!class_exists($providerClass)) {
-				$this->logger?->warning('Provider class not found during discovery', [
-					'scanner' => 'ComposerScanner',
-					'class'   => $providerClass,
-					'reason'  => 'class_not_found'
-				]);
-				
-				return false;
-			}
-			
-			// Ensure the provider class implements the required ProviderInterface contract
-			// This guarantees the class has all necessary methods for provider functionality
-			if (!is_subclass_of($providerClass, ProviderInterface::class)) {
-				$this->logger?->warning('Provider class does not implement required interface', [
-					'scanner'            => 'ComposerScanner',
-					'class'              => $providerClass,
-					'reason'             => 'invalid_interface',
-					'required_interface' => ProviderInterface::class,
-				]);
-				
-				return false;
-			}
-			
-			// Check if class is instantiable
-			try {
-				$reflection = new ReflectionClass($providerClass);
-				
-				if (!$reflection->isInstantiable()) {
-					$this->logger?->warning('Provider class is not instantiable', [
-						'scanner'      => 'ComposerScanner',
-						'class'        => $providerClass,
-						'reason'       => 'not_instantiable',
-						'is_abstract'  => $reflection->isAbstract(),
-						'is_interface' => $reflection->isInterface(),
-						'is_trait'     => $reflection->isTrait(),
-					]);
-					
-					return false;
-				}
-			} catch (ReflectionException $e) {
-				$this->logger?->warning('Failed to analyze provider class with reflection', [
-					'scanner' => 'ComposerScanner',
-					'class'   => $providerClass,
-					'reason'  => 'reflection_failed',
-					'error'   => $e->getMessage(),
-				]);
-				
-				return false;
-			}
-			
-			// The provider passed all validation checks and is safe to instantiate
-			return true;
-		}
-		
+
 		/**
 		 * Safely reads and parses a JSON file with comprehensive error handling.
 		 * This utility method handles both file system errors (missing/unreadable files)
