@@ -62,13 +62,13 @@
 				// Check if the file exists and remove it
 				if (file_exists($outputPath)) {
 					if (unlink($outputPath)) {
-						$io->write('<info>Service discovery mapping file removed: ' . $outputPath . '</info>');
+						$io->write('<info>Discover: Service discovery mapping file removed: ' . $outputPath . '</info>');
 					} else {
-						$io->writeError('<warning>Failed to remove service discovery mapping file: ' . $outputPath . '</warning>');
+						$io->writeError('<warning>Discover: Failed to remove service discovery mapping file: ' . $outputPath . '</warning>');
 					}
 				}
 			} catch (\Exception $e) {
-				$io->writeError('<error>Error during plugin deactivation: ' . $e->getMessage() . '</error>');
+				$io->writeError('<error>Discover: Error during plugin deactivation: ' . $e->getMessage() . '</error>');
 			}
 		}
 		
@@ -113,7 +113,7 @@
 		private function generateServiceMap(Composer $composer, IOInterface $io): void {
 			try {
 				// Output message
-				$io->write('<info>Building service discovery map from package metadata...</info>');
+				$io->write('<info>Discover: Building service discovery map from package metadata...</info>');
 				
 				// Get the lock file data - this contains the exact versions and metadata
 				// of all installed packages as recorded during the last install/update
@@ -121,7 +121,7 @@
 				
 				// Check if composer.lock exists - without it we can't generate the map
 				if (!$locker->isLocked()) {
-					$io->writeError('<warning>Cannot generate service discovery map: composer.lock file not found.</warning>');
+					$io->writeError('<warning>Discover: Cannot generate service discovery map: composer.lock file not found.</warning>');
 					return;
 				}
 				
@@ -133,7 +133,7 @@
 				
 				// Skip file generation if no packages have extra data
 				if (empty($extraMap)) {
-					$io->write('<comment>No packages found with service discovery metadata (extra data).</comment>');
+					$io->write('<comment>Discover: No packages found with service discovery metadata (extra data).</comment>');
 					return;
 				}
 				
@@ -151,12 +151,12 @@
 				$this->writeExtraMapFile($outputPath, $extraMap);
 				
 				// Show success messages with statistics
-				$io->write("<info>Service discovery map generated: {$outputPath}</info>");
-				$io->write("<comment>Mapped " . count($extraMap) . " packages with 'extra' metadata.</comment>");
+				$io->write("<info>Discover: Service discovery map generated: {$outputPath}</info>");
+				$io->write("<comment>Discover: Mapped " . count($extraMap) . " packages with 'extra' metadata.</comment>");
 				
 			} catch (\Exception $e) {
 				// Handle any errors that occur during the generation process
-				$io->writeError("<error>Service discovery map generation failed: {$e->getMessage()}</error>");
+				$io->writeError("<error>Discover: Service discovery map generation failed: {$e->getMessage()}</error>");
 			}
 		}
 		
@@ -275,7 +275,7 @@ PHP;
 		 * @param int $indent Current indentation level (used for recursion)
 		 * @return string Formatted PHP code representation of the variable
 		 */
-		private function varExportPretty($var, int $indent = 0): string {
+		private function varExportPretty(mixed $var, int $indent = 0): string {
 			// Create the indentation string based on current level
 			$indentStr = str_repeat('    ', $indent);
 			
