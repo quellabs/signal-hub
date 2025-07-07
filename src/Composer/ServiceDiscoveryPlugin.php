@@ -233,11 +233,12 @@
 						return !in_array($key, ['thanks', 'branch-alias']);
 					}, ARRAY_FILTER_USE_KEY);
 					
+					// Skip entry if there are no other entries
 					if (empty($mapEntry)) {
 						continue;
 					}
 					
-					// Add to the map. Filter out 'thanks' and 'branch-alias' keys
+					// Add to the map
 					$extraMap[$package['name']] = $mapEntry;
 				}
 			}
