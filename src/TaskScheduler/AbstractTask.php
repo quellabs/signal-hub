@@ -32,16 +32,6 @@
 			return true;
 		}
 		
-		/**
-		 * Default: no description. Override to provide a human-readable description
-		 * of what the task does. This is useful for logging, monitoring, and
-		 * administrative interfaces
-		 *
-		 * @return string Task description
-		 */
-		public function getDescription(): string {
-			return '';
-		}
 		
 		/**
 		 * Default: 5-minute timeout. Override to set a custom timeout based
@@ -98,6 +88,12 @@
 		}
 		
 		/**
+		 * Description what the task does
+		 * @return string
+		 */
+		abstract public function getDescription(): string;
+
+		/**
 		 * Main task execution logic
 		 * @throws \Exception When task execution fails
 		 */
@@ -108,4 +104,4 @@
         * @return string Cron expression for task scheduling
         */
        abstract public function getSchedule(): string;
-    }
+	}

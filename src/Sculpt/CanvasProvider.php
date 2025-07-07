@@ -14,7 +14,8 @@
 				MatchRoutesCommand::class,
 				RoutesCacheClearCommand::class,
 				PublishCommand::class,
-				TaskSchedulerCommand::class,
+				SchedulerRunCommand::class,
+				SchedulerListCommand::class
 			]);
 		}
 	}

@@ -57,6 +57,14 @@
 		}
 		
 		/**
+		 * Returns a list of tasks
+		 * @return TaskInterface[]
+		 */
+		public function getTaskList(): array {
+			return $this->tasks;
+		}
+		
+		/**
 		 * Run a specific task with timeout handling
 		 * @param TaskInterface $task The task to execute
 		 * @return TaskResult Result object containing execution status, duration, and any errors
