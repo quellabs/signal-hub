@@ -5,7 +5,7 @@
 	use Cron\CronExpression;
 	use Psr\Log\LoggerInterface;
 	use Psr\Log\NullLogger;
-	use Quellabs\Canvas\TaskScheduler\Runner\TimeoutStrategyFactory;
+	use Quellabs\Canvas\TaskScheduler\Runner\TaskRunnerFactory;
 	use Quellabs\Canvas\TaskScheduler\Storage\TaskStorageInterface;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
@@ -61,7 +61,7 @@
 		 * @param TaskInterface $task The task to execute
 		 * @return TaskResult Result object containing execution status, duration, and any errors
 		 */
-		public function runTask(TaskInterface $task): TaskResult {
+		private function runTask(TaskInterface $task): TaskResult {
 			// Capture task name
 			$taskName = $task->getName();
 			
@@ -75,7 +75,7 @@
 				
 				// Create appropriate timeout strategy based on task configuration
 				// The factory pattern allows different timeout implementations (process timeout, etc.)
-				$taskRunner = TimeoutStrategyFactory::create($task->getTimeout(), $this->logger);
+				$taskRunner = TaskRunnerFactory::create($task->getTimeout(), $this->logger);
 				
 				// Mark task as busy in storage to prevent concurrent execution
 				// This creates a distributed lock across multiple scheduler instances
@@ -161,7 +161,7 @@
 			// Add a Composer-based scanner to look for task implementations
 			// This scans for classes in the "task_scheduler" section of composer.json
 			$discover = new Discover();
-			$discover->addScanner(new ComposerScanner("task_scheduler", "discover", $this->logger));
+			$discover->addScanner(new ComposerScanner("task-scheduler", "discover", $this->logger));
 			$discover->discover();
 			
 			// Build a list of tasks; filter out everything that does not implement TaskInterface
@@ -169,7 +169,8 @@
 				// Check if the discovered class implements the TaskInterface
 				// Only include classes that properly implement the task contract
 				if (!is_subclass_of($provider, TaskInterface::class)) {
-					$this->logger->warning("Skipping task provider '{$provider::class}' - does not implement TaskInterface");
+					$providerClass = get_class($provider);
+					$this->logger->warning("Skipping task provider '{$providerClass}' - does not implement TaskInterface");
 					continue;
 				}
 				

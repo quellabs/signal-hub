@@ -22,9 +22,9 @@
 		 *
 		 * @param int $timeout The timeout value in seconds (0 means no timeout)
 		 * @param LoggerInterface $logger Logger instance for the timeout strategy
-		 * @return TimeoutStrategyInterface The created timeout strategy instance
+		 * @return TaskRunnerInterface The created timeout strategy instance
 		 */
-		public static function create(int $timeout, LoggerInterface $logger): TimeoutStrategyInterface {
+		public static function create(int $timeout, LoggerInterface $logger): TaskRunnerInterface {
 			// Return no-timeout strategy when timeout is disabled (0 seconds)
 			if ($timeout == 0) {
 				return new StrategyNoTimeout($timeout, $logger);

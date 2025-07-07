@@ -17,7 +17,7 @@
 	 *
 	 * @package Quellabs\Canvas\TaskScheduler\Runner
 	 */
-	class StrategyNoTimeout implements TimeoutStrategyInterface {
+	class StrategyNoTimeout implements TaskRunnerInterface {
 		
 		/**
 		 * Logger instance for recording timeout events and errors

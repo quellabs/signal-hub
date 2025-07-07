@@ -9,7 +9,7 @@
 	/**
 	 * Interface for timeout strategy implementations.
 	 */
-	interface TimeoutStrategyInterface {
+	interface TaskRunnerInterface {
 		
 		/**
 		 * Executes a task with a specified timeout limit.

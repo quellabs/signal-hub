@@ -11,7 +11,7 @@
 	 * to enforce execution time limits on tasks. This strategy uses SIGALRM
 	 * signals to interrupt task execution when the specified timeout period is exceeded.
 	 */
-	class StrategyPcntl implements TimeoutStrategyInterface {
+	class StrategyPcntl implements TaskRunnerInterface {
 		
 		/**
 		 * @var int Maximum execution time in seconds

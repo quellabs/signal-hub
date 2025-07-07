@@ -2,10 +2,12 @@
 	
 	namespace Quellabs\Canvas\TaskScheduler;
 	
+	use Quellabs\Contracts\Discovery\ProviderInterface;
+	
 	/**
 	 * Abstract base class for scheduled tasks
 	 */
-	abstract class AbstractTask implements TaskInterface {
+	abstract class AbstractTask implements TaskInterface, ProviderInterface {
 		
 		/**
 		 * Task name defaults to class name in kebab-case
@@ -78,6 +80,21 @@
 		 */
 		public function onTimeout(TaskException $exception): void {
 			// Override for custom timeout handling
+		}
+		
+		public static function getMetadata(): array {
+			return [];
+		}
+		
+		public static function getDefaults(): array {
+			return [];
+		}
+		
+		public function getConfig(): array {
+			return [];
+		}
+		
+		public function setConfig(array $config): void {
 		}
 		
 		/**

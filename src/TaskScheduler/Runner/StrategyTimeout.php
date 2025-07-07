@@ -6,6 +6,7 @@
 	use Quellabs\Canvas\TaskScheduler\TaskException;
 	use Quellabs\Canvas\TaskScheduler\TaskInterface;
 	use Quellabs\Canvas\TaskScheduler\TaskTimeoutException;
+	use Quellabs\Discover\Discover;
 	
 	/**
 	 * Timeout strategy that runs tasks in separate processes with configurable timeouts.
@@ -13,7 +14,7 @@
 	 * the tasks in separate processes, allowing for proper timeout handling and process
 	 * termination when tasks exceed their allocated time.
 	 */
-	class StrategyTimeout implements TimeoutStrategyInterface {
+	class StrategyTimeout implements TaskRunnerInterface {
 		
 		/**
 		 * @var int Maximum execution time in seconds
@@ -27,6 +28,12 @@
 		private LoggerInterface $logger;
 		
 		/**
+		 * Discovery class
+		 * @var Discover
+		 */
+		private Discover $discover;
+		
+		/**
 		 * Constructor - initializes the strategy with a logger instance.
 		 * @param int $timeout Maximum execution time in seconds
 		 * @param LoggerInterface $logger Logger for debugging and error reporting
@@ -34,6 +41,7 @@
 		public function __construct(int $timeout, LoggerInterface $logger) {
 			$this->timeout = $timeout;
 			$this->logger = $logger;
+			$this->discover = new Discover();
 		}
 		
 		/**
@@ -41,7 +49,6 @@
 		 * Creates a temporary script containing the serialized task, starts a new process
 		 * to execute it, and monitors the process until completion or timeout.
 		 * @param TaskInterface $task The task to execute
-		 * @param int $timeout Maximum execution time in seconds
 		 * @throws TaskTimeoutException If the task exceeds the timeout
 		 * @throws TaskException If the task fails to execute or start
 		 */
@@ -75,10 +82,13 @@
 			// Serialize and encode the task for safe inclusion in the script
 			$serializedTask = base64_encode(serialize($task));
 			
+			// Base dir
+			$autoloadPath = $this->discover->getProjectRoot() . "/vendor/autoload.php";
+			
 			// Generate the PHP script content
 			$scriptContent = <<<PHP
 <?php
-	require_once __DIR__ . '/vendor/autoload.php';
+	require_once '$autoloadPath';
 	
 	try {
 	    // Deserialize and execute the task
@@ -147,9 +157,9 @@ PHP;
 		 * @throws TaskTimeoutException|TaskException If the process exceeds the timeout
 		 */
 		private function monitorProcess(array $processData, string $taskName): void {
-			// Fetch process and pipes
+			// Fetch process and pipe data
 			$process = $processData["process"];
-			$pipes = $process["pipes"];
+			$pipes = $processData["pipes"];
 			
 			// Track execution time
 			$startTime = time();
@@ -158,11 +168,11 @@ PHP;
 			
 			// Monitor loop
 			while (true) {
-				// Check if process is still running
+				// Check if the process is still running
 				$status = proc_get_status($process);
 				
-				if (!$status['running']) {
-					break; // Process has finished
+				if ($status['running'] === false) {
+					break; // The process has finished
 				}
 				
 				// Check for timeout

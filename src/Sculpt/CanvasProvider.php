@@ -14,6 +14,7 @@
 				MatchRoutesCommand::class,
 				RoutesCacheClearCommand::class,
 				PublishCommand::class,
+				TaskSchedulerCommand::class,
 			]);
 		}
 	}
