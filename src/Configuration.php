@@ -182,6 +182,17 @@
 		}
 		
 		/**
+		 * Set path where entity classes can be found
+		 * Is there for backwards compatibility
+		 * @param string $path
+		 * @return self
+		 */
+		public function setEntityPath(string $path): self {
+			$this->entityPaths = [$path];
+			return $this;
+		}
+		
+		/**
 		 * Sets paths where entity classes can be found
 		 * @param array $paths
 		 * @return self
@@ -224,7 +235,7 @@
 		}
 		
 		/**
-		 * Set directory where proxy classes will be stored
+		 * Set the directory where proxy classes will be stored
 		 * @param string|null $proxyDir
 		 * @return self
 		 */
