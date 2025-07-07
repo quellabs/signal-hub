@@ -12,6 +12,7 @@ A modern, lightweight PHP framework that gets out of your way. Write clean contr
 - **📦 Contextual Containers** - Work with interfaces; Canvas resolves implementations by context
 - **⚡ Aspect-Oriented Programming** - Add crosscutting concerns without cluttering business logic
 - **🔔 Event-Driven Architecture** - Qt-style signals and slots for decoupled component communication
+- **⏰ Task Scheduling** - Cron-based background task execution with multiple timeout strategies
 
 ## Quick Start
 
@@ -427,6 +428,258 @@ Use custom rules in your validation classes:
     new Length(8),
     new StrongPassword()
 ]
+```
+
+## Task Scheduling
+
+Canvas includes a comprehensive task scheduling system that allows you to run background jobs on a cron-like schedule. The scheduler supports multiple execution strategies, timeout handling, and distributed locking to prevent concurrent task execution.
+
+### Creating Tasks
+
+Create tasks by extending the `AbstractTask` class and implementing the required methods:
+
+```php
+<?php
+namespace App\Tasks;
+
+use Quellabs\Contracts\TaskScheduler\AbstractTask;
+
+class DatabaseCleanupTask extends AbstractTask {
+    
+    public function handle(): void {
+        // Your task logic here
+        $this->cleanupExpiredSessions();
+        $this->archiveOldLogs();
+        $this->optimizeTables();
+    }
+    
+    public function getDescription(): string {
+        return "Clean up expired sessions and optimize database tables";
+    }
+    
+    public function getSchedule(): string {
+        return "0 2 * * *"; // Run daily at 2 AM
+    }
+    
+    public function getName(): string {
+        return "database-cleanup";
+    }
+    
+    public function getTimeout(): int {
+        return 1800; // 30 minutes timeout
+    }
+    
+    public function enabled(): bool {
+        return true; // Task is enabled
+    }
+    
+    // Optional: Handle task failures
+    public function onFailure(\Exception $exception): void {
+        error_log("Database cleanup failed: " . $exception->getMessage());
+        // Send notification, log to monitoring system, etc.
+    }
+    
+    // Optional: Handle task timeouts
+    public function onTimeout(\Exception $exception): void {
+        error_log("Database cleanup timed out: " . $exception->getMessage());
+        // Perform cleanup, send alerts, etc.
+    }
+    
+    private function cleanupExpiredSessions(): void {
+        // Implementation details...
+    }
+    
+    private function archiveOldLogs(): void {
+        // Implementation details...
+    }
+    
+    private function optimizeTables(): void {
+        // Implementation details...
+    }
+}
+```
+
+### Task Discovery
+
+Canvas automatically discovers tasks using its own discovery mechanism that reads from `composer.json`. Add your task classes to your `composer.json`:
+
+```json
+{
+  "extra": {
+    "discover": {
+      "task-scheduler": {
+        "providers": [
+          "App\\Tasks\\DatabaseCleanupTask",
+          "App\\Tasks\\EmailQueueTask",
+          "App\\Tasks\\ReportGenerationTask"
+        ]
+      }
+    }
+  }
+}
+```
+
+After updating composer.json, run:
+
+```bash
+composer dump-autoload
+```
+
+### Running the Task Scheduler
+
+Create a script to run the task scheduler (e.g., `bin/schedule.php`):
+
+```php
+<?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use Quellabs\Canvas\TaskScheduler\TaskScheduler;
+use Quellabs\Canvas\TaskScheduler\Storage\FileTaskStorage;
+use Psr\Log\NullLogger;
+
+// Initialize storage (you can also use custom storage implementations)
+$storage = new FileTaskStorage(
+    sys_get_temp_dir() . '/canvas_tasks', // Storage directory
+    300,  // Lock timeout in seconds (5 minutes)
+    60    // Max lock wait time in seconds (1 minute)
+);
+
+// Initialize logger (use your preferred logger)
+$logger = new NullLogger(); // or new Logger('task-scheduler')
+
+// Create and run the scheduler
+$scheduler = new TaskScheduler($storage, $logger);
+$results = $scheduler->run();
+
+// Process results
+foreach ($results as $result) {
+    if ($result->isSuccess()) {
+        echo "✓ Task completed: " . $result->getTask()->getName() . 
+             " (Duration: " . $result->getDuration() . "ms)\n";
+    } else {
+        echo "✗ Task failed: " . $result->getTask()->getName() . 
+             " - " . $result->getException()->getMessage() . "\n";
+    }
+}
+```
+
+### Setting Up Cron
+
+Add this to your system's crontab to run the scheduler every minute:
+
+```bash
+# Edit crontab
+crontab -e
+
+# Add this line (adjust path to your script)
+* * * * * /usr/bin/php /path/to/your/app/bin/schedule.php >> /var/log/canvas-scheduler.log 2>&1
+```
+
+### Cron Schedule Format
+
+Canvas uses standard cron expressions for scheduling:
+
+```
+* * * * *
+│ │ │ │ │
+│ │ │ │ └─── Day of Week   (0-7, Sunday=0 or 7)
+│ │ │ └───── Month         (1-12)
+│ │ └─────── Day of Month  (1-31)
+│ └───────── Hour          (0-23)
+└─────────── Minute        (0-59)
+```
+
+**Common Examples:**
+
+```php
+"0 */6 * * *"     // Every 6 hours
+"30 2 * * *"      // Daily at 2:30 AM
+"0 0 * * 0"       // Weekly on Sunday midnight
+"0 0 1 * *"       // Monthly on the 1st
+"*/15 * * * *"    // Every 15 minutes
+"0 9 * * 1-5"     // Weekdays at 9 AM
+"0 0 * * 1,3,5"   // Monday, Wednesday, Friday at midnight
+```
+
+### Timeout Strategies
+
+Canvas automatically selects the best timeout strategy based on your system:
+
+#### 1. No Timeout Strategy
+Used when `getTimeout()` returns 0:
+
+```php
+public function getTimeout(): int {
+    return 0; // No timeout - task runs until completion
+}
+```
+
+#### 2. PCNTL Strategy (Preferred)
+Used on systems with PCNTL support. Uses signals for efficient timeout handling:
+
+```php
+public function getTimeout(): int {
+    return 300; // 5 minutes - uses SIGALRM for timeout
+}
+```
+
+#### 3. Process Strategy (Fallback)
+Used on systems without PCNTL. Runs tasks in separate processes:
+
+```php
+public function getTimeout(): int {
+    return 600; // 10 minutes - uses separate process with monitoring
+}
+```
+
+### Storage Options
+
+#### File Storage (Default)
+
+The file-based storage system uses the filesystem to track task states:
+
+```php
+$storage = new FileTaskStorage(
+    '/var/lib/canvas/tasks',  // Storage directory
+    300,                      // Lock timeout (5 minutes)
+    60                        // Max lock wait time (1 minute)
+);
+```
+
+**Features:**
+- Distributed locking prevents concurrent task execution
+- Automatic cleanup of stale locks and task files
+- Process tracking with PID validation
+- Exponential backoff for lock acquisition
+
+#### Custom Storage
+
+Implement `TaskStorageInterface` for custom storage backends:
+
+```php
+<?php
+namespace App\TaskStorage;
+
+use Quellabs\Canvas\TaskScheduler\Storage\TaskStorageInterface;
+
+class RedisTaskStorage implements TaskStorageInterface {
+    
+    public function markAsBusy(string $taskName, \DateTime $dateTime): void {
+        // Redis implementation
+    }
+    
+    public function markAsDone(string $taskName, \DateTime $dateTime): void {
+        // Redis implementation
+    }
+    
+    public function isBusy(string $taskName): bool {
+        // Redis implementation
+    }
+    
+    public function cleanup(): void {
+        // Redis cleanup implementation
+    }
+}
 ```
 
 ## Event-Driven Architecture with SignalHub
@@ -880,6 +1133,16 @@ Canvas includes a command-line interface called Sculpt for managing your applica
 ./vendor/bin/sculpt route:clear-cache
 ```
 
+### Task Scheduler Management
+
+```bash
+# List all discovered tasks
+./vendor/bin/sculpt schedule:list
+
+# Run all due tasks
+./vendor/bin/sculpt schedule:run
+```
+
 ### Asset Publishing
 
 Canvas provides a powerful asset publishing system to deploy configuration files, templates, and other resources:
@@ -901,12 +1164,6 @@ Canvas provides a powerful asset publishing system to deploy configuration files
 ./vendor/bin/sculpt canvas:publish package:production --help
 ```
 
-**Key features:**
-- **Safe publishing** with automatic backup creation
-- **Transaction rollback** if operations fail
-- **Interactive confirmation** with preview of changes
-- **Extensible publisher system** for custom deployment needs
-
 ## Why Canvas?
 
 - **Legacy Integration**: Works with existing PHP without breaking anything
@@ -915,6 +1172,7 @@ Canvas provides a powerful asset publishing system to deploy configuration files
 - **Performance**: Lazy loading, route caching, efficient matching
 - **Flexibility**: Contextual containers and composable aspects
 - **Event-Driven**: Decoupled components with type-safe signal system
+- **Task Scheduling**: Robust background job processing with multiple execution strategies
 - **Growth**: Scales from simple sites to complex applications
 
 ## Contributing
