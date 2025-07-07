@@ -437,7 +437,7 @@
 			$trace = $exception->getTraceAsString();
 			
 			return "<!DOCTYPE html>
-<html>
+<html lang='eng'>
 <head>
     <title>Canvas Framework Error</title>
     <style>
