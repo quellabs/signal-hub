@@ -146,7 +146,7 @@
 		 */
 		public function cleanup(): void {
 			// Scan the storage directory for files to clean up
-			// Use @ to suppress warnings if directory can't be read
+			// Use @ to suppress warnings if the directory can't be read
 			$files = @scandir($this->storageDirectory);
 			
 			if ($files === false) {

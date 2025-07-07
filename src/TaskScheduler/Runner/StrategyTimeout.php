@@ -76,14 +76,14 @@
 		 * @return string Path to the created temporary script
 		 */
 		private function createTaskScript(TaskInterface $task): string {
+			// Determine the autoload-directory (composer)
+			$autoloadPath = $this->discover->getProjectRoot() . "/vendor/autoload.php";
+			
 			// Create a temporary file for the script
 			$tempScript = tempnam(sys_get_temp_dir(), 'task_');
 			
 			// Serialize and encode the task for safe inclusion in the script
 			$serializedTask = base64_encode(serialize($task));
-			
-			// Base dir
-			$autoloadPath = $this->discover->getProjectRoot() . "/vendor/autoload.php";
 			
 			// Generate the PHP script content
 			$scriptContent = <<<PHP
