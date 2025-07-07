@@ -99,48 +99,54 @@
 		 * @return int Priority value for sorting
 		 */
 		private function getSchedulePriority(string $schedule): int {
-			// Handle common cron patterns
-			if (str_contains($schedule, '* * * * *')) {
-				return 1;
+			// Normalize schedule by trimming whitespace
+			$schedule = trim($schedule);
+			
+			// Define schedule patterns with their priorities (lower = higher priority)
+			$schedulePatterns = [
+				// Every minute patterns
+				['pattern' => '/^\* \* \* \* \*$/', 'priority' => 1],
+				
+				// Minute interval patterns
+				['pattern' => '/^\*\/1(\s|$)/', 'priority' => 1],     // Every minute
+				['pattern' => '/^\*\/([2-5])(\s|$)/', 'priority' => 2], // Every 2-5 minutes
+				['pattern' => '/^\*\/([6-9]|1[0-5])(\s|$)/', 'priority' => 3], // Every 6-15 minutes
+				['pattern' => '/^\*\/([1-2][6-9]|30)(\s|$)/', 'priority' => 4], // Every 16-30 minutes
+				['pattern' => '/^\*\/([3-5][0-9])(\s|$)/', 'priority' => 5], // Every 31-59 minutes
+				
+				// Specific minute patterns
+				['pattern' => '/^\d+\/\d+ \* \* \* \*$/', 'priority' => 2], // Every X minutes (alternative format)
+				['pattern' => '/^\d+ \* \* \* \*$/', 'priority' => 6],      // Hourly
+				
+				// Hour interval patterns
+				['pattern' => '/^\d+ \*\/\d+ \* \* \*$/', 'priority' => 7], // Every X hours
+				['pattern' => '/^\d+ \d+ \* \* \*$/', 'priority' => 8],     // Daily
+				
+				// Weekly patterns
+				['pattern' => '/^\d+ \d+ \* \* \d+$/', 'priority' => 9],    // Weekly
+				['pattern' => '/^\d+ \d+ \* \* [0-6](,[0-6])*$/', 'priority' => 9], // Specific days
+				
+				// Monthly patterns
+				['pattern' => '/^\d+ \d+ \d+ \* \*$/', 'priority' => 10],   // Monthly
+				['pattern' => '/^\d+ \d+ \d+ \d+ \*$/', 'priority' => 11],  // Yearly
+				
+				// Shorthand expressions
+				['pattern' => '/^@yearly$/i', 'priority' => 11],
+				['pattern' => '/^@annually$/i', 'priority' => 11],
+				['pattern' => '/^@monthly$/i', 'priority' => 10],
+				['pattern' => '/^@weekly$/i', 'priority' => 9],
+				['pattern' => '/^@daily$/i', 'priority' => 8],
+				['pattern' => '/^@hourly$/i', 'priority' => 6],
+			];
+			
+			// Check each pattern and return the first match
+			foreach ($schedulePatterns as $schedulePattern) {
+				if (preg_match($schedulePattern['pattern'], $schedule)) {
+					return $schedulePattern['priority'];
+				}
 			}
 			
-			// Every minute
-			if (preg_match('/^\d+\/\d+ \* \* \* \*$/', $schedule)) {
-				return 2;
-			}
-			
-			// Every X minutes
-			if (preg_match('/^\d+ \* \* \* \*$/', $schedule)) {
-				return 3;
-			}
-			
-			// Hourly
-			if (preg_match('/^\d+ \d+\/\d+ \* \* \*$/', $schedule)) {
-				return 4;
-			}
-			
-			// Every X hours
-			if (preg_match('/^\d+ \d+ \* \* \*$/', $schedule)) {
-				return 5;
-			}
-			
-			// Daily
-			if (preg_match('/^\d+ \d+ \* \* \d+$/', $schedule)) {
-				return 6;
-			}
-			
-			// Weekly
-			if (preg_match('/^\d+ \d+ \d+ \* \*$/', $schedule)) {
-				return 7;
-			}
-			
-			// Monthly
-			if (preg_match('/^\d+ \d+ \d+ \d+ \*$/', $schedule)) {
-				return 8;
-			}
-			
-			// Yearly
-			// Default for unrecognized patterns
-			return 9;
+			// Default priority for unrecognized patterns
+			return 12;
 		}
 	}
