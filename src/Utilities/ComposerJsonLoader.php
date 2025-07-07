@@ -59,7 +59,9 @@
 			}
 			
 			// Parse and cache the result
-			return $this->composerJsonCache = $this->parseJsonFile($composerJsonPath);
+			return $this->composerJsonCache = [
+				'local' => $this->parseJsonFile($composerJsonPath)
+			];
 		}
 		
 		/**

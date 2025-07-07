@@ -20,7 +20,7 @@
 		/**
 		 * Constants
 		 */
-		private const string DEFAULT_DISCOVERY_SECTION = 'discover';
+		public const string DEFAULT_DISCOVERY_SECTION = 'discover';
 		
 		/**
 		 * The key to look for in composer.json extra section
