@@ -104,7 +104,6 @@
 			
 			// Get list of available entities for relationships
 			$availableEntities = [];
-			$entityPath = $this->configuration->getEntityPath();
 			
 			if (is_dir($entityPath)) {
 				$files = scandir($entityPath);

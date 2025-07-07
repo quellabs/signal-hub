@@ -6,7 +6,7 @@
 	use Quellabs\ObjectQuel\EntityManager;
 	
 	$config = new Configuration();
-	$config->setEntityPath(__DIR__ . '/../src/Entity');
+	$config->setEntityPaths([__DIR__ . '/../src/Entity']);
 	$config->setProxyDir(__DIR__ . '/../src/Proxies');
 	$config->setUseMetadataCache(true);
 	$config->setMetadataCachePath(__DIR__ . '/../src/AnnotationCache');
