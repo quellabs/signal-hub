@@ -182,56 +182,41 @@
 		}
 		
 		/**
+		 * Retrieves entity path
+		 * Is there for backwards compatibility
+		 * @return string
+		 */
+		public function getEntityPath(): string {
+			return $this->entityPaths['core'];
+		}
+		
+		/**
 		 * Set path where entity classes can be found
 		 * Is there for backwards compatibility
 		 * @param string $path
 		 * @return self
 		 */
 		public function setEntityPath(string $path): self {
-			$this->entityPaths = [$path];
+			$this->entityPaths = ['core' => $path];
 			return $this;
 		}
 		
 		/**
-		 * Sets paths where entity classes can be found
-		 * @param array $paths
+		 * Adds another entity path
+		 * @param string $path
 		 * @return self
 		 */
-		public function setEntityPaths(array $paths): self {
-			$this->entityPaths = $paths;
+		public function addAdditionalEntityPath(string $path): self {
+			$this->entityPaths[] = $path;
 			return $this;
 		}
 		
 		/**
-		 * Get the configured entity paths
+		 * Returns all entity paths
 		 * @return array
 		 */
 		public function getEntityPaths(): array {
-			return $this->entityPaths;
-		}
-		
-		/**
-		 * Determines the appropriate entity path for creating new entities.
-		 * This method prioritizes the 'user' entity path if available, otherwise
-		 * returns the first available entity path from the collection.
-		 * @return string|null The entity path to use for creation, or null if no paths are available
-		 */
-		public function getEntityCreationPath(): ?string {
-			// Retrieve all available entity paths
-			$entityPaths = $this->getEntityPaths();
-			
-			// Return null if no entity paths are configured
-			if (empty($entityPaths)) {
-				return null;
-			}
-			
-			// Prefer the 'user' entity path if it exists
-			if (isset($entityPaths['writeable'])) {
-				return $entityPaths['writeable'];
-			}
-			
-			// Fallback to the first available entity path
-			return $entityPaths[array_key_first($entityPaths)];
+			return array_values($this->entityPaths);
 		}
 		
 		/**

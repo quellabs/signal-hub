@@ -94,7 +94,7 @@
 			
 			// Show the appropriate message to user based on whether the entity exists
 			$entityNamePlus = $entityName . "Entity";
-			$entityPath = realpath($this->configuration->getEntityCreationPath());
+			$entityPath = realpath($this->configuration->getEntityPath());
 			
 			if (!$this->getEntityModifier()->entityExists($entityNamePlus)) {
 				$this->output->writeLn("\nCreating new entity: {$entityPath}/{$entityNamePlus}.php\n");
