@@ -45,6 +45,9 @@
       "sculpt": {
         "provider": "Quellabs\\Canvas\\Sculpt\\CanvasProvider",
         "config": "config/app.php"
+      },
+      "task-scheduler": {
+        "provider": "Quellabs\\Canvas\\Tasks\\Task"
       }
     }
   }

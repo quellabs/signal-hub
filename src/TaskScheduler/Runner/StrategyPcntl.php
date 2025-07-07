@@ -3,8 +3,9 @@
 	namespace Quellabs\Canvas\TaskScheduler\Runner;
 	
 	use Psr\Log\LoggerInterface;
-	use Quellabs\Canvas\TaskScheduler\TaskInterface;
-	use Quellabs\Canvas\TaskScheduler\TaskTimeoutException;
+	use Quellabs\Contracts\TaskScheduler\TaskFailException;
+	use Quellabs\Contracts\TaskScheduler\TaskInterface;
+	use Quellabs\Contracts\TaskScheduler\TaskTimeoutException;
 	
 	/**
 	 * Timeout strategy implementation using PCNTL (Process Control) functions
@@ -39,6 +40,7 @@
 		 * @param TaskInterface $task The task to execute
 		 * @throws \RuntimeException If PCNTL functions are not available
 		 * @throws TaskTimeoutException If the task execution exceeds the timeout
+		 * @throws \Exception
 		 */
 		public function run(TaskInterface $task): void {
 			// Check if required PCNTL functions are available on this system
@@ -57,6 +59,13 @@
 			try {
 				// Execute the task - this will be interrupted by SIGALRM if timeout is exceeded
 				$task->handle();
+				
+			} catch (TaskFailException $e) {
+				
+				// Log the exception
+				$this->logger->error($e->getMessage());
+				throw $e;
+				
 			} finally {
 				// Always cancel the alarm to prevent it from triggering after task completion
 				// Setting alarm to 0 cancels any pending alarm

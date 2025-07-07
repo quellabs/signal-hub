@@ -2,14 +2,16 @@
 	
 	namespace Quellabs\Canvas\TaskScheduler;
 	
+	use Quellabs\Contracts\TaskScheduler\TaskInterface;
+	
 	/**
 	 * Task execution result
 	 */
-	class TaskResult {
-		public readonly TaskInterface $task;
-		public readonly bool $success;
-		public readonly int $duration;
-		public readonly ?\Exception $exception;
+	readonly class TaskResult {
+		public TaskInterface $task;
+		public bool $success;
+		public int $duration;
+		public ?\Exception $exception;
 		
 		public function __construct(
 			TaskInterface $task,

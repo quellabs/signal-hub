@@ -1,4 +1,5 @@
 <?php
+	
 	namespace Quellabs\Canvas\TaskScheduler\Storage;
 	
 	interface TaskStorageInterface {

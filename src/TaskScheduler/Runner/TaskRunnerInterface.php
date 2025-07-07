@@ -2,9 +2,9 @@
 	
 	namespace Quellabs\Canvas\TaskScheduler\Runner;
 	
-	use Quellabs\Canvas\TaskScheduler\TaskException;
-	use Quellabs\Canvas\TaskScheduler\TaskInterface;
-	use Quellabs\Canvas\TaskScheduler\TaskTimeoutException;
+	use Quellabs\Contracts\TaskScheduler\TaskException;
+	use Quellabs\Contracts\TaskScheduler\TaskInterface;
+	use Quellabs\Contracts\TaskScheduler\TaskTimeoutException;
 	
 	/**
 	 * Interface for timeout strategy implementations.

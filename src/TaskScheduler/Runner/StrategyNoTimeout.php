@@ -3,8 +3,8 @@
 	namespace Quellabs\Canvas\TaskScheduler\Runner;
 	
 	use Psr\Log\LoggerInterface;
-	use Quellabs\Canvas\TaskScheduler\TaskInterface;
-	use Quellabs\Canvas\TaskScheduler\TaskTimeoutException;
+	use Quellabs\Contracts\TaskScheduler\TaskInterface;
+	use Quellabs\Contracts\TaskScheduler\TaskTimeoutException;
 	
 	/**
 	 * A timeout strategy implementation that does not enforce any timeout limits.

@@ -7,6 +7,8 @@
 	use Psr\Log\NullLogger;
 	use Quellabs\Canvas\TaskScheduler\Runner\TaskRunnerFactory;
 	use Quellabs\Canvas\TaskScheduler\Storage\TaskStorageInterface;
+	use Quellabs\Contracts\TaskScheduler\TaskInterface;
+	use Quellabs\Contracts\TaskScheduler\TaskTimeoutException;
 	use Quellabs\Discover\Discover;
 	use Quellabs\Discover\Scanner\ComposerScanner;
 	
