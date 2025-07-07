@@ -220,12 +220,25 @@
 			if (isset($lockData['packages'])) {
 				foreach ($lockData['packages'] as $package) {
 					// Skip invalid packages  (shouldn't happen but safety first)
-					if (empty($package['name']) || empty($package['extra'])) {
+					if (
+						empty($package['name']) ||
+						empty($package['extra']) ||
+						!is_array($package['extra'])
+					) {
 						continue;
 					}
 					
-					// Add to the map
-					$extraMap[$package['name']] = $package['extra'];
+					// Filter out 'thanks' and 'branch-alias' keys
+					$mapEntry = array_filter($package['extra'], function ($key) {
+						return !in_array($key, ['thanks', 'branch-alias']);
+					}, ARRAY_FILTER_USE_KEY);
+					
+					if (empty($mapEntry)) {
+						continue;
+					}
+					
+					// Add to the map. Filter out 'thanks' and 'branch-alias' keys
+					$extraMap[$package['name']] = $mapEntry;
 				}
 			}
 			
