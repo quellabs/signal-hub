@@ -230,7 +230,7 @@
 					
 					// Filter out 'thanks' and 'branch-alias' keys
 					$mapEntry = array_filter($package['extra'], function ($key) {
-						return !in_array($key, ['thanks', 'branch-alias']);
+						return !in_array($key, ['thanks', 'branch-alias', 'class']);
 					}, ARRAY_FILTER_USE_KEY);
 					
 					// Skip entry if there are no other entries
