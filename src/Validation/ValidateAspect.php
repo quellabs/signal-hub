@@ -144,6 +144,35 @@
 		}
 		
 		/**
+		 * Validates the input data against the given rules.
+		 * Handles nested field structures recursively.
+		 * @param Request $request The HTTP request containing form data
+		 * @param ValidationInterface $rules The validation class containing the rules
+		 * @return array Array of validation errors grouped by field name (preserving nested structure)
+		 */
+		private function validateRequest(Request $request, ValidationInterface $rules): array {
+			// Initialize empty errors array to collect validation failures
+			$errors = [];
+			
+			// Extract all form data from the request object
+			// This includes POST data, file uploads, and other request parameters
+			$requestData = $request->request->all();
+			
+			// Recursively validate each field against its corresponding rules
+			// This method handles both simple fields and nested array structures
+			// Parameters:
+			// - $rules->getRules(): Array of validation rules from the validation class
+			// - $requestData: The actual data to validate
+			// - $errors: Reference to errors array (modified by reference)
+			// - $request: Original request object for context (e.g., file validation)
+			$this->validateFields($rules->getRules(), $requestData, $errors, $request);
+			
+			// Return the collected errors array
+			// Structure: ['field_name' => ['error1', 'error2'], 'nested.field' => ['error3']]
+			return $errors;
+		}
+		
+		/**
 		 * Determines whether request validation should be skipped based on request method and data presence.
 		 * @param Request $request The HTTP request object to evaluate
 		 * @return bool True if validation should be skipped, false otherwise
@@ -301,35 +330,6 @@
 			}
 			
 			return false;
-		}
-		
-		/**
-		 * Validates the input data against the given rules.
-		 * Handles nested field structures recursively.
-		 * @param Request $request The HTTP request containing form data
-		 * @param ValidationInterface $rules The validation class containing the rules
-		 * @return array Array of validation errors grouped by field name (preserving nested structure)
-		 */
-		private function validateRequest(Request $request, ValidationInterface $rules): array {
-			// Initialize empty errors array to collect validation failures
-			$errors = [];
-			
-			// Extract all form data from the request object
-			// This includes POST data, file uploads, and other request parameters
-			$requestData = $request->request->all();
-			
-			// Recursively validate each field against its corresponding rules
-			// This method handles both simple fields and nested array structures
-			// Parameters:
-			// - $rules->getRules(): Array of validation rules from the validation class
-			// - $requestData: The actual data to validate
-			// - $errors: Reference to errors array (modified by reference)
-			// - $request: Original request object for context (e.g., file validation)
-			$this->validateFields($rules->getRules(), $requestData, $errors, $request);
-			
-			// Return the collected errors array
-			// Structure: ['field_name' => ['error1', 'error2'], 'nested.field' => ['error3']]
-			return $errors;
 		}
 		
 		/**
