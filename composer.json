@@ -3,7 +3,10 @@
   "description": "Quellabs Framework Development Environment",
   "type": "project",
   "require": {
-    "php": "^8.2"
+    "php": "^8.2",
+    "monolog/monolog": "*",
+    "symfony/http-foundation": "*",
+    "dragonmantank/cron-expression": "*"
   },
   "require-dev": {
     "phpstan/phpstan": "^1.10",
