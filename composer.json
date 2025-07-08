@@ -1,0 +1,14 @@
+{
+  "autoload": {
+    "psr-4": {
+      "Quellabs\\Contracts\\": "packages/contracts/src/",
+      "Quellabs\\Discover\\": "packages/discover/src/",
+      "Quellabs\\DependencyInjection\\": "packages/dependency-injection/src/",
+      "Quellabs\\Sculpt\\": "packages/sculpt/src/",
+      "Quellabs\\ObjectQuel\\": "packages/objectquel/src/",
+      "Quellabs\\Canvas\\": "packages/canvas/src/",
+      "Quellabs\\Canvas\\ObjectQuel\\": "packages/canvas-objectquel/src/",
+      "Quellabs\\Canvas\\Smarty\\": "packages/canvas-smarty/src/"
+    }
+  }
+}
