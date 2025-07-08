@@ -1,0 +1,30 @@
+name: Sync to Public Repos
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - contracts
+          - discover
+          - dependency-injection
+          - canvas
+          - sculpt
+          - objectquel
+          - canvas-objectquel
+          - canvas-smarty
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_TOKEN }}
+          
+      - name: Sync ${{ matrix.package }}
+        run: |
+          git subtree push --prefix=packages/${{ matrix.package }} https://${{ secrets.SYNC_TOKEN }}@github.com/quellabs/${{ matrix.package }}.git main
