@@ -1,0 +1,13 @@
+parameters:
+    level: 8
+    paths:
+        - packages/canvas/src
+    bootstrapFiles:
+        - vendor/autoload.php
+    scanDirectories:
+        - packages/annotation-reader/src
+        - packages/contracts/src
+        - packages/discover/src
+        - packages/dependency-injection/src
+        - packages/sculpt/src
+        - packages/objectquel/src
