@@ -395,10 +395,11 @@
 		/**
 		 * Resolve path to absolute path within project root
 		 * @param string $path Path to resolve (relative or absolute)
-		 * @return string Resolved absolute path
+		 * @param bool $treatAsRelative Force path to be treated as relative to project root
+		 * @return string The resolved absolute path
 		 */
-		public function resolveProjectPath(string $path): string {
-			return $this->utilities->resolveProjectPath($path);
+		public function resolveProjectPath(string $path, bool $treatAsRelative = false): string {
+			return $this->utilities->resolveProjectPath($path, $treatAsRelative);
 		}
 
 		/**
