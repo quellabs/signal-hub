@@ -2,7 +2,7 @@
 	
 	namespace Quellabs\Canvas\Routing;
 	
-	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\AnnotationReader\Exception\AnnotationReaderException;
 	use Quellabs\Canvas\Exceptions\RouteNotFoundException;
 	use Quellabs\Canvas\Kernel;
 	use ReflectionException;
@@ -108,45 +108,40 @@
 		 * Gets all potential routes from a controller with their priorities
 		 * @param string $controller
 		 * @return array
+		 * @throws AnnotationReaderException
 		 */
 		private function getRoutesFromController(string $controller): array {
 			// Initialize an empty array to store matching routes
 			$routes = [];
 			
-			try {
-				// Fetch the route prefix, if any
-				$routePrefix = $this->getRoutePrefix($controller);
+			// Fetch the route prefix, if any
+			$routePrefix = $this->getRoutePrefix($controller);
+			
+			// Retrieve all route annotations from the controller's methods
+			// This likely uses reflection to scan the controller class for route annotations
+			$routeAnnotations = $this->getMethodRouteAnnotations($controller);
+			
+			// Loop through each method and its associated route annotation
+			foreach ($routeAnnotations as $method => $routeAnnotation) {
+				// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
+				$routePath = $routeAnnotation->getRoute();
 				
-				// Retrieve all route annotations from the controller's methods
-				// This likely uses reflection to scan the controller class for route annotations
-				$routeAnnotations = $this->getMethodRouteAnnotations($controller);
+				// Combine with prefix
+				$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
 				
-				// Loop through each method and its associated route annotation
-				foreach ($routeAnnotations as $method => $routeAnnotation) {
-					// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
-					$routePath = $routeAnnotation->getRoute();
-					
-					// Combine with prefix
-					$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
-					
-					// Calculate priority for route matching order
-					// Routes with more specific patterns typically get higher priority
-					$priority = $this->calculateRoutePriority($completeRoutePath);
-					
-					// Build route data structure with all necessary information
-					$routes[] = [
-						'http_methods' => $routeAnnotation->getMethods(),
-						'controller'   => $controller,        // Controller class name
-						'method'       => $method,            // Method name to invoke
-						'route'        => $routeAnnotation,   // Full annotation object
-						'route_path'   => $completeRoutePath, // URL pattern string
-						'priority'     => $priority           // Numeric priority for sorting
-					];
-				}
-			} catch (\Exception $e) {
-				// Silently handle any reflection or annotation parsing errors
-				// Routes array will remain empty if controller scanning fails
-				// Log exception for debugging if needed
+				// Calculate priority for route matching order
+				// Routes with more specific patterns typically get higher priority
+				$priority = $this->calculateRoutePriority($completeRoutePath);
+				
+				// Build route data structure with all necessary information
+				$routes[] = [
+					'http_methods' => $routeAnnotation->getMethods(),
+					'controller'   => $controller,        // Controller class name
+					'method'       => $method,            // Method name to invoke
+					'route'        => $routeAnnotation,   // Full annotation object
+					'route_path'   => $completeRoutePath, // URL pattern string
+					'priority'     => $priority           // Numeric priority for sorting
+				];
 			}
 			
 			// Return array of route definitions, empty if no matches or errors occurred
@@ -688,6 +683,7 @@
 		 * @param object|string $controller The controller class name or object instance to analyze
 		 * @return array Associative array where keys are method names and values are Route annotation objects
 		 *               Returns an empty array if the controller class doesn't exist or has no route annotations
+		 * @throws AnnotationReaderException
 		 */
 		private function getMethodRouteAnnotations(object|string $controller): array {
 			try {
@@ -702,18 +698,13 @@
 				
 				// Iterate through each method to find Route annotations
 				foreach ($methods as $method) {
-					try {
-						// Retrieve all annotations for current method
-						$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method->getName(), Route::class);
-						
-						// Check each annotation to find Route instances
-						foreach ($annotations as $annotation) {
-							// Add annotation to list
-							$result[$method->getName()] = $annotation;
-						}
-					} catch (ParserException $e) {
-						// Silently ignore parser exceptions for individual methods.
-						// This allows processing to continue even if one method has invalid annotations
+					// Retrieve all annotations for current method
+					$annotations = $this->annotationsReader->getMethodAnnotations($controller, $method->getName(), Route::class);
+					
+					// Check each annotation to find Route instances
+					foreach ($annotations as $annotation) {
+						// Add annotation to list
+						$result[$method->getName()] = $annotation;
 					}
 				}
 				

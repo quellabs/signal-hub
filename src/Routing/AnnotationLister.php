@@ -4,7 +4,7 @@
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
 	use Quellabs\AnnotationReader\Configuration;
-	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\AnnotationReader\Exception\AnnotationReaderException;
 	use Quellabs\Canvas\Annotations\Route;
 	use Quellabs\Canvas\AOP\AspectResolver;
 	use Quellabs\Discover\Discover;
@@ -34,6 +34,8 @@
 		 * Discovers and builds a complete list of all routes in the application
 		 * by scanning controller classes and their annotated methods
 		 * @return array Array of route configurations with controller, method, route, and aspects info
+		 * @throws \ReflectionException
+		 * @throws AnnotationReaderException
 		 */
 		public function getRoutes(?ConfigurationManager $config = null): array {
 			// Get from cache if possible
@@ -60,45 +62,42 @@
 				
 				// Examine each method in the current controller
 				foreach ($classReflection->getMethods() as $method) {
-					try {
-						// Look for Route annotations on this method
-						// Only methods with Route annotations are considered route handlers
-						$routes = $this->annotationsReader->getMethodAnnotations(
-							$method->getDeclaringClass()->getName(),
-							$method->getName(),
-							Route::class
-						);
+					// Look for Route annotations on this method
+					// Only methods with Route annotations are considered route handlers
+					$routes = $this->annotationsReader->getMethodAnnotations(
+						$method->getDeclaringClass()->getName(),
+						$method->getName(),
+						Route::class
+					);
+					
+					// A single method can have multiple Route annotations (multiple routes to same handler)
+					foreach ($routes as $routeAnnotation) {
+						// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
+						$routePath = $routeAnnotation->getRoute();
 						
-						// A single method can have multiple Route annotations (multiple routes to same handler)
-						foreach ($routes as $routeAnnotation) {
-							// Extract the route path pattern (e.g., "/users/{id}", "/api/products")
-							$routePath = $routeAnnotation->getRoute();
-							
-							// Combine route with prefix
-							$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
-							
-							// Create the record
-							$record = [
-								'name'         => $routeAnnotation->getName(),    // The name of the route (can be null)
-								'http_methods' => $routeAnnotation->getMethods(), // A list of http methods
-								'controller'   => $controller,                    // Controller class name
-								'method'       => $method->getName(),             // Method name that handles this route
-								'route'        => $completeRoutePath,             // Route string
-								'aspects'      => $this->getAspectsOfMethod(      // Any interceptors/middleware for this method
-									$method->getDeclaringClass()->getName(),
-									$method->getName()
-								),
-							];
-							
-							// Add to named cache
-							if ($routeAnnotation->getName() !== null) {
-								$this->routeNameCache[$routeAnnotation->getName()] = $record;
-							}
-							
-							// Build complete route configuration including metadata
-							$result[] = $record;
+						// Combine route with prefix
+						$completeRoutePath = "/" . $routePrefix . ltrim($routePath, "/");
+						
+						// Create the record
+						$record = [
+							'name'         => $routeAnnotation->getName(),    // The name of the route (can be null)
+							'http_methods' => $routeAnnotation->getMethods(), // A list of http methods
+							'controller'   => $controller,                    // Controller class name
+							'method'       => $method->getName(),             // Method name that handles this route
+							'route'        => $completeRoutePath,             // Route string
+							'aspects'      => $this->getAspectsOfMethod(      // Any interceptors/middleware for this method
+								$method->getDeclaringClass()->getName(),
+								$method->getName()
+							),
+						];
+						
+						// Add to named cache
+						if ($routeAnnotation->getName() !== null) {
+							$this->routeNameCache[$routeAnnotation->getName()] = $record;
 						}
-					} catch (ParserException $e) {
+						
+						// Build complete route configuration including metadata
+						$result[] = $record;
 					}
 				}
 			}
@@ -138,11 +137,15 @@
 		 * @return bool True if the route exists, false otherwise
 		 */
 		public function routeExists(string $name): bool {
-			// Ensure routes are discovered and the cache is populated
-			$this->getRoutes();
-			
-			// Use the name cache built during route discovery for instant lookup
-			return isset($this->routeNameCache[$name]);
+			try {
+				// Ensure routes are discovered and the cache is populated
+				$this->getRoutes();
+				
+				// Use the name cache built during route discovery for instant lookup
+				return isset($this->routeNameCache[$name]);
+			} catch (AnnotationReaderException | \ReflectionException $e) {
+				return false;
+			}
 		}
 		
 		/**
@@ -153,10 +156,14 @@
 		 */
 		public function getRouteByName(string $name): ?array {
 			// Ensure routes are discovered and the cache is populated
-			$this->getRoutes();
-			
-			// Return route from name cache (null if not found)
-			return $this->routeNameCache[$name] ?? null;
+			try {
+				$this->getRoutes();
+				
+				// Return route from name cache (null if not found)
+				return $this->routeNameCache[$name] ?? null;
+			} catch (AnnotationReaderException | \ReflectionException $e) {
+				return null;
+			}
 		}
 		
 		/**

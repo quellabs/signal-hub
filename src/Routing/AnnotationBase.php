@@ -3,7 +3,7 @@
 	namespace Quellabs\Canvas\Routing;
 	
 	use Quellabs\AnnotationReader\AnnotationReader;
-	use Quellabs\AnnotationReader\Exception\ParserException;
+	use Quellabs\AnnotationReader\Exception\AnnotationReaderException;
 	use Quellabs\Canvas\Annotations\RoutePrefix;
 	
 	class AnnotationBase {
@@ -25,6 +25,7 @@
 		 * Retrieves the route prefix annotation from a given class
 		 * @param string|object $class The class object to examine for route prefix annotations
 		 * @return string The route prefix string, or empty string if no prefix is found
+		 * @throws AnnotationReaderException
 		 */
 		protected function getRoutePrefix(string|object $class): string {
 			// This variable holds all sections
@@ -35,24 +36,21 @@
 			
 			// Walk through the chain and add all route prefixes
 			foreach ($inheritanceChain as $controllerName) {
-				try {
-					// Use the annotations reader to search for RoutePrefix annotations on the class
-					// This returns an AnnotationCollection of all RoutePrefix annotations found on the class
-					$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class);
-					
-					// Skip if no prefix was found
-					if ($annotations->isEmpty()) {
-						continue;
-					}
-					
-					// Add prefix to the list
-					$routePrefix = $annotations[0]->getRoutePrefix();
-					
-					// Only add prefix if it's not empty
-					if ($routePrefix !== '') {
-						$result[] = $routePrefix;
-					}
-				} catch (ParserException $e) {
+				// Use the annotations reader to search for RoutePrefix annotations on the class
+				// This returns an AnnotationCollection of all RoutePrefix annotations found on the class
+				$annotations = $this->annotationsReader->getClassAnnotations($controllerName, RoutePrefix::class);
+				
+				// Skip if no prefix was found
+				if ($annotations->isEmpty()) {
+					continue;
+				}
+				
+				// Add prefix to the list
+				$routePrefix = $annotations[0]->getRoutePrefix();
+				
+				// Only add prefix if it's not empty
+				if ($routePrefix !== '') {
+					$result[] = $routePrefix;
 				}
 			}
 
