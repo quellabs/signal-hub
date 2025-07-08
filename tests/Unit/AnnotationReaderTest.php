@@ -65,7 +65,7 @@
 		};
 		
 		expect(fn() => $this->reader->getMethodAnnotations($classWithInvalidAnnotation, 'broken'))
-			->toThrow(\Quellabs\AnnotationReader\Exception\ParserException::class);
+			->toThrow(\Quellabs\AnnotationReader\Exception\AnnotationReaderException::class);
 	});
 	
 	it('has use statement parser', function () {
