@@ -377,9 +377,28 @@
 		 * Resolves relative path components without checking file existence
 		 * @param string $path The path to resolve (e.g., "hallo/../test")
 		 * @return string The resolved path (e.g., "test")
+		 * @deprecated Use normalizePath instead
 		 */
 		public function resolvePath(string $path): string {
-			return $this->utilities->resolvePath($path);
+			return $this->utilities->normalizePath($path);
+		}
+		
+		/**
+		 * Resolves relative path components without checking file existence
+		 * @param string $path The path to resolve (e.g., "hallo/../test")
+		 * @return string The resolved path (e.g., "test")
+		 */
+		public function normalizePath(string $path): string {
+			return $this->utilities->normalizePath($path);
+		}
+		
+		/**
+		 * Resolve path to absolute path within project root
+		 * @param string $path Path to resolve (relative or absolute)
+		 * @return string Resolved absolute path
+		 */
+		public function resolveProjectPath(string $path): string {
+			return $this->utilities->resolveProjectPath($path);
 		}
 
 		/**
