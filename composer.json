@@ -17,6 +17,7 @@
       "Quellabs\\Contracts\\": "packages/contracts/src/",
       "Quellabs\\Discover\\": "packages/discover/src/",
       "Quellabs\\DependencyInjection\\": "packages/dependency-injection/src/",
+      "Quellabs\\AnnotationReader\\": "packages/annotation-reader/src/",
       "Quellabs\\Sculpt\\": "packages/sculpt/src/",
       "Quellabs\\ObjectQuel\\": "packages/objectquel/src/",
       "Quellabs\\Canvas\\": "packages/canvas/src/",
