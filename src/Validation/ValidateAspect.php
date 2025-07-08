@@ -305,35 +305,128 @@
 		
 		/**
 		 * Validates the input data against the given rules.
-		 * Iterates through each field and applies all its validators,
-		 * stopping at the first validation failure per field.
+		 * Handles nested field structures recursively.
 		 * @param Request $request The HTTP request containing form data
 		 * @param ValidationInterface $rules The validation class containing the rules
-		 * @return array Array of validation errors grouped by field name
+		 * @return array Array of validation errors grouped by field name (preserving nested structure)
 		 */
 		private function validateRequest(Request $request, ValidationInterface $rules): array {
+			// Initialize empty errors array to collect validation failures
 			$errors = [];
 			
-			// Process each field and its validation rules
-			foreach ($rules->getRules() as $fieldName => $validators) {
-				// Get field value from request (checks both POST and GET data)
-				$fieldValue = $request->get($fieldName);
+			// Extract all form data from the request object
+			// This includes POST data, file uploads, and other request parameters
+			$requestData = $request->request->all();
+			
+			// Recursively validate each field against its corresponding rules
+			// This method handles both simple fields and nested array structures
+			// Parameters:
+			// - $rules->getRules(): Array of validation rules from the validation class
+			// - $requestData: The actual data to validate
+			// - $errors: Reference to errors array (modified by reference)
+			// - $request: Original request object for context (e.g., file validation)
+			$this->validateFields($rules->getRules(), $requestData, $errors, $request);
+			
+			// Return the collected errors array
+			// Structure: ['field_name' => ['error1', 'error2'], 'nested.field' => ['error3']]
+			return $errors;
+		}
+		
+		/**
+		 * Recursively validates fields, handling nested field structures
+		 * Fixed version that creates flattened error keys using dot notation
+		 * @param array $rules The validation rules (can be nested)
+		 * @param array $data The data to validate (can be nested)
+		 * @param array &$errors Reference to the errors array to populate (uses flattened keys)
+		 * @param Request $request The HTTP request object
+		 * @param string $prefix Current field path prefix for building dot notation keys
+		 */
+		private function validateFields(array $rules, array $data, array &$errors, Request $request, string $prefix = ''): void {
+			// Loop through each field in the validation rules
+			foreach ($rules as $fieldName => $validators) {
+				// Build the full field name using dot notation
+				// For nested fields like customer.name, this creates the complete path
+				$fullFieldName = $prefix ? "{$prefix}.{$fieldName}" : $fieldName;
 				
-				// Normalize validators to array format for consistent processing
-				$validators = is_array($validators) ? $validators : [$validators];
+				// Get the field value from the current data level
+				// Uses null coalescing to handle missing fields gracefully
+				$fieldValue = $data[$fieldName] ?? null;
 				
-				// Apply each validator to the current field
-				foreach ($validators as $validator) {
-					// Run the validation check
-					if (!$validator->validate($fieldValue, $request)) {
-						// Validation failed - generate an error message with variable substitution
-						$errors[$fieldName][] = $this->replaceVariablesInErrorString(
-							$validator->getError(), [
-								'key'   => $fieldName,  // Field name for an error message
-								'value' => $fieldValue, // Actual field value
-							]
-						);
+				// Check if this is a nested field structure (validators is an associative array of field names)
+				// vs a field with actual validators (array of validator objects)
+				if (!$this->isNestedFieldStructure($validators)) {
+					// This is a field with actual validators, validate it directly
+					$fieldErrors = $this->validateSingleField($fullFieldName, $fieldValue, $validators, $request);
+					
+					// Add any errors found for this field using the flattened key
+					// This ensures consistent error structure: ['customer.name' => ['error'], 'address' => ['error']]
+					if (!empty($fieldErrors)) {
+						$errors[$fullFieldName] = $fieldErrors; // Flattened key instead of nested array
 					}
+					
+					// Move to next field
+					continue;
+				}
+				
+				// Recursively validate the nested fields
+				// Pass the current full field name as the new prefix to build proper dot notation
+				// e.g., if we're validating 'customer' and now validating 'name', prefix becomes 'customer'
+				$this->validateFields($validators, $fieldValue, $errors, $request, $fullFieldName);
+			}
+		}
+		
+		/**
+		 * Determines if an array represents a nested field structure or a list of validators
+		 * @param array $validators The array to check
+		 * @return bool True if it's a nested field structure, false if it's validators
+		 */
+		private function isNestedFieldStructure(array $validators): bool {
+			// If the array is empty, it's not a nested structure
+			if (empty($validators)) {
+				return false;
+			}
+			
+			// Check if all keys are strings (field names) and none are numeric indices
+			foreach ($validators as $value) {
+				// If the value is an object that implements ValidationInterface, this is a validator array
+				if ($value instanceof ValidationInterface) {
+					return false;
+				}
+			}
+			
+			return true;
+		}
+		
+		/**
+		 * Validates a single field against its validators
+		 * @param string $fieldName The name of the field being validated
+		 * @param mixed $fieldValue The value of the field from the request
+		 * @param mixed $validators The validator(s) for this field
+		 * @param Request $request The HTTP request object
+		 * @return array Array of validation errors for this field
+		 */
+		private function validateSingleField(string $fieldName, $fieldValue, $validators, Request $request): array {
+			$errors = [];
+			
+			// Normalize validators to array format for consistent processing
+			$validators = is_array($validators) ? $validators : [$validators];
+			
+			// Apply each validator to the current field
+			foreach ($validators as $validator) {
+				// Skip if this is somehow still a nested array (shouldn't happen with proper structure detection)
+				if (is_array($validator)) {
+					continue;
+				}
+				
+				// Run the validation check
+				if (!$validator->validate($fieldValue, $request)) {
+					// Validation failed - generate an error message with variable substitution
+					$errors[] = $this->replaceVariablesInErrorString(
+						$validator->getError(), [
+							'key'   => $fieldName,  // Field name for an error message
+							'value' => $fieldValue, // Actual field value
+						]
+					);
 				}
 			}
 			
