@@ -2,13 +2,13 @@
 	
 	namespace Quellabs\Canvas\Validation;
 	
+	use Quellabs\Canvas\Validation\Contracts\ValidationInterface;
 	use Quellabs\Contracts\AOP\BeforeAspect;
 	use Quellabs\Contracts\AOP\MethodContext;
 	use Symfony\Component\HttpFoundation\Request;
 	use Symfony\Component\HttpFoundation\Response;
 	use Symfony\Component\HttpFoundation\JsonResponse;
 	use Quellabs\Contracts\DependencyInjection\Container;
-	use Quellabs\Canvas\Validation\Contracts\ValidationInterface;
 	
 	/**
 	 * Form validation aspect that intercepts method calls to validate request data
@@ -45,7 +45,6 @@
 		 * @throws \InvalidArgumentException If validation class doesn't exist or implement interface
 		 */
 		public function __construct(Container $di, string $validate, bool $autoRespond = false, ?string $formId = null) {
-			$this->validateValidationClass($validate);
 			$this->di = $di;
 			$this->validationClass = $validate;
 			$this->autoRespond = $autoRespond;
@@ -69,15 +68,8 @@
 				return null;
 			}
 			
-			try {
-				// Instantiate the validation class to get the rules
-				// This creates a new instance of the validation class specified in $this->validationClass
-				$validator = $this->di->make($this->validationClass);
-			} catch (\Throwable $e) {
-				// If validation class instantiation fails, throw a more descriptive runtime exception
-				// This could happen if the class doesn't exist or has constructor issues
-				throw new \RuntimeException("Failed to instantiate validation class '{$this->validationClass}': " . $e->getMessage(), 0, $e);
-			}
+			// Validate the class
+			$validator = $this->createValidator();
 			
 			// Validate the request data against the defined rules
 			// This calls a helper method that applies validation rules to the request data
@@ -101,16 +93,13 @@
 				// This allows the controller to access validation results and render appropriate views
 				$request->attributes->set("{$prefix}validation_passed", false);
 				$request->attributes->set("{$prefix}validation_errors", $errors);
-			} else {
-				// Validation passed - set success flags
-				// Mark the data as valid so the controller knows validation succeeded
-				$request->attributes->set("{$prefix}validation_passed", true);
-				$request->attributes->set("{$prefix}validation_errors", []); // Empty array for consistency
+				return null;
 			}
 			
-			// Return null to continue execution to the target method
-			// Returning null signals that the interceptor should continue to the actual controller method
-			// Only non-null Response objects will terminate the request early
+			// Validation passed - set success flags
+			// Mark the data as valid so the controller knows validation succeeded
+			$request->attributes->set("{$prefix}validation_passed", true);
+			$request->attributes->set("{$prefix}validation_errors", []); // Empty array for consistency
 			return null;
 		}
 		
@@ -123,6 +112,35 @@
 				'message' => 'Validation failed',
 				'errors'  => $errors
 			], 422);
+		}
+		
+		/**
+		 * Creates and returns a validator instance.
+		 * @return ValidationInterface The sanitizer instance
+		 * @throws \InvalidArgumentException If sanitization class is invalid
+		 * @throws \RuntimeException If sanitization class cannot be instantiated
+		 */
+		private function createValidator(): ValidationInterface {
+			// Check if the specified class exists in the current namespace/autoloader
+			// This prevents runtime errors when trying to instantiate non-existent classes
+			if (!class_exists($this->validationClass)) {
+				throw new \InvalidArgumentException("Validation class '{$this->validationClass}' does not exist");
+			}
+			
+			// Verify that the class implements the ValidationInterface
+			// This ensures the class has all required methods defined by the interface contract
+			// Using is_subclass_of() to check interface implementation (works for both classes and interfaces)
+			if (!is_subclass_of($this->validationClass, ValidationInterface::class)) {
+				throw new \InvalidArgumentException("Validation class '{$this->validationClass}' must implement ValidationInterface");
+			}
+			
+			try {
+				// Instantiate the sanitization class to get the rules
+				return $this->di->make($this->validationClass);
+			} catch (\Throwable $e) {
+				// If validation class instantiation fails, throw a more descriptive runtime exception
+				throw new \RuntimeException("Failed to instantiate validation class '{$this->validationClass}': " . $e->getMessage(), 0, $e);
+			}
 		}
 		
 		/**
@@ -170,27 +188,7 @@
 			// requests that actually contain data to validate
 			return false;
 		}
-		
-		/**
-		 * Validates that the validation class exists and implements the required interface
-		 * @param string $validationClass The validation class to validate
-		 * @throws \InvalidArgumentException If class is invalid
-		 */
-		private function validateValidationClass(string $validationClass): void {
-			// Check if the specified class exists in the current namespace/autoloader
-			// This prevents runtime errors when trying to instantiate non-existent classes
-			if (!class_exists($validationClass)) {
-				throw new \InvalidArgumentException("Validation class '{$validationClass}' does not exist");
-			}
-			
-			// Verify that the class implements the ValidationInterface
-			// This ensures the class has all required methods defined by the interface contract
-			// Using is_subclass_of() to check interface implementation (works for both classes and interfaces)
-			if (!is_subclass_of($validationClass, ValidationInterface::class)) {
-				throw new \InvalidArgumentException("Validation class '{$validationClass}' must implement ValidationInterface");
-			}
-		}
-		
+
 		/**
 		 * Determines if the request expects a JSON response
 		 * Checks Accept header, Content-Type header, URL path patterns, and request format

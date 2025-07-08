@@ -321,13 +321,13 @@ Define your validation rules in dedicated classes:
 <?php
 namespace App\Validation;
 
-use Quellabs\Canvas\Validation\Contracts\ValidationInterface;
+use Quellabs\Canvas\Validation\Contracts\SanitizationInterface;
 use Quellabs\Canvas\Validation\Rules\NotBlank;
 use Quellabs\Canvas\Validation\Rules\Email;
 use Quellabs\Canvas\Validation\Rules\Length;
 use Quellabs\Canvas\Validation\Rules\ValueIn;
 
-class UserValidation implements ValidationInterface {
+class UserValidation implements SanitizationInterface {
     
     public function getRules(): array {
         return [
@@ -401,9 +401,9 @@ Create your own validation rules by implementing the `ValidationRuleInterface`:
 <?php
 namespace App\Validation\Rules;
 
-use Quellabs\Canvas\Validation\Contracts\ValidationRuleInterface;
+use Quellabs\Canvas\Validation\Contracts\SanitizationRuleInterface;
 
-class StrongPassword implements ValidationRuleInterface {
+class StrongPassword implements SanitizationRuleInterface {
     
     public function validate($value, array $options = []): bool {
         if (empty($value)) {
