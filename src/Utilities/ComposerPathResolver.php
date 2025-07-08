@@ -22,7 +22,7 @@
 		 * Cache for path resolving paths
 		 * @var array
 		 */
-		private array $resolvedPaths = [];
+		private array $normalizedPaths = [];
 		
 		/**
 		 * Gets the Composer autoloader instance
@@ -266,20 +266,39 @@
 		 * @param string $path The path to resolve (e.g., "hallo/../test")
 		 * @return string The resolved path (e.g., "test")
 		 */
-		public function resolvePath(string $path): string {
+		public function normalizePath(string $path): string {
 			// Check if this path has already been resolved and cached
-			if (isset($this->resolvedPaths[$path])) {
-				return $this->resolvedPaths[$path];
+			if (isset($this->normalizedPaths[$path])) {
+				return $this->normalizedPaths[$path];
 			}
 			
 			// Perform the actual path resolution logic
 			$resolved = $this->doResolvePath($path);
 			
 			// Cache the resolved path for future lookups to improve performance
-			$this->resolvedPaths[$path] = $resolved;
+			$this->normalizedPaths[$path] = $resolved;
 			
 			// Return the resolved path
 			return $resolved;
+		}
+		
+		/**
+		 * Resolve path to absolute path within project root
+		 * @param string $path Path to resolve (relative or absolute)
+		 * @param bool $treatAsRelative Force path to be treated as relative to project root
+		 * @return string The resolved absolute path
+		 */
+		public function resolveProjectPath(string $path, bool $treatAsRelative = false): string {
+			// Treat as relative to project root when flag is set, or when path is actually relative
+			if (!$treatAsRelative && $this->isAbsolutePath($path)) {
+				return rtrim($path, '/\\');
+			}
+			
+			// Resolve as relative to project root
+			$resolvedPath = $this->getProjectRoot() . DIRECTORY_SEPARATOR . ltrim($path, '/\\');
+			
+			// Normalize path separators and remove trailing separator
+			return rtrim($resolvedPath, DIRECTORY_SEPARATOR);
 		}
 		
 		/**
@@ -500,6 +519,38 @@
 		 */
 		private function extractClassNameFromFile(string $filename): string {
 			return pathinfo($filename, PATHINFO_FILENAME);
+		}
+		
+		/**
+		 * Check if a path is absolute
+		 * @param string $path Path to check
+		 * @return bool True if path is absolute, false if relative
+		 */
+		private function isAbsolutePath(string $path): bool {
+			// Empty path is considered relative
+			if (empty($path)) {
+				return false;
+			}
+			
+			// Unix/Linux absolute paths start with /
+			if ($path[0] === '/') {
+				return true;
+			}
+			
+			// Windows absolute paths (C:\, D:\, etc.)
+			if (PHP_OS_FAMILY === 'Windows' && strlen($path) >= 3) {
+				// Check for drive letter pattern: C:\, D:\, etc.
+				if (ctype_alpha($path[0]) && $path[1] === ':' && ($path[2] === '\\' || $path[2] === '/')) {
+					return true;
+				}
+			}
+			
+			// Windows UNC paths (\\server\share)
+			if (PHP_OS_FAMILY === 'Windows' && strlen($path) >= 2 && $path[0] === '\\' && $path[1] === '\\') {
+				return true;
+			}
+			
+			return false;
 		}
 		
 		/**
