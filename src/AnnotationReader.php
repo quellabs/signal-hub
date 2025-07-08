@@ -2,7 +2,6 @@
 	
 	namespace Quellabs\AnnotationReader;
 	
-	use PHPStan\Reflection\ClassReflection;
 	use Quellabs\AnnotationReader\Collection\AnnotationCollection;
 	use Quellabs\AnnotationReader\Exception\AnnotationReaderException;
 	use Quellabs\AnnotationReader\Exception\LexerException;
