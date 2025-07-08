@@ -40,13 +40,13 @@
 		/**
 		 * ValidateFormAspect constructor
 		 * @param Container $di The Dependency Injector object
-		 * @param string $validate The validation class name that contains the rules
+		 * @param string $validator The validation class name that contains the rules
 		 * @param bool $autoRespond In the case of JSON, send an auto response
 		 * @throws \InvalidArgumentException If validation class doesn't exist or implement interface
 		 */
-		public function __construct(Container $di, string $validate, bool $autoRespond = false, ?string $formId = null) {
+		public function __construct(Container $di, string $validator, bool $autoRespond = false, ?string $formId = null) {
 			$this->di = $di;
-			$this->validationClass = $validate;
+			$this->validationClass = $validator;
 			$this->autoRespond = $autoRespond;
 			$this->formId = $formId;
 		}

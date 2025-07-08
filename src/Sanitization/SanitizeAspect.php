@@ -31,11 +31,11 @@
 		
 		/**
 		 * Constructor to initialize the sanitization class.
-		 * @param string|null $sanitizationClass The fully qualified class name of the sanitization class
+		 * @param string|null $sanitizer The fully qualified class name of the sanitization class
 		 */
-		public function __construct(Container $di, ?string $sanitizationClass = null) {
+		public function __construct(Container $di, ?string $sanitizer = null) {
 			$this->di = $di;
-			$this->sanitizationClass = $sanitizationClass;
+			$this->sanitizationClass = $sanitizer;
 		}
 		
 		/**

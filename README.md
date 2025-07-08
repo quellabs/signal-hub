@@ -282,7 +282,7 @@ class UserController extends BaseController {
     
     /**
      * @Route("/users/create", methods={"GET", "POST"})
-     * @InterceptWith(ValidateAspect::class, validate=UserValidation::class)
+     * @InterceptWith(ValidateAspect::class, validator=UserValidation::class)
      */
     public function create(Request $request) {
         if ($request->isMethod('POST')) {
@@ -375,7 +375,7 @@ For API endpoints, enable automatic JSON error responses. When `auto_respond=tru
 ```php
 /**
  * @Route("/api/users", methods={"POST"})
- * @InterceptWith(ValidateAspect::class, validate=UserValidation::class, auto_respond=true)
+ * @InterceptWith(ValidateAspect::class, validator=UserValidation::class, auto_respond=true)
  */
 public function createUser(Request $request) {
     // For API requests, validation failures automatically return JSON:
